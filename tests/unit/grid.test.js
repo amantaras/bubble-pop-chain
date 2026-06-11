@@ -143,6 +143,41 @@ describe("grid / Board", () => {
     expect(b.sprites.length).toBe(startCount - 1);
     expect(b.isIdle()).toBe(true);
   });
+
+  it("serialize() / restore() round-trips the colour grid exactly", () => {
+    const b = new Board(6, 8, 4, 99);
+    b.layout(400, 800, 100, 80);
+    // Mutate the board so it differs from a freshly generated one.
+    b.removeCells(b.getGroupAt(0, 0), null);
+    b.settle();
+    const snapshot = b.serialize();
+
+    const restored = new Board(6, 8, 4, 99);
+    restored.layout(400, 800, 100, 80);
+    restored.restore(snapshot);
+
+    expect(restored.serialize()).toEqual(snapshot);
+    // A sprite exists for every non-empty cell, placed at its resting target.
+    expect(restored.isIdle()).toBe(true);
+    for (let c = 0; c < restored.cols; c++) {
+      for (let r = 0; r < restored.rows; r++) {
+        const hasSprite = !!restored.spriteGrid[c][r];
+        expect(hasSprite).toBe(restored.grid[c][r] !== -1);
+        if (hasSprite) {
+          const t = restored.targetPixel(c, r);
+          expect(restored.spriteGrid[c][r].x).toBe(t.x);
+          expect(restored.spriteGrid[c][r].y).toBe(t.y);
+        }
+      }
+    }
+  });
+
+  it("serialize() returns an independent copy", () => {
+    const b = new Board(3, 3, 3, 7);
+    const snap = b.serialize();
+    snap[0][0] = 999;
+    expect(b.grid[0][0]).not.toBe(999);
+  });
 });
 
 function colourHistogram(board) {

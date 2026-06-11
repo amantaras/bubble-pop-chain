@@ -53,6 +53,7 @@ class Game {
       startEndless: () => this.startEndless(),
       startDaily: () => this.startDaily(),
       quitToMenu: () => this.quitToMenu(),
+      resumeCampaign: () => this.resumeCampaign(),
       armPowerup: (type, btn) => this.armPowerup(type, btn),
       nextLevel: () => this.nextLevel(),
       retryLevel: () => this.retryLevel(),
@@ -119,6 +120,13 @@ class Game {
       doubled: false,
       revived: false,
     };
+    this._enterSession();
+    if (mode === "campaign") this._persistSession();
+  }
+
+  // Shared UI/state setup used by both fresh and resumed sessions.
+  _enterSession() {
+    const board = this.session.board;
     board.layout(this.W, this.H, TOP_INSET, BOTTOM_INSET);
     this.particles.particles.length = 0;
     this.floating.items.length = 0;
@@ -129,6 +137,61 @@ class Game {
     UI.updatePowerups();
     this.input.setEnabled(true);
     this.refreshHud();
+  }
+
+  // ---- Resume of an in-progress campaign level -------------------------
+  hasResumableSession() {
+    const snap = Storage.get("activeSession");
+    return !!(snap && snap.mode === "campaign" && !snap.ended);
+  }
+
+  resumeLevelId() {
+    const snap = Storage.get("activeSession");
+    return snap && snap.mode === "campaign" ? snap.levelId : null;
+  }
+
+  resumeCampaign() {
+    const snap = Storage.get("activeSession");
+    if (!snap || snap.mode !== "campaign") return this.quitToMenu();
+    clearTimeout(this._endTimer);
+    const level = getLevel(snap.levelId);
+    const board = new Board(level.cols, level.rows, level.colors, level.seed);
+    board.layout(this.W, this.H, TOP_INSET, BOTTOM_INSET);
+    board.restore(snap.grid);
+    this.session = {
+      mode: "campaign",
+      level,
+      board,
+      score: snap.score,
+      movesLeft: snap.movesLeft,
+      combo: 0,
+      comboTimer: 0,
+      armed: null,
+      ended: false,
+      coinsEarned: 0,
+      doubled: false,
+      revived: !!snap.revived,
+    };
+    this._enterSession();
+  }
+
+  // Persist or clear the in-progress campaign snapshot.
+  _persistSession() {
+    const s = this.session;
+    if (!s || s.mode !== "campaign" || s.ended) return;
+    Storage.set("activeSession", {
+      mode: "campaign",
+      levelId: s.level.id,
+      score: s.score,
+      movesLeft: s.movesLeft,
+      revived: s.revived,
+      ended: false,
+      grid: s.board.serialize(),
+    });
+  }
+
+  _clearActiveSession() {
+    if (Storage.get("activeSession")) Storage.set("activeSession", null);
   }
 
   startCampaign(id) {
@@ -334,6 +397,9 @@ class Game {
     } else if (s.mode === "daily") {
       if (deadlock) this._scheduleEnd(true, "daily");
     }
+
+    // Save the in-progress campaign so it can be resumed later.
+    this._persistSession();
   }
 
   _scheduleEnd(won, reason) {
@@ -346,6 +412,7 @@ class Game {
 
   async _finish(won, reason) {
     const s = this.session;
+    this._clearActiveSession();
 
     if (s.mode === "campaign") {
       if (won) {
@@ -433,6 +500,7 @@ class Game {
       UI.toast("Board shuffled — keep going!");
     }
     this.refreshHud();
+    this._persistSession();
   }
 
   async doubleCoins() {
@@ -449,6 +517,9 @@ class Game {
 
   quitToMenu() {
     clearTimeout(this._endTimer);
+    // Keep the in-progress campaign snapshot so the player can resume it;
+    // it is only cleared when the level is actually finished.
+    this._persistSession();
     this.session = null;
     this.input.setEnabled(false);
     UI.showScreen("menu");

@@ -58,8 +58,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   navigation, popping via real taps, scoring, win/lose, revive and double-coins
   rewarded-ad flows, endless refill, daily streak, all three power-ups, shop
   purchases, "remove ads", theme buy/apply, sound toggle, PWA service-worker
-  registration, manifest reachability, and progress persistence across reloads.
-  Both a mobile (Pixel 7) and a desktop Chromium profile are run.
+  registration, manifest reachability, progress persistence across reloads, and
+  resuming an in-progress campaign level (save & Continue). Both a mobile
+  (Pixel 7) and a desktop Chromium profile are run.
 
 ### The test hook
 
@@ -123,4 +124,4 @@ flowchart LR
 - No console errors on load; service worker registers; manifest is valid.
 - Coverage of all gameplay code paths: pop/scoring/combo, gravity/collapse,
   win/lose/revive/double, endless, daily, three power-ups, shop, themes,
-  persistence.
+  persistence, and resume/continue of an in-progress level.

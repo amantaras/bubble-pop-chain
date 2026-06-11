@@ -71,6 +71,35 @@ export class Board {
     this._initSpritePositions();
   }
 
+  // ---- Save / restore ---------------------------------------------------
+  // Return a plain 2D array of colour indices (-1 for empty) for persistence.
+  serialize() {
+    return this.grid.map((col) => col.slice());
+  }
+
+  // Replace the colour grid from a saved snapshot and rebuild sprites so the
+  // board appears exactly as it was, already settled (no drop-in animation).
+  restore(grid2d) {
+    this.grid = grid2d.map((col) => col.slice());
+    this._buildSprites();
+    this.snapToTargets();
+    return this;
+  }
+
+  // Place every sprite at its resting target position (used when resuming).
+  snapToTargets() {
+    for (const s of this.sprites) {
+      const t = this.targetPixel(s.c, s.r);
+      s.x = t.x;
+      s.y = t.y;
+      s.scale = 1;
+      s.alpha = 1;
+      s.state = "idle";
+      s.t = 0;
+      s.delay = 0;
+    }
+  }
+
   _initSpritePositions() {
     for (const s of this.sprites) {
       const t = this.targetPixel(s.c, s.r);

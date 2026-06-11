@@ -24,6 +24,7 @@ class UIManager {
       "menu", "levelmap", "shop", "themes", "hud", "win", "lose",
       "menu-coins", "lm-coins", "shop-coins", "themes-coins", "hud-coins",
       "level-grid", "shop-list", "theme-list",
+      "btn-continue",
       "hud-mode-label", "hud-score", "hud-target", "hud-target-wrap",
       "hud-moves", "hud-moves-label", "hud-progress-fill",
       "pu-bomb-count", "pu-color-count", "pu-shuffle-count",
@@ -47,6 +48,7 @@ class UIManager {
     };
 
     // Main menu
+    click("btn-continue", () => this.cb.resumeCampaign && this.cb.resumeCampaign());
     click("btn-play", () => this.showScreen("levelmap"));
     click("btn-endless", () => this.cb.startEndless && this.cb.startEndless());
     click("btn-daily", () => this.cb.startDaily && this.cb.startDaily());
@@ -106,9 +108,26 @@ class UIManager {
     this.showHud(false);
     if (name && this.el[name]) this.el[name].classList.remove("hidden");
     this.refreshCoins();
+    if (name === "menu") this.updateContinue();
     if (name === "levelmap") this.buildLevelMap();
     if (name === "shop") this.buildShop();
     if (name === "themes") this.buildThemes();
+  }
+
+  // Show a "Continue" entry on the menu when a campaign level is in progress.
+  updateContinue() {
+    const btn = this.el["btn-continue"];
+    if (!btn) return;
+    const play = $("btn-play");
+    const snap = Storage.get("activeSession");
+    if (snap && snap.mode === "campaign" && !snap.ended) {
+      btn.textContent = `Continue • Level ${snap.levelId}`;
+      btn.classList.remove("hidden");
+      if (play) play.classList.remove("btn-primary");
+    } else {
+      btn.classList.add("hidden");
+      if (play) play.classList.add("btn-primary");
+    }
   }
 
   refreshCoins() {

@@ -405,3 +405,89 @@ test.describe("persistence & PWA", () => {
     expect(json.name).toBe("Bubble Pop Chain");
   });
 });
+
+test.describe("resume in-progress level (save & continue)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("quitting to menu keeps progress and Continue resumes the same board", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(700);
+    // Make a real move so there is in-progress state to preserve.
+    const cell = await findGroupCell(page);
+    await tapCell(page, cell.c, cell.r);
+    await page.waitForTimeout(300);
+
+    const before = await page.evaluate(() => ({
+      score: window.__bpc.game.session.score,
+      moves: window.__bpc.game.session.movesLeft,
+      grid: window.__bpc.game.session.board.serialize(),
+    }));
+    expect(before.score).toBeGreaterThan(0);
+
+    // Quit to menu using the real in-game Back button.
+    await page.locator("#btn-back").click();
+    await expect(page.locator("#menu")).toBeVisible();
+    const cont = page.locator("#btn-continue");
+    await expect(cont).toBeVisible();
+    await expect(cont).toContainText("Level 2");
+
+    await cont.click();
+    await expect(page.locator("#hud")).toBeVisible();
+    await expect(page.locator("#hud-mode-label")).toHaveText("Level 2");
+    const after = await page.evaluate(() => ({
+      score: window.__bpc.game.session.score,
+      moves: window.__bpc.game.session.movesLeft,
+      grid: window.__bpc.game.session.board.serialize(),
+    }));
+    expect(after.score).toBe(before.score);
+    expect(after.moves).toBe(before.moves);
+    expect(after.grid).toEqual(before.grid);
+  });
+
+  test("an in-progress level resumes after a full reload", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(3));
+    await page.waitForTimeout(700);
+    const cell = await findGroupCell(page);
+    await tapCell(page, cell.c, cell.r);
+    await page.waitForTimeout(300);
+    const before = await page.evaluate(() => ({
+      score: window.__bpc.game.session.score,
+      moves: window.__bpc.game.session.movesLeft,
+    }));
+    // Return to the menu so the snapshot is the active state, then reload.
+    await page.locator("#btn-back").click();
+    await expect(page.locator("#menu")).toBeVisible();
+
+    await page.reload();
+    await page.waitForFunction(() => window.__bpc && window.__bpc.game);
+    const cont = page.locator("#btn-continue");
+    await expect(cont).toBeVisible();
+    await expect(cont).toContainText("Level 3");
+    await cont.click();
+    await expect(page.locator("#hud-mode-label")).toHaveText("Level 3");
+    const after = await page.evaluate(() => ({
+      score: window.__bpc.game.session.score,
+      moves: window.__bpc.game.session.movesLeft,
+    }));
+    expect(after.score).toBe(before.score);
+    expect(after.moves).toBe(before.moves);
+  });
+
+  test("finishing a level clears the saved session and hides Continue", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await page.waitForTimeout(600);
+    await autoPlay(page);
+    await expect(page.locator("#win")).toBeVisible();
+    await page.locator("#win-menu").click();
+    await expect(page.locator("#menu")).toBeVisible();
+    await expect(page.locator("#btn-continue")).toBeHidden();
+    const snap = await page.evaluate(
+      () => JSON.parse(localStorage.getItem("bpc_save_v1")).activeSession
+    );
+    expect(snap).toBeNull();
+  });
+});

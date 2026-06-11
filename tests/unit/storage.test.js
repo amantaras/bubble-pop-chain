@@ -60,4 +60,23 @@ describe("storage", () => {
     }
     expect(Storage.get("coins")).toBe(0);
   });
+
+  it("activeSession defaults to null and round-trips an object snapshot", () => {
+    expect(Storage.get("activeSession")).toBeNull();
+    const snap = {
+      mode: "campaign",
+      levelId: 3,
+      score: 420,
+      movesLeft: 7,
+      revived: false,
+      ended: false,
+      grid: [[0, 1], [-1, 2]],
+    };
+    Storage.set("activeSession", snap);
+    const raw = JSON.parse(localStorage.getItem("bpc_save_v1"));
+    expect(raw.activeSession).toEqual(snap);
+    // Clearing it stores null again.
+    Storage.set("activeSession", null);
+    expect(Storage.get("activeSession")).toBeNull();
+  });
 });

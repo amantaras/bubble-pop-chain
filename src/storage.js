@@ -15,6 +15,7 @@ const DEFAULT_SAVE = {
   powerups: { bomb: 1, colorClear: 1, shuffle: 1 },
   daily: { lastDate: null, streak: 0, bestStreak: 0, lastScore: 0 },
   firstRunDone: false,
+  activeSession: null, // snapshot of an in-progress campaign level (resume)
 };
 
 function deepDefault(saved) {
