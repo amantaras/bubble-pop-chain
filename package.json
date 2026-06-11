@@ -1,0 +1,22 @@
+{
+  "name": "bubble-pop-chain",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Bubble Pop Chain — mobile PWA puzzle game",
+  "scripts": {
+    "serve": "node tests/server.mjs 4173",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:install": "playwright install --with-deps chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1",
+    "jsdom": "^25.0.1",
+    "vitest": "^2.1.8"
+  }
+}

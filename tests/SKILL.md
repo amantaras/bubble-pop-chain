@@ -1,0 +1,126 @@
+---
+name: bubble-pop-chain-testing
+description: >-
+  Full end-to-end and unit testing workflow for the Bubble Pop Chain game, plus
+  the CI/CD gate that must pass before shipping to production. WHEN: "test the
+  game", "run the tests", "add a test", "e2e test", "playwright", "vitest",
+  "CI failing", "deploy the game", "release the game", "verify before
+  production". Covers real-browser E2E (no mocking), logic unit tests, the test
+  hook, and the GitHub Actions test-before-deploy pipeline.
+---
+
+# Bubble Pop Chain — Testing & CI/CD Skill
+
+This skill describes how to fully test the game end to end and how the
+production deployment is gated on those tests. There is **no mocking of game
+code**: unit tests exercise the real modules, and E2E tests drive the real
+running game in a real Chromium browser.
+
+## Layout
+
+| Path | Purpose |
+| --- | --- |
+| `tests/unit/*.test.js` | Vitest logic/integration tests (jsdom) |
+| `tests/e2e/game.spec.js` | Playwright E2E tests (real browser, real input) |
+| `tests/server.mjs` | Zero-dependency static server used by tests & preview |
+| `tests/setup.js` | Deterministic in-memory `localStorage` for unit tests |
+| `vitest.config.js` | Vitest config (jsdom env, coverage) |
+| `playwright.config.js` | Playwright config (mobile + desktop projects, webServer) |
+| `.github/workflows/ci.yml` | Test gate — runs on every push/PR |
+| `.github/workflows/deploy.yml` | Deploys to GitHub Pages only after CI passes |
+
+## Commands
+
+```bash
+npm install                 # install dev deps (first time)
+npm run test:install        # install Playwright Chromium (first time / CI)
+
+npm run test:unit           # Vitest unit + integration (fast)
+npm run test:e2e            # Playwright E2E (real browser)
+npm test                    # unit then e2e — the full gate
+
+npm run test:unit:watch     # TDD watch mode
+npm run test:e2e:ui         # Playwright interactive UI mode
+npx playwright show-report  # open the last HTML E2E report
+npm run serve               # preview the game at http://127.0.0.1:4173
+```
+
+## How "real" testing works (no mocking)
+
+- **Unit tests** import the actual `src/*.js` modules and assert on real
+  behaviour: RNG determinism, level difficulty curve, scoring/combo math,
+  flood-fill + gravity + column collapse, power-up effects, the coin economy,
+  daily-streak rules, theme unlock logic, storage persistence, and the
+  monetization cadence. `localStorage` is a real spec-compliant store
+  (`tests/setup.js`), reset before each test.
+- **E2E tests** load the real page, click real DOM buttons, and dispatch real
+  pointer taps on the `<canvas>`. They cover: menu/level-map/shop/themes
+  navigation, popping via real taps, scoring, win/lose, revive and double-coins
+  rewarded-ad flows, endless refill, daily streak, all three power-ups, shop
+  purchases, "remove ads", theme buy/apply, sound toggle, PWA service-worker
+  registration, manifest reachability, and progress persistence across reloads.
+  Both a mobile (Pixel 7) and a desktop Chromium profile are run.
+
+### The test hook
+
+`src/main.js` exposes internals **only** when the page is opened with
+`?e2e=1`:
+
+```js
+if (/(?:\?|&)e2e=1\b/.test(location.search)) {
+  window.__bpc = { game, Storage, Economy, Monetization, UI, getLevel };
+}
+```
+
+Production sessions never set this query param, so the hook stays dormant. The
+hook only *exposes* the real objects to let tests set up deterministic
+scenarios (e.g. force a near-loss, force a board clear) and assert internal
+state — it never substitutes game logic.
+
+> Note: the in-game ad/IAP provider (`src/monetization.js`) is itself an
+> intentional mock *feature stub* awaiting a real ad SDK. Tests exercise that
+> real shipped code path; they do not add additional mocking on top.
+
+## CI/CD — test before production (required)
+
+```mermaid
+flowchart LR
+  push[Push / PR] --> ci[CI workflow]
+  ci --> unit[Vitest unit]
+  ci --> e2e[Playwright E2E]
+  unit --> ok{all green?}
+  e2e --> ok
+  ok -- no --> stop[Red build — deploy blocked]
+  ok -- yes, on master --> deploy[Deploy workflow]
+  deploy --> pages[GitHub Pages production]
+```
+
+- **`ci.yml`** runs on every push and pull request: two parallel jobs, `unit`
+  (Vitest) and `e2e` (Playwright on Chromium). The Playwright HTML report is
+  uploaded as a build artifact. If anything fails, the build is red.
+- **`deploy.yml`** is triggered by `workflow_run` on **completion of CI for the
+  `master` branch** and only proceeds when `conclusion == 'success'`. This is
+  the production gate: a failing test suite means no deploy. It publishes the
+  static site to GitHub Pages.
+
+### One-time repo setup for deploys
+1. Repo **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+   (GitHub Pages on a *private* repo requires a paid plan; otherwise make the
+   repo public or swap the deploy step for another static host — the test gate
+   is host-agnostic.)
+2. Ensure Actions are enabled. No secrets are required for Pages.
+
+## Extending the suite
+- **New logic** → add a `tests/unit/<module>.test.js`; import the real module.
+- **New UI/flow** → add a test to `tests/e2e/game.spec.js`; prefer real clicks
+  and `tapCell()` for canvas input. Use the `?e2e=1` hook only to set up or
+  read state, not to bypass behaviour.
+- Keep tests deterministic: levels/daily use seeded RNG, so assert on seeds and
+  derived values rather than random outcomes.
+
+## Acceptance bar before release
+- `npm test` is green locally and in CI (unit + E2E, both browser profiles).
+- No console errors on load; service worker registers; manifest is valid.
+- Coverage of all gameplay code paths: pop/scoring/combo, gravity/collapse,
+  win/lose/revive/double, endless, daily, three power-ups, shop, themes,
+  persistence.

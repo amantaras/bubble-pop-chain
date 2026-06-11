@@ -1,0 +1,45 @@
+import { describe, it, expect } from "vitest";
+import {
+  groupScore,
+  comboMultiplier,
+  clearBonus,
+  starsForScore,
+} from "../../src/scoring.js";
+import { getLevel, starThresholds } from "../../src/levels.js";
+
+describe("scoring", () => {
+  it("groupScore is 0 for groups smaller than 2", () => {
+    expect(groupScore(0)).toBe(0);
+    expect(groupScore(1)).toBe(0);
+  });
+
+  it("groupScore rewards bigger groups disproportionately", () => {
+    expect(groupScore(2)).toBe(10);
+    expect(groupScore(3)).toBe(30);
+    expect(groupScore(4)).toBe(60);
+    // per-bubble value increases with size
+    expect(groupScore(6) / 6).toBeGreaterThan(groupScore(3) / 3);
+  });
+
+  it("comboMultiplier grows then caps at 5", () => {
+    expect(comboMultiplier(0)).toBe(1);
+    expect(comboMultiplier(2)).toBe(2);
+    expect(comboMultiplier(100)).toBe(5);
+  });
+
+  it("clearBonus increases with moves left", () => {
+    expect(clearBonus(0)).toBe(500);
+    expect(clearBonus(3)).toBe(950);
+    expect(clearBonus(10)).toBeGreaterThan(clearBonus(5));
+  });
+
+  it("starsForScore maps to thresholds 0..3", () => {
+    const level = getLevel(5);
+    const t = starThresholds(level);
+    expect(starsForScore(level, t.one - 1)).toBe(0);
+    expect(starsForScore(level, t.one)).toBe(1);
+    expect(starsForScore(level, t.two)).toBe(2);
+    expect(starsForScore(level, t.three)).toBe(3);
+    expect(starsForScore(level, t.three + 10_000)).toBe(3);
+  });
+});

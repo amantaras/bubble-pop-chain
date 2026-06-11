@@ -493,3 +493,9 @@ class Game {
 
 const game = new Game();
 game.init();
+
+// Test hook: expose internals ONLY when explicitly requested via `?e2e=1`.
+// Production sessions (no query param) are unaffected and stay clean.
+if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) {
+  window.__bpc = { game, Storage, Economy, Monetization, UI, getLevel };
+}

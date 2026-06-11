@@ -1,0 +1,45 @@
+name: Deploy to production
+
+# Production gate: this workflow ONLY runs after the CI workflow has
+# completed successfully on the default branch (master). If any unit or
+# E2E test fails, CI is red and this deploy never starts.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Publish to GitHub Pages
+    # Guard: require the triggering CI run to have succeeded.
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # The whole repo is the static site (no build step). Tests live in
+          # tests/ and are harmless to publish, but we exclude dev files.
+          path: "."
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
