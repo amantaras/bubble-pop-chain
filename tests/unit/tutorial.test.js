@@ -18,7 +18,7 @@ describe("tutorial step definitions", () => {
 
   it("covers every core feature exactly once", () => {
     const actions = TUTORIAL_STEPS.map((s) => s.advance);
-    for (const a of ["pop", "combo", "preview", "swipe", "blast", "powerup", "magnet"]) {
+    for (const a of ["pop", "combo", "preview", "swipe", "blast", "powerup", "magnet", "event"]) {
       expect(actions).toContain(a);
     }
   });

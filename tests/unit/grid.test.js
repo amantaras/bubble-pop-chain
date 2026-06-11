@@ -306,6 +306,41 @@ describe("grid / Board", () => {
     b.removeCells(core); // second hit: all shatter
     expect(b.frozenRemaining()).toBe(0);
   });
+
+  it("scatterArea recolours the nearest bubbles to a different colour", () => {
+    const b = new Board(4, 4, 3, 7);
+    // Flatten to a single colour so any scatter is detectable.
+    for (let c = 0; c < b.cols; c++)
+      for (let r = 0; r < b.rows; r++) b.grid[c][r] = 0;
+    const affected = b.scatterArea(1, 1, 4, () => 0.5);
+    expect(affected.length).toBe(4);
+    for (const cell of affected) {
+      // Each scattered cell moved away from the original colour 0...
+      expect(b.grid[cell.c][cell.r]).not.toBe(0);
+      // ...and its sprite colour was kept in sync with the grid.
+      expect(b.spriteGrid[cell.c][cell.r].color).toBe(b.grid[cell.c][cell.r]);
+    }
+    // The anchor cell is among the nearest, so it should be scattered too.
+    expect(affected).toContainEqual({ c: 1, r: 1 });
+  });
+
+  it("scatterArea clamps the count to the available bubbles", () => {
+    const b = new Board(3, 3, 3, 5);
+    const affected = b.scatterArea(0, 0, 99, () => 0.5);
+    expect(affected.length).toBe(9);
+  });
+
+  it("scatterArea is a no-op when there is only one colour", () => {
+    const b = new Board(3, 3, 1, 5);
+    expect(b.scatterArea(1, 1, 4, () => 0.5)).toEqual([]);
+  });
+
+  it("randomFilledCell returns a normal filled cell", () => {
+    const b = new Board(3, 3, 3, 5);
+    const cell = b.randomFilledCell(() => 0);
+    expect(cell).toEqual({ c: 0, r: 0 });
+    expect(b.grid[cell.c][cell.r]).not.toBe(-1);
+  });
 });
 
 function colourHistogram(board) {

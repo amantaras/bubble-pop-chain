@@ -59,10 +59,22 @@ never re‑discovered the hard way.
 - **Daily retention** (`daily.js`): rotating seeded modifier, three tiered
   goals → daily stars, a 7‑day reward cycle, and a streak‑freeze token that
   rescues one missed day.
+- **Falling events** (`events.js`, `main.js` `_updateEvents`/`_spawnEvent`,
+  `ui.js` `spawnFallingEvent`): every ~12–20s a 🎁 **gift** or ⚠️ **problem**
+  token drifts down the screen (`#events-layer`, `pointer-events:none` so it
+  never blocks board taps; the token itself is tappable). Tap a gift to collect
+  coins (`GIFT_COIN_MIN..MAX`) or, ~25% of the time, a free power-up
+  (`GIFT_POWERUP_POOL`, excludes magnet). Tap a problem to **defuse** it for a
+  small coin reward; if it falls off-screen untouched it calls
+  `board.scatterArea`, recolouring the nearest `SCATTER_COUNT` bubbles to break
+  apart connected clusters. Suspended during the tutorial (auto-spawns gated)
+  and once a session ends. `events.js` is pure/seedable; `game.spawnEvent(type)`
+  is an E2E hook.
 - **Interactive tutorial** (`tutorial.js`): a gated, step‑by‑step onboarding that
   auto‑opens on first run (and re‑playable via the menu's **How to Play**
   button). Each action step **blocks until the player actually performs the
-  gesture** (tap, combo, preview, swipe, charged blast, power‑up, magnet). It
+  gesture** (tap, combo, preview, swipe, charged blast, power‑up, magnet, and
+  tapping a falling gift/problem `event`). It
   must stay in sync with the game's features — see §11.
 - **Live production URL**: https://amantaras.github.io/bubble-pop-chain/
   (GitHub Pages, served under the `/bubble-pop-chain/` subpath).
@@ -91,6 +103,7 @@ src/
   rng.js            # mulberry32 seeded RNG, todayKey
   economy.js        # Coins + power-up inventory/prices
   daily.js          # Daily challenge + streak logic
+  events.js         # Falling gift/problem events (pure: delay/type/reward rolls)
   monetization.js   # F2P abstraction (ads/IAP) — MOCK provider, pluggable  tutorial.js       # Gated step-by-step onboarding: TUTORIAL_STEPS + Tutorial class  ui.js             # All DOM UI: screens, level map, shop, themes, HUD, modals
 tests/
   unit/*.test.js    # Vitest unit tests (real modules, jsdom)
@@ -149,7 +162,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 123 unit tests + 92 E2E
+- **Current baseline (keep growing, never shrink)**: 131 unit tests + 95 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

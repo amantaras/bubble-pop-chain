@@ -467,6 +467,50 @@ export class Board {
     return cells;
   }
 
+  // A random filled NORMAL cell (used by hazard events to anchor a scatter).
+  // Returns null when the board has no plain bubbles. `rand` keeps it testable.
+  randomFilledCell(rand = Math.random) {
+    const cells = [];
+    for (let c = 0; c < this.cols; c++)
+      for (let r = 0; r < this.rows; r++)
+        if (this.grid[c][r] !== -1 && this.types[c][r] === NORMAL)
+          cells.push({ c, r });
+    if (!cells.length) return null;
+    return cells[Math.floor(rand() * cells.length)];
+  }
+
+  // Hazard "scatter": recolour the `count` NORMAL bubbles nearest (c,r) to a
+  // *different* random colour, breaking apart connected same-colour groups.
+  // Mutates grid + sprite colours in place and returns the affected cells.
+  // Deterministic when a seeded `rand` is supplied (used by unit tests).
+  scatterArea(c, r, count = 4, rand = Math.random) {
+    if (this.colorCount < 2) return [];
+    const cand = [];
+    for (let cc = 0; cc < this.cols; cc++)
+      for (let rr = 0; rr < this.rows; rr++) {
+        if (this.grid[cc][rr] === -1 || this.types[cc][rr] !== NORMAL) continue;
+        const d = Math.max(Math.abs(cc - c), Math.abs(rr - r));
+        cand.push({ c: cc, r: rr, d });
+      }
+    cand.sort((a, b) => a.d - b.d);
+    const pick = cand.slice(0, Math.max(0, count));
+    const affected = [];
+    for (const p of pick) {
+      const cur = this.grid[p.c][p.r];
+      // Choose any colour other than the current one (guarantees a change).
+      let nc = Math.floor(rand() * (this.colorCount - 1));
+      if (nc >= cur) nc++;
+      this.grid[p.c][p.r] = nc;
+      const sp = this.spriteGrid[p.c][p.r];
+      if (sp) {
+        sp.color = nc;
+        sp.scale = 0.6; // pop-in pulse for feedback
+      }
+      affected.push({ c: p.c, r: p.r });
+    }
+    return affected;
+  }
+
   // Chain Bolt clears the full row and full column that cross at (c,r).
   crossCells(c, r) {
     const cells = [];

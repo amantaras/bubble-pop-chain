@@ -38,8 +38,8 @@ class UIManager {
       "powerups", "pu-slot-0", "pu-slot-1", "pu-slot-2",
       "loadout", "loadout-list", "loadout-sub", "loadout-close",
       "magnet-gauge", "mg-needle",
-      "combo-banner", "toast",
-      "win-stars", "win-score", "win-reward", "win-double", "win-next", "win-menu",
+      "events-layer",
+      "combo-banner", "toast",      "win-stars", "win-score", "win-reward", "win-double", "win-next", "win-menu",
       "win-stats", "win-coins", "win-coins-num",
       "lose-score", "lose-revive", "lose-retry", "lose-menu",
       "btn-sound",
@@ -659,6 +659,52 @@ class UIManager {
     this.el["lose-revive"].style.display = showRevive ? "" : "none";
     this.showHud(false);
     this.el["lose"].classList.remove("hidden");
+  }
+
+  // ---- Falling events (gift / problem) ----------------------------------
+  // Drop a tappable token from the top of the screen. `cb.onTap` fires when the
+  // player taps it in time; `cb.onMiss` fires if it falls off-screen untouched.
+  // Outcomes are guarded so only one of them ever runs per token.
+  spawnFallingEvent({ type, leftPct = 50, fallTime = 3.8 } = {}, cb = {}) {
+    const layer = this.el["events-layer"];
+    if (!layer) return null;
+    const isProblem = type === "problem";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.id = "falling-event";
+    btn.className = `falling-event ${isProblem ? "problem" : "gift"}`;
+    btn.textContent = isProblem ? "⚠️" : "🎁";
+    btn.setAttribute(
+      "aria-label",
+      isProblem ? "Problem — tap to defuse" : "Gift — tap to collect",
+    );
+    btn.style.left = `${leftPct}%`;
+    btn.style.setProperty("--fe-fall", `${fallTime}s`);
+
+    let done = false;
+    const finish = (handler) => {
+      if (done) return;
+      done = true;
+      btn.remove();
+      if (handler) handler();
+    };
+    btn.addEventListener("click", () => {
+      Audio.click();
+      finish(cb.onTap);
+    });
+    btn.addEventListener("animationend", (e) => {
+      if (e.animationName === "fe-fall") finish(cb.onMiss);
+    });
+
+    layer.appendChild(btn);
+    return btn;
+  }
+
+  // Remove any in-flight token without firing its callbacks (used when a
+  // session ends or the player quits to the menu).
+  clearFallingEvents() {
+    const layer = this.el["events-layer"];
+    if (layer) layer.innerHTML = "";
   }
 
   // ---- Toast ------------------------------------------------------------

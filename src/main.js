@@ -37,13 +37,25 @@ import {
   buildTutorialBoard,
   decorateSpecials,
 } from "./tutorial.js";
+import {
+  EVENT_GIFT,
+  EVENT_PROBLEM,
+  EVENT_FALL_TIME,
+  EVENT_FIRST_DELAY,
+  DEFUSE_REWARD,
+  SCATTER_COUNT,
+  nextEventDelay,
+  pickEventType,
+  rollGiftReward,
+} from "./events.js";
 
 const TOP_INSET = 168;
 const BOTTOM_INSET = 120;
 const COMBO_WINDOW = 1.6; // seconds before a combo resets
 // Magnet gauge: half-width of the green "sweet" band, in gauge units (0..1).
 // Strength tapers from 1 (dead on the sweet spot) to 0 at this distance.
-const MAGNET_HALF = 0.2;
+// Widened from 0.2 → 0.3 so the green zone is more forgiving to lock onto.
+const MAGNET_HALF = 0.3;
 
 class Game {
   constructor() {
@@ -60,6 +72,9 @@ class Game {
     this.H = 0;
     this.lastTime = 0;
     this._endTimer = null;
+    // Falling gift/problem events.
+    this.eventTimer = 0; // seconds until the next spawn
+    this.activeEvent = false; // a token is currently on screen
   }
 
   init() {
@@ -220,6 +235,11 @@ class Game {
     UI.hideScreens();
     UI.hideModals();
     UI.hideMagnetGauge();
+    UI.clearFallingEvents();
+    this.activeEvent = false;
+    // Tutorial gates input step-by-step, so falling events stay disabled there.
+    this.eventTimer =
+      this.session.mode === "tutorial" ? Infinity : EVENT_FIRST_DELAY;
     UI.showHud(true);
     UI.clearArmedPowerups();
     UI.updatePowerups();
@@ -410,8 +430,38 @@ class Game {
       );
       decorateSpecials(types);
       b.restore(g, types);
+    } else if (kind === "event") {
+      this._spawnTutorialEvent();
     }
     // "bomb": tutorial bypasses the economy (see armPowerup/applyPowerup).
+  }
+
+  // Drop a forgiving gift token for the tutorial's "Gifts & Problems" step. It
+  // falls slowly and re-spawns if missed, so the step always advances once the
+  // player taps it. (Auto-spawns stay disabled in tutorial mode.)
+  _spawnTutorialEvent() {
+    UI.clearFallingEvents();
+    this.activeEvent = true;
+    const desc = { type: EVENT_GIFT, reward: { type: "coins", coins: 30 } };
+    this._activeEventDesc = desc;
+    UI.spawnFallingEvent(
+      { type: EVENT_GIFT, leftPct: 50, fallTime: 6 },
+      {
+        onTap: () => this._onEventTap(desc),
+        onMiss: () => {
+          // Keep offering a token until the player taps one in the tutorial.
+          if (
+            this.tutorial &&
+            this.tutorial.active &&
+            this.tutorial.stepId === "events"
+          ) {
+            this._spawnTutorialEvent();
+          } else {
+            this._resolveEvent();
+          }
+        },
+      }
+    );
   }
 
   // Notify the tutorial that an action happened in the real game.
@@ -901,6 +951,8 @@ class Game {
     const s = this.session;
     s.ended = true;
     this.input.setEnabled(false);
+    UI.clearFallingEvents();
+    this.activeEvent = false;
     clearTimeout(this._endTimer);
     this._endTimer = setTimeout(() => this._finish(won, reason), 480);
   }
@@ -1081,6 +1133,8 @@ class Game {
     this._persistSession();
     this.session = null;
     this.input.setEnabled(false);
+    UI.clearFallingEvents();
+    this.activeEvent = false;
     UI.showScreen("menu");
   }
 
@@ -1109,7 +1163,111 @@ class Game {
         }
         UI.updateMagnetGauge(m.value);
       }
+      this._updateEvents(dt);
     }
+  }
+
+  // ---- Falling gift/problem events --------------------------------------
+  // Count down to the next token and spawn one when ready. Suspended during
+  // the tutorial (eventTimer === Infinity), once a session has ended, and
+  // while the magnet gauge is being aimed (its overlay would hide the token).
+  _updateEvents(dt) {
+    const s = this.session;
+    if (!s || s.ended || s.mode === "tutorial") return;
+    if (this.activeEvent) return;
+    if (s.magnet && s.magnet.aiming) return;
+    if (this.eventTimer === Infinity) return;
+    this.eventTimer -= dt;
+    if (this.eventTimer <= 0) this._spawnEvent();
+  }
+
+  // Roll and drop a new token. `forced` ("gift"|"problem") is used by tests.
+  _spawnEvent(forced) {
+    const s = this.session;
+    if (!s || s.ended) return;
+    this.activeEvent = true;
+    const type = forced || pickEventType();
+    const desc = { type };
+    if (type === EVENT_GIFT) desc.reward = rollGiftReward();
+    // Kept as a handle so deterministic tests can pin the reward before a tap.
+    this._activeEventDesc = desc;
+    UI.spawnFallingEvent(
+      { type, leftPct: 15 + Math.random() * 70, fallTime: EVENT_FALL_TIME },
+      {
+        onTap: () => this._onEventTap(desc),
+        onMiss: () => this._onEventMiss(desc),
+      }
+    );
+  }
+
+  // Public test hook: force-spawn a specific event type immediately.
+  spawnEvent(type) {
+    if (this.activeEvent) UI.clearFallingEvents();
+    this.activeEvent = false;
+    this._spawnEvent(type === EVENT_PROBLEM ? EVENT_PROBLEM : EVENT_GIFT);
+  }
+
+  _resolveEvent() {
+    this.activeEvent = false;
+    this.eventTimer = nextEventDelay();
+  }
+
+  _onEventTap(desc) {
+    const s = this.session;
+    if (!s || s.ended) {
+      this._resolveEvent();
+      return;
+    }
+    const cx = this.W / 2;
+    const cy = this.H * 0.42;
+    if (desc.type === EVENT_PROBLEM) {
+      // Defused in time: small relief reward, no scatter.
+      Economy.addCoins(DEFUSE_REWARD);
+      this.floating.spawn(cx, cy, `DEFUSED +${DEFUSE_REWARD}`, "#5be3ff", 28);
+      this.particles.burst(cx, cy, "#5be3ff", 16, 0.6);
+      UI.toast(`⚠️ Defused! +${DEFUSE_REWARD} coins`);
+      Audio.powerup();
+    } else {
+      const reward = desc.reward || rollGiftReward();
+      if (reward.type === "powerup") {
+        Economy.addPowerup(reward.powerup, 1);
+        UI.updatePowerups();
+        const name = (POWERUP_INFO[reward.powerup] || {}).name || "Power-up";
+        this.floating.spawn(cx, cy, `+1 ${name}`, "#5bff9b", 28);
+        UI.toast(`🎁 Gift: +1 ${name}!`);
+      } else {
+        Economy.addCoins(reward.coins);
+        this.floating.spawn(cx, cy, `+${reward.coins}`, "#ffd35b", 30);
+        UI.toast(`🎁 Gift: +${reward.coins} coins!`);
+      }
+      this.particles.burst(cx, cy, "#ffd35b", 22, 0.8);
+      Audio.powerup();
+    }
+    this.refreshHud();
+    vibrate(20);
+    this._tut("event");
+    this._resolveEvent();
+  }
+
+  _onEventMiss(desc) {
+    const s = this.session;
+    if (s && !s.ended && desc.type === EVENT_PROBLEM) {
+      // A problem left to fall scatters nearby bubbles, breaking up groups.
+      const board = s.board;
+      const anchor = board.randomFilledCell();
+      if (anchor) {
+        const cells = board.scatterArea(anchor.c, anchor.r, SCATTER_COUNT);
+        for (const cell of cells) {
+          const t = board.targetPixel(cell.c, cell.r);
+          this.particles.burst(t.x, t.y, "#ff4d63", 10, 0.7);
+        }
+        this.shake.add(0.3);
+        UI.toast("⚠️ Bubbles scattered!");
+        Audio.lose();
+        vibrate(40);
+      }
+    }
+    this._resolveEvent();
   }
 
   render(time) {

@@ -422,19 +422,22 @@ body {
   inset: 0;
   border-radius: 50%;
   /* Full ring (green sweet spot at top, red opposite). It is rotated via JS so
-     the green band lines up with the randomised sweet spot. */
+     the green band lines up with the randomised sweet spot. The green zone is
+     widened to match the more forgiving MAGNET_HALF tolerance. */
   background: conic-gradient(
     from 0deg,
     #5bff9b 0deg,
-    #c8f55b 28deg,
-    #ffd35b 64deg,
-    #ff8b5b 110deg,
-    #ff4d63 160deg,
+    #5bff9b 22deg,
+    #c8f55b 52deg,
+    #ffd35b 92deg,
+    #ff8b5b 130deg,
+    #ff4d63 165deg,
     #ff3b54 180deg,
-    #ff4d63 200deg,
-    #ff8b5b 250deg,
-    #ffd35b 296deg,
-    #c8f55b 332deg,
+    #ff4d63 195deg,
+    #ff8b5b 230deg,
+    #ffd35b 268deg,
+    #c8f55b 308deg,
+    #5bff9b 338deg,
     #5bff9b 360deg
   );
   -webkit-mask: radial-gradient(transparent 56%, #000 58%);
@@ -1077,4 +1080,80 @@ body {
 }
 .coach-next.hidden {
   display: none !important;
+}
+
+/* ---------- Falling events (gift / problem) ---------- */
+.events-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 38; /* above the HUD, below ad/modals/toast */
+  pointer-events: none; /* never blocks taps on the board */
+  overflow: hidden;
+}
+.falling-event {
+  position: absolute;
+  top: -12%;
+  width: 64px;
+  height: 64px;
+  margin-left: -32px; /* centre on the chosen left% */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34px;
+  line-height: 1;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  pointer-events: auto; /* the token itself IS tappable */
+  background: radial-gradient(
+    circle at 50% 38%,
+    rgba(255, 255, 255, 0.22),
+    rgba(10, 14, 28, 0.85)
+  );
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.12);
+  -webkit-tap-highlight-color: transparent;
+  animation: fe-fall var(--fe-fall, 3.8s) linear forwards;
+}
+.falling-event::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  animation: fe-glow 1s ease-in-out infinite;
+}
+.falling-event.gift {
+  box-shadow: 0 8px 22px rgba(91, 255, 155, 0.35),
+    inset 0 0 0 2px rgba(91, 255, 155, 0.4);
+}
+.falling-event.gift::after {
+  box-shadow: 0 0 18px rgba(91, 255, 155, 0.55);
+}
+.falling-event.problem {
+  box-shadow: 0 8px 22px rgba(255, 77, 99, 0.4),
+    inset 0 0 0 2px rgba(255, 77, 99, 0.45);
+}
+.falling-event.problem::after {
+  box-shadow: 0 0 18px rgba(255, 77, 99, 0.6);
+}
+.falling-event.collected {
+  animation: fe-collect 0.3s ease-out forwards;
+}
+@keyframes fe-fall {
+  from {
+    transform: translateY(0) rotate(-8deg);
+  }
+  to {
+    transform: translateY(116vh) rotate(8deg);
+  }
+}
+@keyframes fe-glow {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.9; }
+}
+@keyframes fe-collect {
+  to {
+    transform: scale(1.6);
+    opacity: 0;
+  }
 }

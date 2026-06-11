@@ -541,6 +541,7 @@ test.describe("endless & daily modes", () => {
 test.describe("power-ups (UI arm + apply)", () => {
   test.beforeEach(({ page }) => openGame(page));
 
+
   test("bomb clears a 3x3 area and consumes one charge", async ({ page }) => {
     await page.evaluate(() => window.__bpc.game.startCampaign(2));
     await page.waitForTimeout(700);
@@ -731,6 +732,99 @@ test.describe("power-ups (UI arm + apply)", () => {
     );
     expect(loadout[0]).toBe("shuffle");
     expect(new Set(loadout).size).toBe(3);
+  });
+});
+
+test.describe("falling events (gift & problem tokens)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("a forced gift token can be tapped to collect coins", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(500);
+
+    const before = await page.evaluate(() => window.__bpc.Economy.coins);
+    // Force a gift, then pin its payload to a known coin amount so the
+    // assertion is deterministic (a random roll could be a power-up instead).
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      g.spawnEvent("gift");
+      g._activeEventDesc.reward = { type: "coins", coins: 50 };
+    });
+    const token = page.locator("#falling-event.gift");
+    await expect(token).toBeVisible();
+
+    // The token falls from above the viewport, so dispatch the click event
+    // directly rather than relying on pointer actionability/position.
+    await token.dispatchEvent("click");
+    await expect(token).toBeHidden();
+
+    const after = await page.evaluate(() => window.__bpc.Economy.coins);
+    expect(after).toBe(before + 50);
+    // The session is still alive and the token was cleared.
+    expect(
+      await page.evaluate(() => !!window.__bpc.game.session && !window.__bpc.game.activeEvent)
+    ).toBe(true);
+  });
+
+  test("a missed problem token scatters bubbles on the board", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(500);
+
+    // Snapshot the colour grid, force a problem, then let it fall off-screen.
+    const snap = await page.evaluate(() => {
+      const b = window.__bpc.game.session.board;
+      return b.grid.map((col) => col.slice());
+    });
+
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      g.spawnEvent("problem");
+      // Trigger the miss path directly (no need to wait ~4s for the fall).
+      const token = document.getElementById("falling-event");
+      token.remove();
+      g._onEventMiss({ type: "problem" });
+    });
+
+    const changed = await page.evaluate((before) => {
+      const b = window.__bpc.game.session.board;
+      let diff = 0;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++)
+          if (b.grid[c][r] !== before[c][r]) diff++;
+      return diff;
+    }, snap);
+    expect(changed).toBeGreaterThan(0); // some bubbles were recoloured
+    expect(
+      await page.evaluate(() => !window.__bpc.game.activeEvent)
+    ).toBe(true);
+  });
+
+  test("tapping a problem defuses it without scattering bubbles", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(500);
+
+    const snap = await page.evaluate(() => {
+      const b = window.__bpc.game.session.board;
+      return b.grid.map((col) => col.slice());
+    });
+    const before = await page.evaluate(() => window.__bpc.Economy.coins);
+
+    await page.evaluate(() => window.__bpc.game.spawnEvent("problem"));
+    const token = page.locator("#falling-event.problem");
+    await expect(token).toBeVisible();
+    await token.dispatchEvent("click");
+    await expect(token).toBeHidden();
+
+    const result = await page.evaluate((beforeGrid) => {
+      const b = window.__bpc.game.session.board;
+      let diff = 0;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++)
+          if (b.grid[c][r] !== beforeGrid[c][r]) diff++;
+      return { diff, coins: window.__bpc.Economy.coins };
+    }, snap);
+    expect(result.diff).toBe(0); // defused in time => board untouched
+    expect(result.coins).toBeGreaterThan(before); // small relief reward
   });
 });
 
@@ -1143,9 +1237,15 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
       };
       const t = find();
       g.beginMagnet(t.c, t.r);
-      g.session.magnet.value = 0.5; // perfect pull
+      g.session.magnet.value = g.session.magnet.sweet; // perfect pull
       g.lockMagnet();
     });
+    await expect.poll(() => stepId(page)).toBe("events");
+
+    // 7c) events — a forgiving gift token falls; tapping it advances the step.
+    const eventToken = page.locator("#falling-event");
+    await expect(eventToken).toBeVisible();
+    await eventToken.dispatchEvent("click");
     await expect.poll(() => stepId(page)).toBe("specials");
 
     // 8) specials (informational) — the board visibly shows a Rainbow + Ice.

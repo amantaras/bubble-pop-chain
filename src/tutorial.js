@@ -20,11 +20,11 @@ import { NORMAL, ICE, RAINBOW } from "./grid.js";
 //               "button"  → player taps the CTA (informational step)
 //               otherwise → an ACTION TYPE that must be observed in-game:
 //                           "pop" | "combo" | "preview" | "swipe" | "blast"
-//                           | "powerup" | "magnet"
+//                           | "powerup" | "magnet" | "event"
 //   cta     — button label for "button" steps
 //   hint    — short call-to-action shown for action steps
 //   grant   — optional setup applied when the step is entered
-//             ("power" | "bomb" | "specials" | "magnet")
+//             ("power" | "bomb" | "specials" | "magnet" | "event")
 export const TUTORIAL_STEPS = [
   {
     id: "welcome",
@@ -84,6 +84,14 @@ export const TUTORIAL_STEPS = [
     advance: "magnet",
     hint: "🧲 Arm it, tap a bubble, then lock on green",
     grant: "magnet",
+  },
+  {
+    id: "events",
+    title: "Gifts & Problems",
+    body: "Now and then a 🎁 gift or a ⚠️ problem drifts down the screen. Tap a gift to grab coins or a free power-up — and tap a problem to defuse it before it lands, or it scatters nearby bubbles and breaks up your clusters.",
+    advance: "event",
+    hint: "🎁 Tap the falling token",
+    grant: "event",
   },
   {
     id: "specials",
