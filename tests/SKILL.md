@@ -53,6 +53,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   daily-streak rules, theme unlock logic, storage persistence, the
   monetization cadence (forced interstitials gated until level 7), gesture
   swipe classification, the Power-meter charge curve + Charged-Blast AoE,
+  Fever-mode scoring (gauge gain + double-points), the achievements engine
+  (lifetime progress merge, threshold unlocks, coin payouts),
   special bubbles (rainbow wildcard + ice two-hit) with type round-trip, the
   daily retention engine (modifiers, tiered goals/stars, weekly rewards,
   streak-freeze rescue), and the interactive tutorial (step-table invariants,
@@ -67,6 +69,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   resuming an in-progress campaign level (save & Continue), real-input
   gestures (long-press Preview, double-tap Charged Blast, swipe row-shift),
   special-bubble spawning + reload persistence, no forced ads before level 7,
+  Fever mode (double points + gauge lighting up), the achievements flow
+  (badge unlock + coin reward, the Achievements screen, tutorial play excluded),
   the daily retention flow (summary, streak reward), and the gated
   step-by-step tutorial (first-run auto-open, How to Play replay, skip, and a
   full walkthrough that performs each real gesture to advance). Both a mobile

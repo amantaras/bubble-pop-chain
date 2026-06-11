@@ -784,6 +784,90 @@ test.describe("fever mode (double points)", () => {
   });
 });
 
+test.describe("achievements (badges & rewards)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("Achievements screen opens from the menu and lists every badge", async ({
+    page,
+  }) => {
+    await page.getByRole("button", { name: "Achievements", exact: true }).click();
+    await expect(page.locator("#achievements")).toBeVisible();
+    const total = await page.evaluate(
+      () => window.__bpc.game && document.querySelectorAll("#achv-list .achv-item").length
+    );
+    expect(total).toBeGreaterThanOrEqual(8);
+    // Fresh save: nothing earned yet, all items locked.
+    await expect(page.locator("#achv-count")).toHaveText(`0/${total}`);
+    expect(await page.locator(".achv-item.earned").count()).toBe(0);
+    await page.locator("#achv-back").click();
+    await expect(page.locator("#menu")).toBeVisible();
+  });
+
+  test("popping a cluster unlocks 'First Pop' and pays its coin reward", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(400);
+
+    const res = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const before = window.__bpc.Economy.coins;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          if (b.grid[c][r] === -1) continue;
+          if (b.getGroupAt(c, r).length >= 2) {
+            g.popAt(c, r);
+            const st = window.__bpc.Storage.getAchievementState();
+            return {
+              unlocked: st.unlocked,
+              pops: st.progress.pops,
+              coinDelta: window.__bpc.Economy.coins - before,
+            };
+          }
+        }
+      return null;
+    });
+    expect(res).not.toBeNull();
+    expect(res.unlocked).toContain("first_pop");
+    expect(res.pops).toBeGreaterThanOrEqual(1);
+    // First Pop pays 10 coins on top of the pop's score coins (>= 10).
+    expect(res.coinDelta).toBeGreaterThanOrEqual(10);
+  });
+
+  test("triggering Fever unlocks the 'Fever Pitch' badge", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(400);
+    await page.evaluate(() => window.__bpc.game._startFever());
+    const unlocked = await page.evaluate(
+      () => window.__bpc.Storage.getAchievementState().unlocked
+    );
+    expect(unlocked).toContain("fever_1");
+  });
+
+  test("tutorial play never counts toward achievements", async ({ page }) => {
+    // Start the tutorial and pop within it; no achievement state should change.
+    await page.evaluate(() => window.__bpc.game.startTutorial());
+    await page.waitForTimeout(300);
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          if (b.grid[c][r] !== -1 && b.getGroupAt(c, r).length >= 2) {
+            g.popAt(c, r);
+            return;
+          }
+        }
+    });
+    const st = await page.evaluate(() =>
+      window.__bpc.Storage.getAchievementState()
+    );
+    expect(st.unlocked).toEqual([]);
+    expect(st.progress.pops || 0).toBe(0);
+  });
+});
+
 test.describe("falling events (gift & problem tokens)", () => {
   test.beforeEach(({ page }) => openGame(page));
 

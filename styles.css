@@ -689,6 +689,65 @@ body {
   overflow-y: auto;
   padding-bottom: 20px;
 }
+/* Achievements screen */
+.achv-count {
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--text-dim);
+}
+.achv-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  padding-bottom: 20px;
+}
+.achv-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--glass-brd);
+  background: var(--glass);
+}
+.achv-item.locked {
+  opacity: 0.55;
+}
+.achv-item.earned {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent) inset;
+}
+.achv-item .achv-icon {
+  font-size: 28px;
+  width: 40px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.achv-item .achv-body {
+  flex: 1;
+}
+.achv-item .achv-name {
+  font-weight: 800;
+  font-size: 15px;
+}
+.achv-item .achv-desc {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.achv-item .achv-reward {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--text-dim);
+}
+.achv-item .achv-done {
+  color: var(--accent);
+  font-size: 18px;
+}
+
 .shop-item,
 .theme-item {
   display: flex;

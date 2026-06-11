@@ -94,6 +94,25 @@ describe("storage", () => {
     expect(Storage.get("milestonesCleared")).toEqual([5, 10]);
   });
 
+  it("achievement state defaults are well-formed and round-trip", () => {
+    const init = Storage.getAchievementState();
+    expect(init.unlocked).toEqual([]);
+    expect(init.progress.pops).toBe(0);
+    expect(init.progress.totalStars).toBe(0);
+    // Persisting and reading back keeps the shape.
+    Storage.setAchievementState({
+      unlocked: ["first_pop"],
+      progress: { pops: 3, bestCombo: 5 },
+    });
+    const after = Storage.getAchievementState();
+    expect(after.unlocked).toEqual(["first_pop"]);
+    expect(after.progress.pops).toBe(3);
+    expect(after.progress.bestCombo).toBe(5);
+    // It really hit localStorage.
+    const raw = JSON.parse(localStorage.getItem("bpc_save_v1"));
+    expect(raw.achievements.unlocked).toEqual(["first_pop"]);
+  });
+
   it("grantTheme adds a theme to ownership only once", () => {
     expect(Storage.get("ownedThemes")).not.toContain("forest");
     expect(Storage.grantTheme("forest")).toBe(true);

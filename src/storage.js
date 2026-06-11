@@ -27,6 +27,21 @@ const DEFAULT_SAVE = {
   firstRunDone: false,
   activeSession: null, // snapshot of an in-progress campaign level (resume)
   milestonesCleared: [], // level ids whose one-time milestone reward was paid
+  // Lifetime achievement state: `unlocked` is the list of earned badge ids and
+  // `progress` accumulates the counters those badges test against.
+  achievements: {
+    unlocked: [],
+    progress: {
+      pops: 0,
+      bestCombo: 0,
+      biggestGroup: 0,
+      fevers: 0,
+      levelsCleared: 0,
+      totalStars: 0,
+      defuses: 0,
+      coinsEarned: 0,
+    },
+  },
   // Tracks the daily-capped "watch an ad for coins" reward. `date` is the
   // local day key it was last claimed on; `count` resets to 0 each new day.
   adRewards: { date: null, count: 0 },
@@ -118,6 +133,25 @@ class StorageManager {
     this.data.milestonesCleared.push(levelId);
     this.save();
     return true;
+  }
+
+  // Read the lifetime achievement state, always returning a well-formed
+  // `{ unlocked: [...], progress: {...} }` (safe for old saves).
+  getAchievementState() {
+    const a = this.data.achievements || {};
+    return {
+      unlocked: Array.isArray(a.unlocked) ? a.unlocked.slice() : [],
+      progress: { ...(a.progress || {}) },
+    };
+  }
+
+  // Persist a new achievement state (unlocked ids + progress counters).
+  setAchievementState(state) {
+    this.data.achievements = {
+      unlocked: Array.isArray(state.unlocked) ? state.unlocked.slice() : [],
+      progress: { ...(state.progress || {}) },
+    };
+    this.save();
   }
 
   // The three quick-access HUD power-up slots, always a length-3 array.

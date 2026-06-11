@@ -51,6 +51,12 @@ import {
   pickEventType,
   rollGiftReward,
 } from "./events.js";
+import {
+  mergeProgress,
+  newlyUnlocked,
+  coinsForAchievements,
+  getAchievement,
+} from "./achievements.js";
 
 const TOP_INSET = 168;
 const BOTTOM_INSET = 120;
@@ -684,6 +690,11 @@ class Game {
       s.stats.pops += 1;
       s.stats.bestCombo = Math.max(s.stats.bestCombo, s.combo);
     }
+    this._recordProgress({
+      pops: 1,
+      bestCombo: s.combo,
+      biggestGroup: group.length,
+    });
     if (s.mode === "campaign") s.movesLeft -= 1;
     this.refreshHud();
     this._tut("pop");
@@ -731,6 +742,42 @@ class Game {
     UI.toast("🔥 FEVER! Double points!");
     this.floating.spawn(this.W / 2, this.H * 0.4, "FEVER ×2!", "#ff5b8a", 34);
     this._tut("fever");
+    this._recordProgress({ fevers: 1 });
+  }
+
+  // ---- Achievements -----------------------------------------------------
+  // Fold a progress delta into the lifetime achievement state, unlock any
+  // badges that newly qualify, pay their one-time coin rewards and announce
+  // them. Tutorial play never counts toward achievements. Returns the list of
+  // newly unlocked ids.
+  _recordProgress(delta) {
+    const s = this.session;
+    if (s && s.mode === "tutorial") return [];
+    if (this.tutorial && this.tutorial.active) return [];
+    const state = Storage.getAchievementState();
+    const progress = mergeProgress(state.progress, delta);
+    const fresh = newlyUnlocked(progress, state.unlocked);
+    const unlocked = state.unlocked.concat(fresh);
+    Storage.setAchievementState({ unlocked, progress });
+    if (fresh.length) {
+      const coins = coinsForAchievements(fresh);
+      if (coins > 0) Economy.addCoins(coins);
+      fresh.forEach((id, i) => this._announceAchievement(getAchievement(id), i));
+      UI.refreshCoins();
+    }
+    return fresh;
+  }
+
+  // Toast an unlocked badge. Multiple simultaneous unlocks are spaced out so
+  // each is readable.
+  _announceAchievement(ach, index = 0) {
+    if (!ach) return;
+    const show = () => {
+      Audio.coin();
+      UI.toast(`🏆 ${ach.icon} ${ach.name}  +${ach.coins}`, 2000);
+    };
+    if (index === 0) show();
+    else setTimeout(show, index * 2100);
   }
 
   handleDoubleTap(px, py) {
@@ -1038,6 +1085,11 @@ class Game {
         const totalCoins = coins + bonusCoins;
         s.coinsEarned = totalCoins;
         Economy.addCoins(coins);
+        this._recordProgress({
+          levelsCleared: Storage.get("maxUnlockedLevel") - 1,
+          totalStars: Storage.totalStars(),
+          coinsEarned: totalCoins,
+        });
         Audio.win();
         UI.setWinTitle(
           mtype === "boss"
@@ -1283,6 +1335,7 @@ class Game {
       this.particles.burst(cx, cy, "#5be3ff", 16, 0.6);
       UI.toast(`⚠️ Defused! +${DEFUSE_REWARD} coins`);
       Audio.powerup();
+      this._recordProgress({ defuses: 1 });
     } else {
       const reward = desc.reward || rollGiftReward();
       if (reward.type === "powerup") {

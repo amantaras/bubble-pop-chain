@@ -78,6 +78,19 @@ never re‑discovered the hard way.
   apart connected clusters. Suspended during the tutorial (auto-spawns gated)
   and once a session ends. `events.js` is pure/seedable; `game.spawnEvent(type)`
   is an E2E hook.
+- **Achievements** (`achievements.js`, pure): 8 one‑time badges that reward
+  lifetime play (first pop, ×5 combo, 8+ cluster, trigger Fever, clear 5
+  levels, 15 total stars, defuse a problem, earn 500 coins). The module is pure
+  — `mergeProgress` folds a delta into a lifetime `progress` object (sum, or max
+  for best‑fields), `newlyUnlocked` returns badges that now qualify and aren't
+  held, `coinsForAchievements` totals their payouts. State lives in
+  `storage.js` `achievements: { unlocked, progress }` (`getAchievementState`/
+  `setAchievementState`). `Game._recordProgress(delta)` is called from `popAt`,
+  `_startFever`, the defuse handler and `_finish` (campaign win); it unlocks
+  badges, pays their coins (`Economy.addCoins`) and toasts each
+  (`_announceAchievement`). **Tutorial play never counts** (guarded). The
+  **Achievements screen** (`ui.js` `buildAchievements`, `#achievements`, menu
+  button) lists every badge with locked/earned state and an `n/total` count.
 - **Interactive tutorial** (`tutorial.js`): a gated, step‑by‑step onboarding that
   auto‑opens on first run (and re‑playable via the menu's **How to Play**
   button). Each action step **blocks until the player actually performs the
@@ -170,7 +183,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 134 unit tests + 102 E2E
+- **Current baseline (keep growing, never shrink)**: 143 unit tests + 110 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

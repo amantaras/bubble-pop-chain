@@ -17,6 +17,7 @@ import {
   getFreezeTokens,
   alreadyPlayedToday,
 } from "./daily.js";
+import { ACHIEVEMENTS } from "./achievements.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -31,6 +32,7 @@ class UIManager {
       "menu", "levelmap", "shop", "themes", "hud", "win", "lose",
       "menu-coins", "lm-coins", "shop-coins", "themes-coins", "hud-coins",
       "level-grid", "shop-list", "theme-list",
+      "achievements", "achv-list", "achv-count", "btn-achievements", "achv-back",
       "btn-continue", "daily-summary",
       "hud-mode-label", "hud-score", "hud-target", "hud-target-wrap", "hud-target-label",
       "hud-moves", "hud-moves-label", "hud-progress-fill",
@@ -68,12 +70,14 @@ class UIManager {
     click("btn-daily", () => this.cb.startDaily && this.cb.startDaily());
     click("btn-shop", () => this.showScreen("shop"));
     click("btn-themes", () => this.showScreen("themes"));
+    click("btn-achievements", () => this.showScreen("achievements"));
     click("btn-tutorial", () => this.cb.startTutorial && this.cb.startTutorial());
 
     // Back buttons
     click("lm-back", () => this.showScreen("menu"));
     click("shop-back", () => this.showScreen("menu"));
     click("themes-back", () => this.showScreen("menu"));
+    click("achv-back", () => this.showScreen("menu"));
     click("btn-back", () => this.cb.quitToMenu && this.cb.quitToMenu());
 
     // Sound
@@ -157,7 +161,7 @@ class UIManager {
 
   // ---- Screen switching -------------------------------------------------
   hideScreens() {
-    ["menu", "levelmap", "shop", "themes"].forEach((s) =>
+    ["menu", "levelmap", "shop", "themes", "achievements"].forEach((s) =>
       this.el[s].classList.add("hidden")
     );
   }
@@ -175,6 +179,7 @@ class UIManager {
     if (name === "levelmap") this.buildLevelMap();
     if (name === "shop") this.buildShop();
     if (name === "themes") this.buildThemes();
+    if (name === "achievements") this.buildAchievements();
   }
 
   // Show a "Continue" entry on the menu when a campaign level is in progress.
@@ -437,6 +442,46 @@ class UIManager {
       item.appendChild(btn);
       list.appendChild(item);
     });
+  }
+
+  // ---- Achievements -----------------------------------------------------
+  buildAchievements() {
+    const list = this.el["achv-list"];
+    if (!list) return;
+    list.innerHTML = "";
+    const { unlocked } = Storage.getAchievementState();
+    const have = new Set(unlocked || []);
+
+    ACHIEVEMENTS.forEach((ach) => {
+      const earned = have.has(ach.id);
+      const item = document.createElement("div");
+      item.className = "achv-item" + (earned ? " earned" : " locked");
+
+      const icon = document.createElement("div");
+      icon.className = "achv-icon";
+      icon.textContent = earned ? ach.icon : "🔒";
+
+      const body = document.createElement("div");
+      body.className = "achv-body";
+      body.innerHTML =
+        `<div class="achv-name">${ach.name}</div>` +
+        `<div class="achv-desc">${ach.desc}</div>`;
+
+      const reward = document.createElement("div");
+      reward.className = "achv-reward";
+      reward.innerHTML = earned
+        ? `<span class="achv-done">✓</span>`
+        : `<span class="coin-dot"></span>${ach.coins}`;
+
+      item.appendChild(icon);
+      item.appendChild(body);
+      item.appendChild(reward);
+      list.appendChild(item);
+    });
+
+    if (this.el["achv-count"]) {
+      this.el["achv-count"].textContent = `${have.size}/${ACHIEVEMENTS.length}`;
+    }
   }
 
   // ---- HUD --------------------------------------------------------------
