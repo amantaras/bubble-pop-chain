@@ -56,12 +56,12 @@ describe("scoring", () => {
   });
 
   it("coinReward pays a score slice plus a per-star bonus", () => {
-    // 15 coins per star, no score component when score < 120.
+    // 20 coins per star, no score component when score < 100.
     expect(coinReward(0, 0)).toBe(0);
-    expect(coinReward(0, 3)).toBe(45);
-    // Score slice: floor(score / 120).
-    expect(coinReward(240, 0)).toBe(2);
-    expect(coinReward(240, 2)).toBe(2 + 30);
+    expect(coinReward(0, 3)).toBe(60);
+    // Score slice: floor(score / 100).
+    expect(coinReward(200, 0)).toBe(2);
+    expect(coinReward(200, 2)).toBe(2 + 40);
     // More stars always pay strictly more for the same score.
     expect(coinReward(500, 3)).toBeGreaterThan(coinReward(500, 2));
     expect(coinReward(500, 2)).toBeGreaterThan(coinReward(500, 1));

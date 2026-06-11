@@ -38,6 +38,8 @@ export function starsForScore(level, score) {
 
 // Coins awarded for finishing a campaign level: a slice of the score plus a
 // flat per-star bonus, so a higher star rating always pays out more coins.
+// Tuned so a player clearing levels at ~2 stars can afford a cheap power-up
+// (100–150) roughly every 2–3 levels without watching ads.
 export function coinReward(score, stars) {
-  return Math.floor(Math.max(0, score) / 120) + Math.max(0, stars) * 15;
+  return Math.floor(Math.max(0, score) / 100) + Math.max(0, stars) * 20;
 }

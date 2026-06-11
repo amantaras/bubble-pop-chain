@@ -280,7 +280,41 @@ class UIManager {
       list.appendChild(item);
     });
 
-    // Coin packs
+    // Free coins via an opt-in rewarded ad — daily-capped with an escalating
+    // payout, so watching a few ads a day is worthwhile but never unlimited.
+    const ad = Economy.adCoinState();
+    const freeItem = document.createElement("div");
+    freeItem.className = "shop-item";
+    freeItem.innerHTML = `
+      <span class="si-icon">🎬</span>
+      <div class="si-body">
+        <div class="si-title">Free Coins</div>
+        <div class="si-desc">${
+          ad.remaining > 0
+            ? `Watch an ad for +${ad.nextAmount} coins · ${ad.remaining} left today`
+            : "Daily free coins done — come back tomorrow!"
+        }</div>
+      </div>`;
+    const freeBtn = document.createElement("button");
+    freeBtn.id = "shop-free-coins";
+    freeBtn.className = "buy-btn" + (ad.remaining <= 0 ? " owned" : "");
+    freeBtn.textContent = ad.remaining > 0 ? `▶ +${ad.nextAmount}` : "Done ✓";
+    if (ad.remaining > 0) {
+      freeBtn.addEventListener("click", async () => {
+        await Monetization.showRewardedAd("coins");
+        const got = Economy.claimAdCoins();
+        if (got > 0) {
+          Audio.coin();
+          this.toast(`+${got} coins!`);
+          this.refreshCoins();
+          this.buildShop();
+        }
+      });
+    }
+    freeItem.appendChild(freeBtn);
+    list.appendChild(freeItem);
+
+    // Coin packs (mock IAP)
     COIN_PACKS.forEach((pack) => {
       const item = document.createElement("div");
       item.className = "shop-item";
@@ -292,11 +326,8 @@ class UIManager {
         </div>`;
       const buy = document.createElement("button");
       buy.className = "buy-btn";
-      buy.textContent = pack.ad ? "▶ " + pack.label : pack.label;
+      buy.textContent = pack.label;
       buy.addEventListener("click", async () => {
-        if (pack.ad) {
-          await Monetization.showRewardedAd("coins");
-        }
         Economy.addCoins(pack.amount);
         Audio.coin();
         this.toast(`+${pack.amount} coins!`);

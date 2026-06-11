@@ -736,12 +736,22 @@ test.describe("power-ups (UI arm + apply)", () => {
 test.describe("shop & monetization (UI)", () => {
   test.beforeEach(({ page }) => openGame(page));
 
-  test("rewarded ad grants coins", async ({ page }) => {
+  test("daily free-coins ad reward escalates and caps at 3/day", async ({ page }) => {
     await page.getByRole("button", { name: "Shop", exact: true }).click();
-    await page.locator("#shop-list button", { hasText: "Watch ad" }).click();
-    await expect(page.locator("#ad-overlay")).toBeVisible();
-    await page.waitForTimeout(2600);
-    await expect(page.locator("#shop-coins")).toHaveText("500");
+    const claim = async () => {
+      await page.locator("#shop-free-coins").click();
+      await expect(page.locator("#ad-overlay")).toBeVisible();
+      await page.waitForTimeout(2400);
+    };
+    await claim(); // +150
+    await expect(page.locator("#shop-coins")).toHaveText("150");
+    await claim(); // +250 -> 400
+    await expect(page.locator("#shop-coins")).toHaveText("400");
+    await claim(); // +400 -> 800
+    await expect(page.locator("#shop-coins")).toHaveText("800");
+    // Daily cap reached: the button is disabled and the balance stays put.
+    await expect(page.locator("#shop-free-coins")).toContainText("Done");
+    await expect(page.locator("#shop-coins")).toHaveText("800");
   });
 
   test("buying a power-up deducts coins; insufficient funds is blocked", async ({
@@ -749,22 +759,24 @@ test.describe("shop & monetization (UI)", () => {
   }) => {
     await page.getByRole("button", { name: "Shop", exact: true }).click();
     // With 0 coins, buying the bomb (150) must fail with a toast.
-    await page.locator("#shop-list button", { hasText: "150" }).click();
+    await page.locator("#shop-list button", { hasText: /^150$/ }).click();
     await expect(page.locator("#toast")).toContainText("Not enough");
 
-    // Earn coins, then the purchase succeeds.
-    await page.locator("#shop-list button", { hasText: "Watch ad" }).click();
-    await page.waitForTimeout(2600);
+    // Earn coins via the free daily ad reward, then the purchase succeeds.
+    await page.locator("#shop-free-coins").click(); // +150
+    await page.waitForTimeout(2400);
+    await page.locator("#shop-free-coins").click(); // +250 -> 400
+    await page.waitForTimeout(2400);
     const bombBefore = await page.evaluate(() =>
       window.__bpc.Economy.getPowerup("bomb")
     );
-    await page.locator("#shop-list button", { hasText: "150" }).click();
+    await page.locator("#shop-list button", { hasText: /^150$/ }).click();
     await page.waitForTimeout(200);
     const bombAfter = await page.evaluate(() =>
       window.__bpc.Economy.getPowerup("bomb")
     );
     expect(bombAfter).toBe(bombBefore + 1);
-    await expect(page.locator("#shop-coins")).toHaveText("350");
+    await expect(page.locator("#shop-coins")).toHaveText("250");
   });
 
   test("remove ads disables interstitials and hides double-coins", async ({

@@ -27,6 +27,9 @@ const DEFAULT_SAVE = {
   firstRunDone: false,
   activeSession: null, // snapshot of an in-progress campaign level (resume)
   milestonesCleared: [], // level ids whose one-time milestone reward was paid
+  // Tracks the daily-capped "watch an ad for coins" reward. `date` is the
+  // local day key it was last claimed on; `count` resets to 0 each new day.
+  adRewards: { date: null, count: 0 },
 };
 
 function deepDefault(saved) {

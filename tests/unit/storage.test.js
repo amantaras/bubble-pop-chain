@@ -55,6 +55,7 @@ describe("storage", () => {
       "muted",
       "powerups",
       "loadout",
+      "adRewards",
       "daily",
     ]) {
       expect(Storage.get(key)).not.toBeUndefined();

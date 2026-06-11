@@ -30,11 +30,26 @@ never re‑discovered the hard way.
   green centre, the more of that colour is pulled into one connected blob (a
   perfect hit gathers the whole colour). The Magnet is the dearest power-up
   (500 coins) and also drops from the treasure rotation.
+- **HUD loadout** (`ui.js`, `storage.js` `loadout`): the HUD shows **three
+  quick-access slots** instead of one button per power-up (so it never grows as
+  tools are added). A short **tap** arms that slot's power-up; a **long-press**
+  (>450ms) opens the loadout picker (`#loadout`) listing every `POWERUP_INFO`
+  entry — choosing one assigns it to the held slot via
+  `Storage.setLoadoutSlot`, which keeps the three slots distinct (swapping if
+  the tool is already equipped). The loadout deep-merges into existing saves.
 - **Special bubbles** (`grid.js` `types` layer): **Rainbow** = colour wildcard
   that bridges regions; **Ice** = needs two hits (cracks, then clears). Seeded
   spawn rates ramp in by level. Types are part of the save/resume snapshot.
 - **Ads gating** (`monetization.js`): forced interstitials only from
   `adsStartLevel` (7) onward; rewarded ads always available.
+- **Coin economy** (`scoring.coinReward`, `economy.js`): level payout is
+  `floor(score/100) + stars*20`, tuned so a ~2-star player affords a cheap
+  power-up (100–150) every 2–3 levels without ads. The shop's **Free Coins**
+  item is a daily-capped rewarded ad (`Economy.adCoinState`/`claimAdCoins`):
+  `AD_COIN_REWARDS = [150, 250, 400]`, **3 grants/day** that escalate then lock
+  until the next day (`adRewards` tracker resets on `todayKey` rollover). Paid
+  IAP packs (`COIN_PACKS`) are coins-only: Bag 1500/$1.99, Chest 5000/$4.99 —
+  there is no longer an unlimited "watch ad for coins" pouch.
 - **Daily retention** (`daily.js`): rotating seeded modifier, three tiered
   goals → daily stars, a 7‑day reward cycle, and a streak‑freeze token that
   rescues one missed day.
@@ -128,7 +143,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 114 unit tests + 90 E2E
+- **Current baseline (keep growing, never shrink)**: 123 unit tests + 92 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

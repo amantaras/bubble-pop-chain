@@ -1,6 +1,12 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { Storage } from "../../src/storage.js";
-import { Economy, POWERUP_INFO } from "../../src/economy.js";
+import {
+  Economy,
+  POWERUP_INFO,
+  COIN_PACKS,
+  AD_COIN_REWARDS,
+  AD_COIN_DAILY_CAP,
+} from "../../src/economy.js";
 
 describe("economy", () => {
   beforeEach(() => {
@@ -70,5 +76,48 @@ describe("economy", () => {
     expect(Economy.getPowerup("magnet")).toBe(start + 1);
     expect(Economy.usePowerup("magnet")).toBe(true);
     expect(Economy.getPowerup("magnet")).toBe(start);
+  });
+
+  describe("daily ad-coin reward (watch ad for coins)", () => {
+    const day1 = new Date("2026-06-11T09:00:00Z");
+    const day2 = new Date("2026-06-12T09:00:00Z");
+
+    it("does not offer unlimited free coins (no ad coin pack)", () => {
+      // The only coin packs left are paid IAP — the free reward is capped.
+      expect(COIN_PACKS.some((p) => p.ad)).toBe(false);
+    });
+
+    it("starts the day with the full cap and the first reward queued", () => {
+      const s = Economy.adCoinState(day1);
+      expect(s.count).toBe(0);
+      expect(s.remaining).toBe(AD_COIN_DAILY_CAP);
+      expect(s.nextAmount).toBe(AD_COIN_REWARDS[0]);
+    });
+
+    it("pays an escalating reward and caps at the daily limit", () => {
+      let total = 0;
+      for (let i = 0; i < AD_COIN_DAILY_CAP; i++) {
+        const got = Economy.claimAdCoins(day1);
+        expect(got).toBe(AD_COIN_REWARDS[i]);
+        total += got;
+      }
+      expect(Economy.coins).toBe(total);
+      // The cap is now reached: further claims pay nothing and grant no coins.
+      expect(Economy.adCoinState(day1).remaining).toBe(0);
+      expect(Economy.adCoinState(day1).nextAmount).toBe(0);
+      expect(Economy.claimAdCoins(day1)).toBe(0);
+      expect(Economy.coins).toBe(total);
+    });
+
+    it("resets the cap at the start of a new day", () => {
+      Economy.claimAdCoins(day1);
+      Economy.claimAdCoins(day1);
+      expect(Economy.adCoinState(day1).count).toBe(2);
+      // A new day restores the full allowance and the first-watch payout.
+      const s2 = Economy.adCoinState(day2);
+      expect(s2.count).toBe(0);
+      expect(s2.remaining).toBe(AD_COIN_DAILY_CAP);
+      expect(Economy.claimAdCoins(day2)).toBe(AD_COIN_REWARDS[0]);
+    });
   });
 });
