@@ -39,6 +39,8 @@ class UIManager {
       "win-stars", "win-score", "win-reward", "win-double", "win-next", "win-menu",
       "lose-score", "lose-revive", "lose-retry", "lose-menu",
       "btn-sound",
+      "btn-tutorial", "tutorial", "coach-progress", "coach-title",
+      "coach-body", "coach-hint", "coach-next", "coach-skip",
     ];
     ids.forEach((id) => (this.el[id] = $(id)));
     this._wireStaticButtons();
@@ -61,6 +63,7 @@ class UIManager {
     click("btn-daily", () => this.cb.startDaily && this.cb.startDaily());
     click("btn-shop", () => this.showScreen("shop"));
     click("btn-themes", () => this.showScreen("themes"));
+    click("btn-tutorial", () => this.cb.startTutorial && this.cb.startTutorial());
 
     // Back buttons
     click("lm-back", () => this.showScreen("menu"));
@@ -94,6 +97,10 @@ class UIManager {
     click("lose-menu", () => this.cb.quitToMenu && this.cb.quitToMenu());
     const lr = $("lose-revive");
     if (lr) lr.addEventListener("click", () => this.cb.reviveLevel && this.cb.reviveLevel());
+
+    // Tutorial coach
+    click("coach-next", () => this.cb.tutorialNext && this.cb.tutorialNext());
+    click("coach-skip", () => this.cb.tutorialSkip && this.cb.tutorialSkip());
 
     // Reflect saved mute state
     if (Storage.get("muted")) {
@@ -439,6 +446,46 @@ class UIManager {
       t.classList.remove("show");
       setTimeout(() => t.classList.add("hidden"), 250);
     }, ms);
+  }
+
+  // ---- Tutorial coach ---------------------------------------------------
+  // Render one tutorial step. Action steps hide the "Next" button so the only
+  // way forward is to perform the move (the tutorial advances on observation);
+  // informational steps show the button with the step's call-to-action label.
+  showTutorialStep({ index, total, step }) {
+    if (!this.el["tutorial"]) return;
+    this.el["coach-title"].textContent = step.title;
+    this.el["coach-body"].textContent = step.body;
+
+    const isButton = step.advance === "button";
+    const hint = this.el["coach-hint"];
+    if (hint) {
+      hint.textContent = isButton ? "" : step.hint || "";
+      hint.classList.toggle("hidden", isButton || !step.hint);
+    }
+    const next = this.el["coach-next"];
+    if (next) {
+      next.textContent = step.cta || "Next";
+      next.classList.toggle("hidden", !isButton);
+    }
+
+    // Progress dots.
+    const prog = this.el["coach-progress"];
+    if (prog) {
+      prog.innerHTML = "";
+      for (let i = 0; i < total; i++) {
+        const dot = document.createElement("span");
+        dot.className =
+          "dot" + (i < index ? " done" : i === index ? " current" : "");
+        prog.appendChild(dot);
+      }
+    }
+
+    this.el["tutorial"].classList.remove("hidden");
+  }
+
+  hideTutorial() {
+    if (this.el["tutorial"]) this.el["tutorial"].classList.add("hidden");
   }
 }
 

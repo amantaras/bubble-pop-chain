@@ -1,4 +1,4 @@
-const CACHE = "bubble-pop-chain-v1";
+const CACHE = "bubble-pop-chain-v2";
 const ASSETS = [
   "./",
   "./index.html",
@@ -20,7 +20,8 @@ const ASSETS = [
   "./src/audio.js",
   "./src/monetization.js",
   "./src/economy.js",
-  "./src/ui.js"
+  "./src/ui.js",
+  "./src/tutorial.js"
 ];
 
 self.addEventListener("install", (e) => {

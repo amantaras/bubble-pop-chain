@@ -12,6 +12,14 @@ async function openGame(page) {
   // navigation, otherwise reloads would wipe progress we want to assert on.)
   await page.goto("/?e2e=1");
   await page.waitForFunction(() => window.__bpc && window.__bpc.game);
+  // First-run players are dropped straight into the tutorial. Dismiss it so
+  // tests that exercise other flows start from a clean menu. (Tutorial tests
+  // start it explicitly via the "How to Play" button — see that describe.)
+  await page.evaluate(() => {
+    const g = window.__bpc.game;
+    if (g.tutorial && g.tutorial.active) g.tutorial.skip();
+  });
+  await page.waitForFunction(() => !window.__bpc.game.tutorial);
 }
 
 // Pop the largest available group repeatedly until the session ends.
@@ -702,3 +710,166 @@ test.describe("resume in-progress level (save & continue)", () => {
     expect(snap).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Interactive, gated tutorial: each "do this" step must NOT advance until the
+// matching action is observed in the REAL game. We drive the actual code paths
+// (real mouse tap + the real Game handlers the Input layer calls).
+// ---------------------------------------------------------------------------
+test.describe("interactive tutorial (gated, step-by-step)", () => {
+  // Current tutorial step id, or null when the tutorial is finished/closed.
+  const stepId = (page) =>
+    page.evaluate(() => {
+      const t = window.__bpc.game.tutorial;
+      return t && t.active ? t.stepId : null;
+    });
+
+  // Open a fresh game WITHOUT dismissing the first-run tutorial.
+  async function openFirstRun(page) {
+    await page.goto("/?e2e=1");
+    await page.waitForFunction(() => window.__bpc && window.__bpc.game);
+  }
+
+  test("first launch drops a new player into the tutorial", async ({ page }) => {
+    await openFirstRun(page);
+    await expect(page.locator("#tutorial")).toBeVisible();
+    expect(await stepId(page)).toBe("welcome");
+    // The real board + HUD are live behind the coach so the player can act.
+    await expect(page.locator("#hud")).toBeVisible();
+  });
+
+  test("How to Play restarts the tutorial from the menu", async ({ page }) => {
+    await openGame(page); // dismisses the first-run tutorial → clean menu
+    await expect(page.locator("#menu")).toBeVisible();
+    await page.getByRole("button", { name: "How to Play", exact: true }).click();
+    await expect(page.locator("#tutorial")).toBeVisible();
+    expect(await stepId(page)).toBe("welcome");
+  });
+
+  test("Skip exits to the menu and won't auto-open again", async ({ page }) => {
+    await openFirstRun(page);
+    await expect(page.locator("#tutorial")).toBeVisible();
+    await page.locator("#coach-skip").click();
+    await expect(page.locator("#tutorial")).toBeHidden();
+    await expect(page.locator("#menu")).toBeVisible();
+    expect(await stepId(page)).toBeNull();
+    const done = await page.evaluate(
+      () => JSON.parse(localStorage.getItem("bpc_save_v1")).firstRunDone
+    );
+    expect(done).toBe(true);
+  });
+
+  test("every step is gated and only advances when its action is performed", async ({
+    page,
+  }) => {
+    await openFirstRun(page);
+    expect(await stepId(page)).toBe("welcome");
+
+    // 1) welcome (informational) — advances on the button.
+    await page.locator("#coach-next").click();
+    expect(await stepId(page)).toBe("tap");
+    // Action steps hide the Next button: the only way forward is to do it.
+    await expect(page.locator("#coach-next")).toBeHidden();
+
+    // 2) tap — a REAL canvas tap pops a cluster.
+    const cell = await findGroupCell(page);
+    await tapCell(page, cell.c, cell.r);
+    await expect.poll(() => stepId(page)).toBe("combo");
+
+    // 3) combo — two quick pops chain a combo (multiplier ≥ 2).
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      const pick = () => {
+        for (let c = 0; c < b.cols; c++)
+          for (let r = 0; r < b.rows; r++)
+            if (b.grid[c][r] !== -1 && b.getGroupAt(c, r).length >= 2)
+              return { c, r };
+        return null;
+      };
+      const a = pick();
+      g.popAt(a.c, a.r);
+      const z = pick();
+      g.popAt(z.c, z.r);
+    });
+    await expect.poll(() => stepId(page)).toBe("preview");
+
+    // 4) preview — long-press previews a cluster's score.
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++)
+          if (b.grid[c][r] !== -1 && b.getGroupAt(c, r).length >= 2) {
+            const p = b.targetPixel(c, r);
+            g.previewAt(p.x, p.y);
+            return;
+          }
+    });
+    await expect.poll(() => stepId(page)).toBe("swipe");
+
+    // 5) swipe — shift a whole row left/right.
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      const p = b.targetPixel(0, Math.floor(b.rows / 2));
+      g.handleSwipe("left", p.x, p.y);
+    });
+    await expect.poll(() => stepId(page)).toBe("blast");
+    // Entering the blast step grants a full charge meter.
+    expect(await page.evaluate(() => window.__bpc.game.session.power)).toBe(1);
+
+    // 6) blast — double-tap unleashes a Charged Blast.
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++)
+          if (b.grid[c][r] !== -1) {
+            const p = b.targetPixel(c, r);
+            g.handleDoubleTap(p.x, p.y);
+            return;
+          }
+    });
+    await expect.poll(() => stepId(page)).toBe("powerup");
+
+    // 7) powerup — arm the bomb, then tap the board to use it.
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      g.armPowerup("bomb", document.getElementById("pu-bomb"));
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++)
+          if (b.grid[c][r] !== -1) {
+            const p = b.targetPixel(c, r);
+            g.handleTap(p.x, p.y);
+            return;
+          }
+    });
+    await expect.poll(() => stepId(page)).toBe("specials");
+
+    // 8) specials (informational) — the board visibly shows a Rainbow + Ice.
+    const specials = await page.evaluate(() => {
+      const b = window.__bpc.game.session.board;
+      let rainbow = 0;
+      let ice = 0;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          if (b.types[c][r] === 2) rainbow++; // RAINBOW
+          if (b.types[c][r] === 1) ice++; // ICE
+        }
+      return { rainbow, ice };
+    });
+    expect(specials.rainbow).toBeGreaterThanOrEqual(1);
+    expect(specials.ice).toBeGreaterThanOrEqual(1);
+    await page.locator("#coach-next").click();
+    expect(await stepId(page)).toBe("done");
+
+    // 9) done — finishes back to the menu.
+    await page.locator("#coach-next").click();
+    await expect(page.locator("#tutorial")).toBeHidden();
+    await expect(page.locator("#menu")).toBeVisible();
+    expect(await stepId(page)).toBeNull();
+  });
+});
+

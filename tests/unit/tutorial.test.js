@@ -1,0 +1,138 @@
+import { describe, it, expect, vi } from "vitest";
+import {
+  TUTORIAL_STEPS,
+  buildTutorialBoard,
+  decorateSpecials,
+  Tutorial,
+} from "../../src/tutorial.js";
+import { NORMAL, ICE, RAINBOW } from "../../src/grid.js";
+
+describe("tutorial step definitions", () => {
+  it("has a stable, ordered set of steps with unique ids", () => {
+    expect(TUTORIAL_STEPS.length).toBeGreaterThanOrEqual(7);
+    const ids = TUTORIAL_STEPS.map((s) => s.id);
+    expect(new Set(ids).size).toBe(ids.length); // all unique
+    expect(TUTORIAL_STEPS[0].id).toBe("welcome");
+    expect(TUTORIAL_STEPS[TUTORIAL_STEPS.length - 1].advance).toBe("button");
+  });
+
+  it("covers every core feature exactly once", () => {
+    const actions = TUTORIAL_STEPS.map((s) => s.advance);
+    for (const a of ["pop", "combo", "preview", "swipe", "blast", "powerup"]) {
+      expect(actions).toContain(a);
+    }
+  });
+
+  it("action steps have a hint and button steps have a CTA", () => {
+    for (const step of TUTORIAL_STEPS) {
+      if (step.advance === "button") expect(step.cta).toBeTruthy();
+      else expect(step.hint).toBeTruthy();
+    }
+  });
+});
+
+describe("tutorial board generation", () => {
+  it("fills a board with valid colours and guaranteed clusters", () => {
+    const { colors, types } = buildTutorialBoard(7, 9, 4);
+    expect(colors.length).toBe(7);
+    expect(colors[0].length).toBe(9);
+    let hasPair = false;
+    for (let c = 0; c < 7; c++)
+      for (let r = 0; r < 9; r++) {
+        expect(colors[c][r]).toBeGreaterThanOrEqual(0);
+        expect(colors[c][r]).toBeLessThan(4);
+        expect(types[c][r]).toBe(NORMAL);
+        if (r + 1 < 9 && colors[c][r] === colors[c][r + 1]) hasPair = true;
+      }
+    expect(hasPair).toBe(true);
+  });
+
+  it("decorates the board with a visible Rainbow and Ice bubble", () => {
+    const { types } = buildTutorialBoard(7, 9, 4);
+    decorateSpecials(types);
+    let rainbow = 0;
+    let ice = 0;
+    for (let c = 0; c < 7; c++)
+      for (let r = 0; r < 9; r++) {
+        if (types[c][r] === RAINBOW) rainbow++;
+        if (types[c][r] === ICE) ice++;
+      }
+    expect(rainbow).toBeGreaterThanOrEqual(1);
+    expect(ice).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("Tutorial controller gating", () => {
+  function makeTutorial() {
+    const ui = { showTutorialStep: vi.fn(), hideTutorial: vi.fn() };
+    const game = { tutorialGrant: vi.fn() };
+    const onFinish = vi.fn();
+    const tut = new Tutorial({ game, ui, onFinish });
+    return { tut, ui, game, onFinish };
+  }
+
+  it("starts at the first step and renders it", () => {
+    const { tut, ui } = makeTutorial();
+    tut.start();
+    expect(tut.active).toBe(true);
+    expect(tut.stepId).toBe("welcome");
+    expect(ui.showTutorialStep).toHaveBeenCalledTimes(1);
+  });
+
+  it("advances informational steps only on next()", () => {
+    const { tut } = makeTutorial();
+    tut.start();
+    // A game action must NOT advance the welcome (button) step.
+    tut.onAction("pop");
+    expect(tut.stepId).toBe("welcome");
+    tut.next();
+    expect(tut.stepId).toBe("tap");
+  });
+
+  it("advances action steps only when the matching action is observed", () => {
+    const { tut } = makeTutorial();
+    tut.start();
+    tut.next(); // -> tap (advance: "pop")
+    expect(tut.stepId).toBe("tap");
+    // Wrong action and a button press are both ignored.
+    tut.onAction("swipe");
+    tut.next();
+    expect(tut.stepId).toBe("tap");
+    // The correct action advances.
+    tut.onAction("pop");
+    expect(tut.stepId).toBe("combo");
+  });
+
+  it("applies a step's grant when it is entered", () => {
+    const { tut, game } = makeTutorial();
+    tut.start();
+    // Walk to the blast step, which grants a full power meter.
+    const seq = ["pop", "combo", "preview", "swipe"];
+    tut.next(); // welcome -> tap
+    for (const a of seq) tut.onAction(a);
+    expect(tut.stepId).toBe("blast");
+    expect(game.tutorialGrant).toHaveBeenCalledWith("power");
+  });
+
+  it("finishes after the last step and notifies the host", () => {
+    const { tut, ui, onFinish } = makeTutorial();
+    tut.start();
+    // Drive through every step to the end.
+    for (const step of TUTORIAL_STEPS) {
+      if (step.advance === "button") tut.next();
+      else tut.onAction(step.advance);
+    }
+    expect(tut.active).toBe(false);
+    expect(ui.hideTutorial).toHaveBeenCalled();
+    expect(onFinish).toHaveBeenCalledTimes(1);
+  });
+
+  it("skip() ends the tutorial immediately", () => {
+    const { tut, ui, onFinish } = makeTutorial();
+    tut.start();
+    tut.skip();
+    expect(tut.active).toBe(false);
+    expect(ui.hideTutorial).toHaveBeenCalled();
+    expect(onFinish).toHaveBeenCalledTimes(1);
+  });
+});

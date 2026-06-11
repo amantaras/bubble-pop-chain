@@ -30,6 +30,11 @@ never re‑discovered the hard way.
 - **Daily retention** (`daily.js`): rotating seeded modifier, three tiered
   goals → daily stars, a 7‑day reward cycle, and a streak‑freeze token that
   rescues one missed day.
+- **Interactive tutorial** (`tutorial.js`): a gated, step‑by‑step onboarding that
+  auto‑opens on first run (and re‑playable via the menu's **How to Play**
+  button). Each action step **blocks until the player actually performs the
+  gesture** (tap, combo, preview, swipe, charged blast, power‑up). It must stay
+  in sync with the game's features — see §11.
 - **Live production URL**: https://amantaras.github.io/bubble-pop-chain/
   (GitHub Pages, served under the `/bubble-pop-chain/` subpath).
 - **Repo**: `amantaras/bubble-pop-chain`, default branch `master` (private).
@@ -57,8 +62,7 @@ src/
   rng.js            # mulberry32 seeded RNG, todayKey
   economy.js        # Coins + power-up inventory/prices
   daily.js          # Daily challenge + streak logic
-  monetization.js   # F2P abstraction (ads/IAP) — MOCK provider, pluggable
-  ui.js             # All DOM UI: screens, level map, shop, themes, HUD, modals
+  monetization.js   # F2P abstraction (ads/IAP) — MOCK provider, pluggable  tutorial.js       # Gated step-by-step onboarding: TUTORIAL_STEPS + Tutorial class  ui.js             # All DOM UI: screens, level map, shop, themes, HUD, modals
 tests/
   unit/*.test.js    # Vitest unit tests (real modules, jsdom)
   e2e/game.spec.js  # Playwright E2E (real browser, real input)
@@ -116,7 +120,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 84 unit tests + 66 E2E
+- **Current baseline (keep growing, never shrink)**: 95 unit tests + 74 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests
@@ -190,6 +194,8 @@ is red, the deploy is correctly skipped — fix CI first.
 ## 10. Definition of done (checklist before you say "done")
 
 - [ ] Feature implemented with relative paths and existing patterns.
+- [ ] **Tutorial updated** if the feature is player‑facing (added/changed/removed)
+      — see §11.
 - [ ] Unit tests added/updated and passing.
 - [ ] E2E tests added/updated and passing (mobile + desktop projects).
 - [ ] `sw.js` ASSETS / `manifest.json` updated if files/assets changed.
@@ -197,3 +203,54 @@ is red, the deploy is correctly skipped — fix CI first.
 - [ ] `tests/SKILL.md` and `AGENTS.md` updated if behaviour/structure changed.
 - [ ] Committed and pushed to `master`.
 - [ ] CI passed AND the production deploy succeeded; live URL returns 200.
+
+## 11. Tutorial — KEEP IT IN SYNC WITH EVERY FEATURE CHANGE
+
+The interactive tutorial (`src/tutorial.js`) teaches the live feature set by
+making the player **do** each action before it advances. Because it mirrors the
+game's mechanics, it goes stale the moment a feature changes. **Whenever you add,
+change, or remove a player‑facing feature, you MUST adapt the tutorial in the
+same change.** This is not optional — a feature is not "done" (§10) until the
+tutorial reflects it.
+
+How the tutorial is wired (touch every layer that applies):
+
+1. **Steps** — `TUTORIAL_STEPS` in `src/tutorial.js` is the ordered script. Each
+   step is `{ id, title, body, advance, cta?, hint?, grant? }`:
+   - `advance: "button"` → advances when the player taps **Next** (`cta` is the
+     button label). Use for informational steps.
+   - `advance: "<action>"` → a **gated** step that only advances when the game
+     emits that action. Current actions: `pop`, `combo`, `preview`, `swipe`,
+     `blast`, `powerup`. `hint` is the nudge text shown while waiting.
+   - `grant` → a one‑time setup applied on entering the step (e.g. fill the
+     power meter, place special bubbles) via `Game.tutorialGrant(kind)`.
+2. **Action emitters** — the game calls `this._tut("<action>")` from `main.js`
+   right after the corresponding mechanic resolves (`popAt` → `pop`/`combo`,
+   `previewAt` → `preview`, `handleSwipe` → `swipe`, `chargedBlast` → `blast`,
+   `applyPowerup` → `powerup`). **A new gesture/mechanic that the tutorial should
+   teach needs a matching `_tut(...)` emit.**
+3. **Grants** — add new setup cases to `Game.tutorialGrant(kind)` in `main.js`
+   (and a `grant:` on the step) when a step needs pre‑arranged board state.
+4. **Board** — `buildTutorialBoard()` / `decorateSpecials()` produce a
+   deterministic teaching board (guaranteed clusters + a Rainbow + an Ice). Keep
+   it valid if colour/type rules change.
+5. **UI** — the coach card markup lives in `index.html` (`#tutorial`,
+   `#coach-*`), styled in `styles.css` (`.tutorial-overlay`, `.coach-*`), and is
+   driven by `UI.showTutorialStep()` / `UI.hideTutorial()`.
+6. **Tests** — update `tests/unit/tutorial.test.js` (step‑table invariants +
+   gating logic) and the `interactive tutorial` block in
+   `tests/e2e/game.spec.js` (first‑run open, How to Play, skip, full gated
+   walkthrough). The e2e `openGame()` helper dismisses the first‑run tutorial so
+   other tests start on a clean menu — keep that intact.
+
+Checklist when a player‑facing feature changes:
+
+- [ ] Added a feature → add a step (and an action + `_tut` emit if it's a new
+      gesture/mechanic the player must perform).
+- [ ] Changed a feature → update the relevant step's `body`/`hint`/`advance`
+      action and any `grant`/board setup.
+- [ ] Removed a feature → delete its step, its `_tut(...)` emit, and any grant.
+- [ ] Updated `tutorial.test.js` and the e2e tutorial walkthrough to match.
+- [ ] `npm test` green; first‑run + How to Play still walk end‑to‑end.
+
+The `src/tutorial.js` header carries a ⚠️ reminder pointing back to this section.

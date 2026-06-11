@@ -80,6 +80,7 @@
         <button class="btn" id="btn-daily">Daily Challenge</button>
         <button class="btn" id="btn-shop">Shop</button>
         <button class="btn" id="btn-themes">Themes</button>
+        <button class="btn" id="btn-tutorial">How to Play</button>
       </div>
       <div class="menu-foot">
         <div class="coins-pill big"><span class="coin-dot"></span><span id="menu-coins">0</span></div>
@@ -158,6 +159,20 @@
 
     <!-- Toast -->
     <div id="toast" class="toast hidden"></div>
+
+    <!-- Interactive tutorial coach (gated, step-by-step) -->
+    <div id="tutorial" class="tutorial-overlay hidden" aria-live="polite">
+      <div class="coach-card">
+        <div class="coach-progress" id="coach-progress"></div>
+        <h3 class="coach-title" id="coach-title"></h3>
+        <p class="coach-body" id="coach-body"></p>
+        <div class="coach-hint" id="coach-hint"></div>
+        <div class="coach-actions">
+          <button class="coach-skip" id="coach-skip">Skip tutorial</button>
+          <button class="btn btn-primary coach-next" id="coach-next">Next</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="src/main.js"></script>

@@ -53,9 +53,10 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   daily-streak rules, theme unlock logic, storage persistence, the
   monetization cadence (forced interstitials gated until level 7), gesture
   swipe classification, the Power-meter charge curve + Charged-Blast AoE,
-  special bubbles (rainbow wildcard + ice two-hit) with type round-trip, and
-  the daily retention engine (modifiers, tiered goals/stars, weekly rewards,
-  streak-freeze rescue). `localStorage` is a real spec-compliant store
+  special bubbles (rainbow wildcard + ice two-hit) with type round-trip, the
+  daily retention engine (modifiers, tiered goals/stars, weekly rewards,
+  streak-freeze rescue), and the interactive tutorial (step-table invariants,
+  deterministic teaching-board generation, and gated step advancement). `localStorage` is a real spec-compliant store
   (`tests/setup.js`), reset before each test.
 - **E2E tests** load the real page, click real DOM buttons, and dispatch real
   pointer taps on the `<canvas>`. They cover: menu/level-map/shop/themes
@@ -66,7 +67,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   resuming an in-progress campaign level (save & Continue), real-input
   gestures (long-press Preview, double-tap Charged Blast, swipe row-shift),
   special-bubble spawning + reload persistence, no forced ads before level 7,
-  and the daily retention flow (summary, streak reward). Both a mobile
+  the daily retention flow (summary, streak reward), and the gated
+  step-by-step tutorial (first-run auto-open, How to Play replay, skip, and a
+  full walkthrough that performs each real gesture to advance). Both a mobile
   (Pixel 7) and a desktop Chromium profile are run.
 
 ### The test hook

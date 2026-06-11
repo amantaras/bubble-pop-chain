@@ -1,5 +1,5 @@
 // Game orchestrator: canvas loop, state machine, and all session logic.
-import { Board } from "./grid.js";
+import { Board, RAINBOW, ICE } from "./grid.js";
 import { Renderer } from "./renderer.js";
 import { ParticleSystem } from "./particles.js";
 import { ScreenShake, FloatingText } from "./animations.js";
@@ -27,6 +27,11 @@ import {
   dailyStarsForScore,
   getFreezeTokens,
 } from "./daily.js";
+import {
+  Tutorial,
+  buildTutorialBoard,
+  decorateSpecials,
+} from "./tutorial.js";
 
 const TOP_INSET = 168;
 const BOTTOM_INSET = 120;
@@ -42,6 +47,7 @@ class Game {
     this.shake = new ScreenShake();
     this.theme = getTheme(Storage.get("currentTheme"));
     this.session = null;
+    this.tutorial = null;
     this.W = 0;
     this.H = 0;
     this.lastTime = 0;
@@ -63,6 +69,9 @@ class Game {
       retryLevel: () => this.retryLevel(),
       reviveLevel: () => this.reviveLevel(),
       doubleCoins: () => this.doubleCoins(),
+      startTutorial: () => this.startTutorial(),
+      tutorialNext: () => this.tutorial && this.tutorial.next(),
+      tutorialSkip: () => this.tutorial && this.tutorial.skip(),
       onThemeChange: (t) => {
         this.theme = t;
       },
@@ -89,6 +98,11 @@ class Game {
     window.addEventListener("resize", () => this.resize());
     this.resize();
     UI.showScreen("menu");
+
+    // First-time players are walked through the interactive tutorial.
+    if (!Storage.get("firstRunDone")) {
+      this.startTutorial();
+    }
 
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () =>
@@ -257,6 +271,86 @@ class Game {
     }
   }
 
+  // ---- Interactive tutorial --------------------------------------------
+  // A real, playable session in "tutorial" mode on a fully-controlled board.
+  // The Tutorial controller gates progress: each "do this" step only advances
+  // when the matching action is observed (see `_tut(...)` call sites). The
+  // session never ends on its own and never touches the campaign save.
+  startTutorial() {
+    if (this.tutorial && this.tutorial.active) return;
+    clearTimeout(this._endTimer);
+    const cols = 7;
+    const rows = 9;
+    const colors = 4;
+    const board = new Board(cols, rows, colors, 7);
+    const { colors: g, types } = buildTutorialBoard(cols, rows, colors);
+    decorateSpecials(types);
+    board.restore(g, types);
+    this.session = {
+      mode: "tutorial",
+      level: { id: "tutorial", cols, rows, colors, target: 0 },
+      board,
+      score: 0,
+      movesLeft: 9999,
+      combo: 0,
+      comboTimer: 0,
+      armed: null,
+      ended: false,
+      coinsEarned: 0,
+      doubled: false,
+      revived: false,
+      preview: null,
+      power: 0,
+      shiftTokens: 99,
+    };
+    this._enterSession();
+    this.tutorial = new Tutorial({
+      game: this,
+      ui: UI,
+      onFinish: () => this.finishTutorial(),
+    });
+    this.tutorial.start();
+  }
+
+  finishTutorial() {
+    this.tutorial = null;
+    Storage.set("firstRunDone", true);
+    this.session = null;
+    this.input.setEnabled(false);
+    UI.showScreen("menu");
+  }
+
+  // Set up the board/meter for a tutorial step that needs a precondition.
+  tutorialGrant(kind) {
+    const s = this.session;
+    if (!s) return;
+    if (kind === "power") {
+      s.power = 1;
+      UI.updatePower(1, true);
+    } else if (kind === "specials") {
+      // Re-assert a visible Rainbow + Ice so the explanation always matches
+      // what's on the board, regardless of what the player popped earlier.
+      const b = s.board;
+      const midR = Math.floor(b.rows / 2);
+      const midC = Math.floor(b.cols / 2);
+      const place = (c, r, t) => {
+        if (b.grid[c] && b.grid[c][r] !== -1) {
+          b.types[c][r] = t;
+          const sp = b.spriteGrid[c] && b.spriteGrid[c][r];
+          if (sp) sp.type = t;
+        }
+      };
+      place(midC, midR, RAINBOW);
+      place(Math.min(b.cols - 1, midC + 1), midR, ICE);
+    }
+    // "bomb": tutorial bypasses the economy (see armPowerup/applyPowerup).
+  }
+
+  // Notify the tutorial that an action happened in the real game.
+  _tut(type) {
+    if (this.tutorial && this.tutorial.active) this.tutorial.onAction(type);
+  }
+
   // ---- HUD --------------------------------------------------------------
   refreshHud() {
     const s = this.session;
@@ -270,6 +364,15 @@ class Game {
         showTarget: true,
         target: s.level.target,
         progress: s.score / s.level.target,
+      });
+    } else if (s.mode === "tutorial") {
+      UI.updateHud({
+        modeLabel: "Tutorial",
+        score: s.score,
+        movesLabel: "",
+        moves: "",
+        showTarget: false,
+        progress: 0,
       });
     } else if (s.mode === "endless") {
       UI.updateHud({
@@ -336,6 +439,7 @@ class Game {
     vibrate(16);
     UI.toast(dir === "left" ? "◀ Row shifted" : "Row shifted ▶");
     this.refreshHud();
+    this._tut("swipe");
     this.afterMove();
   }
 
@@ -365,6 +469,7 @@ class Game {
       points: this.projectedPoints(group.length),
       size: group.length,
     };
+    this._tut("preview");
   }
 
   // Release: pop the previewed group if the finger is still on a valid one.
@@ -405,6 +510,8 @@ class Game {
 
     if (s.mode === "campaign") s.movesLeft -= 1;
     this.refreshHud();
+    this._tut("pop");
+    if (s.combo >= 2) this._tut("combo");
     this.afterMove();
   }
 
@@ -452,6 +559,7 @@ class Game {
     Audio.powerup();
     this.floating.spawn(this.W / 2, this.H / 2, "CHARGED BLAST!", "#ff6ec7", 30);
     this.refreshHud();
+    this._tut("blast");
     this.afterMove();
   }
 
@@ -462,7 +570,8 @@ class Game {
     else if (type === "colorClear") cells = s.board.colorCells(s.board.grid[c][r]);
     if (cells.length === 0) return;
 
-    if (!Economy.usePowerup(type)) return;
+    // Tutorial mode bypasses the economy so it never spends real inventory.
+    if (s.mode !== "tutorial" && !Economy.usePowerup(type)) return;
     const points = groupScore(Math.max(2, cells.length));
     s.score += points;
     this._popCells(cells, points, cells.length, 1, 0.6);
@@ -471,6 +580,7 @@ class Game {
     UI.clearArmedPowerups();
     UI.updatePowerups();
     this.refreshHud();
+    this._tut("powerup");
     this.afterMove();
   }
 
@@ -504,12 +614,13 @@ class Game {
 
   // ---- Power-up arming --------------------------------------------------
   armPowerup(type, btn) {
-    const s = this.session;
-    if (!s || s.ended) return;
-    if (Economy.getPowerup(type) <= 0) {
+    const inTutorial = s.mode === "tutorial";
+    if (!inTutorial && Economy.getPowerup(type) <= 0) {
       UI.toast("None left — buy in Shop");
       return;
     }
+    if (type === "shuffle") {
+      if (!inTutorial)
     if (type === "shuffle") {
       Economy.usePowerup(type);
       s.board.shuffle();
@@ -534,6 +645,8 @@ class Game {
   // ---- End-of-move evaluation ------------------------------------------
   afterMove() {
     const s = this.session;
+    // The tutorial is a sandbox: it never wins, loses, refills, or persists.
+    if (s.mode === "tutorial") return;
     if (!s || s.ended) return;
 
     if (s.board.isCleared()) {
@@ -692,7 +805,12 @@ class Game {
     document.getElementById("win-double").style.display = "none";
   }
 
-  quitToMenu() {
+  quitTBack during the tutorial just exits the tutorial cleanly.
+    if (this.tutorial && this.tutorial.active) {
+      this.tutorial.skip();
+      return;
+    }
+    // oMenu() {
     clearTimeout(this._endTimer);
     // Keep the in-progress campaign snapshot so the player can resume it;
     // it is only cleared when the level is actually finished.
