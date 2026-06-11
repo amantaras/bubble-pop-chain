@@ -50,16 +50,23 @@ npm run serve               # preview the game at http://127.0.0.1:4173
 - **Unit tests** import the actual `src/*.js` modules and assert on real
   behaviour: RNG determinism, level difficulty curve, scoring/combo math,
   flood-fill + gravity + column collapse, power-up effects, the coin economy,
-  daily-streak rules, theme unlock logic, storage persistence, and the
-  monetization cadence. `localStorage` is a real spec-compliant store
+  daily-streak rules, theme unlock logic, storage persistence, the
+  monetization cadence (forced interstitials gated until level 7), gesture
+  swipe classification, the Power-meter charge curve + Charged-Blast AoE,
+  special bubbles (rainbow wildcard + ice two-hit) with type round-trip, and
+  the daily retention engine (modifiers, tiered goals/stars, weekly rewards,
+  streak-freeze rescue). `localStorage` is a real spec-compliant store
   (`tests/setup.js`), reset before each test.
 - **E2E tests** load the real page, click real DOM buttons, and dispatch real
   pointer taps on the `<canvas>`. They cover: menu/level-map/shop/themes
   navigation, popping via real taps, scoring, win/lose, revive and double-coins
   rewarded-ad flows, endless refill, daily streak, all three power-ups, shop
   purchases, "remove ads", theme buy/apply, sound toggle, PWA service-worker
-  registration, manifest reachability, progress persistence across reloads, and
-  resuming an in-progress campaign level (save & Continue). Both a mobile
+  registration, manifest reachability, progress persistence across reloads,
+  resuming an in-progress campaign level (save & Continue), real-input
+  gestures (long-press Preview, double-tap Charged Blast, swipe row-shift),
+  special-bubble spawning + reload persistence, no forced ads before level 7,
+  and the daily retention flow (summary, streak reward). Both a mobile
   (Pixel 7) and a desktop Chromium profile are run.
 
 ### The test hook

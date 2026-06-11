@@ -16,6 +16,20 @@ never re‑discovered the hard way.
   framework without explicit user approval.
 - **Installable PWA**: `manifest.json` + `sw.js` (service worker) + SVG icons.
 - **Persistence**: `localStorage` under the key `bpc_save_v1`.
+- **Gestures** (`src/input.js`): tap to pop, **long‑press** = Preview & Plan
+  (highlights a group + projected score), **double‑tap** = Charged Blast when
+  the Power meter is full, **swipe left/right** = shift a whole row (2048‑style,
+  costs 1 move in campaign or a shift token in endless/daily).
+- **Power meter**: fills from points + combos (`scoring.powerGain`); a full
+  meter enables a double‑tap Charged Blast (`grid.blastArea`, diamond AoE).
+- **Special bubbles** (`grid.js` `types` layer): **Rainbow** = colour wildcard
+  that bridges regions; **Ice** = needs two hits (cracks, then clears). Seeded
+  spawn rates ramp in by level. Types are part of the save/resume snapshot.
+- **Ads gating** (`monetization.js`): forced interstitials only from
+  `adsStartLevel` (7) onward; rewarded ads always available.
+- **Daily retention** (`daily.js`): rotating seeded modifier, three tiered
+  goals → daily stars, a 7‑day reward cycle, and a streak‑freeze token that
+  rescues one missed day.
 - **Live production URL**: https://amantaras.github.io/bubble-pop-chain/
   (GitHub Pages, served under the `/bubble-pop-chain/` subpath).
 - **Repo**: `amantaras/bubble-pop-chain`, default branch `master` (private).
@@ -102,7 +116,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 65 unit tests + 50 E2E
+- **Current baseline (keep growing, never shrink)**: 84 unit tests + 66 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests
