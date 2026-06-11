@@ -210,6 +210,38 @@ test.describe("gestures: double-tap Charged Blast (real input)", () => {
   });
 });
 
+test.describe("gestures: swipe to shift a row (real input)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("horizontal swipe shifts a row and spends a move", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(5));
+    await page.waitForTimeout(700);
+
+    // Aim at the bottom-most (fully populated) row.
+    const aim = await page.evaluate(() => {
+      const b = window.__bpc.game.session.board;
+      const r = b.rows - 1;
+      const left = b.targetPixel(0, r);
+      const right = b.targetPixel(b.cols - 1, r);
+      return { y: left.y, x0: left.x, x1: right.x, moves: window.__bpc.game.session.movesLeft };
+    });
+    const box = await page.locator("#game-canvas").boundingBox();
+    const y = box.y + aim.y;
+
+    // Real left-to-right drag = swipe right.
+    await page.mouse.move(box.x + aim.x0, y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + aim.x1, y, { steps: 8 });
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+
+    const moves = await page.evaluate(
+      () => window.__bpc.game.session.movesLeft
+    );
+    expect(moves).toBe(aim.moves - 1); // the swipe consumed exactly one move
+  });
+});
+
 test.describe("campaign progression", () => {
   test.beforeEach(({ page }) => openGame(page));
 

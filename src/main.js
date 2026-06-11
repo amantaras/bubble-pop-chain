@@ -71,6 +71,7 @@ class Game {
       onLongPressStart: (x, y) => this.previewAt(x, y),
       onLongPressMove: (x, y) => this.previewAt(x, y),
       onLongPressEnd: (x, y) => this.commitPreview(x, y),
+      onSwipe: (dir, x0, y0) => this.handleSwipe(dir, x0, y0),
       shouldDeferTap: () => this.isBlastReady(),
     });
     this.input.setEnabled(false);
@@ -129,6 +130,7 @@ class Game {
       revived: false,
       preview: null,
       power: 0,
+      shiftTokens: mode === "campaign" ? 0 : 5,
     };
     this._enterSession();
     if (mode === "campaign") this._persistSession();
@@ -184,6 +186,7 @@ class Game {
       revived: !!snap.revived,
       preview: null,
       power: 0,
+      shiftTokens: 0,
     };
     this._enterSession();
   }
@@ -275,6 +278,37 @@ class Game {
 
     if (!cell) return;
     this.popAt(cell.c, cell.r);
+  }
+
+  // ---- Swipe left/right: Shift a whole row (2048-style) -----------------
+  handleSwipe(dir, x0, y0) {
+    const s = this.session;
+    if (!s || s.ended || s.armed) return;
+    if (dir !== "left" && dir !== "right") return; // only horizontal shifts
+
+    const r = s.board.rowAtPixel(y0);
+    if (r === null) return;
+
+    // A shift is a move: campaign spends a move, endless/daily spend a token.
+    if (s.mode === "campaign") {
+      if (s.movesLeft <= 0) return;
+    } else if (s.shiftTokens <= 0) {
+      UI.toast("No shifts left");
+      return;
+    }
+
+    if (!s.board.shiftRow(r, dir)) return; // empty row — nothing to shift
+
+    s.preview = null;
+    s.board.settle();
+    if (s.mode === "campaign") s.movesLeft -= 1;
+    else s.shiftTokens -= 1;
+
+    Audio.pop(1, 3);
+    vibrate(16);
+    UI.toast(dir === "left" ? "◀ Row shifted" : "Row shifted ▶");
+    this.refreshHud();
+    this.afterMove();
   }
 
   // ---- Long-press: Preview & Plan --------------------------------------

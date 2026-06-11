@@ -147,6 +147,13 @@ export class Board {
     return { c, r };
   }
 
+  // Row index under a pixel Y (ignores column / emptiness), or null if outside.
+  rowAtPixel(py) {
+    const r = Math.floor((py - this.originY) / this.cell);
+    if (r < 0 || r >= this.rows) return null;
+    return r;
+  }
+
   // ---- Queries ----------------------------------------------------------
   getGroupAt(c, r) {
     const color = this.grid[c][r];
@@ -191,6 +198,34 @@ export class Board {
   }
 
   // ---- Mutations --------------------------------------------------------
+  // Shift an entire row horizontally with wrap-around (2048-style).
+  // `dir` is "left" or "right". Returns true if the row had any bubbles.
+  shiftRow(r, dir) {
+    if (r < 0 || r >= this.rows) return false;
+    const gridRow = [];
+    const spriteRow = [];
+    let bubbles = 0;
+    for (let c = 0; c < this.cols; c++) {
+      gridRow.push(this.grid[c][r]);
+      spriteRow.push(this.spriteGrid[c][r]);
+      if (this.grid[c][r] !== -1) bubbles++;
+    }
+    if (bubbles === 0) return false;
+    if (dir === "right") {
+      gridRow.unshift(gridRow.pop());
+      spriteRow.unshift(spriteRow.pop());
+    } else {
+      gridRow.push(gridRow.shift());
+      spriteRow.push(spriteRow.shift());
+    }
+    for (let c = 0; c < this.cols; c++) {
+      this.grid[c][r] = gridRow[c];
+      this.spriteGrid[c][r] = spriteRow[c];
+      if (spriteRow[c]) spriteRow[c].c = c;
+    }
+    return true;
+  }
+
   // Remove a set of cells, returning their pixel positions + colors (for FX).
   removeCells(cells, theme) {
     const fx = [];

@@ -192,6 +192,25 @@ describe("grid / Board", () => {
     expect(b.blastArea(0, 0).length).toBeLessThan(13);
     expect(b.blastArea(0, 0).every((c) => c.c >= 0 && c.r >= 0)).toBe(true);
   });
+
+  it("shiftRow rotates a row with wrap-around in both directions", () => {
+    const b = new Board(3, 1, 3, 1);
+    // grid is [col][row]; single row r=0 with colours [A,B,C] across columns.
+    setGrid(b, [[0], [1], [2]]);
+    expect(b.shiftRow(0, "right")).toBe(true);
+    // right shift: last column wraps to first => [C,A,B]
+    expect([b.grid[0][0], b.grid[1][0], b.grid[2][0]]).toEqual([2, 0, 1]);
+
+    setGrid(b, [[0], [1], [2]]);
+    expect(b.shiftRow(0, "left")).toBe(true);
+    // left shift: first column wraps to last => [B,C,A]
+    expect([b.grid[0][0], b.grid[1][0], b.grid[2][0]]).toEqual([1, 2, 0]);
+
+    // An out-of-range or empty row reports no shift.
+    expect(b.shiftRow(99, "left")).toBe(false);
+    setGrid(b, [[-1], [-1], [-1]]);
+    expect(b.shiftRow(0, "left")).toBe(false);
+  });
 });
 
 function colourHistogram(board) {
