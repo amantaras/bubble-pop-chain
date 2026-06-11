@@ -10,6 +10,12 @@ import {
 import { Economy, POWERUP_INFO, COIN_PACKS } from "./economy.js";
 import { Monetization } from "./monetization.js";
 import { Audio } from "./audio.js";
+import {
+  getDailyModifier,
+  getStreak,
+  getFreezeTokens,
+  alreadyPlayedToday,
+} from "./daily.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -24,7 +30,7 @@ class UIManager {
       "menu", "levelmap", "shop", "themes", "hud", "win", "lose",
       "menu-coins", "lm-coins", "shop-coins", "themes-coins", "hud-coins",
       "level-grid", "shop-list", "theme-list",
-      "btn-continue",
+      "btn-continue", "daily-summary",
       "hud-mode-label", "hud-score", "hud-target", "hud-target-wrap",
       "hud-moves", "hud-moves-label", "hud-progress-fill",
       "power-meter", "power-fill", "power-label",
@@ -109,15 +115,17 @@ class UIManager {
     this.showHud(false);
     if (name && this.el[name]) this.el[name].classList.remove("hidden");
     this.refreshCoins();
-    if (name === "menu") this.updateContinue();
+    if (name === "menu") {
+      this.updateContinue();
+      this.updateDailySummary();
+    }
     if (name === "levelmap") this.buildLevelMap();
     if (name === "shop") this.buildShop();
     if (name === "themes") this.buildThemes();
   }
 
   // Show a "Continue" entry on the menu when a campaign level is in progress.
-  updateContinue() {
-    const btn = this.el["btn-continue"];
+  updateContinue() {    const btn = this.el["btn-continue"];
     if (!btn) return;
     const play = $("btn-play");
     const snap = Storage.get("activeSession");
@@ -129,6 +137,23 @@ class UIManager {
       btn.classList.add("hidden");
       if (play) play.classList.add("btn-primary");
     }
+  }
+
+  // Daily summary on the menu: today's modifier, streak and freeze tokens.
+  updateDailySummary() {
+    const el = this.el["daily-summary"];
+    if (!el) return;
+    const mod = getDailyModifier();
+    const streak = getStreak();
+    const freeze = getFreezeTokens();
+    const done = alreadyPlayedToday();
+    const parts = [
+      `<span class="ds-mod">${mod.label}</span>`,
+      `<span class="ds-streak">${streak}🔥</span>`,
+    ];
+    if (freeze > 0) parts.push(`<span class="ds-freeze">${freeze}❄️</span>`);
+    if (done) parts.push(`<span class="ds-done">✓ played</span>`);
+    el.innerHTML = parts.join("");
   }
 
   refreshCoins() {

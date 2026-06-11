@@ -209,6 +209,31 @@ body {
   position: absolute;
   top: calc(var(--safe-top) + 14px);
   right: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.daily-summary {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+}
+.daily-summary span {
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  white-space: nowrap;
+}
+.daily-summary .ds-mod {
+  background: rgba(110, 168, 255, 0.22);
+}
+.daily-summary .ds-done {
+  background: rgba(91, 255, 155, 0.2);
 }
 
 /* ---------- Coins ---------- */

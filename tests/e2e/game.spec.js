@@ -293,6 +293,38 @@ test.describe("special bubbles (ice + rainbow)", () => {
   });
 });
 
+test.describe("daily retention engine", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("the menu shows today's daily summary (modifier + streak)", async ({
+    page,
+  }) => {
+    await expect(page.locator("#menu")).toBeVisible();
+    const summary = page.locator("#daily-summary");
+    await expect(summary).toContainText("🔥");
+    await expect(summary).not.toBeEmpty();
+  });
+
+  test("completing the daily grants a streak reward and marks it played", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startDaily());
+    await page.waitForTimeout(500);
+    await autoPlay(page);
+    await expect(page.locator("#win")).toBeVisible();
+    await expect(page.locator("#win-reward")).toContainText("Streak");
+
+    await page.locator("#win-menu").click();
+    await expect(page.locator("#menu")).toBeVisible();
+    await expect(page.locator("#daily-summary")).toContainText("played");
+    const daily = await page.evaluate(
+      () => JSON.parse(localStorage.getItem("bpc_save_v1")).daily
+    );
+    expect(daily.streak).toBeGreaterThanOrEqual(1);
+    expect(daily.lastDate).not.toBeNull();
+  });
+});
+
 test.describe("campaign progression", () => {
   test.beforeEach(({ page }) => openGame(page));
 

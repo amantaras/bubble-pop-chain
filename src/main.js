@@ -23,6 +23,9 @@ import {
   recordDaily,
   alreadyPlayedToday,
   getStreak,
+  getDailyGoals,
+  dailyStarsForScore,
+  getFreezeTokens,
 } from "./daily.js";
 
 const TOP_INSET = 168;
@@ -245,8 +248,12 @@ class Game {
     const lvl = getDailyLevel();
     this._newSession("daily", lvl);
     this.session.movesLeft = 9999;
+    this.session.goals = getDailyGoals(lvl);
+    const mod = lvl.modifier;
     if (alreadyPlayedToday()) {
       UI.toast(`Replaying today • Streak ${getStreak()}🔥`);
+    } else if (mod) {
+      UI.toast(`Today: ${mod.label} — ${mod.desc}`);
     }
   }
 
@@ -615,16 +622,22 @@ class Game {
         title: s.score > prevBest ? "New Best!" : "Game Over",
       });
     } else if (s.mode === "daily") {
-      const info = recordDaily(s.score);
-      const coins = Math.floor(s.score / 150) + 30;
+      const goals = s.goals || getDailyGoals(s.level);
+      const stars = dailyStarsForScore(goals, s.score);
+      const info = recordDaily(s.score, stars);
+      // Score coins plus the streak-cycle reward (only on the first play/day).
+      const coins = Math.floor(s.score / 150) + (info.coins || 0);
       s.coinsEarned = coins;
       Economy.addCoins(coins);
       Audio.win();
       UI.setWinTitle("Daily Complete");
+      const bits = [`Streak ${info.streak}🔥`, `+${coins} coins`];
+      if (info.freezeAwarded) bits.push("❄️ Freeze earned!");
+      else if (info.usedFreeze) bits.push("❄️ Freeze used");
       UI.showWin({
-        stars: 0,
+        stars,
         score: s.score,
-        rewardText: `Streak ${info.streak}🔥  +${coins} coins`,
+        rewardText: bits.join("  •  "),
         showNext: false,
         showDouble: !Monetization.isAdsRemoved(),
       });
