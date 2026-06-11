@@ -614,15 +614,14 @@ class Game {
 
   // ---- Power-up arming --------------------------------------------------
   armPowerup(type, btn) {
+    const s = this.session;
     const inTutorial = s.mode === "tutorial";
     if (!inTutorial && Economy.getPowerup(type) <= 0) {
       UI.toast("None left — buy in Shop");
       return;
     }
     if (type === "shuffle") {
-      if (!inTutorial)
-    if (type === "shuffle") {
-      Economy.usePowerup(type);
+      if (!inTutorial) Economy.usePowerup(type);
       s.board.shuffle();
       Audio.powerup();
       UI.updatePowerups();
@@ -805,12 +804,12 @@ class Game {
     document.getElementById("win-double").style.display = "none";
   }
 
-  quitTBack during the tutorial just exits the tutorial cleanly.
+  // Back during the tutorial just exits the tutorial cleanly.
+  quitToMenu() {
     if (this.tutorial && this.tutorial.active) {
       this.tutorial.skip();
       return;
     }
-    // oMenu() {
     clearTimeout(this._endTimer);
     // Keep the in-progress campaign snapshot so the player can resume it;
     // it is only cleared when the level is actually finished.
