@@ -242,6 +242,57 @@ test.describe("gestures: swipe to shift a row (real input)", () => {
   });
 });
 
+test.describe("special bubbles (ice + rainbow)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  function countSpecials(page) {
+    return page.evaluate(() => {
+      const b = window.__bpc.game.session.board;
+      let rainbow = 0;
+      let ice = 0;
+      for (let c = 0; c < b.cols; c++) {
+        for (let r = 0; r < b.rows; r++) {
+          const t = b.types[c][r];
+          if (t === 2) rainbow++;
+          else if (t === 1 || t === 3) ice++;
+        }
+      }
+      return { rainbow, ice, hasMoves: b.hasMoves() };
+    });
+  }
+
+  test("a later campaign level spawns specials and stays playable", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(16));
+    await page.waitForTimeout(700);
+    const info = await countSpecials(page);
+    expect(info.rainbow + info.ice).toBeGreaterThan(0);
+    expect(info.hasMoves).toBe(true);
+  });
+
+  test("special bubble types survive a full reload (save contract)", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(16));
+    await page.waitForTimeout(700);
+    const before = await page.evaluate(() =>
+      window.__bpc.game.session.board.serializeTypes()
+    );
+    await page.locator("#btn-back").click();
+    await expect(page.locator("#menu")).toBeVisible();
+
+    await page.reload();
+    await page.waitForFunction(() => window.__bpc && window.__bpc.game);
+    await page.locator("#btn-continue").click();
+    await expect(page.locator("#hud-mode-label")).toHaveText("Level 16");
+    const after = await page.evaluate(() =>
+      window.__bpc.game.session.board.serializeTypes()
+    );
+    expect(after).toEqual(before);
+  });
+});
+
 test.describe("campaign progression", () => {
   test.beforeEach(({ page }) => openGame(page));
 

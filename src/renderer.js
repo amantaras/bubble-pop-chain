@@ -1,5 +1,7 @@
 // Canvas renderer: animated background + glossy neon bubbles.
 
+import { RAINBOW, ICE, ICE_CRACKED } from "./grid.js";
+
 function hexToRgb(hex) {
   const h = hex.replace("#", "");
   return {
@@ -90,7 +92,7 @@ export class Renderer {
       ctx.shadowColor = hex;
       ctx.shadowBlur = board.cell * 0.28;
 
-      // Body gradient
+      // Body gradient — rainbow bubbles use a multi-hue sweep.
       const grad = ctx.createRadialGradient(
         s.x - rad * 0.35,
         s.y - rad * 0.4,
@@ -99,9 +101,18 @@ export class Renderer {
         s.y,
         rad
       );
-      grad.addColorStop(0, lighten(hex, 0.55));
-      grad.addColorStop(0.45, hex);
-      grad.addColorStop(1, shade(hex, 0.55));
+      if (s.type === RAINBOW) {
+        grad.addColorStop(0.0, "#ffffff");
+        grad.addColorStop(0.25, "#ff5b8d");
+        grad.addColorStop(0.5, "#ffd35b");
+        grad.addColorStop(0.72, "#5bff9b");
+        grad.addColorStop(1.0, "#6ea8ff");
+        ctx.shadowColor = "#ffffff";
+      } else {
+        grad.addColorStop(0, lighten(hex, 0.55));
+        grad.addColorStop(0.45, hex);
+        grad.addColorStop(1, shade(hex, 0.55));
+      }
       ctx.fillStyle = grad;
       ctx.beginPath();
       ctx.arc(s.x, s.y, rad, 0, Math.PI * 2);
@@ -122,6 +133,32 @@ export class Renderer {
         Math.PI * 2
       );
       ctx.fill();
+
+      // Ice overlay: frosty tint, rim, and cracks once chipped.
+      if (s.type === ICE || s.type === ICE_CRACKED) {
+        ctx.globalAlpha = s.alpha * 0.55;
+        ctx.fillStyle = "rgba(220,245,255,0.7)";
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, rad, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = s.alpha;
+        ctx.lineWidth = Math.max(1.5, rad * 0.12);
+        ctx.strokeStyle = "rgba(255,255,255,0.9)";
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, rad * 0.92, 0, Math.PI * 2);
+        ctx.stroke();
+        if (s.type === ICE_CRACKED) {
+          ctx.lineWidth = Math.max(1, rad * 0.08);
+          ctx.strokeStyle = "rgba(120,160,200,0.95)";
+          ctx.beginPath();
+          ctx.moveTo(s.x - rad * 0.6, s.y - rad * 0.3);
+          ctx.lineTo(s.x, s.y);
+          ctx.lineTo(s.x - rad * 0.1, s.y + rad * 0.6);
+          ctx.moveTo(s.x, s.y);
+          ctx.lineTo(s.x + rad * 0.55, s.y - rad * 0.45);
+          ctx.stroke();
+        }
+      }
 
       ctx.restore();
     }

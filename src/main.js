@@ -114,7 +114,13 @@ class Game {
   // ---- Session setup ----------------------------------------------------
   _newSession(mode, level) {
     clearTimeout(this._endTimer);
-    const board = new Board(level.cols, level.rows, level.colors, level.seed);
+    const board = new Board(
+      level.cols,
+      level.rows,
+      level.colors,
+      level.seed,
+      level.specials
+    );
     this.session = {
       mode,
       level,
@@ -168,9 +174,15 @@ class Game {
     if (!snap || snap.mode !== "campaign") return this.quitToMenu();
     clearTimeout(this._endTimer);
     const level = getLevel(snap.levelId);
-    const board = new Board(level.cols, level.rows, level.colors, level.seed);
+    const board = new Board(
+      level.cols,
+      level.rows,
+      level.colors,
+      level.seed,
+      level.specials
+    );
     board.layout(this.W, this.H, TOP_INSET, BOTTOM_INSET);
-    board.restore(snap.grid);
+    board.restore(snap.grid, snap.types);
     this.session = {
       mode: "campaign",
       level,
@@ -203,6 +215,7 @@ class Game {
       revived: s.revived,
       ended: false,
       grid: s.board.serialize(),
+      types: s.board.serializeTypes(),
     });
   }
 
@@ -215,7 +228,15 @@ class Game {
   }
 
   startEndless() {
-    const lvl = { cols: 8, rows: 11, colors: 5, moves: 9999, target: 0, id: "endless" };
+    const lvl = {
+      cols: 8,
+      rows: 11,
+      colors: 5,
+      moves: 9999,
+      target: 0,
+      id: "endless",
+      specials: { rainbow: 0.04, ice: 0.07 },
+    };
     this._newSession("endless", lvl);
     this.session.movesLeft = 9999;
   }
@@ -514,7 +535,10 @@ class Game {
         const bonus = clearBonus(0);
         s.score += bonus;
         this.floating.spawn(this.W / 2, this.H / 2, "BOARD CLEAR!", "#5bff9b", 30);
-        s.board = new Board(8, 11, 5, (Math.random() * 1e9) | 0);
+        s.board = new Board(8, 11, 5, (Math.random() * 1e9) | 0, {
+          rainbow: 0.04,
+          ice: 0.07,
+        });
         s.board.layout(this.W, this.H, TOP_INSET, BOTTOM_INSET);
         this.refreshHud();
         return;

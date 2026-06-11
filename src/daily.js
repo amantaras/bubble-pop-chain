@@ -14,6 +14,7 @@ export function getDailyLevel(date = new Date()) {
     colors: 5,
     moves: 999, // daily is a clear-as-much / high-score mode (no move limit)
     target: 0,
+    specials: { rainbow: 0.04, ice: 0.06 },
     seed,
   };
 }

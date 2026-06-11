@@ -25,6 +25,14 @@ function colorsForLevel(n) {
   return 6;
 }
 
+// Special-bubble spawn rates ramp in as the campaign progresses so early
+// levels stay simple and later ones gain extra strategy.
+function specialsForLevel(n) {
+  const rainbow = n >= 6 ? Math.min(0.05, 0.015 + (n - 6) * 0.0015) : 0;
+  const ice = n >= 10 ? Math.min(0.1, 0.03 + (n - 10) * 0.003) : 0;
+  return { rainbow, ice };
+}
+
 export function getLevel(id) {
   const n = Math.max(1, Math.min(LEVEL_COUNT, id));
   const cols = colsForLevel(n);
@@ -47,6 +55,7 @@ export function getLevel(id) {
     colors,
     moves,
     target,
+    specials: specialsForLevel(n),
     seed: hashSeed(`level-${n}-bpc`),
   };
 }

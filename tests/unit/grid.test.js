@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Board } from "../../src/grid.js";
+import { Board, NORMAL, ICE, RAINBOW, ICE_CRACKED } from "../../src/grid.js";
 
 // Helper: overwrite a board's logic grid and clear sprite coupling so we can
 // assert pure grid behaviour deterministically. (settle() guards null sprites.)
@@ -210,6 +210,46 @@ describe("grid / Board", () => {
     expect(b.shiftRow(99, "left")).toBe(false);
     setGrid(b, [[-1], [-1], [-1]]);
     expect(b.shiftRow(0, "left")).toBe(false);
+  });
+
+  it("rainbow bubbles act as wildcards and bridge same-colour regions", () => {
+    const b = new Board(3, 1, 6, 1);
+    setGrid(b, [[0], [5], [0]]);
+    b.types = [[NORMAL], [RAINBOW], [NORMAL]];
+    // colour-0 at the ends, a rainbow in the middle: the group bridges to 3.
+    expect(b.getGroupAt(0, 0).length).toBe(3);
+    // hasMoves recognises a rainbow next to any bubble.
+    expect(b.hasMoves()).toBe(true);
+  });
+
+  it("ice bubbles crack on the first hit and clear on the second", () => {
+    const b = new Board(2, 1, 3, 1);
+    setGrid(b, [[0], [0]]);
+    b.types = [[NORMAL], [ICE]];
+    const group = b.getGroupAt(0, 0);
+    expect(group.length).toBe(2);
+
+    b.removeCells(group);
+    // Normal bubble cleared; ice only cracked and stays on the board.
+    expect(b.grid[0][0]).toBe(-1);
+    expect(b.grid[1][0]).toBe(0);
+    expect(b.types[1][0]).toBe(ICE_CRACKED);
+
+    // A second hit clears the cracked ice.
+    b.removeCells([{ c: 1, r: 0 }]);
+    expect(b.grid[1][0]).toBe(-1);
+    expect(b.types[1][0]).toBe(NORMAL);
+  });
+
+  it("serialize/restore round-trips colours and bubble types", () => {
+    const a = new Board(4, 4, 4, 99, { rainbow: 0.3, ice: 0.3 });
+    const grid = a.serialize();
+    const types = a.serializeTypes();
+    const b = new Board(4, 4, 4, 1);
+    b.layout(400, 800, 100, 80);
+    b.restore(grid, types);
+    expect(b.serialize()).toEqual(grid);
+    expect(b.serializeTypes()).toEqual(types);
   });
 });
 
