@@ -868,6 +868,59 @@ test.describe("achievements (badges & rewards)", () => {
   });
 });
 
+test.describe("colorblind mode (accessibility)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("toggle on the Themes screen flips the renderer flag and persists", async ({
+    page,
+  }) => {
+    await page.getByRole("button", { name: "Themes", exact: true }).click();
+    await expect(page.locator("#themes")).toBeVisible();
+
+    // Off by default.
+    await expect(page.locator("#cb-toggle-state")).toHaveText("Off");
+    expect(await page.evaluate(() => window.__bpc.game.renderer.colorblind)).toBe(
+      false
+    );
+
+    // Turn it on: label, renderer flag and saved setting all update.
+    await page.locator("#cb-toggle").click();
+    await expect(page.locator("#cb-toggle-state")).toHaveText("On");
+    await expect(page.locator("#cb-toggle")).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    expect(await page.evaluate(() => window.__bpc.game.renderer.colorblind)).toBe(
+      true
+    );
+    expect(
+      await page.evaluate(
+        () => JSON.parse(localStorage.getItem("bpc_save_v1")).settings.colorblind
+      )
+    ).toBe(true);
+
+    // Turn it back off.
+    await page.locator("#cb-toggle").click();
+    await expect(page.locator("#cb-toggle-state")).toHaveText("Off");
+    expect(await page.evaluate(() => window.__bpc.game.renderer.colorblind)).toBe(
+      false
+    );
+  });
+
+  test("the saved colorblind setting is applied on reload", async ({ page }) => {
+    await page.getByRole("button", { name: "Themes", exact: true }).click();
+    await page.locator("#cb-toggle").click();
+    await expect(page.locator("#cb-toggle-state")).toHaveText("On");
+
+    await page.reload();
+    await page.waitForFunction(() => window.__bpc && window.__bpc.game);
+    // Renderer picks up the saved setting at construction time.
+    expect(await page.evaluate(() => window.__bpc.game.renderer.colorblind)).toBe(
+      true
+    );
+  });
+});
+
 test.describe("falling events (gift & problem tokens)", () => {
   test.beforeEach(({ page }) => openGame(page));
 

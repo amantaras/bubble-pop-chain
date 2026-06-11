@@ -71,6 +71,7 @@ class Game {
     this.canvas = document.getElementById("game-canvas");
     this.ctx = this.canvas.getContext("2d");
     this.renderer = new Renderer(this.ctx);
+    this.renderer.colorblind = !!(Storage.get("settings") || {}).colorblind;
     this.particles = new ParticleSystem();
     this.floating = new FloatingText();
     this.shake = new ScreenShake();
@@ -106,6 +107,9 @@ class Game {
       tutorialSkip: () => this.tutorial && this.tutorial.skip(),
       onThemeChange: (t) => {
         this.theme = t;
+      },
+      onColorblindChange: (on) => {
+        this.renderer.colorblind = !!on;
       },
     });
 

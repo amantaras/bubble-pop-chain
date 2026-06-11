@@ -12,6 +12,8 @@ const DEFAULT_SAVE = {
   currentTheme: "aurora",
   adsRemoved: false,
   muted: false,
+  // Accessibility / display settings.
+  settings: { colorblind: false },
   powerups: { bomb: 1, colorClear: 1, shuffle: 1, chainBolt: 0, pick: 0, magnet: 1 },
   // The three power-ups shown in the HUD's quick-access slots. Players swap
   // them via a long-press picker so the bar never overflows as we add tools.

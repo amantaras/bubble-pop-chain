@@ -113,6 +113,14 @@ describe("storage", () => {
     expect(raw.achievements.unlocked).toEqual(["first_pop"]);
   });
 
+  it("settings default to colorblind off and round-trip", () => {
+    expect(Storage.get("settings")).toEqual({ colorblind: false });
+    Storage.set("settings", { colorblind: true });
+    expect(Storage.get("settings").colorblind).toBe(true);
+    const raw = JSON.parse(localStorage.getItem("bpc_save_v1"));
+    expect(raw.settings.colorblind).toBe(true);
+  });
+
   it("grantTheme adds a theme to ownership only once", () => {
     expect(Storage.get("ownedThemes")).not.toContain("forest");
     expect(Storage.grantTheme("forest")).toBe(true);

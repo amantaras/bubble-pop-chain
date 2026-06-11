@@ -91,6 +91,14 @@ never re‑discovered the hard way.
   (`_announceAchievement`). **Tutorial play never counts** (guarded). The
   **Achievements screen** (`ui.js` `buildAchievements`, `#achievements`, menu
   button) lists every badge with locked/earned state and an `n/total` count.
+- **Colourblind mode** (`renderer.js` `CB_SYMBOLS`, `storage.js`
+  `settings.colorblind`): an accessibility toggle that stamps a **distinct
+  symbol per colour** on plain bubbles so colours are readable by shape, not
+  just hue. The renderer holds a `colorblind` flag (`Renderer.colorblind`),
+  drawn in `drawBubbles` for `NORMAL` bubbles only (Rainbow/Ice keep their own
+  look). The flag is applied at startup from `Storage.get("settings")` and
+  updated live via the `onColorblindChange` UI callback. The toggle lives on the
+  **Themes screen** (`#cb-toggle`); the setting deep-merges into existing saves.
 - **Interactive tutorial** (`tutorial.js`): a gated, step‑by‑step onboarding that
   auto‑opens on first run (and re‑playable via the menu's **How to Play**
   button). Each action step **blocks until the player actually performs the
@@ -183,7 +191,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 143 unit tests + 110 E2E
+- **Current baseline (keep growing, never shrink)**: 146 unit tests + 114 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

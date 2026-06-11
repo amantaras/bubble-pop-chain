@@ -2,6 +2,10 @@
 
 import { RAINBOW, ICE, ICE_CRACKED, NORMAL } from "./grid.js";
 
+// Distinct glyphs used by colourblind mode — one per colour index. There are
+// always at least as many symbols as a level has colours.
+export const CB_SYMBOLS = ["●", "▲", "■", "◆", "★", "✚", "▼", "⬢"];
+
 function hexToRgb(hex) {
   const h = hex.replace("#", "");
   return {
@@ -26,6 +30,9 @@ function lighten(hex, amt) {
 export class Renderer {
   constructor(ctx) {
     this.ctx = ctx;
+    // When true, each colour gets a distinct symbol drawn on its bubbles so
+    // players who can't easily tell hues apart can still read the board.
+    this.colorblind = false;
   }
 
   drawBackground(w, h, theme, time) {
@@ -153,6 +160,22 @@ export class Renderer {
         Math.PI * 2
       );
       ctx.fill();
+
+      // Colourblind aid: stamp a per-colour symbol on plain bubbles so each
+      // colour is identifiable by shape, not just hue.
+      if (this.colorblind && s.type === NORMAL) {
+        const sym = CB_SYMBOLS[s.color % CB_SYMBOLS.length];
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = s.alpha;
+        ctx.font = `${Math.round(rad * 1.05)}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.lineWidth = Math.max(1.5, rad * 0.14);
+        ctx.strokeStyle = "rgba(0,0,0,0.6)";
+        ctx.fillStyle = "rgba(255,255,255,0.95)";
+        ctx.strokeText(sym, s.x, s.y);
+        ctx.fillText(sym, s.x, s.y);
+      }
 
       // Ice overlay: frosty tint, rim, and cracks once chipped.
       if (s.type === ICE || s.type === ICE_CRACKED) {

@@ -33,6 +33,7 @@ class UIManager {
       "menu-coins", "lm-coins", "shop-coins", "themes-coins", "hud-coins",
       "level-grid", "shop-list", "theme-list",
       "achievements", "achv-list", "achv-count", "btn-achievements", "achv-back",
+      "cb-toggle", "cb-toggle-state",
       "btn-continue", "daily-summary",
       "hud-mode-label", "hud-score", "hud-target", "hud-target-wrap", "hud-target-label",
       "hud-moves", "hud-moves-label", "hud-progress-fill",
@@ -79,6 +80,16 @@ class UIManager {
     click("themes-back", () => this.showScreen("menu"));
     click("achv-back", () => this.showScreen("menu"));
     click("btn-back", () => this.cb.quitToMenu && this.cb.quitToMenu());
+
+    // Colourblind symbols toggle (lives on the Themes screen).
+    click("cb-toggle", () => {
+      const settings = { ...(Storage.get("settings") || {}) };
+      const on = !settings.colorblind;
+      settings.colorblind = on;
+      Storage.set("settings", settings);
+      if (this.cb.onColorblindChange) this.cb.onColorblindChange(on);
+      this._refreshColorblindToggle();
+    });
 
     // Sound
     click("btn-sound", () => {
@@ -178,7 +189,10 @@ class UIManager {
     }
     if (name === "levelmap") this.buildLevelMap();
     if (name === "shop") this.buildShop();
-    if (name === "themes") this.buildThemes();
+    if (name === "themes") {
+      this.buildThemes();
+      this._refreshColorblindToggle();
+    }
     if (name === "achievements") this.buildAchievements();
   }
 
@@ -442,6 +456,17 @@ class UIManager {
       item.appendChild(btn);
       list.appendChild(item);
     });
+  }
+
+  // Reflect the saved colourblind setting on the Themes-screen toggle.
+  _refreshColorblindToggle() {
+    const on = !!(Storage.get("settings") || {}).colorblind;
+    if (this.el["cb-toggle"]) {
+      this.el["cb-toggle"].classList.toggle("on", on);
+      this.el["cb-toggle"].setAttribute("aria-pressed", on ? "true" : "false");
+    }
+    if (this.el["cb-toggle-state"])
+      this.el["cb-toggle-state"].textContent = on ? "On" : "Off";
   }
 
   // ---- Achievements -----------------------------------------------------
