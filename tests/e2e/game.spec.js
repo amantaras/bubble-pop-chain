@@ -735,6 +735,55 @@ test.describe("power-ups (UI arm + apply)", () => {
   });
 });
 
+test.describe("fever mode (double points)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("a pop scores double while Fever is active", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(400);
+
+    // With Fever active and combo reset, a pop awards groupScore (combo×1)
+    // doubled — exactly twice the projected points at combo 0.
+    const res = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const s = g.session;
+      s.combo = 0;
+      s.feverActive = true;
+      s.feverTimer = 99;
+      s.fever = 1;
+      const b = s.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          if (b.grid[c][r] === -1 || b.types[c][r] !== 0) continue;
+          const grp = b.getGroupAt(c, r);
+          if (grp.length >= 2) {
+            const projected = g.projectedPoints(grp.length); // combo 0 → groupScore
+            const before = s.score;
+            g.popAt(c, r);
+            return { projected, delta: s.score - before };
+          }
+        }
+      return null;
+    });
+    expect(res).not.toBeNull();
+    expect(res.delta).toBe(res.projected * 2);
+  });
+
+  test("filling the Fever gauge triggers Fever and lights the bar", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(400);
+
+    await page.evaluate(() => window.__bpc.game._startFever());
+    await expect
+      .poll(() => page.evaluate(() => window.__bpc.game.session.feverActive))
+      .toBe(true);
+    await expect(page.locator("#fever-meter.fever-active")).toBeVisible();
+    await expect(page.locator("#fever-label")).toHaveText("×2 FEVER");
+  });
+});
+
 test.describe("falling events (gift & problem tokens)", () => {
   test.beforeEach(({ page }) => openGame(page));
 
@@ -1163,6 +1212,14 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
       const z = pick();
       g.popAt(z.c, z.r);
     });
+    await expect.poll(() => stepId(page)).toBe("fever");
+
+    // 3b) fever (informational) — the grant fires Fever; advance on the button.
+    await expect
+      .poll(() => page.evaluate(() => window.__bpc.game.session.feverActive))
+      .toBe(true);
+    await expect(page.locator("#fever-meter.fever-active")).toBeVisible();
+    await page.locator("#coach-next").click();
     await expect.poll(() => stepId(page)).toBe("preview");
 
     // 4) preview — long-press previews a cluster's score.

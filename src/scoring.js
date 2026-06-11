@@ -28,6 +28,25 @@ export function powerGain(points, combo) {
   return Math.max(0, Math.min(0.5, gain));
 }
 
+// ---- Fever mode -------------------------------------------------------
+// Sustained chaining fills a Fever gauge. When it tops out the player enters
+// Fever for a few seconds, during which every point earned is doubled. The
+// gauge drains over the duration and resets once Fever ends.
+export const FEVER_DURATION = 6; // seconds of doubled scoring once triggered
+export const FEVER_MULTIPLIER = 2; // score multiplier while Fever is active
+
+// Fever gauge charge per pop (0..1 scale). Longer combos fill it much faster,
+// so quick chains are the way in. Capped so a single big pop can't fill it
+// alone — Fever is a reward for sustained chaining, not one lucky tap.
+export function feverGain(combo) {
+  return Math.max(0, Math.min(0.34, 0.05 + combo * 0.045));
+}
+
+// Apply the Fever multiplier to a points value when Fever is active.
+export function feverPoints(points, active) {
+  return active ? Math.round(points * FEVER_MULTIPLIER) : points;
+}
+
 export function starsForScore(level, score) {
   const t = starThresholds(level);
   if (score >= t.three) return 3;

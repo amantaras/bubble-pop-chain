@@ -29,6 +29,13 @@ describe("tutorial step definitions", () => {
       else expect(step.hint).toBeTruthy();
     }
   });
+
+  it("includes a Fever step that grants the fever demo", () => {
+    const fever = TUTORIAL_STEPS.find((s) => s.id === "fever");
+    expect(fever).toBeTruthy();
+    expect(fever.advance).toBe("button");
+    expect(fever.grant).toBe("fever");
+  });
 });
 
 describe("tutorial board generation", () => {
@@ -106,10 +113,16 @@ describe("Tutorial controller gating", () => {
   it("applies a step's grant when it is entered", () => {
     const { tut, game } = makeTutorial();
     tut.start();
-    // Walk to the blast step, which grants a full power meter.
-    const seq = ["pop", "combo", "preview", "swipe"];
+    // Walk to the blast step, which grants a full power meter. The Fever step
+    // (button-advance) sits between combo and preview and grants "fever".
     tut.next(); // welcome -> tap
-    for (const a of seq) tut.onAction(a);
+    tut.onAction("pop"); // tap -> combo
+    tut.onAction("combo"); // combo -> fever
+    expect(tut.stepId).toBe("fever");
+    expect(game.tutorialGrant).toHaveBeenCalledWith("fever");
+    tut.next(); // fever -> preview
+    tut.onAction("preview"); // preview -> swipe
+    tut.onAction("swipe"); // swipe -> blast
     expect(tut.stepId).toBe("blast");
     expect(game.tutorialGrant).toHaveBeenCalledWith("power");
   });

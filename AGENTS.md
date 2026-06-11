@@ -22,6 +22,14 @@ never re‑discovered the hard way.
   costs 1 move in campaign or a shift token in endless/daily).
 - **Power meter**: fills from points + combos (`scoring.powerGain`); a full
   meter enables a double‑tap Charged Blast (`grid.blastArea`, diamond AoE).
+- **Fever mode** (`scoring.js` `feverGain`/`feverPoints`/`FEVER_DURATION`): a
+  second HUD bar under the charge meter. Quick chains fill the Fever gauge
+  (`feverGain` scales with combo); when it tops out the player enters **Fever**
+  for `FEVER_DURATION` (6s), during which **every point earned is doubled**
+  (`feverPoints`, applied in `popAt`/`chargedBlast`/`applyPowerup`). The bar
+  glows hot and drains over the duration (`Game.update`), then resets. Fever
+  state (`fever`/`feverActive`/`feverTimer`) lives on the session; the tutorial
+  demos it via `tutorialGrant("fever")` → `_startFever`.
 - **Power-ups** (`economy.js` `POWERUP_INFO`, armed from the HUD): **Bomb** (3×3),
   **Color Clear** (one colour), **Shuffle**, **Chain Bolt** (`grid.crossCells`,
   full row + column), **Pick** (single bubble), and the premium **Magnet**
@@ -162,7 +170,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 131 unit tests + 95 E2E
+- **Current baseline (keep growing, never shrink)**: 134 unit tests + 102 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests
@@ -289,7 +297,9 @@ How the tutorial is wired (touch every layer that applies):
      button label). Use for informational steps.
    - `advance: "<action>"` → a **gated** step that only advances when the game
      emits that action. Current actions: `pop`, `combo`, `preview`, `swipe`,
-     `blast`, `powerup`, `magnet`. `hint` is the nudge text shown while waiting.
+     `blast`, `powerup`, `magnet`, `event`. `hint` is the nudge text shown while
+     waiting. (The `fever` step is informational — `advance: "button"` — with a
+     `grant: "fever"` that fires Fever as a live demo.)
    - `grant` → a one‑time setup applied on entering the step (e.g. fill the
      power meter, place special bubbles) via `Game.tutorialGrant(kind)`.
 2. **Action emitters** — the game calls `this._tut("<action>")` from `main.js`

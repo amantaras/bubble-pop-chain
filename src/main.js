@@ -19,6 +19,9 @@ import {
   starsForScore,
   coinReward,
   powerGain,
+  feverGain,
+  feverPoints,
+  FEVER_DURATION,
 } from "./scoring.js";
 import { Economy, POWERUP_INFO } from "./economy.js";
 import { Monetization } from "./monetization.js";
@@ -210,6 +213,9 @@ class Game {
       movesLeft: level.moves,
       combo: 0,
       comboTimer: 0,
+      fever: 0,
+      feverActive: false,
+      feverTimer: 0,
       armed: null,
       ended: false,
       coinsEarned: 0,
@@ -244,6 +250,7 @@ class Game {
     UI.clearArmedPowerups();
     UI.updatePowerups();
     UI.updatePower(this.session.power || 0, (this.session.power || 0) >= 1);
+    UI.updateFever(this.session.fever || 0, !!this.session.feverActive);
     this.input.setEnabled(true);
     this.refreshHud();
   }
@@ -281,6 +288,9 @@ class Game {
       movesLeft: snap.movesLeft,
       combo: 0,
       comboTimer: 0,
+      fever: 0,
+      feverActive: false,
+      feverTimer: 0,
       armed: null,
       ended: false,
       coinsEarned: 0,
@@ -371,6 +381,9 @@ class Game {
       movesLeft: 9999,
       combo: 0,
       comboTimer: 0,
+      fever: 0,
+      feverActive: false,
+      feverTimer: 0,
       armed: null,
       ended: false,
       coinsEarned: 0,
@@ -404,6 +417,10 @@ class Game {
     if (kind === "power") {
       s.power = 1;
       UI.updatePower(1, true);
+    } else if (kind === "fever") {
+      // Demonstrate Fever: fill the gauge and trigger it so the player sees
+      // the bar top out and the FEVER banner fire.
+      this._startFever();
     } else if (kind === "specials") {
       // Re-assert a visible Rainbow + Ice so the explanation always matches
       // what's on the board, regardless of what the player popped earlier.
@@ -650,13 +667,16 @@ class Game {
     // Score with combo multiplier.
     const base = groupScore(group.length);
     const mult = comboMultiplier(s.combo);
-    const points = Math.round(base * mult);
+    const comboPoints = Math.round(base * mult);
+    const points = feverPoints(comboPoints, s.feverActive);
     s.score += points;
     s.combo += 1;
     s.comboTimer = COMBO_WINDOW;
 
-    // Charge the Power meter.
-    this._addPower(powerGain(points, s.combo));
+    // Charge the Power meter (from the combo points, independent of Fever).
+    this._addPower(powerGain(comboPoints, s.combo));
+    // Build the Fever gauge — quick chains fill it and trigger double points.
+    this._addFever(feverGain(s.combo));
 
     this._popCells(group, points, group.length, s.combo);
 
@@ -689,6 +709,30 @@ class Game {
     }
   }
 
+  // ---- Fever mode -------------------------------------------------------
+  // Build the Fever gauge from chained pops; when it tops out, kick off Fever.
+  _addFever(amount) {
+    const s = this.session;
+    if (!s || s.feverActive) return;
+    s.fever = Math.max(0, Math.min(1, s.fever + amount));
+    UI.updateFever(s.fever, false);
+    if (s.fever >= 1) this._startFever();
+  }
+
+  // Enter Fever: a few seconds where every point earned is doubled.
+  _startFever() {
+    const s = this.session;
+    if (!s) return;
+    s.feverActive = true;
+    s.feverTimer = FEVER_DURATION;
+    s.fever = 1;
+    UI.updateFever(1, true);
+    Audio.powerup();
+    UI.toast("🔥 FEVER! Double points!");
+    this.floating.spawn(this.W / 2, this.H * 0.4, "FEVER ×2!", "#ff5b8a", 34);
+    this._tut("fever");
+  }
+
   handleDoubleTap(px, py) {
     const s = this.session;
     if (!s || s.ended) return;
@@ -714,7 +758,7 @@ class Game {
     if (!cells.length) return;
     s.power = 0;
     UI.updatePower(0, false);
-    const points = groupScore(Math.max(2, cells.length));
+    const points = feverPoints(groupScore(Math.max(2, cells.length)), s.feverActive);
     s.score += points;
     this._popCells(cells, points, cells.length, 1, 1.1);
     if (s.stats) s.stats.blasts += 1;
@@ -736,7 +780,7 @@ class Game {
 
     // Tutorial mode bypasses the economy so it never spends real inventory.
     if (s.mode !== "tutorial" && !Economy.usePowerup(type)) return;
-    const points = groupScore(Math.max(2, cells.length));
+    const points = feverPoints(groupScore(Math.max(2, cells.length)), s.feverActive);
     s.score += points;
     this._popCells(cells, points, cells.length, 1, 0.6);
     if (s.stats) s.stats.powerups += 1;
@@ -1148,6 +1192,18 @@ class Game {
       if (this.session.combo > 0) {
         this.session.comboTimer -= dt;
         if (this.session.comboTimer <= 0) this.session.combo = 0;
+      }
+      // Drain the Fever timer; the gauge empties over the duration and Fever
+      // ends when it runs out.
+      if (this.session.feverActive) {
+        this.session.feverTimer -= dt;
+        const frac = Math.max(0, this.session.feverTimer / FEVER_DURATION);
+        UI.updateFever(frac, true);
+        if (this.session.feverTimer <= 0) {
+          this.session.feverActive = false;
+          this.session.fever = 0;
+          UI.updateFever(0, false);
+        }
       }
       // Sweep the magnet strength gauge back and forth while aiming.
       const m = this.session.magnet;

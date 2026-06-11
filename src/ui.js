@@ -35,6 +35,7 @@ class UIManager {
       "hud-mode-label", "hud-score", "hud-target", "hud-target-wrap", "hud-target-label",
       "hud-moves", "hud-moves-label", "hud-progress-fill",
       "power-meter", "power-fill", "power-label",
+      "fever-meter", "fever-fill", "fever-label",
       "powerups", "pu-slot-0", "pu-slot-1", "pu-slot-2",
       "loadout", "loadout-list", "loadout-sub", "loadout-close",
       "magnet-gauge", "mg-needle",
@@ -558,6 +559,17 @@ class UIManager {
       this.el["power-meter"].classList.toggle("ready", !!ready);
     if (this.el["power-label"])
       this.el["power-label"].textContent = ready ? "DOUBLE-TAP" : "CHARGE";
+  }
+
+  // Fever meter (0..1). `active` is true while Fever (double points) is running
+  // — the bar glows hot and the label switches to "×2 FEVER".
+  updateFever(frac, active) {
+    if (this.el["fever-fill"])
+      this.el["fever-fill"].style.width = `${Math.min(100, Math.max(0, frac) * 100)}%`;
+    if (this.el["fever-meter"])
+      this.el["fever-meter"].classList.toggle("fever-active", !!active);
+    if (this.el["fever-label"])
+      this.el["fever-label"].textContent = active ? "×2 FEVER" : "FEVER";
   }
 
   clearArmedPowerups() {

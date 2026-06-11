@@ -24,7 +24,7 @@ import { NORMAL, ICE, RAINBOW } from "./grid.js";
 //   cta     — button label for "button" steps
 //   hint    — short call-to-action shown for action steps
 //   grant   — optional setup applied when the step is entered
-//             ("power" | "bomb" | "specials" | "magnet" | "event")
+//             ("power" | "fever" | "bomb" | "specials" | "magnet" | "event")
 export const TUTORIAL_STEPS = [
   {
     id: "welcome",
@@ -46,6 +46,14 @@ export const TUTORIAL_STEPS = [
     body: "Pop again right away — back-to-back pops build a combo multiplier for far bigger scores.",
     advance: "combo",
     hint: "⚡ Pop two clusters quickly",
+  },
+  {
+    id: "fever",
+    title: "Fever Mode",
+    body: "Keep chaining and the FEVER bar fills up. When it tops out you enter Fever — every point scores DOUBLE for a few seconds. Here's a taste!",
+    advance: "button",
+    cta: "🔥 Nice!",
+    grant: "fever",
   },
   {
     id: "preview",

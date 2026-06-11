@@ -6,6 +6,10 @@ import {
   starsForScore,
   coinReward,
   powerGain,
+  feverGain,
+  feverPoints,
+  FEVER_MULTIPLIER,
+  FEVER_DURATION,
 } from "../../src/scoring.js";
 import { getLevel, starThresholds } from "../../src/levels.js";
 
@@ -67,5 +71,24 @@ describe("scoring", () => {
     expect(coinReward(500, 2)).toBeGreaterThan(coinReward(500, 1));
     // Never negative for odd inputs.
     expect(coinReward(-100, -1)).toBe(0);
+  });
+
+  it("feverGain is non-negative, capped, and rewards longer combos", () => {
+    expect(feverGain(0)).toBeGreaterThan(0);
+    expect(feverGain(0)).toBeCloseTo(0.05, 5);
+    // Longer combos fill the gauge faster.
+    expect(feverGain(3)).toBeGreaterThan(feverGain(1));
+    // Capped so a single big combo can't fill it alone.
+    expect(feverGain(100)).toBe(0.34);
+    // A single pop (combo 0) cannot fill the gauge.
+    expect(feverGain(0)).toBeLessThan(1);
+  });
+
+  it("feverPoints doubles only when fever is active", () => {
+    expect(FEVER_MULTIPLIER).toBe(2);
+    expect(FEVER_DURATION).toBeGreaterThan(0);
+    expect(feverPoints(100, false)).toBe(100);
+    expect(feverPoints(100, true)).toBe(200);
+    expect(feverPoints(0, true)).toBe(0);
   });
 });
