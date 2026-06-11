@@ -37,6 +37,7 @@ class UIManager {
       "pu-bomb-count", "pu-color-count", "pu-shuffle-count",
       "combo-banner", "toast",
       "win-stars", "win-score", "win-reward", "win-double", "win-next", "win-menu",
+      "win-stats", "win-coins", "win-coins-num",
       "lose-score", "lose-revive", "lose-retry", "lose-menu",
       "btn-sound",
       "btn-tutorial", "tutorial", "coach-progress", "coach-title",
@@ -411,15 +412,74 @@ class UIManager {
     this.el["lose"].classList.add("hidden");
   }
 
-  showWin({ stars, score, rewardText, showNext, showDouble }) {
+  showWin({ stars, score, coins = 0, rewardText, stats, showNext, showDouble }) {
     const starEls = this.el["win-stars"].querySelectorAll(".star");
     starEls.forEach((el, i) => el.classList.toggle("on", i < stars));
-    this.el["win-score"].textContent = score;
+
+    // Render the per-run recap stats grid.
+    const grid = this.el["win-stats"];
+    if (grid) {
+      grid.innerHTML = "";
+      (stats || []).forEach(({ label, value }) => {
+        const cell = document.createElement("div");
+        cell.className = "win-stat";
+        cell.innerHTML =
+          `<span class="win-stat-val">${value}</span>` +
+          `<span class="win-stat-lbl">${label}</span>`;
+        grid.appendChild(cell);
+      });
+    }
+
     this.el["win-reward"].textContent = rewardText || "";
     this.el["win-next"].style.display = showNext ? "" : "none";
     this.el["win-double"].style.display = showDouble ? "" : "none";
     this.showHud(false);
     this.el["win"].classList.remove("hidden");
+
+    // Count the score and coins up from zero for a rewarding finish.
+    this._animateNumber(this.el["win-score"], score, 700);
+    this._animateCoins(coins);
+  }
+
+  // Re-run the coin counter (e.g. after a "double coins" reward).
+  bumpWinCoins(total) {
+    this._animateCoins(total);
+  }
+
+  _animateCoins(to) {
+    const el = this.el["win-coins-num"];
+    const wrap = this.el["win-coins"];
+    if (!el) return;
+    if (wrap) {
+      wrap.classList.remove("pulse");
+      void wrap.offsetWidth;
+      wrap.classList.add("pulse");
+    }
+    this._animateNumber(el, to, 900);
+  }
+
+  // Tween an element's text content from its current value to `to`.
+  _animateNumber(el, to, dur = 700) {
+    if (!el) return;
+    if (el._raf) cancelAnimationFrame(el._raf);
+    const from = 0;
+    const target = Math.round(to);
+    if (dur <= 0) {
+      el.textContent = target;
+      return;
+    }
+    const start = performance.now();
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      el.textContent = Math.round(from + (target - from) * eased);
+      if (t < 1) el._raf = requestAnimationFrame(tick);
+      else {
+        el.textContent = target;
+        el._raf = null;
+      }
+    };
+    el._raf = requestAnimationFrame(tick);
   }
 
   setWinTitle(text) {

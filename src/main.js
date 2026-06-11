@@ -13,6 +13,7 @@ import {
   comboMultiplier,
   clearBonus,
   starsForScore,
+  coinReward,
   powerGain,
 } from "./scoring.js";
 import { Economy } from "./economy.js";
@@ -129,6 +130,11 @@ class Game {
   }
 
   // ---- Session setup ----------------------------------------------------
+  _newStats() {
+    // Per-run counters surfaced on the level-complete recap screen.
+    return { pops: 0, swipes: 0, blasts: 0, powerups: 0, bestCombo: 0, cleared: 0 };
+  }
+
   _newSession(mode, level) {
     clearTimeout(this._endTimer);
     const board = new Board(
@@ -154,6 +160,7 @@ class Game {
       preview: null,
       power: 0,
       shiftTokens: mode === "campaign" ? 0 : 5,
+      stats: this._newStats(),
     };
     this._enterSession();
     if (mode === "campaign") this._persistSession();
@@ -216,6 +223,7 @@ class Game {
       preview: null,
       power: 0,
       shiftTokens: 0,
+      stats: snap.stats || this._newStats(),
     };
     this._enterSession();
   }
@@ -233,6 +241,7 @@ class Game {
       ended: false,
       grid: s.board.serialize(),
       types: s.board.serializeTypes(),
+      stats: s.stats,
     });
   }
 
@@ -434,6 +443,7 @@ class Game {
     s.board.settle();
     if (s.mode === "campaign") s.movesLeft -= 1;
     else s.shiftTokens -= 1;
+    if (s.stats) s.stats.swipes += 1;
 
     Audio.pop(1, 3);
     vibrate(16);
@@ -508,6 +518,10 @@ class Game {
 
     this._popCells(group, points, group.length, s.combo);
 
+    if (s.stats) {
+      s.stats.pops += 1;
+      s.stats.bestCombo = Math.max(s.stats.bestCombo, s.combo);
+    }
     if (s.mode === "campaign") s.movesLeft -= 1;
     this.refreshHud();
     this._tut("pop");
@@ -556,6 +570,7 @@ class Game {
     const points = groupScore(Math.max(2, cells.length));
     s.score += points;
     this._popCells(cells, points, cells.length, 1, 1.1);
+    if (s.stats) s.stats.blasts += 1;
     Audio.powerup();
     this.floating.spawn(this.W / 2, this.H / 2, "CHARGED BLAST!", "#ff6ec7", 30);
     this.refreshHud();
@@ -575,6 +590,7 @@ class Game {
     const points = groupScore(Math.max(2, cells.length));
     s.score += points;
     this._popCells(cells, points, cells.length, 1, 0.6);
+    if (s.stats) s.stats.powerups += 1;
     Audio.powerup();
     s.armed = null;
     UI.clearArmedPowerups();
@@ -587,6 +603,7 @@ class Game {
   _popCells(cells, points, groupSize, combo, shakePower = 1) {
     const s = this.session;
     const fx = s.board.removeCells(cells, this.theme);
+    if (s.stats) s.stats.cleared += fx.length;
     let cx = 0,
       cy = 0;
     for (const f of fx) {
@@ -701,7 +718,7 @@ class Game {
       if (won) {
         const stars = Math.max(1, starsForScore(s.level, s.score));
         Storage.recordLevelResult(s.level.id, stars);
-        const coins = Math.floor(s.score / 120) + stars * 15;
+        const coins = coinReward(s.score, stars);
         s.coinsEarned = coins;
         Economy.addCoins(coins);
         Audio.win();
@@ -709,7 +726,8 @@ class Game {
         UI.showWin({
           stars,
           score: s.score,
-          rewardText: `+${coins} coins`,
+          coins,
+          stats: this._winStats(s, s.level.moves - s.movesLeft),
           showNext: s.level.id < LEVEL_COUNT,
           showDouble: !Monetization.isAdsRemoved(),
         });
@@ -743,18 +761,34 @@ class Game {
       Economy.addCoins(coins);
       Audio.win();
       UI.setWinTitle("Daily Complete");
-      const bits = [`Streak ${info.streak}🔥`, `+${coins} coins`];
+      const bits = [`Streak ${info.streak}🔥`];
       if (info.freezeAwarded) bits.push("❄️ Freeze earned!");
       else if (info.usedFreeze) bits.push("❄️ Freeze used");
+      const moves = s.stats
+        ? s.stats.pops + s.stats.swipes + s.stats.blasts + s.stats.powerups
+        : 0;
       UI.showWin({
         stars,
         score: s.score,
+        coins,
+        stats: this._winStats(s, moves),
         rewardText: bits.join("  •  "),
         showNext: false,
         showDouble: !Monetization.isAdsRemoved(),
       });
     }
     UI.refreshCoins();
+  }
+
+  // Build the recap stat rows shown on the level-complete window.
+  _winStats(s, movesUsed) {
+    const st = s.stats || this._newStats();
+    return [
+      { label: "Moves", value: Math.max(0, movesUsed) },
+      { label: "Swipes", value: st.swipes },
+      { label: "Best Combo", value: "×" + Math.max(1, st.bestCombo) },
+      { label: "Popped", value: st.cleared },
+    ];
   }
 
   // ---- Modal actions ----------------------------------------------------
@@ -800,6 +834,7 @@ class Game {
     s.doubled = true;
     Economy.addCoins(s.coinsEarned);
     UI.refreshCoins();
+    UI.bumpWinCoins(s.coinsEarned * 2);
     UI.toast(`+${s.coinsEarned} bonus coins!`);
     document.getElementById("win-double").style.display = "none";
   }

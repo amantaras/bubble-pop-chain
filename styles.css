@@ -615,6 +615,51 @@ body {
   color: var(--text);
   font-size: 22px;
 }
+.win-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin: 12px 0 4px;
+}
+.win-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 4px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-brd);
+}
+.win-stat-val {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--accent);
+}
+.win-stat-lbl {
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.win-coins {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--gold);
+  margin: 10px 0 6px;
+}
+.win-coins b {
+  font-size: 24px;
+  color: var(--gold);
+}
+.win-coins.pulse {
+  animation: coinPulse 0.5s ease;
+}
+@keyframes coinPulse {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.18); filter: drop-shadow(0 0 10px var(--gold)); }
+  100% { transform: scale(1); }
+}
 .modal-reward {
   color: var(--gold);
   font-weight: 700;

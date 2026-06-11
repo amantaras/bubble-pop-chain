@@ -4,6 +4,7 @@ import {
   comboMultiplier,
   clearBonus,
   starsForScore,
+  coinReward,
   powerGain,
 } from "../../src/scoring.js";
 import { getLevel, starThresholds } from "../../src/levels.js";
@@ -52,5 +53,19 @@ describe("scoring", () => {
     expect(powerGain(500, 3)).toBeGreaterThan(powerGain(100, 1));
     // A single modest pop cannot fill the meter alone.
     expect(powerGain(300, 1)).toBeLessThan(1);
+  });
+
+  it("coinReward pays a score slice plus a per-star bonus", () => {
+    // 15 coins per star, no score component when score < 120.
+    expect(coinReward(0, 0)).toBe(0);
+    expect(coinReward(0, 3)).toBe(45);
+    // Score slice: floor(score / 120).
+    expect(coinReward(240, 0)).toBe(2);
+    expect(coinReward(240, 2)).toBe(2 + 30);
+    // More stars always pay strictly more for the same score.
+    expect(coinReward(500, 3)).toBeGreaterThan(coinReward(500, 2));
+    expect(coinReward(500, 2)).toBeGreaterThan(coinReward(500, 1));
+    // Never negative for odd inputs.
+    expect(coinReward(-100, -1)).toBe(0);
   });
 });

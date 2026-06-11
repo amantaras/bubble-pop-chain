@@ -35,3 +35,9 @@ export function starsForScore(level, score) {
   if (score >= t.one) return 1;
   return 0;
 }
+
+// Coins awarded for finishing a campaign level: a slice of the score plus a
+// flat per-star bonus, so a higher star rating always pays out more coins.
+export function coinReward(score, stars) {
+  return Math.floor(Math.max(0, score) / 120) + Math.max(0, stars) * 15;
+}

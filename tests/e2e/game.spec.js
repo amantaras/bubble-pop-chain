@@ -345,6 +345,18 @@ test.describe("campaign progression", () => {
     await expect(page.locator("#win")).toBeVisible();
     await expect(page.locator("#win-stars .star.on")).not.toHaveCount(0);
 
+    // The recap window shows a per-run stats grid (Moves, Swipes, etc.).
+    await expect(page.locator("#win-stats .win-stat")).toHaveCount(4);
+    await expect(page.locator("#win-stats")).toContainText("Moves");
+    await expect(page.locator("#win-stats")).toContainText("Popped");
+
+    // Coins count up to a positive total in the recap window.
+    await expect
+      .poll(async () =>
+        Number(await page.locator("#win-coins-num").textContent())
+      )
+      .toBeGreaterThan(0);
+
     const save = await page.evaluate(() =>
       JSON.parse(localStorage.getItem("bpc_save_v1"))
     );
