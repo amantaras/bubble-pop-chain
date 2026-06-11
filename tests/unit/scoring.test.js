@@ -4,6 +4,7 @@ import {
   comboMultiplier,
   clearBonus,
   starsForScore,
+  powerGain,
 } from "../../src/scoring.js";
 import { getLevel, starThresholds } from "../../src/levels.js";
 
@@ -41,5 +42,15 @@ describe("scoring", () => {
     expect(starsForScore(level, t.two)).toBe(2);
     expect(starsForScore(level, t.three)).toBe(3);
     expect(starsForScore(level, t.three + 10_000)).toBe(3);
+  });
+
+  it("powerGain is non-negative, capped, and rewards points + combo", () => {
+    expect(powerGain(0, 0)).toBe(0);
+    expect(powerGain(-100, 0)).toBe(0); // never negative
+    expect(powerGain(1_000_000, 100)).toBe(0.5); // capped
+    // More points and longer combos charge faster.
+    expect(powerGain(500, 3)).toBeGreaterThan(powerGain(100, 1));
+    // A single modest pop cannot fill the meter alone.
+    expect(powerGain(300, 1)).toBeLessThan(1);
   });
 });

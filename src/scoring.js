@@ -20,6 +20,14 @@ export function clearBonus(movesLeft) {
   return 500 + movesLeft * 150;
 }
 
+// How much a pop charges the Power meter (0..1 scale). Bigger groups and longer
+// combos charge faster, so skilful play earns the Charged Blast sooner. The
+// per-pop gain is capped so a single lucky move can never fill the meter alone.
+export function powerGain(points, combo) {
+  const gain = points / 2600 + combo * 0.035;
+  return Math.max(0, Math.min(0.5, gain));
+}
+
 export function starsForScore(level, score) {
   const t = starThresholds(level);
   if (score >= t.three) return 3;

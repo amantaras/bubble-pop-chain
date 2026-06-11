@@ -13,6 +13,7 @@ import {
   comboMultiplier,
   clearBonus,
   starsForScore,
+  powerGain,
 } from "./scoring.js";
 import { Economy } from "./economy.js";
 import { Monetization } from "./monetization.js";
@@ -66,9 +67,11 @@ class Game {
 
     this.input = new Input(this.canvas, {
       onTap: (x, y) => this.handleTap(x, y),
+      onDoubleTap: (x, y) => this.handleDoubleTap(x, y),
       onLongPressStart: (x, y) => this.previewAt(x, y),
       onLongPressMove: (x, y) => this.previewAt(x, y),
       onLongPressEnd: (x, y) => this.commitPreview(x, y),
+      shouldDeferTap: () => this.isBlastReady(),
     });
     this.input.setEnabled(false);
 
@@ -125,6 +128,7 @@ class Game {
       doubled: false,
       revived: false,
       preview: null,
+      power: 0,
     };
     this._enterSession();
     if (mode === "campaign") this._persistSession();
@@ -141,6 +145,7 @@ class Game {
     UI.showHud(true);
     UI.clearArmedPowerups();
     UI.updatePowerups();
+    UI.updatePower(this.session.power || 0, (this.session.power || 0) >= 1);
     this.input.setEnabled(true);
     this.refreshHud();
   }
@@ -178,6 +183,7 @@ class Game {
       doubled: false,
       revived: !!snap.revived,
       preview: null,
+      power: 0,
     };
     this._enterSession();
   }
@@ -330,9 +336,59 @@ class Game {
     s.combo += 1;
     s.comboTimer = COMBO_WINDOW;
 
+    // Charge the Power meter.
+    this._addPower(powerGain(points, s.combo));
+
     this._popCells(group, points, group.length, s.combo);
 
     if (s.mode === "campaign") s.movesLeft -= 1;
+    this.refreshHud();
+    this.afterMove();
+  }
+
+  // ---- Charged Blast (double-tap when the Power meter is full) ----------
+  isBlastReady() {
+    const s = this.session;
+    return !!(s && !s.ended && !s.armed && s.power >= 1);
+  }
+
+  _addPower(amount) {
+    const s = this.session;
+    if (!s) return;
+    const was = s.power;
+    s.power = Math.max(0, Math.min(1, s.power + amount));
+    UI.updatePower(s.power, s.power >= 1);
+    if (s.power >= 1 && was < 1) {
+      Audio.powerup();
+      UI.toast("⚡ Charged! Double-tap to blast");
+    }
+  }
+
+  handleDoubleTap(px, py) {
+    const s = this.session;
+    if (!s || s.ended) return;
+    const cell = s.board.cellAtPixel(px, py);
+    if (!cell) return;
+    if (this.isBlastReady()) {
+      this.chargedBlast(cell.c, cell.r);
+    } else {
+      // Not charged — behave like a normal pop.
+      this.popAt(cell.c, cell.r);
+    }
+  }
+
+  chargedBlast(c, r) {
+    const s = this.session;
+    s.preview = null;
+    const cells = s.board.blastArea(c, r);
+    if (!cells.length) return;
+    s.power = 0;
+    UI.updatePower(0, false);
+    const points = groupScore(Math.max(2, cells.length));
+    s.score += points;
+    this._popCells(cells, points, cells.length, 1, 1.1);
+    Audio.powerup();
+    this.floating.spawn(this.W / 2, this.H / 2, "CHARGED BLAST!", "#ff6ec7", 30);
     this.refreshHud();
     this.afterMove();
   }

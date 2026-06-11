@@ -178,6 +178,20 @@ describe("grid / Board", () => {
     snap[0][0] = 999;
     expect(b.grid[0][0]).not.toBe(999);
   });
+
+  it("blastArea returns a filled diamond clipped to the board", () => {
+    const b = new Board(7, 7, 3, 3);
+    b.layout(400, 800, 100, 80);
+    // Center: full Manhattan-radius-2 diamond = 13 cells.
+    expect(b.blastArea(3, 3).length).toBe(13);
+    // Every returned cell is within Manhattan distance 2 of the center.
+    for (const cell of b.blastArea(3, 3)) {
+      expect(Math.abs(cell.c - 3) + Math.abs(cell.r - 3)).toBeLessThanOrEqual(2);
+    }
+    // A corner blast is clipped to in-bounds cells only.
+    expect(b.blastArea(0, 0).length).toBeLessThan(13);
+    expect(b.blastArea(0, 0).every((c) => c.c >= 0 && c.r >= 0)).toBe(true);
+  });
 });
 
 function colourHistogram(board) {

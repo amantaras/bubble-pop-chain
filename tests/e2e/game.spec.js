@@ -166,6 +166,50 @@ test.describe("gestures: long-press preview (real input)", () => {
   });
 });
 
+test.describe("gestures: double-tap Charged Blast (real input)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("double-tap when charged blasts an area and resets the meter", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(5));
+    await page.waitForTimeout(700);
+    // Fill the Power meter so a charged blast is available.
+    await page.evaluate(() => {
+      window.__bpc.game.session.power = 1;
+    });
+    const before = await page.evaluate(() => ({
+      remaining: window.__bpc.game.session.board.countRemaining(),
+      score: window.__bpc.game.session.score,
+      ready: window.__bpc.game.isBlastReady(),
+    }));
+    expect(before.ready).toBe(true);
+
+    // Double-tap a real bubble near the middle of the board.
+    const px = await page.evaluate(() => {
+      const b = window.__bpc.game.session.board;
+      const c = Math.floor(b.cols / 2);
+      const r = Math.floor(b.rows / 2);
+      return b.targetPixel(c, r);
+    });
+    // dblclick fires both clicks in one rapid sequence (well within the
+    // double-tap window), exercising the real gesture recogniser.
+    await page
+      .locator("#game-canvas")
+      .dblclick({ position: { x: px.x, y: px.y } });
+    await page.waitForTimeout(300);
+
+    const after = await page.evaluate(() => ({
+      remaining: window.__bpc.game.session.board.countRemaining(),
+      score: window.__bpc.game.session.score,
+      power: window.__bpc.game.session.power,
+    }));
+    expect(after.power).toBe(0); // meter consumed
+    expect(after.remaining).toBeLessThan(before.remaining); // area cleared
+    expect(after.score).toBeGreaterThan(before.score);
+  });
+});
+
 test.describe("campaign progression", () => {
   test.beforeEach(({ page }) => openGame(page));
 

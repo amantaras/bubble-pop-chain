@@ -270,6 +270,22 @@ export class Board {
     return cells;
   }
 
+  // Charged Blast removes a filled diamond (Manhattan radius `rad`, default 2)
+  // centered on (c,r) — a larger area than the 3x3 bomb.
+  blastArea(c, r, rad = 2) {
+    const cells = [];
+    for (let dc = -rad; dc <= rad; dc++) {
+      for (let dr = -rad; dr <= rad; dr++) {
+        if (Math.abs(dc) + Math.abs(dr) > rad) continue;
+        const cc = c + dc;
+        const rr = r + dr;
+        if (cc < 0 || cc >= this.cols || rr < 0 || rr >= this.rows) continue;
+        if (this.grid[cc][rr] !== -1) cells.push({ c: cc, r: rr });
+      }
+    }
+    return cells;
+  }
+
   // Color clear removes every cell of a given color.
   colorCells(color) {
     const cells = [];

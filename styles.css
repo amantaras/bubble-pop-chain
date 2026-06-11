@@ -297,6 +297,46 @@ body {
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
   transition: width 0.3s ease;
 }
+.power-meter {
+  position: relative;
+  height: 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  margin: 8px 4px 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.power-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ffb347, #ffd35b);
+  transition: width 0.25s ease;
+}
+.power-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.75);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+.power-meter.ready {
+  border-color: rgba(255, 211, 91, 0.9);
+  box-shadow: 0 0 14px rgba(255, 211, 91, 0.55);
+  animation: power-pulse 1s ease-in-out infinite;
+}
+.power-meter.ready .power-fill {
+  background: linear-gradient(90deg, #ffd35b, #ff6ec7);
+}
+@keyframes power-pulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(255, 211, 91, 0.4); }
+  50% { box-shadow: 0 0 20px rgba(255, 211, 91, 0.85); }
+}
 .hud-bottom {
   display: flex;
   align-items: center;

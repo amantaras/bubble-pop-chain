@@ -27,6 +27,7 @@ class UIManager {
       "btn-continue",
       "hud-mode-label", "hud-score", "hud-target", "hud-target-wrap",
       "hud-moves", "hud-moves-label", "hud-progress-fill",
+      "power-meter", "power-fill", "power-label",
       "pu-bomb-count", "pu-color-count", "pu-shuffle-count",
       "combo-banner", "toast",
       "win-stars", "win-score", "win-reward", "win-double", "win-next", "win-menu",
@@ -348,6 +349,16 @@ class UIManager {
     this.el["pu-bomb-count"].textContent = Economy.getPowerup("bomb");
     this.el["pu-color-count"].textContent = Economy.getPowerup("colorClear");
     this.el["pu-shuffle-count"].textContent = Economy.getPowerup("shuffle");
+  }
+
+  // Charge meter (0..1). `ready` highlights the bar when a blast is available.
+  updatePower(frac, ready) {
+    if (this.el["power-fill"])
+      this.el["power-fill"].style.width = `${Math.min(100, frac * 100)}%`;
+    if (this.el["power-meter"])
+      this.el["power-meter"].classList.toggle("ready", !!ready);
+    if (this.el["power-label"])
+      this.el["power-label"].textContent = ready ? "DOUBLE-TAP" : "CHARGE";
   }
 
   clearArmedPowerups() {
