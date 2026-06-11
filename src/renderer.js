@@ -1,6 +1,6 @@
 // Canvas renderer: animated background + glossy neon bubbles.
 
-import { RAINBOW, ICE, ICE_CRACKED } from "./grid.js";
+import { RAINBOW, ICE, ICE_CRACKED, NORMAL } from "./grid.js";
 
 function hexToRgb(hex) {
   const h = hex.replace("#", "");
@@ -76,7 +76,10 @@ export class Renderer {
     ctx.restore();
   }
 
-  drawBubbles(board, theme) {
+  // `aim` (optional) describes an in-progress magnet: { color, intensity, time }.
+  // Plain bubbles of that colour jitter — harder as the gauge nears green —
+  // as if straining to pull together before the gather fires.
+  drawBubbles(board, theme, aim) {
     const ctx = this.ctx;
     const radius = board.cell * 0.42;
     for (const s of board.sprites) {
@@ -87,6 +90,23 @@ export class Renderer {
 
       ctx.save();
       ctx.globalAlpha = s.alpha;
+
+      // Magnet aim shake: offset the whole bubble by a small jitter whose
+      // amplitude scales with how close the gauge is to the green sweet spot.
+      if (
+        aim &&
+        aim.intensity > 0.02 &&
+        s.color === aim.color &&
+        s.type === NORMAL
+      ) {
+        const amp = aim.intensity * board.cell * 0.12;
+        const ph = s.id * 0.7;
+        const t = aim.time * 0.05;
+        ctx.translate(
+          Math.sin(t + ph) * amp,
+          Math.cos(t * 1.27 + ph * 1.6) * amp
+        );
+      }
 
       // Glow
       ctx.shadowColor = hex;

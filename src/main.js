@@ -41,6 +41,9 @@ import {
 const TOP_INSET = 168;
 const BOTTOM_INSET = 120;
 const COMBO_WINDOW = 1.6; // seconds before a combo resets
+// Magnet gauge: half-width of the green "sweet" band, in gauge units (0..1).
+// Strength tapers from 1 (dead on the sweet spot) to 0 at this distance.
+const MAGNET_HALF = 0.2;
 
 class Game {
   constructor() {
@@ -719,9 +722,13 @@ class Game {
       value: 0,
       dir: 1,
       aiming: true,
+      // Randomise where the green sweet spot sits along the sweep so the
+      // player can't just lock at the centre every time. Kept away from the
+      // extremes so it's always comfortably reachable.
+      sweet: 0.22 + Math.random() * 0.56,
     };
     Audio.click();
-    UI.showMagnetGauge();
+    UI.showMagnetGauge(s.magnet.sweet);
     UI.updateMagnetGauge(0);
     UI.toast("🧲 Tap to set strength — aim for green!");
   }
@@ -732,7 +739,8 @@ class Game {
     const s = this.session;
     if (!s || !s.magnet || !s.magnet.aiming) return;
     const { c, r, color, value } = s.magnet;
-    const strength = Math.max(0, 1 - Math.abs(value - 0.5) * 2);
+    const sweet = s.magnet.sweet == null ? 0.5 : s.magnet.sweet;
+    const strength = Math.max(0, 1 - Math.abs(value - sweet) / MAGNET_HALF);
 
     // Spend a real charge (tutorial bypasses the economy).
     if (s.mode !== "tutorial" && !Economy.usePowerup("magnet")) {
@@ -1111,7 +1119,16 @@ class Game {
     ctx.translate(this.shake.x, this.shake.y);
     if (this.session) {
       this.renderer.drawBoardFrame(this.session.board);
-      this.renderer.drawBubbles(this.session.board, this.theme);
+      // While aiming a magnet, shake the target-colour bubbles harder the
+      // closer the gauge needle is to the (randomised) green sweet spot.
+      let aim = null;
+      const m = this.session.magnet;
+      if (m && m.aiming) {
+        const sweet = m.sweet == null ? 0.5 : m.sweet;
+        const closeness = Math.max(0, 1 - Math.abs(m.value - sweet) / MAGNET_HALF);
+        aim = { color: m.color, intensity: closeness, time };
+      }
+      this.renderer.drawBubbles(this.session.board, this.theme, aim);
       if (this.session.preview) {
         this.renderer.drawPreview(
           this.session.board,

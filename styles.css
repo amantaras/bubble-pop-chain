@@ -421,19 +421,25 @@ body {
   position: absolute;
   inset: 0;
   border-radius: 50%;
+  /* Full ring (green sweet spot at top, red opposite). It is rotated via JS so
+     the green band lines up with the randomised sweet spot. */
   background: conic-gradient(
     from 0deg,
     #5bff9b 0deg,
-    #ffd35b 45deg,
-    #ff5b6e 135deg,
-    rgba(8, 12, 24, 0.85) 135deg,
-    rgba(8, 12, 24, 0.85) 225deg,
-    #ff5b6e 225deg,
-    #ffd35b 315deg,
+    #c8f55b 28deg,
+    #ffd35b 64deg,
+    #ff8b5b 110deg,
+    #ff4d63 160deg,
+    #ff3b54 180deg,
+    #ff4d63 200deg,
+    #ff8b5b 250deg,
+    #ffd35b 296deg,
+    #c8f55b 332deg,
     #5bff9b 360deg
   );
   -webkit-mask: radial-gradient(transparent 56%, #000 58%);
   mask: radial-gradient(transparent 56%, #000 58%);
+  transition: transform 0.12s ease-out;
 }
 .mg-needle {
   position: absolute;

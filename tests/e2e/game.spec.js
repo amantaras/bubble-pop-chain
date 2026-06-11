@@ -677,10 +677,11 @@ test.describe("power-ups (UI arm + apply)", () => {
       )
     ).toBe(true);
 
-    // Lock a perfect (centre) reading — the real lock path gathers the colour.
+    // Lock a perfect reading — the sweet spot is randomised, so aim the gauge
+    // exactly at it. The real lock path then gathers the whole colour.
     await page.evaluate(() => {
       const g = window.__bpc.game;
-      g.session.magnet.value = 0.5; // dead-centre = full strength
+      g.session.magnet.value = g.session.magnet.sweet; // dead-on = full strength
       g.lockMagnet();
     });
     await expect(page.locator("#magnet-gauge")).toBeHidden();

@@ -522,9 +522,19 @@ class UIManager {
   // ---- Magnet strength gauge -------------------------------------------
   // A circular dial shown over the board while a magnet is being aimed; the
   // needle sweeps a 270° arc, the player taps to lock it, and proximity to the
-  // green centre (top) decides the pull strength.
-  showMagnetGauge() {
-    if (this.el["magnet-gauge"]) this.el["magnet-gauge"].classList.remove("hidden");
+  // green sweet spot decides the pull strength. The sweet spot is randomised
+  // per use, so the green band is rotated to wherever `sweet` (0..1) lands.
+  showMagnetGauge(sweet = 0.5) {
+    const g = this.el["magnet-gauge"];
+    if (!g) return;
+    g.classList.remove("hidden");
+    const ring = g.querySelector(".mg-ring");
+    if (ring) {
+      // value 0.5 maps to the top of the dial; rotate the ring so its green
+      // band lines up with the needle angle at `sweet`.
+      const deg = (sweet - 0.5) * 270;
+      ring.style.transform = `rotate(${deg}deg)`;
+    }
   }
 
   updateMagnetGauge(value) {
