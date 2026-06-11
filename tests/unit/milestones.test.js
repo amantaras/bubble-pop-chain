@@ -44,10 +44,10 @@ describe("milestones", () => {
   });
 
   it("treasure rewards scale and rotate the free power-up", () => {
-    expect(treasureReward(5)).toEqual({ idx: 1, bonus: 125, powerup: "bomb" });
-    expect(treasureReward(15)).toEqual({ idx: 2, bonus: 150, powerup: "colorClear" });
-    expect(treasureReward(25)).toEqual({ idx: 3, bonus: 175, powerup: "shuffle" });
-    expect(treasureReward(35)).toEqual({ idx: 4, bonus: 200, powerup: "bomb" });
+    expect(treasureReward(5)).toEqual({ idx: 1, bonus: 125, powerup: "magnet" });
+    expect(treasureReward(15)).toEqual({ idx: 2, bonus: 150, powerup: "bomb" });
+    expect(treasureReward(25)).toEqual({ idx: 3, bonus: 175, powerup: "colorClear" });
+    expect(treasureReward(35)).toEqual({ idx: 4, bonus: 200, powerup: "shuffle" });
     expect(treasureReward(10)).toBe(null); // bosses are not treasures
     expect(treasureReward(7)).toBe(null);
   });

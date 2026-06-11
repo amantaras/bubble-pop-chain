@@ -12,7 +12,7 @@ const DEFAULT_SAVE = {
   currentTheme: "aurora",
   adsRemoved: false,
   muted: false,
-  powerups: { bomb: 1, colorClear: 1, shuffle: 1 },
+  powerups: { bomb: 1, colorClear: 1, shuffle: 1, chainBolt: 0, pick: 0, magnet: 1 },
   daily: {
     lastDate: null,
     streak: 0,

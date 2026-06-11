@@ -51,4 +51,24 @@ describe("economy", () => {
   it("rejects unknown power-up types", () => {
     expect(Economy.buyPowerup("nope")).toBe(false);
   });
+
+  it("catalogs the Magnet, Chain Bolt and Pick with the Magnet most expensive", () => {
+    for (const t of ["magnet", "chainBolt", "pick"]) {
+      expect(POWERUP_INFO[t]).toBeTruthy();
+      expect(POWERUP_INFO[t].price).toBeGreaterThan(0);
+    }
+    expect(POWERUP_INFO.magnet.price).toBe(500);
+    // The Magnet is the dearest power-up of all.
+    const prices = Object.values(POWERUP_INFO).map((p) => p.price);
+    expect(POWERUP_INFO.magnet.price).toBe(Math.max(...prices));
+  });
+
+  it("buys and uses a Magnet like any other power-up", () => {
+    Economy.addCoins(POWERUP_INFO.magnet.price);
+    const start = Economy.getPowerup("magnet");
+    expect(Economy.buyPowerup("magnet")).toBe(true);
+    expect(Economy.getPowerup("magnet")).toBe(start + 1);
+    expect(Economy.usePowerup("magnet")).toBe(true);
+    expect(Economy.getPowerup("magnet")).toBe(start);
+  });
 });

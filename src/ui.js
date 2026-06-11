@@ -36,6 +36,8 @@ class UIManager {
       "hud-moves", "hud-moves-label", "hud-progress-fill",
       "power-meter", "power-fill", "power-label",
       "pu-bomb-count", "pu-color-count", "pu-shuffle-count",
+      "pu-chain-count", "pu-pick-count", "pu-magnet-count",
+      "magnet-gauge", "mg-needle",
       "combo-banner", "toast",
       "win-stars", "win-score", "win-reward", "win-double", "win-next", "win-menu",
       "win-stats", "win-coins", "win-coins-num",
@@ -388,6 +390,28 @@ class UIManager {
     this.el["pu-bomb-count"].textContent = Economy.getPowerup("bomb");
     this.el["pu-color-count"].textContent = Economy.getPowerup("colorClear");
     this.el["pu-shuffle-count"].textContent = Economy.getPowerup("shuffle");
+    if (this.el["pu-chain-count"])
+      this.el["pu-chain-count"].textContent = Economy.getPowerup("chainBolt");
+    if (this.el["pu-pick-count"])
+      this.el["pu-pick-count"].textContent = Economy.getPowerup("pick");
+    if (this.el["pu-magnet-count"])
+      this.el["pu-magnet-count"].textContent = Economy.getPowerup("magnet");
+  }
+
+  // ---- Magnet strength gauge -------------------------------------------
+  // A swinging meter shown while a magnet is being aimed; the player taps to
+  // lock it, and proximity to the green centre decides the pull strength.
+  showMagnetGauge() {
+    if (this.el["magnet-gauge"]) this.el["magnet-gauge"].classList.remove("hidden");
+  }
+
+  updateMagnetGauge(value) {
+    if (this.el["mg-needle"])
+      this.el["mg-needle"].style.left = `${Math.min(100, Math.max(0, value * 100))}%`;
+  }
+
+  hideMagnetGauge() {
+    if (this.el["magnet-gauge"]) this.el["magnet-gauge"].classList.add("hidden");
   }
 
   // Charge meter (0..1). `ready` highlights the bar when a blast is available.

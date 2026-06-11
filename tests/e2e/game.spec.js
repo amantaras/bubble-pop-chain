@@ -431,7 +431,7 @@ test.describe("milestone events (every 5 levels)", () => {
     await page.evaluate(() => window.__bpc.game.startCampaign(5));
     await page.waitForTimeout(600);
     const puBefore = await page.evaluate(() =>
-      window.__bpc.Economy.getPowerup("bomb")
+      window.__bpc.Economy.getPowerup("magnet")
     );
     await autoPlay(page);
     await expect(page.locator("#win")).toBeVisible();
@@ -441,15 +441,15 @@ test.describe("milestone events (every 5 levels)", () => {
     );
     expect(save1.milestonesCleared).toContain(5);
     const puAfter = await page.evaluate(() =>
-      window.__bpc.Economy.getPowerup("bomb")
+      window.__bpc.Economy.getPowerup("magnet")
     );
-    expect(puAfter).toBe(puBefore + 1); // treasure #1 grants a free bomb
+    expect(puAfter).toBe(puBefore + 1); // treasure #1 grants a free magnet
 
     // Replaying the same level must NOT pay the milestone reward again.
     await page.evaluate(() => window.__bpc.game.startCampaign(5));
     await page.waitForTimeout(600);
     const puReplay = await page.evaluate(() =>
-      window.__bpc.Economy.getPowerup("bomb")
+      window.__bpc.Economy.getPowerup("magnet")
     );
     await autoPlay(page);
     await expect(page.locator("#win")).toBeVisible();
@@ -459,7 +459,7 @@ test.describe("milestone events (every 5 levels)", () => {
     );
     expect(save2.milestonesCleared.filter((id) => id === 5)).toHaveLength(1);
     const puReplayAfter = await page.evaluate(() =>
-      window.__bpc.Economy.getPowerup("bomb")
+      window.__bpc.Economy.getPowerup("magnet")
     );
     expect(puReplayAfter).toBe(puReplay); // no second free power-up
   });
@@ -588,6 +588,109 @@ test.describe("power-ups (UI arm + apply)", () => {
       window.__bpc.game.session.board.hasMoves()
     );
     expect(hasMoves).toBe(true);
+  });
+
+  test("chain bolt clears a full row and column", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(700);
+    await page.evaluate(() => window.__bpc.Economy.addPowerup("chainBolt", 1));
+    const { before, cols, rows } = await page.evaluate(() => {
+      const b = window.__bpc.game.session.board;
+      return { before: b.countRemaining(), cols: b.cols, rows: b.rows };
+    });
+    await page.locator("#pu-chain").click();
+    await expect(page.locator("#pu-chain")).toHaveClass(/armed/);
+    await tapCell(page, Math.floor(cols / 2), Math.floor(rows / 2));
+    await page.waitForTimeout(300);
+    const after = await page.evaluate(() =>
+      window.__bpc.game.session.board.countRemaining()
+    );
+    // A full row + column through a packed board removes (cols + rows - 1).
+    expect(before - after).toBeGreaterThanOrEqual(Math.max(cols, rows));
+    await expect(page.locator("#pu-chain-count")).toHaveText("0");
+  });
+
+  test("pick removes exactly one bubble", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(700);
+    await page.evaluate(() => window.__bpc.Economy.addPowerup("pick", 1));
+    const before = await page.evaluate(() =>
+      window.__bpc.game.session.board.countRemaining()
+    );
+    await page.locator("#pu-pick").click();
+    const cell = await page.evaluate(() => {
+      const b = window.__bpc.game.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++)
+          if (b.grid[c][r] !== -1 && b.types[c][r] === 0) return { c, r };
+      return null;
+    });
+    await tapCell(page, cell.c, cell.r);
+    await page.waitForTimeout(300);
+    const after = await page.evaluate(() =>
+      window.__bpc.game.session.board.countRemaining()
+    );
+    expect(before - after).toBe(1);
+    await expect(page.locator("#pu-pick-count")).toHaveText("0");
+  });
+
+  test("magnet shows a gauge and pulls a colour into one connected blob", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(700);
+    // Choose a plain bubble whose colour has the most copies on the board.
+    const target = await page.evaluate(() => {
+      const b = window.__bpc.game.session.board;
+      const counts = {};
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++)
+          if (b.grid[c][r] !== -1 && b.types[c][r] === 0)
+            counts[b.grid[c][r]] = (counts[b.grid[c][r]] || 0) + 1;
+      let color = -1;
+      let best = 0;
+      for (const k in counts)
+        if (counts[k] > best) {
+          best = counts[k];
+          color = +k;
+        }
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++)
+          if (b.grid[c][r] === color && b.types[c][r] === 0)
+            return { c, r, color, total: best };
+      return null;
+    });
+    expect(target).not.toBeNull();
+
+    // Arm the magnet and tap the bubble to start the swinging gauge.
+    await page.locator("#pu-magnet").click();
+    await expect(page.locator("#pu-magnet")).toHaveClass(/armed/);
+    await tapCell(page, target.c, target.r);
+    await expect(page.locator("#magnet-gauge")).toBeVisible();
+    expect(
+      await page.evaluate(
+        () => !!(window.__bpc.game.session.magnet && window.__bpc.game.session.magnet.aiming)
+      )
+    ).toBe(true);
+
+    // Lock a perfect (centre) reading — the real lock path gathers the colour.
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      g.session.magnet.value = 0.5; // dead-centre = full strength
+      g.lockMagnet();
+    });
+    await expect(page.locator("#magnet-gauge")).toBeHidden();
+
+    const after = await page.evaluate((t) => {
+      const b = window.__bpc.game.session.board;
+      return {
+        group: b.getGroupAt(t.c, t.r).length,
+        total: b.colorCells(t.color).length,
+      };
+    }, target);
+    expect(after.total).toBe(target.total); // colour multiset preserved
+    expect(after.group).toBe(target.total); // whole colour now one blob
+    await expect(page.locator("#pu-magnet-count")).toHaveText("0");
   });
 });
 
@@ -967,6 +1070,29 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
             g.handleTap(p.x, p.y);
             return;
           }
+    });
+    await expect.poll(() => stepId(page)).toBe("magnet");
+
+    // 7b) magnet — arm it, aim a plain bubble, lock the gauge on green.
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      g.armPowerup("magnet", document.getElementById("pu-magnet"));
+      const find = () => {
+        for (let c = 0; c < b.cols; c++)
+          for (let r = 0; r < b.rows; r++)
+            if (
+              b.grid[c][r] !== -1 &&
+              b.types[c][r] === 0 &&
+              b.colorCells(b.grid[c][r]).length >= 2
+            )
+              return { c, r };
+        return null;
+      };
+      const t = find();
+      g.beginMagnet(t.c, t.r);
+      g.session.magnet.value = 0.5; // perfect pull
+      g.lockMagnet();
     });
     await expect.poll(() => stepId(page)).toBe("specials");
 

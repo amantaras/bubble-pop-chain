@@ -210,11 +210,13 @@ class Game {
   // Shared UI/state setup used by both fresh and resumed sessions.
   _enterSession() {
     const board = this.session.board;
+    this.session.magnet = null;
     board.layout(this.W, this.H, TOP_INSET, this._bottomInset());
     this.particles.particles.length = 0;
     this.floating.items.length = 0;
     UI.hideScreens();
     UI.hideModals();
+    UI.hideMagnetGauge();
     UI.showHud(true);
     UI.clearArmedPowerups();
     UI.updatePowerups();
@@ -394,6 +396,17 @@ class Game {
       };
       place(midC, midR, RAINBOW);
       place(Math.min(b.cols - 1, midC + 1), midR, ICE);
+    } else if (kind === "magnet") {
+      // Give the magnet a full, scattered board so demonstrating the pull is
+      // always possible no matter what the player popped earlier.
+      const b = s.board;
+      const { colors: g, types } = buildTutorialBoard(
+        b.cols,
+        b.rows,
+        s.level.colors || 4
+      );
+      decorateSpecials(types);
+      b.restore(g, types);
     }
     // "bomb": tutorial bypasses the economy (see armPowerup/applyPowerup).
   }
@@ -469,7 +482,22 @@ class Game {
   handleTap(px, py) {
     const s = this.session;
     if (!s || s.ended) return;
+
+    // A magnet is mid-aim: the next tap locks in the swinging strength gauge.
+    if (s.magnet && s.magnet.aiming) {
+      this.lockMagnet();
+      return;
+    }
+
     const cell = s.board.cellAtPixel(px, py);
+
+    // Arming the magnet: the first tap picks the target bubble and starts the
+    // strength gauge (a second tap then locks it — handled above).
+    if (s.armed === "magnet") {
+      if (!cell) return;
+      this.beginMagnet(cell.c, cell.r);
+      return;
+    }
 
     if (s.armed) {
       if (!cell) return; // need a valid bubble target
@@ -611,6 +639,11 @@ class Game {
   handleDoubleTap(px, py) {
     const s = this.session;
     if (!s || s.ended) return;
+    // While aiming a magnet, any second tap just locks the gauge.
+    if (s.magnet && s.magnet.aiming) {
+      this.lockMagnet();
+      return;
+    }
     const cell = s.board.cellAtPixel(px, py);
     if (!cell) return;
     if (this.isBlastReady()) {
@@ -644,6 +677,8 @@ class Game {
     let cells = [];
     if (type === "bomb") cells = s.board.bombArea(c, r);
     else if (type === "colorClear") cells = s.board.colorCells(s.board.grid[c][r]);
+    else if (type === "chainBolt") cells = s.board.crossCells(c, r);
+    else if (type === "pick") cells = [{ c, r }];
     if (cells.length === 0) return;
 
     // Tutorial mode bypasses the economy so it never spends real inventory.
@@ -658,6 +693,71 @@ class Game {
     UI.updatePowerups();
     this.refreshHud();
     this._tut("powerup");
+    this.afterMove();
+  }
+
+  // ---- Magnet: timing-gauge gather --------------------------------------
+  // Step 1 (after arming 🧲): tapping a plain bubble locks the target colour
+  // and starts a strength gauge that sweeps back and forth (driven by the game
+  // loop). The board update loop animates `s.magnet.value`.
+  beginMagnet(c, r) {
+    const s = this.session;
+    if (!s || s.ended) return;
+    const b = s.board;
+    if (b.grid[c][r] === -1 || b.isRainbow(c, r) || b.types[c][r] !== 0) {
+      UI.toast("Aim the magnet at a plain bubble");
+      return;
+    }
+    if (b.colorCells(b.grid[c][r]).length < 2) {
+      UI.toast("Need more of that colour");
+      return;
+    }
+    s.magnet = {
+      c,
+      r,
+      color: b.grid[c][r],
+      value: 0,
+      dir: 1,
+      aiming: true,
+    };
+    Audio.click();
+    UI.showMagnetGauge();
+    UI.updateMagnetGauge(0);
+    UI.toast("🧲 Tap to set strength — aim for green!");
+  }
+
+  // Step 2: lock the gauge. Closeness to the green centre = magnet strength, so
+  // a perfect hit pulls the whole colour into one connected blob.
+  lockMagnet() {
+    const s = this.session;
+    if (!s || !s.magnet || !s.magnet.aiming) return;
+    const { c, r, color, value } = s.magnet;
+    const strength = Math.max(0, 1 - Math.abs(value - 0.5) * 2);
+
+    // Spend a real charge (tutorial bypasses the economy).
+    if (s.mode !== "tutorial" && !Economy.usePowerup("magnet")) {
+      s.magnet = null;
+      s.armed = null;
+      UI.clearArmedPowerups();
+      UI.hideMagnetGauge();
+      return;
+    }
+
+    s.magnet = null;
+    s.armed = null;
+    UI.clearArmedPowerups();
+    UI.hideMagnetGauge();
+    UI.updatePowerups();
+
+    const res = s.board.magnetGather(c, r, color, strength);
+    Audio.powerup();
+    vibrate(strength > 0.85 ? 28 : 14);
+    const t = s.board.targetPixel(c, r);
+    const label = strength > 0.85 ? "PERFECT MAGNET!" : `MAGNET ×${res.gathered}`;
+    this.floating.spawn(t.x, t.y, label, strength > 0.85 ? "#5be3ff" : "#ffffff", 28);
+    if (s.stats) s.stats.powerups += 1;
+    this.refreshHud();
+    this._tut("magnet");
     this.afterMove();
   }
 
@@ -710,12 +810,27 @@ class Game {
     // Toggle arm for targeted power-ups.
     if (s.armed === type) {
       s.armed = null;
+      if (s.magnet) {
+        s.magnet = null;
+        UI.hideMagnetGauge();
+      }
       UI.clearArmedPowerups();
     } else {
       s.armed = type;
+      if (s.magnet) {
+        s.magnet = null;
+        UI.hideMagnetGauge();
+      }
       UI.clearArmedPowerups();
       btn.classList.add("armed");
-      UI.toast(type === "bomb" ? "Tap to drop bomb" : "Tap a color to clear it");
+      const hint = {
+        bomb: "Tap to drop bomb",
+        colorClear: "Tap a color to clear it",
+        chainBolt: "Tap to fire a row + column bolt",
+        pick: "Tap a single bubble to remove it",
+        magnet: "Tap a plain bubble to aim the magnet",
+      }[type];
+      UI.toast(hint || "Tap the board");
     }
   }
 
@@ -971,6 +1086,20 @@ class Game {
       if (this.session.combo > 0) {
         this.session.comboTimer -= dt;
         if (this.session.comboTimer <= 0) this.session.combo = 0;
+      }
+      // Sweep the magnet strength gauge back and forth while aiming.
+      const m = this.session.magnet;
+      if (m && m.aiming) {
+        const speed = 1.7; // full sweeps per second-ish
+        m.value += m.dir * speed * dt;
+        if (m.value >= 1) {
+          m.value = 1;
+          m.dir = -1;
+        } else if (m.value <= 0) {
+          m.value = 0;
+          m.dir = 1;
+        }
+        UI.updateMagnetGauge(m.value);
       }
     }
   }

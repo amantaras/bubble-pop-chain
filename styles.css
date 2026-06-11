@@ -362,6 +362,60 @@ body {
   0%, 100% { box-shadow: 0 0 10px rgba(255, 211, 91, 0.4); }
   50% { box-shadow: 0 0 20px rgba(255, 211, 91, 0.85); }
 }
+/* Magnet strength gauge: a swinging needle over a track with a green sweet
+   spot in the middle. Shown only while a magnet is being aimed. */
+.magnet-gauge {
+  margin: 8px 4px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.magnet-gauge.hidden {
+  display: none;
+}
+.mg-track {
+  position: relative;
+  height: 16px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    #ff5b6e 0%,
+    #ffd35b 35%,
+    #5bff9b 50%,
+    #ffd35b 65%,
+    #ff5b6e 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+.mg-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 44%;
+  width: 12%;
+  background: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 0 10px rgba(91, 255, 155, 0.8);
+}
+.mg-needle {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  left: 0%;
+  width: 4px;
+  margin-left: -2px;
+  border-radius: 2px;
+  background: #fff;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.9);
+}
+.mg-label {
+  text-align: center;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.8);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
 .hud-bottom {
   display: flex;
   align-items: center;
@@ -370,19 +424,21 @@ body {
 }
 .powerups {
   display: flex;
-  gap: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 .powerup-btn {
   position: relative;
-  width: 52px;
-  height: 52px;
-  border-radius: 16px;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
   border: 1px solid var(--glass-brd);
   background: var(--glass);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   cursor: pointer;
-  font-size: 24px;
+  font-size: 21px;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -22,6 +22,14 @@ never re‑discovered the hard way.
   costs 1 move in campaign or a shift token in endless/daily).
 - **Power meter**: fills from points + combos (`scoring.powerGain`); a full
   meter enables a double‑tap Charged Blast (`grid.blastArea`, diamond AoE).
+- **Power-ups** (`economy.js` `POWERUP_INFO`, armed from the HUD): **Bomb** (3×3),
+  **Color Clear** (one colour), **Shuffle**, **Chain Bolt** (`grid.crossCells`,
+  full row + column), **Pick** (single bubble), and the premium **Magnet**
+  (`grid.magnetGather`) — arm it, tap a plain bubble, then lock a swinging
+  strength gauge (`#magnet-gauge`, swept in `Game.update`): the closer to the
+  green centre, the more of that colour is pulled into one connected blob (a
+  perfect hit gathers the whole colour). The Magnet is the dearest power-up
+  (500 coins) and also drops from the treasure rotation.
 - **Special bubbles** (`grid.js` `types` layer): **Rainbow** = colour wildcard
   that bridges regions; **Ice** = needs two hits (cracks, then clears). Seeded
   spawn rates ramp in by level. Types are part of the save/resume snapshot.
@@ -33,8 +41,8 @@ never re‑discovered the hard way.
 - **Interactive tutorial** (`tutorial.js`): a gated, step‑by‑step onboarding that
   auto‑opens on first run (and re‑playable via the menu's **How to Play**
   button). Each action step **blocks until the player actually performs the
-  gesture** (tap, combo, preview, swipe, charged blast, power‑up). It must stay
-  in sync with the game's features — see §11.
+  gesture** (tap, combo, preview, swipe, charged blast, power‑up, magnet). It
+  must stay in sync with the game's features — see §11.
 - **Live production URL**: https://amantaras.github.io/bubble-pop-chain/
   (GitHub Pages, served under the `/bubble-pop-chain/` subpath).
 - **Repo**: `amantaras/bubble-pop-chain`, default branch `master` (private).
@@ -120,7 +128,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 108 unit tests + 84 E2E
+- **Current baseline (keep growing, never shrink)**: 114 unit tests + 90 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests
@@ -193,7 +201,7 @@ defines the campaign's reward/challenge rhythm. It must stay in sync with
 - **Cadence**: `milestoneType(id)` returns `"treasure"` on levels 5/15/25/35 and
   `"boss"` on levels 10/20/30/40 — the two beats always alternate.
 - **Treasure 🎁** (`treasureReward`): first clear pays `100 + idx*25` bonus coins
-  plus one rotating free power-up (`bomb`/`colorClear`/`shuffle`).
+  plus one rotating free power-up (`magnet`/`bomb`/`colorClear`/`shuffle`).
 - **Boss 👹** (`bossReward` + `bossConfig`): the board seeds a centred **frozen
   core** of ice bubbles (`Board.placeFrozenCore`); the objective is to shatter
   the whole core (`Board.frozenRemaining() === 0`) before moves run out. Boss
@@ -247,14 +255,14 @@ How the tutorial is wired (touch every layer that applies):
      button label). Use for informational steps.
    - `advance: "<action>"` → a **gated** step that only advances when the game
      emits that action. Current actions: `pop`, `combo`, `preview`, `swipe`,
-     `blast`, `powerup`. `hint` is the nudge text shown while waiting.
+     `blast`, `powerup`, `magnet`. `hint` is the nudge text shown while waiting.
    - `grant` → a one‑time setup applied on entering the step (e.g. fill the
      power meter, place special bubbles) via `Game.tutorialGrant(kind)`.
 2. **Action emitters** — the game calls `this._tut("<action>")` from `main.js`
    right after the corresponding mechanic resolves (`popAt` → `pop`/`combo`,
    `previewAt` → `preview`, `handleSwipe` → `swipe`, `chargedBlast` → `blast`,
-   `applyPowerup` → `powerup`). **A new gesture/mechanic that the tutorial should
-   teach needs a matching `_tut(...)` emit.**
+   `applyPowerup` → `powerup`, `lockMagnet` → `magnet`). **A new gesture/mechanic
+   that the tutorial should teach needs a matching `_tut(...)` emit.**
 3. **Grants** — add new setup cases to `Game.tutorialGrant(kind)` in `main.js`
    (and a `grant:` on the step) when a step needs pre‑arranged board state.
 4. **Board** — `buildTutorialBoard()` / `decorateSpecials()` produce a

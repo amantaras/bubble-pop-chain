@@ -467,6 +467,104 @@ export class Board {
     return cells;
   }
 
+  // Chain Bolt clears the full row and full column that cross at (c,r).
+  crossCells(c, r) {
+    const cells = [];
+    const seen = new Set();
+    const add = (cc, rr) => {
+      if (cc < 0 || cc >= this.cols || rr < 0 || rr >= this.rows) return;
+      if (this.grid[cc][rr] === -1) return;
+      const k = cc * this.rows + rr;
+      if (seen.has(k)) return;
+      seen.add(k);
+      cells.push({ c: cc, r: rr });
+    };
+    for (let rr = 0; rr < this.rows; rr++) add(c, rr); // column
+    for (let cc = 0; cc < this.cols; cc++) add(cc, r); // row
+    return cells;
+  }
+
+  // Magnet: pull bubbles of `color` together into one connected blob anchored at
+  // (c,r). `strength` (0..1) decides how many are gathered — a perfect (1) pull
+  // collects EVERY bubble of that colour into a single connected group, while a
+  // weak pull only nudges a few in. Bubbles are relocated by swapping colours
+  // with cells inside the target blob, so positions/gravity are unchanged and
+  // the result is immediately poppable. Ice/Rainbow cells act as walls and are
+  // never moved. Returns { gathered, color }.
+  magnetGather(c, r, color, strength) {
+    if (this.grid[c][r] !== color || this.types[c][r] !== NORMAL) {
+      return { gathered: 0, color };
+    }
+    // Every normal bubble of this colour (the anchor included).
+    const sources = [];
+    for (let cc = 0; cc < this.cols; cc++)
+      for (let rr = 0; rr < this.rows; rr++)
+        if (this.grid[cc][rr] === color && this.types[cc][rr] === NORMAL)
+          sources.push({ c: cc, r: rr });
+    const total = sources.length;
+    if (total <= 1) return { gathered: total, color };
+
+    // Target blob size grows with strength: weak → 2, perfect → all of them.
+    const clamped = Math.max(0, Math.min(1, strength));
+    const k = Math.max(2, Math.round(2 + clamped * (total - 2)));
+
+    // Grow a connected region of NORMAL bubbles outward from the anchor (BFS,
+    // nearest first) until it reaches size k or runs out of reachable cells.
+    const key = (cc, rr) => cc * this.rows + rr;
+    const inRegion = new Set([key(c, r)]);
+    const region = [{ c, r }];
+    const queue = [{ c, r }];
+    while (queue.length && region.length < k) {
+      const { c: cc, r: rr } = queue.shift();
+      const nbrs = [
+        { c: cc + 1, r: rr },
+        { c: cc - 1, r: rr },
+        { c: cc, r: rr + 1 },
+        { c: cc, r: rr - 1 },
+      ];
+      for (const n of nbrs) {
+        if (region.length >= k) break;
+        if (n.c < 0 || n.c >= this.cols || n.r < 0 || n.r >= this.rows) continue;
+        if (this.grid[n.c][n.r] === -1 || this.types[n.c][n.r] !== NORMAL) continue;
+        const kk = key(n.c, n.r);
+        if (inRegion.has(kk)) continue;
+        inRegion.add(kk);
+        region.push(n);
+        queue.push(n);
+      }
+    }
+
+    // Cells in the blob that are not yet the target colour need a donor; cells
+    // of the target colour outside the blob are the donors to pull in.
+    const need = region.filter((p) => this.grid[p.c][p.r] !== color);
+    const donors = sources.filter((p) => !inRegion.has(key(p.c, p.r)));
+    const count = Math.min(need.length, donors.length);
+    for (let i = 0; i < count; i++) {
+      const a = need[i];
+      const b = donors[i];
+      // Swap colour + type between the donor and the blob slot.
+      const ac = this.grid[a.c][a.r];
+      const at = this.types[a.c][a.r];
+      this.grid[a.c][a.r] = this.grid[b.c][b.r];
+      this.types[a.c][a.r] = this.types[b.c][b.r];
+      this.grid[b.c][b.r] = ac;
+      this.types[b.c][b.r] = at;
+      const sa = this.spriteGrid[a.c][a.r];
+      const sb = this.spriteGrid[b.c][b.r];
+      if (sa) {
+        sa.color = this.grid[a.c][a.r];
+        sa.type = this.types[a.c][a.r];
+        sa.scale = 0.55; // pulse in
+      }
+      if (sb) {
+        sb.color = this.grid[b.c][b.r];
+        sb.type = this.types[b.c][b.r];
+        sb.scale = 0.7;
+      }
+    }
+    return { gathered: this.getGroupAt(c, r).length, color };
+  }
+
   // Reshuffle colors of remaining bubbles until at least one move exists.
   shuffle() {
     const colors = [];

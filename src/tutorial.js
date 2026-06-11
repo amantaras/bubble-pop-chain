@@ -20,11 +20,11 @@ import { NORMAL, ICE, RAINBOW } from "./grid.js";
 //               "button"  → player taps the CTA (informational step)
 //               otherwise → an ACTION TYPE that must be observed in-game:
 //                           "pop" | "combo" | "preview" | "swipe" | "blast"
-//                           | "powerup"
+//                           | "powerup" | "magnet"
 //   cta     — button label for "button" steps
 //   hint    — short call-to-action shown for action steps
 //   grant   — optional setup applied when the step is entered
-//             ("power" | "bomb" | "specials")
+//             ("power" | "bomb" | "specials" | "magnet")
 export const TUTORIAL_STEPS = [
   {
     id: "welcome",
@@ -76,6 +76,14 @@ export const TUTORIAL_STEPS = [
     advance: "powerup",
     hint: "🧨 Arm the Bomb, then tap the board",
     grant: "bomb",
+  },
+  {
+    id: "magnet",
+    title: "Magnet",
+    body: "Arm the 🧲 Magnet and tap a plain bubble. A strength gauge swings back and forth — tap again on the green centre to pull that whole colour together into one giant cluster, ready to pop.",
+    advance: "magnet",
+    hint: "🧲 Arm it, tap a bubble, then lock on green",
+    grant: "magnet",
   },
   {
     id: "specials",

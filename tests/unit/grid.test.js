@@ -111,6 +111,45 @@ describe("grid / Board", () => {
     expect(b.colorCells(2).length).toBe(1);
   });
 
+  it("crossCells clears the full row and column through a cell (no dupes)", () => {
+    const b = new Board(3, 3, 3, 1);
+    setGrid(b, [
+      [0, 1, 2],
+      [0, 1, 2],
+      [0, 1, 2],
+    ]);
+    // Centre: 3 in the column + 3 in the row, sharing one cell => 5 unique.
+    expect(b.crossCells(1, 1).length).toBe(5);
+    // Corner: clipped to the board, still no duplicate of the shared cell.
+    expect(b.crossCells(0, 0).length).toBe(5);
+  });
+
+  it("magnetGather pulls a whole colour into one connected blob at full strength", () => {
+    const b = new Board(5, 1, 2, 1);
+    setGrid(b, [[0], [1], [0], [1], [0]]); // colour 0 scattered at c=0,2,4
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    const res = b.magnetGather(0, 0, 0, 1); // perfect pull
+    expect(res.gathered).toBe(3); // all three colour-0 bubbles
+    expect(b.getGroupAt(0, 0).length).toBe(3); // and they are now connected
+    expect(b.colorCells(0).length).toBe(3); // multiset preserved
+  });
+
+  it("magnetGather pulls fewer bubbles on a weak strength", () => {
+    const b = new Board(5, 1, 2, 1);
+    setGrid(b, [[0], [1], [0], [1], [0]]);
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    const res = b.magnetGather(0, 0, 0, 0); // weakest pull
+    expect(res.gathered).toBe(2);
+    expect(b.colorCells(0).length).toBe(3); // still three of the colour
+  });
+
+  it("magnetGather is a no-op for a lone bubble of its colour", () => {
+    const b = new Board(3, 1, 3, 1);
+    setGrid(b, [[0], [1], [2]]);
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    expect(b.magnetGather(0, 0, 0, 1).gathered).toBe(1);
+  });
+
   it("shuffle preserves the colour multiset and yields a solvable board", () => {
     const b = new Board(6, 8, 4, 999);
     const before = b.countRemaining();

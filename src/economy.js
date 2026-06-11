@@ -5,6 +5,9 @@ export const POWERUP_INFO = {
   bomb: { name: "Bomb", icon: "💥", desc: "Clears a 3×3 area", price: 150 },
   colorClear: { name: "Color Clear", icon: "🌈", desc: "Removes one whole color", price: 250 },
   shuffle: { name: "Shuffle", icon: "🔀", desc: "Reshuffles the board", price: 100 },
+  chainBolt: { name: "Chain Bolt", icon: "⚡", desc: "Clears a full row and column", price: 300 },
+  pick: { name: "Pick", icon: "🔨", desc: "Removes a single bubble", price: 120 },
+  magnet: { name: "Magnet", icon: "🧲", desc: "Pull same-color bubbles together — time the gauge!", price: 500 },
 };
 
 export const COIN_PACKS = [
