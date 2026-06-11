@@ -25,11 +25,14 @@ never re‑discovered the hard way.
 - **Power-ups** (`economy.js` `POWERUP_INFO`, armed from the HUD): **Bomb** (3×3),
   **Color Clear** (one colour), **Shuffle**, **Chain Bolt** (`grid.crossCells`,
   full row + column), **Pick** (single bubble), and the premium **Magnet**
-  (`grid.magnetGather`) — arm it, tap a plain bubble, then lock a swinging
-  strength gauge (`#magnet-gauge`, swept in `Game.update`): the closer to the
-  green centre, the more of that colour is pulled into one connected blob (a
-  perfect hit gathers the whole colour). The Magnet is the dearest power-up
-  (500 coins) and also drops from the treasure rotation.
+  (`grid.magnetGather`) — arm it, tap a plain bubble, then lock a **circular
+  strength dial** that pops up centred over the board (`#magnet-gauge`, a needle
+  sweeping a 270° arc with the green sweet spot at the top, swept in
+  `Game.update`; the overlay is pointer-events:none so the locking board tap
+  still registers): the closer to the green centre, the more of that colour is
+  pulled into one connected blob (a perfect hit gathers the whole colour). The
+  Magnet is the dearest power-up (500 coins) and also drops from the treasure
+  rotation.
 - **HUD loadout** (`ui.js`, `storage.js` `loadout`): the HUD shows **three
   quick-access slots** instead of one button per power-up (so it never grows as
   tools are added). A short **tap** arms that slot's power-up; a **long-press**

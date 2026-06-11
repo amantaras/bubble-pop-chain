@@ -520,15 +520,20 @@ class UIManager {
   }
 
   // ---- Magnet strength gauge -------------------------------------------
-  // A swinging meter shown while a magnet is being aimed; the player taps to
-  // lock it, and proximity to the green centre decides the pull strength.
+  // A circular dial shown over the board while a magnet is being aimed; the
+  // needle sweeps a 270° arc, the player taps to lock it, and proximity to the
+  // green centre (top) decides the pull strength.
   showMagnetGauge() {
     if (this.el["magnet-gauge"]) this.el["magnet-gauge"].classList.remove("hidden");
   }
 
   updateMagnetGauge(value) {
-    if (this.el["mg-needle"])
-      this.el["mg-needle"].style.left = `${Math.min(100, Math.max(0, value * 100))}%`;
+    const n = this.el["mg-needle"];
+    if (!n) return;
+    const v = Math.min(1, Math.max(0, value));
+    // value 0 → -135° (left/red), 0.5 → 0° (top/green), 1 → +135° (right/red).
+    const deg = (v - 0.5) * 270;
+    n.style.transform = `translate(-50%, -100%) rotate(${deg}deg)`;
   }
 
   hideMagnetGauge() {

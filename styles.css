@@ -362,59 +362,115 @@ body {
   0%, 100% { box-shadow: 0 0 10px rgba(255, 211, 91, 0.4); }
   50% { box-shadow: 0 0 20px rgba(255, 211, 91, 0.85); }
 }
-/* Magnet strength gauge: a swinging needle over a track with a green sweet
-   spot in the middle. Shown only while a magnet is being aimed. */
-.magnet-gauge {
-  margin: 8px 4px 0;
+/* Magnet strength gauge: a circular dial that pops up over the board while a
+   magnet is being aimed. A needle sweeps around a 270° arc; the green sweet
+   spot sits at the top. The player taps the board to lock it, and proximity to
+   the green centre decides the pull strength. The overlay is purely visual
+   (pointer-events: none) so the locking tap still reaches the canvas. */
+.magnet-overlay {
+  position: fixed;
+  inset: 0;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 60;
+  /* Dim the board behind the dial so the coloured arc never blends into the
+     green bubbles underneath. */
+  background: radial-gradient(
+    circle at center,
+    rgba(6, 9, 18, 0.62) 0%,
+    rgba(6, 9, 18, 0.42) 24%,
+    rgba(6, 9, 18, 0) 46%
+  );
+  animation: mg-pop 0.18s ease-out;
 }
-.magnet-gauge.hidden {
+.magnet-overlay.hidden {
   display: none;
 }
-.mg-track {
-  position: relative;
-  height: 16px;
-  border-radius: 999px;
-  background: linear-gradient(
-    90deg,
-    #ff5b6e 0%,
-    #ffd35b 35%,
-    #5bff9b 50%,
-    #ffd35b 65%,
-    #ff5b6e 100%
-  );
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  overflow: hidden;
+@keyframes mg-pop {
+  from { opacity: 0; transform: scale(0.82); }
+  to { opacity: 1; transform: scale(1); }
 }
-.mg-zone {
+.mg-dial {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  max-width: 62vw;
+  max-height: 62vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* Solid dark backing disc behind the ring so the coloured arc (and the green
+   sweet spot) never blends into the green bubbles on the board underneath. */
+.mg-scrim {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 44%;
-  width: 12%;
-  background: rgba(255, 255, 255, 0.28);
-  box-shadow: 0 0 10px rgba(91, 255, 155, 0.8);
+  inset: -15%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at center,
+    rgba(8, 11, 20, 0.96) 60%,
+    rgba(8, 11, 20, 0.7) 80%,
+    rgba(8, 11, 20, 0) 100%
+  );
+  box-shadow: 0 14px 46px rgba(0, 0, 0, 0.72),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+.mg-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    #5bff9b 0deg,
+    #ffd35b 45deg,
+    #ff5b6e 135deg,
+    rgba(8, 12, 24, 0.85) 135deg,
+    rgba(8, 12, 24, 0.85) 225deg,
+    #ff5b6e 225deg,
+    #ffd35b 315deg,
+    #5bff9b 360deg
+  );
+  -webkit-mask: radial-gradient(transparent 56%, #000 58%);
+  mask: radial-gradient(transparent 56%, #000 58%);
 }
 .mg-needle {
   position: absolute;
-  top: -3px;
-  bottom: -3px;
-  left: 0%;
-  width: 4px;
-  margin-left: -2px;
-  border-radius: 2px;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 92px;
+  border-radius: 3px;
+  background: linear-gradient(#fff, #cfefff);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.95);
+  transform-origin: bottom center;
+  transform: translate(-50%, -100%) rotate(0deg);
+  transition: transform 0.04s linear;
+}
+.mg-hub {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border-radius: 50%;
   background: #fff;
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 12px rgba(91, 227, 255, 0.9);
 }
 .mg-label {
+  position: absolute;
+  bottom: 16%;
+  left: 0;
+  right: 0;
   text-align: center;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 800;
+  line-height: 1.4;
   letter-spacing: 2px;
-  color: rgba(255, 255, 255, 0.8);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
 }
 .hud-bottom {
   display: flex;
