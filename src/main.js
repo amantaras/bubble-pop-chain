@@ -430,7 +430,7 @@ class Game {
           showNext: s.level.id < LEVEL_COUNT,
           showDouble: !Monetization.isAdsRemoved(),
         });
-        await Monetization.maybeShowInterstitial();
+        await Monetization.maybeShowInterstitial(s.level.id);
       } else {
         Audio.lose();
         UI.showLose({

@@ -329,6 +329,18 @@ test.describe("shop & monetization (UI)", () => {
     await expect(page.locator("#win")).toBeVisible();
     await expect(page.locator("#win-double")).toBeHidden();
   });
+
+  test("no forced interstitial before level 7 (new-player grace)", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await page.waitForTimeout(600);
+    await autoPlay(page);
+    await expect(page.locator("#win")).toBeVisible();
+    // The forced ad overlay must never appear for an early-level win.
+    await page.waitForTimeout(300);
+    await expect(page.locator("#ad-overlay")).toBeHidden();
+  });
 });
 
 test.describe("themes (UI)", () => {

@@ -14,6 +14,7 @@ class MonetizationManager {
     this.levelWinCount = 0;
     this.interstitialEvery = 3; // show after every N level wins
     this.minSeconds = 25; // and at most this often
+    this.adsStartLevel = 7; // no forced interstitials before this campaign level
     this._lastInterstitial = 0;
   }
 
@@ -45,8 +46,11 @@ class MonetizationManager {
   }
 
   // Forced full-screen ad between levels. Respects cadence + ads-removed.
-  async maybeShowInterstitial() {
+  // New players are protected: forced interstitials never show before
+  // `adsStartLevel` (pass the just-finished campaign level id as `level`).
+  async maybeShowInterstitial(level = Infinity) {
     if (this.isAdsRemoved()) return false;
+    if (typeof level === "number" && level < this.adsStartLevel) return false;
     this.levelWinCount++;
     const now = Date.now() / 1000;
     if (

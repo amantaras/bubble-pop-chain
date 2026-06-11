@@ -48,4 +48,19 @@ describe("monetization (real code paths, mock provider)", () => {
       expect(await Monetization.maybeShowInterstitial()).toBe(false);
     }
   });
+
+  it("never shows forced interstitials before adsStartLevel (new-player grace)", async () => {
+    // Levels 1..6 should never trigger an interstitial, regardless of cadence.
+    for (let i = 0; i < 10; i++) {
+      expect(await Monetization.maybeShowInterstitial(3)).toBe(false);
+    }
+    // The win counter must not advance while gated, so cadence is preserved.
+    expect(Monetization.levelWinCount).toBe(0);
+  });
+
+  it("allows interstitials from adsStartLevel onward, on cadence", async () => {
+    expect(await Monetization.maybeShowInterstitial(7)).toBe(false); // 1
+    expect(await Monetization.maybeShowInterstitial(7)).toBe(false); // 2
+    expect(await Monetization.maybeShowInterstitial(7)).toBe(true); // 3 -> show
+  });
 });
