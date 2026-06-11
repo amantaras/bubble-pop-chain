@@ -57,24 +57,18 @@
       </div>
       <div class="hud-bottom">
         <div class="coins-pill"><span class="coin-dot"></span><span id="hud-coins">0</span></div>
-        <div class="powerups">
-          <button class="powerup-btn" id="pu-bomb" data-pu="bomb">
-            <span class="pu-icon">💥</span><span class="pu-count" id="pu-bomb-count">0</span>
+        <div class="powerups" id="powerups">
+          <button class="powerup-btn" id="pu-slot-0" data-slot="0" aria-label="Power-up slot 1">
+            <span class="pu-icon"></span><span class="pu-count"></span>
+            <span class="pu-hold" aria-hidden="true"></span>
           </button>
-          <button class="powerup-btn" id="pu-color" data-pu="colorClear">
-            <span class="pu-icon">🌈</span><span class="pu-count" id="pu-color-count">0</span>
+          <button class="powerup-btn" id="pu-slot-1" data-slot="1" aria-label="Power-up slot 2">
+            <span class="pu-icon"></span><span class="pu-count"></span>
+            <span class="pu-hold" aria-hidden="true"></span>
           </button>
-          <button class="powerup-btn" id="pu-shuffle" data-pu="shuffle">
-            <span class="pu-icon">🔀</span><span class="pu-count" id="pu-shuffle-count">0</span>
-          </button>
-          <button class="powerup-btn" id="pu-chain" data-pu="chainBolt">
-            <span class="pu-icon">⚡</span><span class="pu-count" id="pu-chain-count">0</span>
-          </button>
-          <button class="powerup-btn" id="pu-pick" data-pu="pick">
-            <span class="pu-icon">🔨</span><span class="pu-count" id="pu-pick-count">0</span>
-          </button>
-          <button class="powerup-btn" id="pu-magnet" data-pu="magnet">
-            <span class="pu-icon">🧲</span><span class="pu-count" id="pu-magnet-count">0</span>
+          <button class="powerup-btn" id="pu-slot-2" data-slot="2" aria-label="Power-up slot 3">
+            <span class="pu-icon"></span><span class="pu-count"></span>
+            <span class="pu-hold" aria-hidden="true"></span>
           </button>
         </div>
       </div>
@@ -163,6 +157,16 @@
           <button class="btn btn-primary" id="lose-retry">Retry</button>
         </div>
         <button class="btn btn-reward" id="lose-revive">▶ Revive (+5 moves)</button>
+      </div>
+    </div>
+
+    <!-- Loadout picker: choose which power-up fills a quick-access HUD slot -->
+    <div id="loadout" class="overlay modal hidden">
+      <div class="modal-card loadout-card">
+        <h2 class="modal-title">Quick-access slot</h2>
+        <p class="loadout-sub" id="loadout-sub">Pick the power-up for this slot.</p>
+        <div class="loadout-list" id="loadout-list"></div>
+        <button class="btn btn-primary" id="loadout-close">Done</button>
       </div>
     </div>
 

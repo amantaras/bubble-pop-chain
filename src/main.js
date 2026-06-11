@@ -822,7 +822,7 @@ class Game {
         UI.hideMagnetGauge();
       }
       UI.clearArmedPowerups();
-      btn.classList.add("armed");
+      if (btn) btn.classList.add("armed");
       const hint = {
         bomb: "Tap to drop bomb",
         colorClear: "Tap a color to clear it",

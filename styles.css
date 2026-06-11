@@ -424,21 +424,20 @@ body {
 }
 .powerups {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 10px;
   justify-content: flex-end;
 }
 .powerup-btn {
   position: relative;
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
   border: 1px solid var(--glass-brd);
   background: var(--glass);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   cursor: pointer;
-  font-size: 21px;
+  font-size: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -449,6 +448,23 @@ body {
 }
 .powerup-btn.armed {
   box-shadow: 0 0 0 2px var(--accent), 0 0 18px rgba(91, 227, 255, 0.6);
+}
+/* Subtle ring that fills while a long-press is in progress, hinting that
+   holding the slot opens the power-up picker. */
+.pu-hold {
+  position: absolute;
+  inset: -3px;
+  border-radius: 18px;
+  border: 2px solid transparent;
+  pointer-events: none;
+}
+.powerup-btn.holding .pu-hold {
+  border-color: var(--gold);
+  animation: holdRing 0.45s linear forwards;
+}
+@keyframes holdRing {
+  from { clip-path: inset(0 100% 0 0); opacity: 0.4; }
+  to { clip-path: inset(0 0 0 0); opacity: 1; }
 }
 .pu-count {
   position: absolute;
@@ -750,6 +766,97 @@ body {
 }
 .modal-buttons .btn {
   flex: 1;
+}
+
+/* ---------- Loadout picker ---------- */
+.loadout-card {
+  text-align: left;
+}
+.loadout-card .modal-title {
+  text-align: center;
+  margin-bottom: 6px;
+}
+.loadout-sub {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+.loadout-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+  max-height: 56vh;
+  overflow-y: auto;
+}
+.loadout-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--glass-brd);
+  background: var(--glass);
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.08s, box-shadow 0.2s, border-color 0.2s;
+}
+.loadout-item:active {
+  transform: scale(0.98);
+}
+.loadout-item.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent), 0 0 18px rgba(91, 227, 255, 0.4);
+}
+.li-icon {
+  font-size: 26px;
+  flex: 0 0 auto;
+  width: 34px;
+  text-align: center;
+}
+.li-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.li-name {
+  font-weight: 800;
+  font-size: 15px;
+}
+.li-desc {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.3;
+}
+.li-own {
+  flex: 0 0 auto;
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--gold);
+}
+.li-slot {
+  position: absolute;
+  top: -7px;
+  right: 10px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--bg-2);
+  border: 1px solid var(--glass-brd);
+  color: var(--text-dim);
+}
+.li-slot.li-current {
+  background: var(--accent);
+  color: #08122a;
+  border-color: transparent;
 }
 
 /* ---------- Ad overlay ---------- */

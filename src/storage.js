@@ -13,6 +13,9 @@ const DEFAULT_SAVE = {
   adsRemoved: false,
   muted: false,
   powerups: { bomb: 1, colorClear: 1, shuffle: 1, chainBolt: 0, pick: 0, magnet: 1 },
+  // The three power-ups shown in the HUD's quick-access slots. Players swap
+  // them via a long-press picker so the bar never overflows as we add tools.
+  loadout: ["bomb", "colorClear", "magnet"],
   daily: {
     lastDate: null,
     streak: 0,
@@ -111,6 +114,30 @@ class StorageManager {
     if (this.data.milestonesCleared.includes(levelId)) return false;
     this.data.milestonesCleared.push(levelId);
     this.save();
+    return true;
+  }
+
+  // The three quick-access HUD power-up slots, always a length-3 array.
+  getLoadout() {
+    const lo = this.data.loadout;
+    if (!Array.isArray(lo) || lo.length === 0) {
+      return [...DEFAULT_SAVE.loadout];
+    }
+    return lo.slice();
+  }
+
+  // Place `type` in slot `index`. If it already lives in another slot the two
+  // are swapped so the loadout keeps three distinct tools. Returns true on
+  // success.
+  setLoadoutSlot(index, type) {
+    const lo = this.getLoadout();
+    if (index < 0 || index >= lo.length) return false;
+    const existing = lo.indexOf(type);
+    if (existing !== -1 && existing !== index) {
+      lo[existing] = lo[index];
+    }
+    lo[index] = type;
+    this.set("loadout", lo);
     return true;
   }
 

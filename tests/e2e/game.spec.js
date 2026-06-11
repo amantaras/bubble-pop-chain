@@ -547,8 +547,8 @@ test.describe("power-ups (UI arm + apply)", () => {
     const before = await page.evaluate(() =>
       window.__bpc.game.session.board.countRemaining()
     );
-    await page.locator("#pu-bomb").click();
-    await expect(page.locator("#pu-bomb")).toHaveClass(/armed/);
+    await page.locator('[data-pu="bomb"]').click();
+    await expect(page.locator('[data-pu="bomb"]')).toHaveClass(/armed/);
     // tap a central cell to drop the bomb
     await tapCell(page, 3, 4);
     await page.waitForTimeout(300);
@@ -556,13 +556,13 @@ test.describe("power-ups (UI arm + apply)", () => {
       window.__bpc.game.session.board.countRemaining()
     );
     expect(before - after).toBeGreaterThanOrEqual(4);
-    await expect(page.locator("#pu-bomb-count")).toHaveText("0");
+    await expect(page.locator('[data-pu="bomb"] .pu-count')).toHaveText("0");
   });
 
   test("color clear removes an entire colour", async ({ page }) => {
     await page.evaluate(() => window.__bpc.game.startCampaign(2));
     await page.waitForTimeout(700);
-    await page.locator("#pu-color").click();
+    await page.locator('[data-pu="colorClear"]').click();
     const cell = await page.evaluate(() => {
       const b = window.__bpc.game.session.board;
       for (let c = 0; c < b.cols; c++)
@@ -582,8 +582,10 @@ test.describe("power-ups (UI arm + apply)", () => {
   test("shuffle reshuffles immediately and consumes a charge", async ({ page }) => {
     await page.evaluate(() => window.__bpc.game.startCampaign(2));
     await page.waitForTimeout(700);
-    await page.locator("#pu-shuffle").click();
-    await expect(page.locator("#pu-shuffle-count")).toHaveText("0");
+    // Shuffle is not in the default loadout — drop it into a slot first.
+    await page.evaluate(() => window.__bpc.UI.assignLoadout(0, "shuffle"));
+    await page.locator('[data-pu="shuffle"]').click();
+    await expect(page.locator('[data-pu="shuffle"] .pu-count')).toHaveText("0");
     const hasMoves = await page.evaluate(() =>
       window.__bpc.game.session.board.hasMoves()
     );
@@ -594,12 +596,13 @@ test.describe("power-ups (UI arm + apply)", () => {
     await page.evaluate(() => window.__bpc.game.startCampaign(2));
     await page.waitForTimeout(700);
     await page.evaluate(() => window.__bpc.Economy.addPowerup("chainBolt", 1));
+    await page.evaluate(() => window.__bpc.UI.assignLoadout(0, "chainBolt"));
     const { before, cols, rows } = await page.evaluate(() => {
       const b = window.__bpc.game.session.board;
       return { before: b.countRemaining(), cols: b.cols, rows: b.rows };
     });
-    await page.locator("#pu-chain").click();
-    await expect(page.locator("#pu-chain")).toHaveClass(/armed/);
+    await page.locator('[data-pu="chainBolt"]').click();
+    await expect(page.locator('[data-pu="chainBolt"]')).toHaveClass(/armed/);
     await tapCell(page, Math.floor(cols / 2), Math.floor(rows / 2));
     await page.waitForTimeout(300);
     const after = await page.evaluate(() =>
@@ -607,17 +610,18 @@ test.describe("power-ups (UI arm + apply)", () => {
     );
     // A full row + column through a packed board removes (cols + rows - 1).
     expect(before - after).toBeGreaterThanOrEqual(Math.max(cols, rows));
-    await expect(page.locator("#pu-chain-count")).toHaveText("0");
+    await expect(page.locator('[data-pu="chainBolt"] .pu-count')).toHaveText("0");
   });
 
   test("pick removes exactly one bubble", async ({ page }) => {
     await page.evaluate(() => window.__bpc.game.startCampaign(2));
     await page.waitForTimeout(700);
     await page.evaluate(() => window.__bpc.Economy.addPowerup("pick", 1));
+    await page.evaluate(() => window.__bpc.UI.assignLoadout(0, "pick"));
     const before = await page.evaluate(() =>
       window.__bpc.game.session.board.countRemaining()
     );
-    await page.locator("#pu-pick").click();
+    await page.locator('[data-pu="pick"]').click();
     const cell = await page.evaluate(() => {
       const b = window.__bpc.game.session.board;
       for (let c = 0; c < b.cols; c++)
@@ -631,7 +635,7 @@ test.describe("power-ups (UI arm + apply)", () => {
       window.__bpc.game.session.board.countRemaining()
     );
     expect(before - after).toBe(1);
-    await expect(page.locator("#pu-pick-count")).toHaveText("0");
+    await expect(page.locator('[data-pu="pick"] .pu-count')).toHaveText("0");
   });
 
   test("magnet shows a gauge and pulls a colour into one connected blob", async ({
@@ -663,8 +667,8 @@ test.describe("power-ups (UI arm + apply)", () => {
     expect(target).not.toBeNull();
 
     // Arm the magnet and tap the bubble to start the swinging gauge.
-    await page.locator("#pu-magnet").click();
-    await expect(page.locator("#pu-magnet")).toHaveClass(/armed/);
+    await page.locator('[data-pu="magnet"]').click();
+    await expect(page.locator('[data-pu="magnet"]')).toHaveClass(/armed/);
     await tapCell(page, target.c, target.r);
     await expect(page.locator("#magnet-gauge")).toBeVisible();
     expect(
@@ -690,7 +694,42 @@ test.describe("power-ups (UI arm + apply)", () => {
     }, target);
     expect(after.total).toBe(target.total); // colour multiset preserved
     expect(after.group).toBe(target.total); // whole colour now one blob
-    await expect(page.locator("#pu-magnet-count")).toHaveText("0");
+    await expect(page.locator('[data-pu="magnet"] .pu-count')).toHaveText("0");
+  });
+
+  test("long-pressing a slot opens the picker and swaps the equipped power-up", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(700);
+
+    // Default slot 0 holds the bomb.
+    await expect(page.locator("#pu-slot-0")).toHaveAttribute("data-pu", "bomb");
+    await expect(page.locator("#loadout")).toBeHidden();
+
+    // A real long-press (hold >450ms) on slot 0 opens the picker.
+    const box = await page.locator("#pu-slot-0").boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(650);
+    await page.mouse.up();
+    await expect(page.locator("#loadout")).toBeVisible();
+
+    // The picker lists every power-up, including ones not in the loadout.
+    await expect(page.locator('#loadout-list [data-pu="shuffle"]')).toBeVisible();
+    await expect(page.locator("#loadout-list .loadout-item")).toHaveCount(6);
+
+    // Choosing Shuffle equips it in slot 0 and closes the picker.
+    await page.locator('#loadout-list [data-pu="shuffle"]').click();
+    await expect(page.locator("#loadout")).toBeHidden();
+    await expect(page.locator("#pu-slot-0")).toHaveAttribute("data-pu", "shuffle");
+
+    // The swap persists to storage.
+    const loadout = await page.evaluate(() =>
+      window.__bpc.Storage.getLoadout()
+    );
+    expect(loadout[0]).toBe("shuffle");
+    expect(new Set(loadout).size).toBe(3);
   });
 });
 
@@ -1062,7 +1101,7 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
     await page.evaluate(() => {
       const g = window.__bpc.game;
       const b = g.session.board;
-      g.armPowerup("bomb", document.getElementById("pu-bomb"));
+      g.armPowerup("bomb", document.querySelector('[data-pu="bomb"]'));
       for (let c = 0; c < b.cols; c++)
         for (let r = 0; r < b.rows; r++)
           if (b.grid[c][r] !== -1) {
@@ -1077,7 +1116,7 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
     await page.evaluate(() => {
       const g = window.__bpc.game;
       const b = g.session.board;
-      g.armPowerup("magnet", document.getElementById("pu-magnet"));
+      g.armPowerup("magnet", document.querySelector('[data-pu="magnet"]'));
       const find = () => {
         for (let c = 0; c < b.cols; c++)
           for (let r = 0; r < b.rows; r++)

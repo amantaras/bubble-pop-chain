@@ -35,8 +35,8 @@ class UIManager {
       "hud-mode-label", "hud-score", "hud-target", "hud-target-wrap", "hud-target-label",
       "hud-moves", "hud-moves-label", "hud-progress-fill",
       "power-meter", "power-fill", "power-label",
-      "pu-bomb-count", "pu-color-count", "pu-shuffle-count",
-      "pu-chain-count", "pu-pick-count", "pu-magnet-count",
+      "powerups", "pu-slot-0", "pu-slot-1", "pu-slot-2",
+      "loadout", "loadout-list", "loadout-sub", "loadout-close",
       "magnet-gauge", "mg-needle",
       "combo-banner", "toast",
       "win-stars", "win-score", "win-reward", "win-double", "win-next", "win-menu",
@@ -82,13 +82,54 @@ class UIManager {
       this.el["btn-sound"].style.opacity = muted ? "0.5" : "1";
     });
 
-    // Power-up buttons
-    document.querySelectorAll(".powerup-btn").forEach((btn) => {
+    // Power-up quick-access slots. A short tap arms the slot's power-up; a
+    // long-press opens the loadout picker so the player can swap which tool
+    // lives in that slot (keeps the HUD to three buttons as we add power-ups).
+    this._slots = Array.from(document.querySelectorAll(".powerup-btn"));
+    this._slots.forEach((btn) => {
+      const slot = Number(btn.dataset.slot);
+      let timer = null;
+      let longFired = false;
+      const startHold = () => {
+        longFired = false;
+        btn.classList.add("holding");
+        timer = setTimeout(() => {
+          longFired = true;
+          btn.classList.remove("holding");
+          Audio.click();
+          this.openLoadoutPicker(slot);
+        }, 450);
+      };
+      const cancelHold = () => {
+        btn.classList.remove("holding");
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+      };
+      btn.addEventListener("pointerdown", startHold);
+      btn.addEventListener("pointerup", cancelHold);
+      btn.addEventListener("pointerleave", cancelHold);
+      btn.addEventListener("pointercancel", cancelHold);
       btn.addEventListener("click", () => {
+        // A long-press already opened the picker — don't also arm.
+        if (longFired) {
+          longFired = false;
+          return;
+        }
+        Audio.click();
         const type = btn.dataset.pu;
-        if (this.cb.armPowerup) this.cb.armPowerup(type, btn);
+        if (type && this.cb.armPowerup) this.cb.armPowerup(type, btn);
       });
     });
+
+    // Loadout picker: close button + tap-outside dismiss.
+    click("loadout-close", () => this.closeLoadoutPicker());
+    if (this.el["loadout"]) {
+      this.el["loadout"].addEventListener("click", (e) => {
+        if (e.target === this.el["loadout"]) this.closeLoadoutPicker();
+      });
+    }
 
     // Win modal
     click("win-next", () => this.cb.nextLevel && this.cb.nextLevel());
@@ -387,15 +428,64 @@ class UIManager {
   }
 
   updatePowerups() {
-    this.el["pu-bomb-count"].textContent = Economy.getPowerup("bomb");
-    this.el["pu-color-count"].textContent = Economy.getPowerup("colorClear");
-    this.el["pu-shuffle-count"].textContent = Economy.getPowerup("shuffle");
-    if (this.el["pu-chain-count"])
-      this.el["pu-chain-count"].textContent = Economy.getPowerup("chainBolt");
-    if (this.el["pu-pick-count"])
-      this.el["pu-pick-count"].textContent = Economy.getPowerup("pick");
-    if (this.el["pu-magnet-count"])
-      this.el["pu-magnet-count"].textContent = Economy.getPowerup("magnet");
+    const loadout = Storage.getLoadout();
+    (this._slots || []).forEach((btn, i) => {
+      const type = loadout[i];
+      const info = POWERUP_INFO[type];
+      btn.dataset.pu = type || "";
+      const icon = btn.querySelector(".pu-icon");
+      const count = btn.querySelector(".pu-count");
+      if (icon) icon.textContent = info ? info.icon : "＋";
+      if (count) count.textContent = type ? Economy.getPowerup(type) : "";
+      btn.setAttribute("aria-label", info ? `${info.name} (hold to change)` : "Empty slot");
+    });
+  }
+
+  // ---- Loadout picker ---------------------------------------------------
+  // Long-pressing a HUD slot opens this list of EVERY power-up so the player
+  // can choose which one occupies that quick-access slot.
+  openLoadoutPicker(slot) {
+    this._loadoutSlot = slot;
+    const loadout = Storage.getLoadout();
+    const list = this.el["loadout-list"];
+    if (!list) return;
+    if (this.el["loadout-sub"])
+      this.el["loadout-sub"].textContent = `Choose the power-up for slot ${slot + 1}.`;
+    list.innerHTML = "";
+    Object.entries(POWERUP_INFO).forEach(([type, info]) => {
+      const where = loadout.indexOf(type);
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "loadout-item" + (loadout[slot] === type ? " active" : "");
+      row.dataset.pu = type;
+      const tag =
+        where !== -1 && where !== slot
+          ? `<span class="li-slot">Slot ${where + 1}</span>`
+          : loadout[slot] === type
+          ? `<span class="li-slot li-current">Equipped</span>`
+          : "";
+      row.innerHTML =
+        `<span class="li-icon">${info.icon}</span>` +
+        `<span class="li-text"><span class="li-name">${info.name}</span>` +
+        `<span class="li-desc">${info.desc}</span></span>` +
+        `<span class="li-own">×${Economy.getPowerup(type)}</span>${tag}`;
+      row.addEventListener("click", () => {
+        Audio.click();
+        this.assignLoadout(slot, type);
+        this.closeLoadoutPicker();
+      });
+      list.appendChild(row);
+    });
+    this.el["loadout"].classList.remove("hidden");
+  }
+
+  assignLoadout(slot, type) {
+    Storage.setLoadoutSlot(slot, type);
+    this.updatePowerups();
+  }
+
+  closeLoadoutPicker() {
+    if (this.el["loadout"]) this.el["loadout"].classList.add("hidden");
   }
 
   // ---- Magnet strength gauge -------------------------------------------
@@ -440,6 +530,7 @@ class UIManager {
   hideModals() {
     this.el["win"].classList.add("hidden");
     this.el["lose"].classList.add("hidden");
+    if (this.el["loadout"]) this.el["loadout"].classList.add("hidden");
   }
 
   showWin({ stars, score, coins = 0, rewardText, stats, showNext, showDouble }) {

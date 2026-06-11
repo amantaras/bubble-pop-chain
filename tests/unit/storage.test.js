@@ -54,6 +54,7 @@ describe("storage", () => {
       "adsRemoved",
       "muted",
       "powerups",
+      "loadout",
       "daily",
     ]) {
       expect(Storage.get(key)).not.toBeUndefined();
@@ -99,5 +100,40 @@ describe("storage", () => {
     expect(Storage.grantTheme("forest")).toBe(false);
     // Already-owned default themes are not re-added.
     expect(Storage.grantTheme("aurora")).toBe(false);
+  });
+
+  describe("power-up loadout (quick-access HUD slots)", () => {
+    it("defaults to three distinct power-ups", () => {
+      const lo = Storage.getLoadout();
+      expect(lo).toHaveLength(3);
+      expect(new Set(lo).size).toBe(3);
+      expect(lo).toEqual(["bomb", "colorClear", "magnet"]);
+    });
+
+    it("getLoadout returns a copy, not the live array", () => {
+      const lo = Storage.getLoadout();
+      lo[0] = "shuffle";
+      expect(Storage.getLoadout()[0]).toBe("bomb");
+    });
+
+    it("setLoadoutSlot places a new power-up in a slot and persists it", () => {
+      expect(Storage.setLoadoutSlot(1, "shuffle")).toBe(true);
+      expect(Storage.getLoadout()).toEqual(["bomb", "shuffle", "magnet"]);
+      const raw = JSON.parse(localStorage.getItem("bpc_save_v1"));
+      expect(raw.loadout).toEqual(["bomb", "shuffle", "magnet"]);
+    });
+
+    it("swaps when the chosen power-up already occupies another slot", () => {
+      // magnet is in slot 2; assigning it to slot 0 swaps slot 0's bomb into 2.
+      Storage.setLoadoutSlot(0, "magnet");
+      expect(Storage.getLoadout()).toEqual(["magnet", "colorClear", "bomb"]);
+      expect(new Set(Storage.getLoadout()).size).toBe(3);
+    });
+
+    it("rejects out-of-range slot indices", () => {
+      expect(Storage.setLoadoutSlot(-1, "bomb")).toBe(false);
+      expect(Storage.setLoadoutSlot(3, "bomb")).toBe(false);
+      expect(Storage.getLoadout()).toEqual(["bomb", "colorClear", "magnet"]);
+    });
   });
 });
