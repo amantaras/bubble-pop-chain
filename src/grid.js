@@ -281,6 +281,37 @@ export class Board {
     return this.countRemaining() === 0;
   }
 
+  // Count the bubbles still frozen (used by the boss "shatter the core"
+  // objective). Both intact and cracked ice count as unbroken.
+  frozenRemaining() {
+    let n = 0;
+    for (let c = 0; c < this.cols; c++)
+      for (let r = 0; r < this.rows; r++) {
+        const t = this.types[c][r];
+        if (t === ICE || t === ICE_CRACKED) n++;
+      }
+    return n;
+  }
+
+  // Freeze a centred block of bubbles into ice for a boss objective. Returns the
+  // number of cells actually frozen. Empty cells are skipped.
+  placeFrozenCore(coreW, coreH) {
+    const c0 = Math.floor((this.cols - coreW) / 2);
+    const r0 = Math.floor((this.rows - coreH) / 2);
+    let n = 0;
+    for (let c = c0; c < c0 + coreW; c++) {
+      for (let r = r0; r < r0 + coreH; r++) {
+        if (c < 0 || c >= this.cols || r < 0 || r >= this.rows) continue;
+        if (this.grid[c][r] === -1) continue;
+        this.types[c][r] = ICE;
+        const sp = this.spriteGrid[c][r];
+        if (sp) sp.type = ICE;
+        n++;
+      }
+    }
+    return n;
+  }
+
   // ---- Mutations --------------------------------------------------------
   // Shift an entire row horizontally with wrap-around (2048-style).
   // `dir` is "left" or "right". Returns true if the row had any bubbles.

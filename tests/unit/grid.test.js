@@ -251,6 +251,22 @@ describe("grid / Board", () => {
     expect(b.serialize()).toEqual(grid);
     expect(b.serializeTypes()).toEqual(types);
   });
+
+  it("placeFrozenCore freezes a centred block and frozenRemaining tracks it", () => {
+    const b = new Board(6, 6, 3, 7, { ice: 0 });
+    expect(b.frozenRemaining()).toBe(0);
+    const frozen = b.placeFrozenCore(2, 2);
+    expect(frozen).toBe(4);
+    expect(b.frozenRemaining()).toBe(4);
+    // Cracked ice still counts as unbroken; only a full clear reduces the core.
+    const core = [];
+    for (let c = 0; c < b.cols; c++)
+      for (let r = 0; r < b.rows; r++) if (b.types[c][r] === ICE) core.push({ c, r });
+    b.removeCells(core); // first hit: all crack
+    expect(b.frozenRemaining()).toBe(4);
+    b.removeCells(core); // second hit: all shatter
+    expect(b.frozenRemaining()).toBe(0);
+  });
 });
 
 function colourHistogram(board) {

@@ -1,6 +1,7 @@
 // DOM-based UI: menus, level map, shop, themes, HUD, modals, toasts.
 import { Storage } from "./storage.js";
 import { LEVEL_COUNT, getLevel } from "./levels.js";
+import { milestoneType } from "./milestones.js";
 import {
   THEMES,
   getTheme,
@@ -31,7 +32,7 @@ class UIManager {
       "menu-coins", "lm-coins", "shop-coins", "themes-coins", "hud-coins",
       "level-grid", "shop-list", "theme-list",
       "btn-continue", "daily-summary",
-      "hud-mode-label", "hud-score", "hud-target", "hud-target-wrap",
+      "hud-mode-label", "hud-score", "hud-target", "hud-target-wrap", "hud-target-label",
       "hud-moves", "hud-moves-label", "hud-progress-fill",
       "power-meter", "power-fill", "power-label",
       "pu-bomb-count", "pu-color-count", "pu-shuffle-count",
@@ -183,13 +184,16 @@ class UIManager {
       cell.className = "level-cell";
       const locked = i > maxUnlocked;
       if (locked) cell.classList.add("locked");
+      const mtype = milestoneType(i);
+      if (mtype) cell.classList.add(`milestone-${mtype}`);
       const stars = Storage.getStars(i);
       const starStr = locked
         ? ""
         : "★".repeat(stars) + "☆".repeat(3 - stars);
+      const badge = mtype === "boss" ? "👹" : mtype === "treasure" ? "🎁" : "";
       cell.innerHTML = locked
-        ? `<span class="lock">🔒</span>`
-        : `<span class="num">${i}</span><span class="lvl-stars">${starStr}</span>`;
+        ? `<span class="lock">🔒</span>${badge ? `<span class="lvl-badge">${badge}</span>` : ""}`
+        : `${badge ? `<span class="lvl-badge">${badge}</span>` : ""}<span class="num">${i}</span><span class="lvl-stars">${starStr}</span>`;
       if (!locked) {
         cell.addEventListener("click", () => {
           Audio.click();
@@ -372,6 +376,8 @@ class UIManager {
     if (s.moves !== undefined) this.el["hud-moves"].textContent = s.moves;
     if (s.showTarget !== undefined)
       this.el["hud-target-wrap"].style.visibility = s.showTarget ? "visible" : "hidden";
+    if (s.targetLabel !== undefined && this.el["hud-target-label"])
+      this.el["hud-target-label"].textContent = s.targetLabel;
     if (s.target !== undefined) this.el["hud-target"].textContent = s.target;
     if (s.progress !== undefined)
       this.el["hud-progress-fill"].style.width = `${Math.min(100, s.progress * 100)}%`;

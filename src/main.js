@@ -9,6 +9,10 @@ import { Storage } from "./storage.js";
 import { getTheme, applyThemeCss } from "./themes.js";
 import { getLevel, LEVEL_COUNT } from "./levels.js";
 import {
+  treasureReward,
+  bossReward,
+} from "./milestones.js";
+import {
   groupScore,
   comboMultiplier,
   clearBonus,
@@ -16,7 +20,7 @@ import {
   coinReward,
   powerGain,
 } from "./scoring.js";
-import { Economy } from "./economy.js";
+import { Economy, POWERUP_INFO } from "./economy.js";
 import { Monetization } from "./monetization.js";
 import { UI } from "./ui.js";
 import {
@@ -175,6 +179,11 @@ class Game {
       level.seed,
       level.specials
     );
+    // Boss levels seed a frozen core that must be shattered to win.
+    let bossCoreTotal = 0;
+    if (mode === "campaign" && level.milestone === "boss" && level.boss) {
+      bossCoreTotal = board.placeFrozenCore(level.boss.coreW, level.boss.coreH);
+    }
     this.session = {
       mode,
       level,
@@ -192,6 +201,7 @@ class Game {
       power: 0,
       shiftTokens: mode === "campaign" ? 0 : 5,
       stats: this._newStats(),
+      bossCoreTotal,
     };
     this._enterSession();
     if (mode === "campaign") this._persistSession();
@@ -255,6 +265,7 @@ class Game {
       power: 0,
       shiftTokens: 0,
       stats: snap.stats || this._newStats(),
+      bossCoreTotal: snap.bossCoreTotal || board.frozenRemaining(),
     };
     this._enterSession();
   }
@@ -273,6 +284,7 @@ class Game {
       grid: s.board.serialize(),
       types: s.board.serializeTypes(),
       stats: s.stats,
+      bossCoreTotal: s.bossCoreTotal || 0,
     });
   }
 
@@ -396,12 +408,30 @@ class Game {
     const s = this.session;
     if (!s) return;
     if (s.mode === "campaign") {
+      const mtype = s.level.milestone;
+      const badge = mtype === "boss" ? "👹 " : mtype === "treasure" ? "🎁 " : "";
+      if (mtype === "boss") {
+        const remaining = s.board.frozenRemaining();
+        const total = s.bossCoreTotal || remaining || 1;
+        UI.updateHud({
+          modeLabel: `${badge}Level ${s.level.id}`,
+          score: s.score,
+          movesLabel: "Moves",
+          moves: s.movesLeft,
+          showTarget: true,
+          targetLabel: "Core",
+          target: remaining,
+          progress: 1 - remaining / total,
+        });
+        return;
+      }
       UI.updateHud({
-        modeLabel: `Level ${s.level.id}`,
+        modeLabel: `${badge}Level ${s.level.id}`,
         score: s.score,
         movesLabel: "Moves",
         moves: s.movesLeft,
         showTarget: true,
+        targetLabel: "Target",
         target: s.level.target,
         progress: s.score / s.level.target,
       });
@@ -719,7 +749,18 @@ class Game {
     const deadlock = !s.board.hasMoves();
 
     if (s.mode === "campaign") {
-      if (s.movesLeft <= 0 || deadlock) {
+      if (s.level.milestone === "boss") {
+        // Boss objective: shatter the entire frozen core before moves run out.
+        if (s.board.frozenRemaining() === 0) {
+          s.score += clearBonus(Math.max(0, s.movesLeft));
+          this._scheduleEnd(true, "boss");
+          return;
+        }
+        if (s.movesLeft <= 0 || deadlock) {
+          this._scheduleEnd(false, "bossfail");
+          return;
+        }
+      } else if (s.movesLeft <= 0 || deadlock) {
         const won = s.score >= s.level.target;
         this._scheduleEnd(won, won ? "target" : "fail");
       }
@@ -750,14 +791,49 @@ class Game {
         const stars = Math.max(1, starsForScore(s.level, s.score));
         Storage.recordLevelResult(s.level.id, stars);
         const coins = coinReward(s.score, stars);
-        s.coinsEarned = coins;
+
+        // Milestone rewards are paid only on the first clear so they can never
+        // be farmed by replaying. Score coins above still apply every time.
+        const mtype = s.level.milestone;
+        const rewardBits = [];
+        let bonusCoins = 0;
+        if (mtype && Storage.recordMilestone(s.level.id)) {
+          if (mtype === "treasure") {
+            const tr = treasureReward(s.level.id);
+            bonusCoins = tr.bonus;
+            Economy.addPowerup(tr.powerup, 1);
+            const info = POWERUP_INFO[tr.powerup];
+            rewardBits.push(`🎁 +${tr.bonus} bonus coins`);
+            rewardBits.push(`Free ${info.icon} ${info.name}`);
+          } else if (mtype === "boss") {
+            const br = bossReward(s.level.id);
+            bonusCoins = br.jackpot;
+            rewardBits.push(`👹 Boss jackpot +${br.jackpot} coins`);
+            if (br.theme && Storage.grantTheme(br.theme)) {
+              rewardBits.push(`🎨 Theme unlocked: ${getTheme(br.theme).name}`);
+            }
+          }
+          if (bonusCoins) Economy.addCoins(bonusCoins);
+        }
+
+        const totalCoins = coins + bonusCoins;
+        s.coinsEarned = totalCoins;
         Economy.addCoins(coins);
         Audio.win();
-        UI.setWinTitle(reason === "cleared" ? "Board Cleared!" : "Level Clear!");
+        UI.setWinTitle(
+          mtype === "boss"
+            ? "Boss Defeated!"
+            : mtype === "treasure"
+            ? "Treasure Cleared!"
+            : reason === "cleared"
+            ? "Board Cleared!"
+            : "Level Clear!"
+        );
         UI.showWin({
           stars,
           score: s.score,
-          coins,
+          coins: totalCoins,
+          rewardText: rewardBits.join("  •  "),
           stats: this._winStats(s, s.level.moves - s.movesLeft),
           showNext: s.level.id < LEVEL_COUNT,
           showDouble: !Monetization.isAdsRemoved(),

@@ -79,4 +79,25 @@ describe("storage", () => {
     Storage.set("activeSession", null);
     expect(Storage.get("activeSession")).toBeNull();
   });
+
+  it("records milestone clears exactly once (non-farmable)", () => {
+    expect(Storage.hasClearedMilestone(5)).toBe(false);
+    expect(Storage.recordMilestone(5)).toBe(true);
+    expect(Storage.hasClearedMilestone(5)).toBe(true);
+    // Replaying the same milestone never pays out again.
+    expect(Storage.recordMilestone(5)).toBe(false);
+    expect(Storage.get("milestonesCleared")).toEqual([5]);
+    // A different milestone records independently.
+    expect(Storage.recordMilestone(10)).toBe(true);
+    expect(Storage.get("milestonesCleared")).toEqual([5, 10]);
+  });
+
+  it("grantTheme adds a theme to ownership only once", () => {
+    expect(Storage.get("ownedThemes")).not.toContain("forest");
+    expect(Storage.grantTheme("forest")).toBe(true);
+    expect(Storage.get("ownedThemes")).toContain("forest");
+    expect(Storage.grantTheme("forest")).toBe(false);
+    // Already-owned default themes are not re-added.
+    expect(Storage.grantTheme("aurora")).toBe(false);
+  });
 });

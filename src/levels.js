@@ -2,6 +2,7 @@
 // Each level is generated from its index so the campaign is fully deterministic.
 
 import { hashSeed } from "./rng.js";
+import { milestoneType, bossConfig } from "./milestones.js";
 
 export const LEVEL_COUNT = 40;
 
@@ -48,15 +49,30 @@ export function getLevel(id) {
     cells * (10 + n * 2.4) * (1 + colors * 0.05)
   );
 
+  // Milestone beats every 5 levels (treasure) and 10 levels (boss).
+  const milestone = milestoneType(n);
+  const specials = specialsForLevel(n);
+  let moveBudget = moves;
+  let boss = null;
+  if (milestone === "boss") {
+    boss = bossConfig(n);
+    // Bosses use a hand-placed frozen core, so suppress random ice and grant
+    // extra moves to keep the objective fair.
+    specials.ice = 0;
+    moveBudget = moves + boss.extraMoves;
+  }
+
   return {
     id: n,
     cols,
     rows,
     colors,
-    moves,
+    moves: moveBudget,
     target,
-    specials: specialsForLevel(n),
+    specials,
     seed: hashSeed(`level-${n}-bpc`),
+    milestone,
+    boss,
   };
 }
 

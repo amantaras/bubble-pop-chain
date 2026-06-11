@@ -120,7 +120,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 96 unit tests + 78 E2E
+- **Current baseline (keep growing, never shrink)**: 108 unit tests + 84 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests
@@ -178,6 +178,32 @@ is red, the deploy is correctly skipped — fix CI first.
   `main.js`) and `resumeCampaign`, plus the resume tests.
 - Save is **per-device** (localStorage). There is no cloud sync; don't claim
   cross-device progress.
+- **Milestone grants are one-time and non-farmable.** `milestonesCleared` is a
+  list of level ids whose milestone reward has been paid. `Storage.recordMilestone(id)`
+  returns `true` only the first time, so bonus coins / free power-ups / theme
+  unlocks fire once; normal score `coinReward` still applies on every replay.
+  Boss theme unlocks go through `Storage.grantTheme(id)` (idempotent).
+
+## 8a. Milestone events (every 5 levels)
+
+`src/milestones.js` is a pure, deterministic module (fully unit-tested) that
+defines the campaign's reward/challenge rhythm. It must stay in sync with
+`levels.js`:
+
+- **Cadence**: `milestoneType(id)` returns `"treasure"` on levels 5/15/25/35 and
+  `"boss"` on levels 10/20/30/40 — the two beats always alternate.
+- **Treasure 🎁** (`treasureReward`): first clear pays `100 + idx*25` bonus coins
+  plus one rotating free power-up (`bomb`/`colorClear`/`shuffle`).
+- **Boss 👹** (`bossReward` + `bossConfig`): the board seeds a centred **frozen
+  core** of ice bubbles (`Board.placeFrozenCore`); the objective is to shatter
+  the whole core (`Board.frozenRemaining() === 0`) before moves run out. Boss
+  levels suppress random ice and get extra moves (`getLevel`). First defeat pays
+  a coin jackpot (`250 + idx*75`) and unlocks the next cosmetic theme.
+- **Wiring**: `getLevel` tags `level.milestone` / `level.boss`; `main.js`
+  `_newSession` places the core and tracks `bossCoreTotal`, the boss objective is
+  evaluated in `afterMove`, and the one-time rewards are paid in `_finish`. The
+  level map (`ui.js buildLevelMap`) and the boss HUD (`Core` label) surface the
+  beats; the recap window shows the reward lines via `win-reward`.
 
 ## 9. Git / workflow conventions
 

@@ -23,6 +23,7 @@ const DEFAULT_SAVE = {
   },
   firstRunDone: false,
   activeSession: null, // snapshot of an in-progress campaign level (resume)
+  milestonesCleared: [], // level ids whose one-time milestone reward was paid
 };
 
 function deepDefault(saved) {
@@ -94,6 +95,32 @@ class StorageManager {
 
   totalStars() {
     return Object.values(this.data.stars).reduce((a, b) => a + b, 0);
+  }
+
+  // Has the one-time reward for this milestone level already been paid?
+  hasClearedMilestone(levelId) {
+    return (this.data.milestonesCleared || []).includes(levelId);
+  }
+
+  // Record a first milestone clear. Returns true only the first time, so the
+  // bonus coins / power-ups / themes can never be farmed by replaying.
+  recordMilestone(levelId) {
+    if (!Array.isArray(this.data.milestonesCleared)) {
+      this.data.milestonesCleared = [];
+    }
+    if (this.data.milestonesCleared.includes(levelId)) return false;
+    this.data.milestonesCleared.push(levelId);
+    this.save();
+    return true;
+  }
+
+  // Grant ownership of a theme (e.g. a boss reward). Returns true if newly added.
+  grantTheme(themeId) {
+    const owned = this.data.ownedThemes || (this.data.ownedThemes = []);
+    if (owned.includes(themeId)) return false;
+    owned.push(themeId);
+    this.save();
+    return true;
   }
 
   reset() {

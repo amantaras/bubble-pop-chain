@@ -476,6 +476,27 @@ body {
   font-size: 20px;
 }
 
+/* Milestone level cells: treasure 🎁 (reward) and boss 👹 (challenge). */
+.level-cell.milestone-treasure {
+  border-color: rgba(255, 211, 91, 0.65);
+  background: linear-gradient(160deg, rgba(255, 211, 91, 0.18), var(--glass));
+}
+.level-cell.milestone-boss {
+  border-color: rgba(255, 107, 139, 0.7);
+  background: linear-gradient(160deg, rgba(255, 107, 139, 0.2), var(--glass));
+}
+.level-cell .lvl-badge {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 14px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+.level-cell.locked .lvl-badge {
+  filter: grayscale(1);
+}
+
 /* ---------- Shop / Themes ---------- */
 .shop-list,
 .theme-list {

@@ -409,6 +409,99 @@ test.describe("campaign progression", () => {
   });
 });
 
+test.describe("milestone events (every 5 levels)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("the level map flags treasure and boss milestones", async ({ page }) => {
+    await page.getByRole("button", { name: "Play", exact: true }).click();
+    await expect(page.locator("#levelmap")).toBeVisible();
+    // Level 5 is a treasure beat; level 10 is a boss beat.
+    await expect(page.locator(".level-cell").nth(4)).toHaveClass(
+      /milestone-treasure/
+    );
+    await expect(page.locator(".level-cell").nth(9)).toHaveClass(
+      /milestone-boss/
+    );
+  });
+
+  test("a treasure level pays a one-time bonus + free power-up (not farmable)", async ({
+    page,
+  }) => {
+    // First clear of treasure level 5 grants the reward.
+    await page.evaluate(() => window.__bpc.game.startCampaign(5));
+    await page.waitForTimeout(600);
+    const puBefore = await page.evaluate(() =>
+      window.__bpc.Economy.getPowerup("bomb")
+    );
+    await autoPlay(page);
+    await expect(page.locator("#win")).toBeVisible();
+    await expect(page.locator("#win-reward")).toContainText("bonus coins");
+    const save1 = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem("bpc_save_v1"))
+    );
+    expect(save1.milestonesCleared).toContain(5);
+    const puAfter = await page.evaluate(() =>
+      window.__bpc.Economy.getPowerup("bomb")
+    );
+    expect(puAfter).toBe(puBefore + 1); // treasure #1 grants a free bomb
+
+    // Replaying the same level must NOT pay the milestone reward again.
+    await page.evaluate(() => window.__bpc.game.startCampaign(5));
+    await page.waitForTimeout(600);
+    const puReplay = await page.evaluate(() =>
+      window.__bpc.Economy.getPowerup("bomb")
+    );
+    await autoPlay(page);
+    await expect(page.locator("#win")).toBeVisible();
+    await expect(page.locator("#win-reward")).not.toContainText("bonus coins");
+    const save2 = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem("bpc_save_v1"))
+    );
+    expect(save2.milestonesCleared.filter((id) => id === 5)).toHaveLength(1);
+    const puReplayAfter = await page.evaluate(() =>
+      window.__bpc.Economy.getPowerup("bomb")
+    );
+    expect(puReplayAfter).toBe(puReplay); // no second free power-up
+  });
+
+  test("a boss level shows the core objective and unlocks a theme on victory", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(10));
+    await page.waitForTimeout(600);
+    // The HUD shows the frozen-core objective, not a score target.
+    await expect(page.locator("#hud-target-label")).toHaveText("Core");
+    const core = await page.evaluate(() =>
+      window.__bpc.game.session.board.frozenRemaining()
+    );
+    expect(core).toBeGreaterThan(0);
+
+    // Shatter the entire frozen core to satisfy the boss objective, then let
+    // the real end-of-move logic resolve the win. (ICE = 1, ICE_CRACKED = 3.)
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          if (b.types[c][r] === 1 || b.types[c][r] === 3) {
+            b.grid[c][r] = -1;
+            b.types[c][r] = 0;
+            b.spriteGrid[c][r] = null;
+          }
+        }
+      g.afterMove();
+    });
+
+    await expect(page.locator("#win")).toBeVisible();
+    await expect(page.locator("#win-reward")).toContainText("Theme unlocked");
+    const save = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem("bpc_save_v1"))
+    );
+    expect(save.milestonesCleared).toContain(10);
+    expect(save.ownedThemes).toContain("sunset");
+  });
+});
+
 test.describe("endless & daily modes", () => {
   test.beforeEach(({ page }) => openGame(page));
 
