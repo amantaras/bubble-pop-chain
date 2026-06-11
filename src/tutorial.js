@@ -158,6 +158,9 @@ export class Tutorial {
       total: TUTORIAL_STEPS.length,
       step,
     });
+    // The coach card's height varies per step; re-layout the board so it always
+    // stays above the card and no bubbles hide behind it.
+    if (this.game && this.game.relayoutBoard) this.game.relayoutBoard();
   }
 
   // Player tapped the CTA on an informational ("button") step.

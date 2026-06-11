@@ -125,7 +125,38 @@ class Game {
     this.canvas._dpr = dpr;
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     if (this.session) {
-      this.session.board.layout(this.W, this.H, TOP_INSET, BOTTOM_INSET);
+      this.session.board.layout(this.W, this.H, TOP_INSET, this._bottomInset());
+    }
+  }
+
+  // Bottom space to reserve when laying out the board. During the tutorial the
+  // coach card is pinned to the bottom of the screen, so the board must sit
+  // above it — reserve the card's actual on-screen height (measured live) plus
+  // a small gap so no bubbles ever hide behind the card.
+  _bottomInset() {
+    const s = this.session;
+    if (s && s.mode === "tutorial") {
+      const overlay = document.getElementById("tutorial");
+      const card = overlay && overlay.querySelector(".coach-card");
+      if (card) {
+        // Use offsetHeight (transform-independent) + the overlay's bottom
+        // padding so the slide-in animation never skews the measurement.
+        const h = card.offsetHeight;
+        if (h > 0) {
+          const padB = parseFloat(getComputedStyle(overlay).paddingBottom) || 0;
+          return Math.max(BOTTOM_INSET, Math.round(h + padB + 16));
+        }
+      }
+      return 320; // sensible default before the card has been rendered
+    }
+    return BOTTOM_INSET;
+  }
+
+  // Re-run board layout against the current insets. Called when the tutorial
+  // coach card changes size between steps so the board stays clear of it.
+  relayoutBoard() {
+    if (this.session) {
+      this.session.board.layout(this.W, this.H, TOP_INSET, this._bottomInset());
     }
   }
 
@@ -169,7 +200,7 @@ class Game {
   // Shared UI/state setup used by both fresh and resumed sessions.
   _enterSession() {
     const board = this.session.board;
-    board.layout(this.W, this.H, TOP_INSET, BOTTOM_INSET);
+    board.layout(this.W, this.H, TOP_INSET, this._bottomInset());
     this.particles.particles.length = 0;
     this.floating.items.length = 0;
     UI.hideScreens();
@@ -205,7 +236,7 @@ class Game {
       level.seed,
       level.specials
     );
-    board.layout(this.W, this.H, TOP_INSET, BOTTOM_INSET);
+    board.layout(this.W, this.H, TOP_INSET, this._bottomInset());
     board.restore(snap.grid, snap.types);
     this.session = {
       mode: "campaign",
@@ -675,7 +706,7 @@ class Game {
           rainbow: 0.04,
           ice: 0.07,
         });
-        s.board.layout(this.W, this.H, TOP_INSET, BOTTOM_INSET);
+        s.board.layout(this.W, this.H, TOP_INSET, this._bottomInset());
         this.refreshHud();
         return;
       }

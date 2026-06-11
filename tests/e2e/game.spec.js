@@ -750,6 +750,23 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
     await expect(page.locator("#hud")).toBeVisible();
   });
 
+  test("the board sits fully above the coach card (no hidden bubbles)", async ({
+    page,
+  }) => {
+    await openFirstRun(page);
+    await expect(page.locator("#tutorial")).toBeVisible();
+
+    // The bottom edge of the board must clear the top of the coach card.
+    const cardTop = await page
+      .locator("#tutorial .coach-card")
+      .evaluate((el) => el.getBoundingClientRect().top);
+    const boardBottom = await page.evaluate(() => {
+      const b = window.__bpc.game.session.board;
+      return b.originY + b.boardH;
+    });
+    expect(boardBottom).toBeLessThanOrEqual(cardTop);
+  });
+
   test("How to Play restarts the tutorial from the menu", async ({ page }) => {
     await openGame(page); // dismisses the first-run tutorial → clean menu
     await expect(page.locator("#menu")).toBeVisible();
