@@ -1,0 +1,140 @@
+// Canvas renderer: animated background + glossy neon bubbles.
+
+function hexToRgb(hex) {
+  const h = hex.replace("#", "");
+  return {
+    r: parseInt(h.substring(0, 2), 16),
+    g: parseInt(h.substring(2, 4), 16),
+    b: parseInt(h.substring(4, 6), 16),
+  };
+}
+
+function shade(hex, factor) {
+  const { r, g, b } = hexToRgb(hex);
+  const f = factor < 0 ? 0 : factor;
+  return `rgb(${Math.round(r * f)}, ${Math.round(g * f)}, ${Math.round(b * f)})`;
+}
+
+function lighten(hex, amt) {
+  const { r, g, b } = hexToRgb(hex);
+  const l = (v) => Math.round(v + (255 - v) * amt);
+  return `rgb(${l(r)}, ${l(g)}, ${l(b)})`;
+}
+
+export class Renderer {
+  constructor(ctx) {
+    this.ctx = ctx;
+  }
+
+  drawBackground(w, h, theme, time) {
+    const ctx = this.ctx;
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, theme.bg1);
+    g.addColorStop(1, theme.bg0);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+
+    // Two slowly drifting soft glows for depth.
+    const blobs = [
+      { c: theme.bubbles[0], ox: 0.25, oy: 0.2, sp: 0.00013, rad: 0.55 },
+      { c: theme.bubbles[1], ox: 0.78, oy: 0.75, sp: 0.00009, rad: 0.6 },
+    ];
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = 0.1;
+    for (const b of blobs) {
+      const x = (b.ox + Math.sin(time * b.sp) * 0.08) * w;
+      const y = (b.oy + Math.cos(time * b.sp * 1.3) * 0.08) * h;
+      const rad = b.rad * Math.max(w, h);
+      const rg = ctx.createRadialGradient(x, y, 0, x, y, rad);
+      rg.addColorStop(0, b.c);
+      rg.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = rg;
+      ctx.fillRect(0, 0, w, h);
+    }
+    ctx.restore();
+  }
+
+  drawBoardFrame(board) {
+    const ctx = this.ctx;
+    const pad = 8;
+    const x = board.originX - pad;
+    const y = board.originY - pad;
+    const w = board.boardW + pad * 2;
+    const h = board.boardH + pad * 2;
+    const r = 20;
+    ctx.save();
+    ctx.beginPath();
+    this._roundRect(ctx, x, y, w, h, r);
+    ctx.fillStyle = "rgba(255,255,255,0.03)";
+    ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(255,255,255,0.07)";
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  drawBubbles(board, theme) {
+    const ctx = this.ctx;
+    const radius = board.cell * 0.42;
+    for (const s of board.sprites) {
+      if (s.alpha <= 0) continue;
+      const hex = theme.bubbles[s.color % theme.bubbles.length];
+      const rad = radius * s.scale;
+      if (rad <= 0.5) continue;
+
+      ctx.save();
+      ctx.globalAlpha = s.alpha;
+
+      // Glow
+      ctx.shadowColor = hex;
+      ctx.shadowBlur = board.cell * 0.28;
+
+      // Body gradient
+      const grad = ctx.createRadialGradient(
+        s.x - rad * 0.35,
+        s.y - rad * 0.4,
+        rad * 0.1,
+        s.x,
+        s.y,
+        rad
+      );
+      grad.addColorStop(0, lighten(hex, 0.55));
+      grad.addColorStop(0.45, hex);
+      grad.addColorStop(1, shade(hex, 0.55));
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, rad, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Glossy highlight (no shadow)
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = s.alpha * 0.7;
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.beginPath();
+      ctx.ellipse(
+        s.x - rad * 0.32,
+        s.y - rad * 0.4,
+        rad * 0.28,
+        rad * 0.18,
+        -0.5,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+
+      ctx.restore();
+    }
+  }
+
+  _roundRect(ctx, x, y, w, h, r) {
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+}
+
+export { hexToRgb };

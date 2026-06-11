@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+  />
+  <meta name="theme-color" content="#0b1020" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>Bubble Pop Chain</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/icon.svg" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Gameplay canvas -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- In-game HUD -->
+    <div id="hud" class="overlay hidden">
+      <div class="hud-top">
+        <button class="icon-btn" id="btn-back" aria-label="Back">‹</button>
+        <div class="hud-info">
+          <div class="hud-stat">
+            <span class="hud-label" id="hud-mode-label">Level 1</span>
+            <span class="hud-value" id="hud-score">0</span>
+          </div>
+          <div class="hud-target" id="hud-target-wrap">
+            <span class="hud-label">Target</span>
+            <span class="hud-value" id="hud-target">0</span>
+          </div>
+          <div class="hud-stat">
+            <span class="hud-label" id="hud-moves-label">Moves</span>
+            <span class="hud-value" id="hud-moves">0</span>
+          </div>
+        </div>
+        <button class="icon-btn" id="btn-sound" aria-label="Sound">♪</button>
+      </div>
+      <div class="hud-progress">
+        <div class="hud-progress-fill" id="hud-progress-fill"></div>
+      </div>
+      <div class="hud-bottom">
+        <div class="coins-pill"><span class="coin-dot"></span><span id="hud-coins">0</span></div>
+        <div class="powerups">
+          <button class="powerup-btn" id="pu-bomb" data-pu="bomb">
+            <span class="pu-icon">💥</span><span class="pu-count" id="pu-bomb-count">0</span>
+          </button>
+          <button class="powerup-btn" id="pu-color" data-pu="colorClear">
+            <span class="pu-icon">🌈</span><span class="pu-count" id="pu-color-count">0</span>
+          </button>
+          <button class="powerup-btn" id="pu-shuffle" data-pu="shuffle">
+            <span class="pu-icon">🔀</span><span class="pu-count" id="pu-shuffle-count">0</span>
+          </button>
+        </div>
+      </div>
+      <div class="combo-banner hidden" id="combo-banner"></div>
+    </div>
+
+    <!-- Main menu -->
+    <div id="menu" class="overlay screen">
+      <div class="logo">
+        <span class="logo-bubble b1"></span>
+        <span class="logo-bubble b2"></span>
+        <span class="logo-bubble b3"></span>
+        <h1>Bubble<br />Pop Chain</h1>
+      </div>
+      <div class="menu-buttons">
+        <button class="btn btn-primary" id="btn-play">Play</button>
+        <button class="btn" id="btn-endless">Endless</button>
+        <button class="btn" id="btn-daily">Daily Challenge</button>
+        <button class="btn" id="btn-shop">Shop</button>
+        <button class="btn" id="btn-themes">Themes</button>
+      </div>
+      <div class="menu-foot">
+        <div class="coins-pill big"><span class="coin-dot"></span><span id="menu-coins">0</span></div>
+      </div>
+    </div>
+
+    <!-- Level map -->
+    <div id="levelmap" class="overlay screen hidden">
+      <div class="screen-head">
+        <button class="icon-btn" id="lm-back" aria-label="Back">‹</button>
+        <h2>Select Level</h2>
+        <div class="coins-pill"><span class="coin-dot"></span><span id="lm-coins">0</span></div>
+      </div>
+      <div class="level-grid" id="level-grid"></div>
+    </div>
+
+    <!-- Shop -->
+    <div id="shop" class="overlay screen hidden">
+      <div class="screen-head">
+        <button class="icon-btn" id="shop-back" aria-label="Back">‹</button>
+        <h2>Shop</h2>
+        <div class="coins-pill"><span class="coin-dot"></span><span id="shop-coins">0</span></div>
+      </div>
+      <div class="shop-list" id="shop-list"></div>
+    </div>
+
+    <!-- Themes -->
+    <div id="themes" class="overlay screen hidden">
+      <div class="screen-head">
+        <button class="icon-btn" id="themes-back" aria-label="Back">‹</button>
+        <h2>Themes</h2>
+        <div class="coins-pill"><span class="coin-dot"></span><span id="themes-coins">0</span></div>
+      </div>
+      <div class="theme-list" id="theme-list"></div>
+    </div>
+
+    <!-- Win screen -->
+    <div id="win" class="overlay screen modal hidden">
+      <div class="modal-card">
+        <h2 class="modal-title win-title">Level Clear!</h2>
+        <div class="stars" id="win-stars">
+          <span class="star">★</span><span class="star">★</span><span class="star">★</span>
+        </div>
+        <div class="modal-score">Score <b id="win-score">0</b></div>
+        <div class="modal-reward" id="win-reward"></div>
+        <div class="modal-buttons">
+          <button class="btn btn-ghost" id="win-menu">Menu</button>
+          <button class="btn btn-primary" id="win-next">Next</button>
+        </div>
+        <button class="btn btn-reward" id="win-double">▶ Double coins</button>
+      </div>
+    </div>
+
+    <!-- Lose screen -->
+    <div id="lose" class="overlay screen modal hidden">
+      <div class="modal-card">
+        <h2 class="modal-title lose-title">Out of Moves</h2>
+        <div class="modal-score">Score <b id="lose-score">0</b></div>
+        <div class="modal-buttons">
+          <button class="btn btn-ghost" id="lose-menu">Menu</button>
+          <button class="btn btn-primary" id="lose-retry">Retry</button>
+        </div>
+        <button class="btn btn-reward" id="lose-revive">▶ Revive (+5 moves)</button>
+      </div>
+    </div>
+
+    <!-- Ad mock overlay -->
+    <div id="ad-overlay" class="overlay ad-overlay hidden">
+      <div class="ad-card">
+        <div class="ad-spinner"></div>
+        <div class="ad-text">Advertisement</div>
+        <div class="ad-sub" id="ad-sub">Your reward is on the way…</div>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast hidden"></div>
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
