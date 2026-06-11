@@ -57,6 +57,19 @@ import {
   coinsForAchievements,
   getAchievement,
 } from "./achievements.js";
+import {
+  petBuffs,
+  neutralBuffs,
+  petActive,
+  levelForXp,
+  rollCrate,
+  getPet,
+  getCosmetic,
+  PET_XP_PER_LEVEL,
+  DUP_XP,
+  CRATE_COST,
+} from "./pets.js";
+import { makeRng } from "./rng.js";
 
 const TOP_INSET = 168;
 const BOTTOM_INSET = 120;
@@ -111,6 +124,11 @@ class Game {
       onColorblindChange: (on) => {
         this.renderer.colorblind = !!on;
       },
+      openCrate: () => this.openCrate(),
+      buyCrate: () => this.buyCrate(),
+      equipPet: (id) => this.equipPet(id),
+      buyPremiumPet: (id) => this.buyPremiumPet(id),
+      buyCosmetic: (petId, cos) => this.buyCosmetic(petId, cos),
     });
 
     this.input = new Input(this.canvas, {
@@ -201,6 +219,34 @@ class Game {
     return { pops: 0, swipes: 0, blasts: 0, powerups: 0, bestCombo: 0, cleared: 0 };
   }
 
+  // The buffs the currently equipped pet provides (neutral if none).
+  _equippedBuffs() {
+    const eq = Storage.getEquippedPet();
+    if (!eq) return neutralBuffs();
+    return petBuffs(eq.id, levelForXp(eq.xp || 0));
+  }
+
+  // The active board action the equipped pet performs (or null for passive pets).
+  _equippedActive() {
+    const eq = Storage.getEquippedPet();
+    if (!eq) return null;
+    return petActive(eq.id, levelForXp(eq.xp || 0));
+  }
+
+  // Award XP to the equipped pet for completing a level. Returns a short reward
+  // string ("🐾 Sparky reached Lv.3!" / "🐾 Sparky +12 XP") or "" if no pet.
+  _awardPetXp() {
+    const eq = Storage.getEquippedPet();
+    if (!eq) return "";
+    const before = levelForXp(eq.xp || 0);
+    Storage.addPetXp(eq.id, PET_XP_PER_LEVEL);
+    const after = levelForXp((eq.xp || 0) + PET_XP_PER_LEVEL);
+    const pet = getPet(eq.id);
+    const name = pet ? `${pet.icon} ${pet.name}` : "Pet";
+    if (after > before) return `🐾 ${name} reached Lv.${after}!`;
+    return `🐾 ${name} +${PET_XP_PER_LEVEL} XP`;
+  }
+
   _newSession(mode, level) {
     clearTimeout(this._endTimer);
     const board = new Board(
@@ -215,6 +261,8 @@ class Game {
     if (mode === "campaign" && level.milestone === "boss" && level.boss) {
       bossCoreTotal = board.placeFrozenCore(level.boss.coreW, level.boss.coreH);
     }
+    const buffs = this._equippedBuffs();
+    const active = this._equippedActive();
     this.session = {
       mode,
       level,
@@ -232,7 +280,10 @@ class Game {
       doubled: false,
       revived: false,
       preview: null,
-      power: 0,
+      power: buffs.startCharge,
+      petBuffs: buffs,
+      petActive: active,
+      petTimer: active ? active.cooldown : 0,
       shiftTokens: mode === "campaign" ? 0 : 5,
       stats: this._newStats(),
       bossCoreTotal,
@@ -261,6 +312,7 @@ class Game {
     UI.updatePowerups();
     UI.updatePower(this.session.power || 0, (this.session.power || 0) >= 1);
     UI.updateFever(this.session.fever || 0, !!this.session.feverActive);
+    UI.updatePetHud(this.session.mode === "tutorial" ? null : Storage.getEquippedPet());
     this.input.setEnabled(true);
     this.refreshHud();
   }
@@ -308,6 +360,9 @@ class Game {
       revived: !!snap.revived,
       preview: null,
       power: 0,
+      petBuffs: this._equippedBuffs(),
+      petActive: this._equippedActive(),
+      petTimer: (this._equippedActive() || { cooldown: 0 }).cooldown,
       shiftTokens: 0,
       stats: snap.stats || this._newStats(),
       bossCoreTotal: snap.bossCoreTotal || board.frozenRemaining(),
@@ -401,6 +456,9 @@ class Game {
       revived: false,
       preview: null,
       power: 0,
+      petBuffs: neutralBuffs(),
+      petActive: null,
+      petTimer: 0,
       shiftTokens: 99,
     };
     this._enterSession();
@@ -418,6 +476,67 @@ class Game {
     this.session = null;
     this.input.setEnabled(false);
     UI.showScreen("menu");
+  }
+
+  // ---- Pet companion actions (driven by the Pets screen) ----------------
+  // Open one crate: consumes a crate, rolls a (non-premium) pet, grants it (or
+  // converts a duplicate into bonus XP). Returns { petId, isNew } or null when
+  // no crate was available. The roll is seeded so opens are reproducible in
+  // tests via `?e2e=1` + a fixed seed counter.
+  openCrate() {
+    if (!Storage.consumeCrate()) return null;
+    this._crateSeed = ((this._crateSeed || 1) * 1664525 + 1013904223) >>> 0;
+    const seed = (this._crateSeed ^ ((Date.now() >>> 0) || 1)) >>> 0;
+    const { petId } = rollCrate(makeRng(seed));
+    const isNew = Storage.grantPet(petId);
+    if (!isNew) Storage.addPetXp(petId, DUP_XP);
+    return { petId, isNew };
+  }
+
+  // Buy one crate with coins. Returns true on success.
+  buyCrate() {
+    if (Economy.spendCoins(CRATE_COST)) {
+      Storage.addCrates(1);
+      return true;
+    }
+    return false;
+  }
+
+  // Equip a pet you own; refreshes the live session's buffs if mid-level.
+  equipPet(id) {
+    if (!Storage.equipPet(id)) return false;
+    if (this.session && !this.session.ended) {
+      this.session.petBuffs = this._equippedBuffs();
+      this.session.petActive = this._equippedActive();
+      this.session.petTimer = this.session.petActive
+        ? this.session.petActive.cooldown
+        : 0;
+    }
+    UI.updatePetHud(Storage.getEquippedPet());
+    return true;
+  }
+
+  // Purchase a premium pet via the (mock) IAP provider, then grant it.
+  async buyPremiumPet(id) {
+    const pet = getPet(id);
+    if (!pet || !pet.premium) return false;
+    const res = await Monetization.purchase(pet.product || `pet_${id}`);
+    if (!res || !res.ok) return false;
+    Storage.grantPet(id);
+    return true;
+  }
+
+  // Buy a cosmetic tint for a pet with coins. Returns true on success.
+  buyCosmetic(petId, cosmetic) {
+    const cos = getCosmetic(cosmetic.id || cosmetic);
+    if (!cos) return false;
+    if (Storage.ownsPet(petId) === false) return false;
+    if (Economy.spendCoins(cos.price)) {
+      Storage.grantCosmetic(petId, cos.id);
+      Storage.setCosmetic(petId, cos.id);
+      return true;
+    }
+    return false;
   }
 
   // Set up the board/meter for a tutorial step that needs a precondition.
@@ -678,15 +797,17 @@ class Game {
     const base = groupScore(group.length);
     const mult = comboMultiplier(s.combo);
     const comboPoints = Math.round(base * mult);
-    const points = feverPoints(comboPoints, s.feverActive);
+    const points = Math.round(
+      feverPoints(comboPoints, s.feverActive) * s.petBuffs.scoreMult
+    );
     s.score += points;
     s.combo += 1;
     s.comboTimer = COMBO_WINDOW;
 
     // Charge the Power meter (from the combo points, independent of Fever).
-    this._addPower(powerGain(comboPoints, s.combo));
+    this._addPower(powerGain(comboPoints, s.combo) * s.petBuffs.powerMult);
     // Build the Fever gauge — quick chains fill it and trigger double points.
-    this._addFever(feverGain(s.combo));
+    this._addFever(feverGain(s.combo) * s.petBuffs.feverMult);
 
     this._popCells(group, points, group.length, s.combo);
 
@@ -809,7 +930,10 @@ class Game {
     if (!cells.length) return;
     s.power = 0;
     UI.updatePower(0, false);
-    const points = feverPoints(groupScore(Math.max(2, cells.length)), s.feverActive);
+    const points = Math.round(
+      feverPoints(groupScore(Math.max(2, cells.length)), s.feverActive) *
+        s.petBuffs.scoreMult
+    );
     s.score += points;
     this._popCells(cells, points, cells.length, 1, 1.1);
     if (s.stats) s.stats.blasts += 1;
@@ -831,7 +955,10 @@ class Game {
 
     // Tutorial mode bypasses the economy so it never spends real inventory.
     if (s.mode !== "tutorial" && !Economy.usePowerup(type)) return;
-    const points = feverPoints(groupScore(Math.max(2, cells.length)), s.feverActive);
+    const points = Math.round(
+      feverPoints(groupScore(Math.max(2, cells.length)), s.feverActive) *
+        s.petBuffs.scoreMult
+    );
     s.score += points;
     this._popCells(cells, points, cells.length, 1, 0.6);
     if (s.stats) s.stats.powerups += 1;
@@ -914,6 +1041,51 @@ class Game {
     this.afterMove();
   }
 
+  // ---- Active pet companion actions ------------------------------------
+  // Counts down the equipped pet's cooldown each move; when it fires, the pet
+  // helps on the board. Never runs in the tutorial sandbox.
+  _maybePetAction() {
+    const s = this.session;
+    if (!s || s.ended || s.mode === "tutorial") return;
+    const act = s.petActive;
+    if (!act) return;
+    s.petTimer -= 1;
+    if (s.petTimer > 0) return;
+    s.petTimer = act.cooldown;
+    if (act.type === "cleanse") this._petCleanse(act);
+    else if (act.type === "gather") this._petGather(act);
+  }
+
+  // 🐱 Whiskers: pounce on lone, hard-to-match bubbles and clear them.
+  _petCleanse(act) {
+    const s = this.session;
+    const cells = s.board.isolatedCells().slice(0, Math.max(1, act.count));
+    if (!cells.length) return;
+    const raw = cells.length * 14;
+    const points = Math.round(
+      feverPoints(raw, s.feverActive) * s.petBuffs.scoreMult
+    );
+    s.score += points;
+    this._popCells(cells, points, cells.length, 1, 0.6);
+    Audio.powerup();
+    this.floating.spawn(this.W / 2, this.H * 0.35, "🐱 Pounce!", "#9be7ff", 26);
+    this.refreshHud();
+  }
+
+  // 🐶 Rover: fetch a whole colour together into one connected blob to pop.
+  _petGather(act) {
+    const s = this.session;
+    const color = s.board.dominantColor();
+    if (color === null || color === undefined) return;
+    const anchor = s.board.firstCellOfColor(color);
+    if (!anchor) return;
+    const res = s.board.magnetGather(anchor.c, anchor.r, color, act.strength);
+    if (!res || res.gathered <= 1) return;
+    Audio.powerup();
+    this.floating.spawn(this.W / 2, this.H * 0.35, "🐶 Fetch!", "#ffd35b", 26);
+    this.refreshHud();
+  }
+
   _popCells(cells, points, groupSize, combo, shakePower = 1) {
     const s = this.session;
     const fx = s.board.removeCells(cells, this.theme);
@@ -994,6 +1166,11 @@ class Game {
     if (s.mode === "tutorial") return;
     if (!s || s.ended) return;
 
+    // Active pet companions physically help on the board every few moves
+    // (gathering a colour, or zapping isolated bubbles) before we evaluate the
+    // board state — so their help counts toward the win/deadlock checks below.
+    this._maybePetAction();
+
     if (s.board.isCleared()) {
       if (s.mode === "endless") {
         // Reward and refill for continuous play.
@@ -1060,7 +1237,7 @@ class Game {
       if (won) {
         const stars = Math.max(1, starsForScore(s.level, s.score));
         Storage.recordLevelResult(s.level.id, stars);
-        const coins = coinReward(s.score, stars);
+        const coins = Math.round(coinReward(s.score, stars) * s.petBuffs.coinMult);
 
         // Milestone rewards are paid only on the first clear so they can never
         // be farmed by replaying. Score coins above still apply every time.
@@ -1075,6 +1252,9 @@ class Game {
             const info = POWERUP_INFO[tr.powerup];
             rewardBits.push(`🎁 +${tr.bonus} bonus coins`);
             rewardBits.push(`Free ${info.icon} ${info.name}`);
+            // Treasure milestones also drop a pet crate.
+            Storage.addCrates(1);
+            rewardBits.push(`🐾 Pet Crate`);
           } else if (mtype === "boss") {
             const br = bossReward(s.level.id);
             bonusCoins = br.jackpot;
@@ -1089,6 +1269,8 @@ class Game {
         const totalCoins = coins + bonusCoins;
         s.coinsEarned = totalCoins;
         Economy.addCoins(coins);
+        const petBit = this._awardPetXp();
+        if (petBit) rewardBits.push(petBit);
         this._recordProgress({
           levelsCleared: Storage.get("maxUnlockedLevel") - 1,
           totalStars: Storage.totalStars(),
@@ -1125,8 +1307,9 @@ class Game {
     } else if (s.mode === "endless") {
       const prevBest = Storage.get("highScoreEndless");
       if (s.score > prevBest) Storage.set("highScoreEndless", s.score);
-      const coins = Math.floor(s.score / 200);
+      const coins = Math.round(Math.floor(s.score / 200) * s.petBuffs.coinMult);
       Economy.addCoins(coins);
+      this._awardPetXp();
       Audio.lose();
       UI.showLose({
         score: s.score,
@@ -1138,7 +1321,9 @@ class Game {
       const stars = dailyStarsForScore(goals, s.score);
       const info = recordDaily(s.score, stars);
       // Score coins plus the streak-cycle reward (only on the first play/day).
-      const coins = Math.floor(s.score / 150) + (info.coins || 0);
+      const coins =
+        Math.round(Math.floor(s.score / 150) * s.petBuffs.coinMult) +
+        (info.coins || 0);
       s.coinsEarned = coins;
       Economy.addCoins(coins);
       Audio.win();
@@ -1146,6 +1331,8 @@ class Game {
       const bits = [`Streak ${info.streak}🔥`];
       if (info.freezeAwarded) bits.push("❄️ Freeze earned!");
       else if (info.usedFreeze) bits.push("❄️ Freeze used");
+      const petBit = this._awardPetXp();
+      if (petBit) bits.push(petBit);
       const moves = s.stats
         ? s.stats.pops + s.stats.swipes + s.stats.blasts + s.stats.powerups
         : 0;
@@ -1428,5 +1615,13 @@ game.init();
 // Test hook: expose internals ONLY when explicitly requested via `?e2e=1`.
 // Production sessions (no query param) are unaffected and stay clean.
 if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) {
-  window.__bpc = { game, Storage, Economy, Monetization, UI, getLevel };
+  window.__bpc = {
+    game,
+    Storage,
+    Economy,
+    Monetization,
+    UI,
+    getLevel,
+    pets: { petBuffs, petActive, levelForXp, rollCrate, getPet },
+  };
 }

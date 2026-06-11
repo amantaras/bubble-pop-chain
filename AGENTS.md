@@ -99,6 +99,34 @@ never re‑discovered the hard way.
   look). The flag is applied at startup from `Storage.get("settings")` and
   updated live via the `onColorblindChange` UI callback. The toggle lives on the
   **Themes screen** (`#cb-toggle`); the setting deep-merges into existing saves.
+- **Pet companions** (`pets.js`, pure; `storage.js` `pets`): collectible helper
+  pets that support the player both **passively** and with **active board
+  powers**. `PET_CATALOG` holds 8 pets across four rarities
+  (`common`/`rare`/`epic`/`legendary`). **Passive pets** carry an `ability`
+  (`scoreMult`/`coinMult`/`powerMult`/`feverMult`/`startCharge`) that scales per
+  level (`petBuffs`/`abilityValue`). **Active pets** carry an `active` config and
+  manipulate the board on a cooldown (`petActive`): **Rover 🐶** gathers the
+  dominant colour into a blob (`grid.dominantColor`/`firstCellOfColor` →
+  `magnetGather`), **Whiskers 🐱** zaps isolated single bubbles
+  (`grid.isolatedCells`). The companion runs in `main.js` via
+  `_equippedBuffs`/`_equippedActive` (folded into `popAt`/`chargedBlast`/
+  `applyPowerup`/`_finish` scoring and the meters) and `_maybePetAction`/
+  `_petGather`/`_petCleanse` (ticked from `afterMove` on `session.petTimer`).
+  Pets gain XP each level clear (`_awardPetXp`, `PET_XP_PER_LEVEL`, cap
+  `MAX_PET_LEVEL`). **Not pay-to-win**: pets are won from **crates**
+  (`rollCrate`, seeded; `buyCrate` for `CRATE_COST` coins, treasure milestones
+  drop a free crate, starter save grants Sparky + 1 crate); duplicates convert
+  to XP (`DUP_XP`). The two **premium** pets (Aurora 🌈 / Gizmo 🤖, IAP
+  `pet_*` via `monetization.purchase`) are passive side-grades only — the
+  strongest score booster (Draco, legendary) and both active board helpers are
+  free/earnable. Cosmetic tints (`COSMETICS`, hue-rotate) are coin-bought. The
+  **Pets screen** (`ui.js` `buildPets`, `#pets`, menu button) shows the crate,
+  the catalog grid (`.pet-card`, locked/owned/equipped), and a detail pane
+  (XP bar, equip, premium buy, cosmetics); a HUD badge (`#hud-pet`,
+  `updatePetHud`) shows the equipped pet during play (hidden in the tutorial).
+  Save state lives in `storage.js` `pets: { owned, equipped, crates }` with
+  helpers (`getPetState`/`grantPet`/`addPetXp`/`equipPet`/`addCrates`/
+  `consumeCrate`/`grantCosmetic`/`setCosmetic`); it deep-merges into old saves.
 - **Interactive tutorial** (`tutorial.js`): a gated, step‑by‑step onboarding that
   auto‑opens on first run (and re‑playable via the menu's **How to Play**
   button). Each action step **blocks until the player actually performs the
@@ -133,6 +161,7 @@ src/
   economy.js        # Coins + power-up inventory/prices
   daily.js          # Daily challenge + streak logic
   events.js         # Falling gift/problem events (pure: delay/type/reward rolls)
+  pets.js           # Pet companions (pure: catalog, buffs, active actions, crate rolls)
   monetization.js   # F2P abstraction (ads/IAP) — MOCK provider, pluggable  tutorial.js       # Gated step-by-step onboarding: TUTORIAL_STEPS + Tutorial class  ui.js             # All DOM UI: screens, level map, shop, themes, HUD, modals
 tests/
   unit/*.test.js    # Vitest unit tests (real modules, jsdom)
@@ -191,7 +220,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 146 unit tests + 114 E2E
+- **Current baseline (keep growing, never shrink)**: 178 unit tests + 128 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

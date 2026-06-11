@@ -110,6 +110,13 @@ export const TUTORIAL_STEPS = [
     grant: "specials",
   },
   {
+    id: "pets",
+    title: "Pet Companions",
+    body: "You've got a buddy! Equip a pet from the Pets menu for a helping hand — some boost your score, coins, charge or Fever, while others physically help on the board: 🐶 fetches a whole colour together and 🐱 zaps lone, hard-to-match bubbles. Win pets from crates, level them up, and dress them up too!",
+    advance: "button",
+    cta: "Cool!",
+  },
+  {
     id: "done",
     title: "You're ready!",
     body: "That's everything — pop chains, plan combos, and clear the board. Finish a level to see your recap: moves, swipes, best combo, stars, and the coins you earned. Have fun!",

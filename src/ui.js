@@ -18,6 +18,18 @@ import {
   alreadyPlayedToday,
 } from "./daily.js";
 import { ACHIEVEMENTS } from "./achievements.js";
+import {
+  PET_CATALOG,
+  COSMETICS,
+  getPet,
+  getCosmetic,
+  petBuffs,
+  petActive,
+  levelForXp,
+  levelProgress,
+  MAX_PET_LEVEL,
+  CRATE_COST,
+} from "./pets.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -34,6 +46,8 @@ class UIManager {
       "level-grid", "shop-list", "theme-list",
       "achievements", "achv-list", "achv-count", "btn-achievements", "achv-back",
       "cb-toggle", "cb-toggle-state",
+      "pets", "pets-coins", "pets-crate", "pet-list", "pet-detail",
+      "btn-pets", "pets-back", "hud-pet", "hud-pet-icon", "hud-pet-buff",
       "btn-continue", "daily-summary",
       "hud-mode-label", "hud-score", "hud-target", "hud-target-wrap", "hud-target-label",
       "hud-moves", "hud-moves-label", "hud-progress-fill",
@@ -72,6 +86,7 @@ class UIManager {
     click("btn-shop", () => this.showScreen("shop"));
     click("btn-themes", () => this.showScreen("themes"));
     click("btn-achievements", () => this.showScreen("achievements"));
+    click("btn-pets", () => this.showScreen("pets"));
     click("btn-tutorial", () => this.cb.startTutorial && this.cb.startTutorial());
 
     // Back buttons
@@ -79,6 +94,7 @@ class UIManager {
     click("shop-back", () => this.showScreen("menu"));
     click("themes-back", () => this.showScreen("menu"));
     click("achv-back", () => this.showScreen("menu"));
+    click("pets-back", () => this.showScreen("menu"));
     click("btn-back", () => this.cb.quitToMenu && this.cb.quitToMenu());
 
     // Colourblind symbols toggle (lives on the Themes screen).
@@ -172,7 +188,7 @@ class UIManager {
 
   // ---- Screen switching -------------------------------------------------
   hideScreens() {
-    ["menu", "levelmap", "shop", "themes", "achievements"].forEach((s) =>
+    ["menu", "levelmap", "shop", "themes", "achievements", "pets"].forEach((s) =>
       this.el[s].classList.add("hidden")
     );
   }
@@ -194,6 +210,7 @@ class UIManager {
       this._refreshColorblindToggle();
     }
     if (name === "achievements") this.buildAchievements();
+    if (name === "pets") this.buildPets();
   }
 
   // Show a "Continue" entry on the menu when a campaign level is in progress.
@@ -230,7 +247,7 @@ class UIManager {
 
   refreshCoins() {
     const c = Economy.coins;
-    ["menu-coins", "lm-coins", "shop-coins", "themes-coins", "hud-coins"].forEach(
+    ["menu-coins", "lm-coins", "shop-coins", "themes-coins", "hud-coins", "pets-coins"].forEach(
       (id) => {
         if (this.el[id]) this.el[id].textContent = c;
       }
@@ -507,6 +524,278 @@ class UIManager {
     if (this.el["achv-count"]) {
       this.el["achv-count"].textContent = `${have.size}/${ACHIEVEMENTS.length}`;
     }
+  }
+
+  // ---- Pets -------------------------------------------------------------
+  buildPets() {
+    const { owned } = Storage.getPetState();
+    // Default the detail selection to the equipped pet (or first owned one).
+    if (!this._selectedPet || !PET_CATALOG.find((p) => p.id === this._selectedPet)) {
+      const eq = Storage.getPetState().equipped;
+      this._selectedPet = eq || PET_CATALOG[0].id;
+    }
+    this._buildPetCrate();
+    this._buildPetList(owned);
+    this._buildPetDetail(owned);
+  }
+
+  _buildPetCrate() {
+    const wrap = this.el["pets-crate"];
+    if (!wrap) return;
+    const { crates } = Storage.getPetState();
+    wrap.innerHTML = "";
+    const info = document.createElement("div");
+    info.className = "crate-info";
+    info.innerHTML = `<span class="crate-icon">🎁</span><div><div class="crate-title">Pet Crates</div><div class="crate-sub">You have <b id="crate-count">${crates}</b> — open one to win a pet!</div></div>`;
+
+    const openBtn = document.createElement("button");
+    openBtn.className = "buy-btn pet-open-btn";
+    openBtn.id = "crate-open";
+    openBtn.textContent = "Open";
+    openBtn.disabled = crates <= 0;
+    openBtn.addEventListener("click", () => {
+      if (!this.cb.openCrate) return;
+      const res = this.cb.openCrate();
+      if (!res) {
+        this.toast("No crates to open");
+        return;
+      }
+      const pet = getPet(res.petId);
+      Audio.coin();
+      this.toast(
+        res.isNew
+          ? `New pet! ${pet.icon} ${pet.name}`
+          : `${pet.icon} ${pet.name} +XP (duplicate)`
+      );
+      this._selectedPet = res.petId;
+      this.buildPets();
+    });
+
+    const buyBtn = document.createElement("button");
+    buyBtn.className = "buy-btn pet-buy-crate";
+    buyBtn.id = "crate-buy";
+    buyBtn.innerHTML = `<span class="coin-dot"></span>${CRATE_COST}`;
+    buyBtn.addEventListener("click", () => {
+      if (this.cb.buyCrate && this.cb.buyCrate()) {
+        Audio.coin();
+        this.toast("Crate purchased!");
+        this.refreshCoins();
+        this.buildPets();
+      } else {
+        this.toast("Not enough coins");
+      }
+    });
+
+    const btns = document.createElement("div");
+    btns.className = "crate-btns";
+    btns.appendChild(openBtn);
+    btns.appendChild(buyBtn);
+    wrap.appendChild(info);
+    wrap.appendChild(btns);
+  }
+
+  _buildPetList(owned) {
+    const list = this.el["pet-list"];
+    if (!list) return;
+    list.innerHTML = "";
+    const equipped = Storage.getPetState().equipped;
+    PET_CATALOG.forEach((pet) => {
+      const has = !!owned[pet.id];
+      const card = document.createElement("button");
+      card.className = `pet-card rarity-${pet.rarity}`;
+      card.dataset.pet = pet.id;
+      if (has) card.classList.add("owned");
+      else card.classList.add("locked");
+      if (pet.id === this._selectedPet) card.classList.add("selected");
+      if (equipped === pet.id) card.classList.add("equipped");
+
+      const lvl = has ? levelForXp(owned[pet.id].xp || 0) : 0;
+      const cos = has ? getCosmetic(owned[pet.id].cosmetic) : null;
+      const hue = cos ? cos.hue : 0;
+      const tag = pet.premium && !has ? "premium" : pet.rarity;
+      card.innerHTML =
+        `<span class="pet-icon" style="filter:hue-rotate(${hue}deg)">${has ? pet.icon : (pet.premium ? "💎" : "❓")}</span>` +
+        `<span class="pet-name">${has ? pet.name : (pet.premium ? "Premium" : "???")}</span>` +
+        `<span class="pet-tag tag-${tag}">${has ? "Lv." + lvl : tag}</span>` +
+        (equipped === pet.id ? `<span class="pet-eqbadge">✓</span>` : "");
+      card.addEventListener("click", () => {
+        Audio.click();
+        this._selectedPet = pet.id;
+        this.buildPets();
+      });
+      list.appendChild(card);
+    });
+  }
+
+  _buildPetDetail(owned) {
+    const panel = this.el["pet-detail"];
+    if (!panel) return;
+    const pet = getPet(this._selectedPet);
+    if (!pet) {
+      panel.innerHTML = "";
+      return;
+    }
+    const has = !!owned[pet.id];
+    const equipped = Storage.getPetState().equipped;
+    panel.innerHTML = "";
+
+    const head = document.createElement("div");
+    head.className = "pd-head";
+    const lvl = has ? levelForXp(owned[pet.id].xp || 0) : 1;
+    const cos = has ? getCosmetic(owned[pet.id].cosmetic) : getCosmetic("default");
+    head.innerHTML =
+      `<span class="pd-icon" style="filter:hue-rotate(${cos.hue}deg)">${pet.icon}</span>` +
+      `<div class="pd-meta"><div class="pd-name">${pet.name} <span class="pd-rarity tag-${pet.rarity}">${pet.rarity}</span></div>` +
+      `<div class="pd-desc">${pet.desc}</div>` +
+      `<div class="pd-ability">${this._petAbilityText(pet, has ? lvl : 1)}</div></div>`;
+    panel.appendChild(head);
+
+    if (has) {
+      // XP / level bar.
+      const prog = levelProgress(owned[pet.id].xp || 0);
+      const bar = document.createElement("div");
+      bar.className = "pd-xp";
+      bar.innerHTML =
+        `<div class="pd-xp-top"><span>Lv.${prog.level}${prog.max ? " (MAX)" : ""}</span>` +
+        `<span>${prog.max ? "" : prog.toNext + " XP to next"}</span></div>` +
+        `<div class="pd-xp-bar"><div class="pd-xp-fill" style="width:${Math.round(prog.progress * 100)}%"></div></div>`;
+      panel.appendChild(bar);
+
+      // Equip button.
+      const equip = document.createElement("button");
+      equip.className = "buy-btn pet-equip-btn";
+      equip.id = "pet-equip";
+      if (equipped === pet.id) {
+        equip.textContent = "Equipped";
+        equip.classList.add("active-tag");
+        equip.disabled = true;
+      } else {
+        equip.textContent = "Equip";
+        equip.classList.add("owned");
+        equip.addEventListener("click", () => {
+          if (this.cb.equipPet && this.cb.equipPet(pet.id)) {
+            Audio.click();
+            this.toast(`${pet.icon} ${pet.name} equipped!`);
+            this.buildPets();
+          }
+        });
+      }
+      panel.appendChild(equip);
+
+      // Cosmetics row.
+      panel.appendChild(this._buildCosmetics(pet, owned[pet.id]));
+    } else if (pet.premium) {
+      const buy = document.createElement("button");
+      buy.className = "buy-btn pet-premium-btn";
+      buy.id = "pet-premium-buy";
+      buy.textContent = `Unlock ${pet.price}`;
+      buy.addEventListener("click", async () => {
+        Audio.click();
+        buy.disabled = true;
+        const ok = this.cb.buyPremiumPet && (await this.cb.buyPremiumPet(pet.id));
+        if (ok) {
+          this.toast(`${pet.icon} ${pet.name} unlocked!`);
+          this._selectedPet = pet.id;
+          this.buildPets();
+        } else {
+          buy.disabled = false;
+          this.toast("Purchase failed");
+        }
+      });
+      panel.appendChild(buy);
+    } else {
+      const hint = document.createElement("div");
+      hint.className = "pd-locked-hint";
+      hint.textContent = "Find this pet by opening crates.";
+      panel.appendChild(hint);
+    }
+  }
+
+  _petAbilityText(pet, level) {
+    if (pet.active) {
+      const a = petActive(pet.id, level);
+      if (pet.active.type === "cleanse")
+        return `🐾 ${a.label} (clears ${a.count} every ${a.cooldown} moves)`;
+      return `🐾 ${a.label} (every ${a.cooldown} moves)`;
+    }
+    const b = petBuffs(pet.id, level);
+    const key = pet.ability.key;
+    if (key === "startCharge")
+      return `🐾 ${pet.ability.label} (+${Math.round(b.startCharge * 100)}% charge)`;
+    const pct = Math.round((b[key] - 1) * 100);
+    return `🐾 ${pet.ability.label} (+${pct}%)`;
+  }
+
+  _buildCosmetics(pet, state) {
+    const wrap = document.createElement("div");
+    wrap.className = "pd-cosmetics";
+    const owned = Array.isArray(state.cosmetics) ? state.cosmetics : ["default"];
+    const selected = state.cosmetic || "default";
+    const title = document.createElement("div");
+    title.className = "pd-cos-title";
+    title.textContent = "Looks";
+    wrap.appendChild(title);
+    const row = document.createElement("div");
+    row.className = "pd-cos-row";
+    COSMETICS.forEach((cos) => {
+      const has = owned.includes(cos.id);
+      const chip = document.createElement("button");
+      chip.className = "cos-chip";
+      chip.dataset.cos = cos.id;
+      if (selected === cos.id) chip.classList.add("selected");
+      chip.innerHTML =
+        `<span class="cos-swatch" style="filter:hue-rotate(${cos.hue}deg)">${pet.icon}</span>` +
+        `<span class="cos-name">${cos.name}</span>` +
+        (has
+          ? ""
+          : `<span class="cos-price"><span class="coin-dot"></span>${cos.price}</span>`);
+      chip.addEventListener("click", () => {
+        Audio.click();
+        if (has) {
+          Storage.setCosmetic(pet.id, cos.id);
+          this.buildPets();
+        } else if (this.cb.buyCosmetic && this.cb.buyCosmetic(pet.id, cos)) {
+          Audio.coin();
+          this.toast(`${cos.name} unlocked!`);
+          this.refreshCoins();
+          this.buildPets();
+        } else {
+          this.toast("Not enough coins");
+        }
+      });
+      row.appendChild(chip);
+    });
+    wrap.appendChild(row);
+    return wrap;
+  }
+
+  // Small in-game HUD indicator of the active pet companion + its buff.
+  updatePetHud(pet) {
+    const el = this.el["hud-pet"];
+    if (!el) return;
+    if (!pet) {
+      el.classList.add("hidden");
+      return;
+    }
+    const def = getPet(pet.id);
+    if (!def) {
+      el.classList.add("hidden");
+      return;
+    }
+    const lvl = levelForXp(pet.xp || 0);
+    const cos = getCosmetic(pet.cosmetic);
+    const icon = this.el["hud-pet-icon"];
+    const buff = this.el["hud-pet-buff"];
+    if (icon) {
+      icon.textContent = def.icon;
+      icon.style.filter = `hue-rotate(${cos.hue}deg)`;
+    }
+    if (buff) {
+      const label = def.active ? def.active.label : def.ability.label;
+      buff.textContent = `Lv.${lvl}`;
+      el.title = label;
+    }
+    el.classList.remove("hidden");
   }
 
   // ---- HUD --------------------------------------------------------------

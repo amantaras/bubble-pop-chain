@@ -467,6 +467,48 @@ export class Board {
     return cells;
   }
 
+  // The most common NORMAL (plain) bubble colour on the board, or null when
+  // there are none. Used by the "gather" pet companion to pick a target.
+  dominantColor() {
+    const counts = {};
+    let best = null;
+    let bestN = 0;
+    for (let c = 0; c < this.cols; c++)
+      for (let r = 0; r < this.rows; r++) {
+        if (this.grid[c][r] === -1 || this.types[c][r] !== NORMAL) continue;
+        const v = this.grid[c][r];
+        counts[v] = (counts[v] || 0) + 1;
+        if (counts[v] > bestN) {
+          bestN = counts[v];
+          best = v;
+        }
+      }
+    return best;
+  }
+
+  // First NORMAL cell of a given colour (a valid magnet/gather anchor), or null.
+  firstCellOfColor(color) {
+    for (let c = 0; c < this.cols; c++)
+      for (let r = 0; r < this.rows; r++)
+        if (this.grid[c][r] === color && this.types[c][r] === NORMAL)
+          return { c, r };
+    return null;
+  }
+
+  // Lone, "difficult" bubbles: NORMAL cells whose connected group is just
+  // themselves (no same-colour neighbour and not bridged by a rainbow). These
+  // are the hardest to clear, so the "cleanse" pet companion zaps them.
+  isolatedCells() {
+    const out = [];
+    for (let c = 0; c < this.cols; c++)
+      for (let r = 0; r < this.rows; r++) {
+        if (this.grid[c][r] === -1 || this.types[c][r] !== NORMAL) continue;
+        if (this.isRainbow(c, r)) continue;
+        if (this.getGroupAt(c, r).length === 1) out.push({ c, r });
+      }
+    return out;
+  }
+
   // A random filled NORMAL cell (used by hazard events to anchor a scatter).
   // Returns null when the board has no plain bubbles. `rand` keeps it testable.
   randomFilledCell(rand = Math.random) {

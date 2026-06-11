@@ -79,6 +79,10 @@
         </div>
       </div>
       <div class="combo-banner hidden" id="combo-banner"></div>
+      <div class="hud-pet hidden" id="hud-pet" aria-label="Active pet companion">
+        <span class="hud-pet-icon" id="hud-pet-icon">⚡</span>
+        <span class="hud-pet-buff" id="hud-pet-buff"></span>
+      </div>
     </div>
 
     <!-- Main menu -->
@@ -97,6 +101,7 @@
         <button class="btn" id="btn-shop">Shop</button>
         <button class="btn" id="btn-themes">Themes</button>
         <button class="btn" id="btn-achievements">Achievements</button>
+        <button class="btn" id="btn-pets">Pets</button>
         <button class="btn" id="btn-tutorial">How to Play</button>
       </div>
       <div class="menu-foot">
@@ -150,6 +155,18 @@
         <div class="achv-count" id="achv-count">0/0</div>
       </div>
       <div class="achv-list" id="achv-list"></div>
+    </div>
+
+    <!-- Pets -->
+    <div id="pets" class="overlay screen hidden">
+      <div class="screen-head">
+        <button class="icon-btn" id="pets-back" aria-label="Back">‹</button>
+        <h2>Pets</h2>
+        <div class="coins-pill"><span class="coin-dot"></span><span id="pets-coins">0</span></div>
+      </div>
+      <div class="pets-crate" id="pets-crate"></div>
+      <div class="pet-list" id="pet-list"></div>
+      <div class="pet-detail" id="pet-detail"></div>
     </div>
 
     <!-- Win screen -->

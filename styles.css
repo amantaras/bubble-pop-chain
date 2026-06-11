@@ -794,6 +794,233 @@ body {
   font-size: 18px;
 }
 
+/* ---- Pets ------------------------------------------------------------ */
+.pets-crate {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--glass-brd);
+  background: var(--glass);
+}
+.pets-crate .crate-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pets-crate .crate-icon {
+  font-size: 28px;
+}
+.pets-crate .crate-title {
+  font-weight: 800;
+}
+.pets-crate .crate-sub {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.crate-btns {
+  display: flex;
+  gap: 8px;
+}
+.pet-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.pet-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 6px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--glass-brd);
+  background: var(--glass);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+}
+.pet-card.locked {
+  opacity: 0.6;
+}
+.pet-card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent) inset;
+}
+.pet-card.equipped {
+  background: rgba(91, 227, 155, 0.12);
+}
+.pet-card .pet-icon {
+  font-size: 34px;
+}
+.pet-card .pet-name {
+  font-size: 12px;
+  font-weight: 700;
+}
+.pet-card .pet-tag {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+.pet-card .pet-eqbadge {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  color: var(--accent);
+  font-weight: 900;
+}
+.rarity-rare {
+  box-shadow: 0 0 12px rgba(91, 159, 255, 0.15);
+}
+.rarity-epic {
+  box-shadow: 0 0 12px rgba(180, 120, 255, 0.18);
+}
+.rarity-legendary {
+  box-shadow: 0 0 16px rgba(255, 200, 80, 0.22);
+}
+.tag-rare { color: #5b9fff; }
+.tag-epic { color: #b478ff; }
+.tag-legendary { color: #ffc850; }
+.tag-premium { color: #ff6ec7; }
+
+.pet-detail {
+  border-radius: var(--radius);
+  border: 1px solid var(--glass-brd);
+  background: var(--glass);
+  padding: 14px;
+}
+.pd-head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.pd-icon {
+  font-size: 44px;
+}
+.pd-name {
+  font-weight: 800;
+  font-size: 16px;
+}
+.pd-rarity {
+  font-size: 11px;
+  text-transform: uppercase;
+  margin-left: 6px;
+}
+.pd-desc {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin: 2px 0 4px;
+}
+.pd-ability {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.pd-xp {
+  margin-top: 12px;
+}
+.pd-xp-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+.pd-xp-bar {
+  height: 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+.pd-xp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #5b9fff);
+}
+.pet-equip-btn,
+.pet-premium-btn {
+  width: 100%;
+  margin-top: 12px;
+}
+.pd-locked-hint {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--text-dim);
+  text-align: center;
+}
+.pd-cosmetics {
+  margin-top: 14px;
+}
+.pd-cos-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.pd-cos-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cos-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--glass-brd);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+}
+.cos-chip.selected {
+  border-color: var(--accent);
+}
+.cos-chip .cos-swatch {
+  font-size: 22px;
+}
+.cos-chip .cos-name {
+  font-size: 10px;
+}
+.cos-chip .cos-price {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+/* In-game HUD pet companion indicator */
+.hud-pet {
+  position: absolute;
+  left: 12px;
+  bottom: 84px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 5px 6px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--glass-brd);
+  pointer-events: none;
+  z-index: 5;
+}
+.hud-pet .hud-pet-icon {
+  font-size: 20px;
+}
+.hud-pet .hud-pet-buff {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--accent);
+}
+
 .shop-item,
 .theme-item {
   display: flex;

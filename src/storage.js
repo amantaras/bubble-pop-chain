@@ -47,6 +47,15 @@ const DEFAULT_SAVE = {
   // Tracks the daily-capped "watch an ad for coins" reward. `date` is the
   // local day key it was last claimed on; `count` resets to 0 each new day.
   adRewards: { date: null, count: 0 },
+  // Pet companions. `owned` maps petId → { xp, cosmetics:[ids], cosmetic } for
+  // every pet the player has collected; `equipped` is the active pet's id;
+  // `crates` is the number of unopened pet crates. New players start with
+  // Sparky equipped and one starter crate so the system is usable immediately.
+  pets: {
+    owned: { sparky: { xp: 0, cosmetics: ["default"], cosmetic: "default" } },
+    equipped: "sparky",
+    crates: 1,
+  },
 };
 
 function deepDefault(saved) {
@@ -186,6 +195,99 @@ class StorageManager {
     if (owned.includes(themeId)) return false;
     owned.push(themeId);
     this.save();
+    return true;
+  }
+
+  // ---- Pet companions ---------------------------------------------------
+  // Always returns a well-formed { owned, equipped, crates } (safe for old
+  // saves that predate the pet system).
+  getPetState() {
+    const p = this.data.pets || {};
+    return {
+      owned: p.owned && typeof p.owned === "object" ? p.owned : {},
+      equipped: p.equipped || null,
+      crates: p.crates || 0,
+    };
+  }
+
+  _writePets(state) {
+    this.data.pets = {
+      owned: state.owned,
+      equipped: state.equipped,
+      crates: Math.max(0, state.crates || 0),
+    };
+    this.save();
+  }
+
+  ownsPet(id) {
+    const p = this.getPetState();
+    return !!p.owned[id];
+  }
+
+  // Add a pet to the collection. Returns true only the first time (so duplicate
+  // crate pulls can be redirected to bonus XP by the caller).
+  grantPet(id) {
+    const p = this.getPetState();
+    if (p.owned[id]) return false;
+    p.owned[id] = { xp: 0, cosmetics: ["default"], cosmetic: "default" };
+    this._writePets(p);
+    return true;
+  }
+
+  addPetXp(id, amount) {
+    const p = this.getPetState();
+    if (!p.owned[id]) return;
+    p.owned[id].xp = (p.owned[id].xp || 0) + amount;
+    this._writePets(p);
+  }
+
+  equipPet(id) {
+    const p = this.getPetState();
+    if (!p.owned[id]) return false;
+    p.equipped = id;
+    this._writePets(p);
+    return true;
+  }
+
+  getEquippedPet() {
+    const p = this.getPetState();
+    if (!p.equipped || !p.owned[p.equipped]) return null;
+    return { id: p.equipped, ...p.owned[p.equipped] };
+  }
+
+  addCrates(n) {
+    const p = this.getPetState();
+    p.crates = Math.max(0, (p.crates || 0) + n);
+    this._writePets(p);
+  }
+
+  // Consume one crate. Returns true if one was available and spent.
+  consumeCrate() {
+    const p = this.getPetState();
+    if ((p.crates || 0) <= 0) return false;
+    p.crates -= 1;
+    this._writePets(p);
+    return true;
+  }
+
+  // Add a cosmetic to a pet. Returns true if newly granted (idempotent).
+  grantCosmetic(petId, cosmeticId) {
+    const p = this.getPetState();
+    const pet = p.owned[petId];
+    if (!pet) return false;
+    if (!Array.isArray(pet.cosmetics)) pet.cosmetics = ["default"];
+    if (pet.cosmetics.includes(cosmeticId)) return false;
+    pet.cosmetics.push(cosmeticId);
+    this._writePets(p);
+    return true;
+  }
+
+  setCosmetic(petId, cosmeticId) {
+    const p = this.getPetState();
+    const pet = p.owned[petId];
+    if (!pet) return false;
+    pet.cosmetic = cosmeticId;
+    this._writePets(p);
     return true;
   }
 

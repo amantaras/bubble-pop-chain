@@ -1457,6 +1457,10 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
     expect(specials.rainbow).toBeGreaterThanOrEqual(1);
     expect(specials.ice).toBeGreaterThanOrEqual(1);
     await page.locator("#coach-next").click();
+    expect(await stepId(page)).toBe("pets");
+
+    // 8b) pets (informational) — introduces the companion system.
+    await page.locator("#coach-next").click();
     expect(await stepId(page)).toBe("done");
 
     // 9) done — finishes back to the menu.
@@ -1464,6 +1468,116 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
     await expect(page.locator("#tutorial")).toBeHidden();
     await expect(page.locator("#menu")).toBeVisible();
     expect(await stepId(page)).toBeNull();
+  });
+});
+
+test.describe("pet companions (collection & buffs)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("Pets screen opens with Sparky owned, equipped, and a starter crate", async ({
+    page,
+  }) => {
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await expect(page.locator("#pets")).toBeVisible();
+    // Starter state: Sparky owned + equipped, one free crate to open.
+    await expect(page.locator('.pet-card[data-pet="sparky"]')).toHaveClass(/owned/);
+    await expect(page.locator('.pet-card[data-pet="sparky"]')).toHaveClass(/equipped/);
+    const state = await page.evaluate(() => window.__bpc.Storage.getPetState());
+    expect(state.equipped).toBe("sparky");
+    expect(state.crates).toBeGreaterThanOrEqual(1);
+    await page.locator("#pets-back").click();
+    await expect(page.locator("#menu")).toBeVisible();
+  });
+
+  test("buying then opening a crate grants a (non-premium) pet", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.Economy.addCoins(1000));
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+
+    // Buy a crate, then open everything we have.
+    await page.locator("#crate-buy").click();
+    const owned = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      let res = null;
+      let safety = 0;
+      while (window.__bpc.Storage.getPetState().crates > 0 && safety < 20) {
+        const r = g.openCrate();
+        if (r) res = r;
+        safety++;
+      }
+      return {
+        last: res,
+        owned: Object.keys(window.__bpc.Storage.getPetState().owned),
+      };
+    });
+    expect(owned.last).not.toBeNull();
+    // Whatever rolled, it is never a premium pet.
+    const isPremium = await page.evaluate(
+      (id) => !!window.__bpc.pets.getPet(id).premium,
+      owned.last.petId
+    );
+    expect(isPremium).toBe(false);
+  });
+
+  test("equipping a passive pet refreshes the live session's score buff", async ({
+    page,
+  }) => {
+    // Grant + level up Draco (legendary, free, scoreMult) and equip it.
+    await page.evaluate(() => {
+      window.__bpc.Storage.grantPet("draco");
+      window.__bpc.Storage.addPetXp("draco", 999); // push to a high level
+    });
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.evaluate(() => window.__bpc.game.equipPet("draco"));
+    const mult = await page.evaluate(
+      () => window.__bpc.game.session.petBuffs.scoreMult
+    );
+    expect(mult).toBeGreaterThan(1);
+  });
+
+  test("a startCharge pet begins the level with the power meter pre-filled", async ({
+    page,
+  }) => {
+    await page.evaluate(async () => {
+      const r = await window.__bpc.game.buyPremiumPet("gizmo"); // mock IAP grants it
+      window.__bpc.Storage.addPetXp("gizmo", 999);
+      window.__bpc.game.equipPet("gizmo");
+      return r;
+    });
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    const power = await page.evaluate(() => window.__bpc.game.session.power);
+    expect(power).toBeGreaterThan(0);
+  });
+
+  test("an active pet (Rover) arms a gather action on the session", async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      window.__bpc.Storage.grantPet("rover");
+      window.__bpc.game.equipPet("rover");
+    });
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    const active = await page.evaluate(() => window.__bpc.game.session.petActive);
+    expect(active).not.toBeNull();
+    expect(active.type).toBe("gather");
+    expect(active.cooldown).toBeGreaterThan(0);
+  });
+
+  test("premium pet purchase via the mock provider grants ownership", async ({
+    page,
+  }) => {
+    const owns = await page.evaluate(async () => {
+      const before = window.__bpc.Storage.ownsPet("aurora");
+      await window.__bpc.game.buyPremiumPet("aurora");
+      return { before, after: window.__bpc.Storage.ownsPet("aurora") };
+    });
+    expect(owns.before).toBe(false);
+    expect(owns.after).toBe(true);
+  });
+
+  test("the HUD pet badge appears during a campaign level", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await expect(page.locator("#hud-pet")).toBeVisible();
+    await expect(page.locator("#hud-pet-icon")).not.toHaveText("");
   });
 });
 

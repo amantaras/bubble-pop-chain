@@ -341,6 +341,67 @@ describe("grid / Board", () => {
     expect(cell).toEqual({ c: 0, r: 0 });
     expect(b.grid[cell.c][cell.r]).not.toBe(-1);
   });
+
+  // Helper that also sets a matching all-NORMAL types grid so the pet
+  // companion board helpers (which inspect types) work on a custom grid.
+  function setGridTyped(board, grid) {
+    board.cols = grid.length;
+    board.rows = grid[0].length;
+    board.colorCount = 4;
+    board.grid = grid.map((col) => col.slice());
+    board.types = grid.map((col) => col.map(() => NORMAL));
+    board.spriteGrid = grid.map((col) => col.map(() => null));
+    board.sprites = [];
+  }
+
+  describe("pet companion board helpers", () => {
+    it("dominantColor returns the most common NORMAL colour", () => {
+      const b = new Board(3, 3, 4, 1);
+      setGridTyped(b, [
+        [0, 0, 1],
+        [0, 2, 1],
+        [3, 2, 0],
+      ]);
+      // colour 0 appears 4×, more than any other.
+      expect(b.dominantColor()).toBe(0);
+    });
+
+    it("dominantColor is null on an empty board", () => {
+      const b = new Board(2, 2, 4, 1);
+      setGridTyped(b, [
+        [-1, -1],
+        [-1, -1],
+      ]);
+      expect(b.dominantColor()).toBeNull();
+    });
+
+    it("firstCellOfColor finds an anchor or returns null", () => {
+      const b = new Board(2, 2, 4, 1);
+      setGridTyped(b, [
+        [1, 2],
+        [0, 1],
+      ]);
+      expect(b.firstCellOfColor(1)).toEqual({ c: 0, r: 0 });
+      expect(b.firstCellOfColor(9)).toBeNull();
+    });
+
+    it("isolatedCells finds lone bubbles with no same-colour neighbour", () => {
+      const b = new Board(3, 3, 4, 1);
+      setGridTyped(b, [
+        [0, 0, 3],
+        [1, 2, 0],
+        [0, 1, 2],
+      ]);
+      const iso = b.isolatedCells();
+      // (0,2)=3 is alone; verify it's flagged and that paired 0s are not.
+      const keys = new Set(iso.map((c) => `${c.c},${c.r}`));
+      expect(keys.has("0,2")).toBe(true);
+      expect(keys.has("0,0")).toBe(false); // 0 at (0,0) touches 0 at (0,1)
+      for (const cell of iso) {
+        expect(b.getGroupAt(cell.c, cell.r).length).toBe(1);
+      }
+    });
+  });
 });
 
 function colourHistogram(board) {

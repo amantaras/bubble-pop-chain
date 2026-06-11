@@ -36,6 +36,14 @@ describe("tutorial step definitions", () => {
     expect(fever.advance).toBe("button");
     expect(fever.grant).toBe("fever");
   });
+
+  it("includes an informational pets step before the finish", () => {
+    const pets = TUTORIAL_STEPS.find((s) => s.id === "pets");
+    expect(pets).toBeTruthy();
+    expect(pets.advance).toBe("button");
+    const idx = TUTORIAL_STEPS.indexOf(pets);
+    expect(idx).toBe(TUTORIAL_STEPS.length - 2); // sits right before "done"
+  });
 });
 
 describe("tutorial board generation", () => {

@@ -164,4 +164,65 @@ describe("storage", () => {
       expect(Storage.getLoadout()).toEqual(["bomb", "colorClear", "magnet"]);
     });
   });
+
+  describe("pets", () => {
+    it("starts with Sparky owned, equipped, and one starter crate", () => {
+      const p = Storage.getPetState();
+      expect(p.equipped).toBe("sparky");
+      expect(p.owned.sparky).toBeTruthy();
+      expect(p.crates).toBe(1);
+      expect(Storage.ownsPet("sparky")).toBe(true);
+      expect(Storage.ownsPet("draco")).toBe(false);
+    });
+
+    it("grantPet is idempotent (true only the first time)", () => {
+      expect(Storage.grantPet("draco")).toBe(true);
+      expect(Storage.grantPet("draco")).toBe(false);
+      expect(Storage.ownsPet("draco")).toBe(true);
+      expect(Storage.getPetState().owned.draco.xp).toBe(0);
+    });
+
+    it("accumulates XP only for owned pets", () => {
+      Storage.addPetXp("sparky", 40);
+      expect(Storage.getPetState().owned.sparky.xp).toBe(40);
+      Storage.addPetXp("ghost", 40); // not owned — no-op
+      expect(Storage.getPetState().owned.ghost).toBeUndefined();
+    });
+
+    it("equips only owned pets and updates getEquippedPet", () => {
+      expect(Storage.equipPet("draco")).toBe(false);
+      Storage.grantPet("draco");
+      expect(Storage.equipPet("draco")).toBe(true);
+      const eq = Storage.getEquippedPet();
+      expect(eq.id).toBe("draco");
+      expect(eq.xp).toBe(0);
+    });
+
+    it("adds and consumes crates without going negative", () => {
+      Storage.addCrates(2);
+      expect(Storage.getPetState().crates).toBe(3); // 1 starter + 2
+      expect(Storage.consumeCrate()).toBe(true);
+      expect(Storage.consumeCrate()).toBe(true);
+      expect(Storage.consumeCrate()).toBe(true);
+      expect(Storage.consumeCrate()).toBe(false); // none left
+      expect(Storage.getPetState().crates).toBe(0);
+    });
+
+    it("grants and selects cosmetics idempotently", () => {
+      expect(Storage.grantCosmetic("sparky", "sunset")).toBe(true);
+      expect(Storage.grantCosmetic("sparky", "sunset")).toBe(false);
+      expect(Storage.setCosmetic("sparky", "sunset")).toBe(true);
+      expect(Storage.getPetState().owned.sparky.cosmetic).toBe("sunset");
+      // Cosmetics on an unowned pet are rejected.
+      expect(Storage.grantCosmetic("ghost", "ocean")).toBe(false);
+    });
+
+    it("persists pet state across a fresh read", () => {
+      Storage.grantPet("draco");
+      Storage.addCrates(4);
+      const raw = JSON.parse(localStorage.getItem("bpc_save_v1"));
+      expect(raw.pets.owned.draco).toBeTruthy();
+      expect(raw.pets.crates).toBe(5);
+    });
+  });
 });
