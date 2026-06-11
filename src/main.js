@@ -64,7 +64,12 @@ class Game {
       },
     });
 
-    this.input = new Input(this.canvas, (x, y) => this.handleTap(x, y));
+    this.input = new Input(this.canvas, {
+      onTap: (x, y) => this.handleTap(x, y),
+      onLongPressStart: (x, y) => this.previewAt(x, y),
+      onLongPressMove: (x, y) => this.previewAt(x, y),
+      onLongPressEnd: (x, y) => this.commitPreview(x, y),
+    });
     this.input.setEnabled(false);
 
     // Unlock audio on first interaction.
@@ -119,6 +124,7 @@ class Game {
       coinsEarned: 0,
       doubled: false,
       revived: false,
+      preview: null,
     };
     this._enterSession();
     if (mode === "campaign") this._persistSession();
@@ -171,6 +177,7 @@ class Game {
       coinsEarned: 0,
       doubled: false,
       revived: !!snap.revived,
+      preview: null,
     };
     this._enterSession();
   }
@@ -264,8 +271,51 @@ class Game {
     this.popAt(cell.c, cell.r);
   }
 
+  // ---- Long-press: Preview & Plan --------------------------------------
+  // Projected points for popping a group of size n at the current combo.
+  projectedPoints(n) {
+    if (n < 2) return 0;
+    return Math.round(groupScore(n) * comboMultiplier(this.session.combo));
+  }
+
+  // Highlight the group under the finger and show its projected score.
+  previewAt(px, py) {
+    const s = this.session;
+    if (!s || s.ended || s.armed) return;
+    const cell = s.board.cellAtPixel(px, py);
+    if (!cell) {
+      s.preview = null;
+      return;
+    }
+    const group = s.board.getGroupAt(cell.c, cell.r);
+    if (group.length < 2) {
+      s.preview = null;
+      return;
+    }
+    s.preview = {
+      cells: group,
+      points: this.projectedPoints(group.length),
+      size: group.length,
+    };
+  }
+
+  // Release: pop the previewed group if the finger is still on a valid one.
+  commitPreview(px, py) {
+    const s = this.session;
+    if (!s || s.ended) return;
+    const had = s.preview;
+    s.preview = null;
+    if (s.armed) return;
+    const cell = s.board.cellAtPixel(px, py);
+    if (!cell || !had) return;
+    if (s.board.getGroupAt(cell.c, cell.r).length >= 2) {
+      this.popAt(cell.c, cell.r);
+    }
+  }
+
   popAt(c, r) {
     const s = this.session;
+    s.preview = null;
     const group = s.board.getGroupAt(c, r);
     if (group.length < 2) {
       vibrate(8);
@@ -547,6 +597,13 @@ class Game {
     if (this.session) {
       this.renderer.drawBoardFrame(this.session.board);
       this.renderer.drawBubbles(this.session.board, this.theme);
+      if (this.session.preview) {
+        this.renderer.drawPreview(
+          this.session.board,
+          this.session.preview,
+          this.theme
+        );
+      }
     }
     this.particles.draw(ctx);
     this.floating.draw(ctx);

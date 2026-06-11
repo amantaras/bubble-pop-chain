@@ -126,6 +126,46 @@ test.describe("core gameplay (real input)", () => {
   });
 });
 
+test.describe("gestures: long-press preview (real input)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("holding a bubble previews its group and releasing pops it", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await page.waitForTimeout(700);
+    const cell = await findGroupCell(page);
+    expect(cell).not.toBeNull();
+
+    const px = await page.evaluate(
+      ({ c, r }) => window.__bpc.game.session.board.targetPixel(c, r),
+      cell
+    );
+    const box = await page.locator("#game-canvas").boundingBox();
+    const x = box.x + px.x;
+    const y = box.y + px.y;
+
+    // Press and hold past the long-press threshold (350ms).
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.waitForTimeout(450);
+    const previewSize = await page.evaluate(
+      () => window.__bpc.game.session.preview && window.__bpc.game.session.preview.size
+    );
+    expect(previewSize).toBeGreaterThanOrEqual(2);
+
+    // Releasing on the previewed group pops it and scores.
+    await page.mouse.up();
+    await page.waitForTimeout(250);
+    const after = await page.evaluate(() => ({
+      score: window.__bpc.game.session.score,
+      preview: window.__bpc.game.session.preview,
+    }));
+    expect(after.score).toBeGreaterThan(0);
+    expect(after.preview).toBeNull();
+  });
+});
+
 test.describe("campaign progression", () => {
   test.beforeEach(({ page }) => openGame(page));
 

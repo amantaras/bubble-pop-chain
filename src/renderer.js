@@ -127,6 +127,44 @@ export class Renderer {
     }
   }
 
+  // Highlight the group that a long-press is previewing, and show the
+  // projected score above it so players can plan their pops.
+  drawPreview(board, preview, theme) {
+    const ctx = this.ctx;
+    const cells = preview.cells;
+    if (!cells || !cells.length) return;
+    const radius = board.cell * 0.46;
+    const pulse = 0.6 + 0.25 * Math.sin(performance.now() / 140);
+
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.strokeStyle = `rgba(255,255,255,${pulse})`;
+    ctx.lineWidth = Math.max(2, board.cell * 0.06);
+    let cx = 0,
+      minY = Infinity;
+    for (const cell of cells) {
+      const p = board.targetPixel(cell.c, cell.r);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+      cx += p.x;
+      if (p.y < minY) minY = p.y;
+    }
+    ctx.restore();
+
+    // Projected score label centred above the group.
+    cx /= cells.length;
+    ctx.save();
+    ctx.font = `700 ${Math.round(board.cell * 0.5)}px system-ui, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.shadowColor = "rgba(0,0,0,0.6)";
+    ctx.shadowBlur = 6;
+    ctx.fillStyle = preview.size >= 6 ? "#ffd35b" : "#ffffff";
+    ctx.fillText(`+${preview.points}`, cx, minY - radius - 4);
+    ctx.restore();
+  }
+
   _roundRect(ctx, x, y, w, h, r) {
     ctx.moveTo(x + r, y);
     ctx.arcTo(x + w, y, x + w, y + h, r);
