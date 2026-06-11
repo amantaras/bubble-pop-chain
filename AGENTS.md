@@ -1,0 +1,185 @@
+# AGENTS.md — Bubble Pop Chain
+
+Operating guide for any AI agent (GitHub Copilot, etc.) working in this
+repository. Read this fully before making changes. It captures how the app is
+built, the non‑negotiable workflow, and the lessons already learned so they are
+never re‑discovered the hard way.
+
+---
+
+## 1. What this project is
+
+- **Bubble Pop Chain** — a mobile‑first HTML5 puzzle game (tap connected
+  same‑colour bubbles to pop chains, build combos, clear the board).
+- **No build step, no framework.** Vanilla **ES modules** + HTML5 **Canvas**.
+  Files are served as‑is. Do **not** introduce a bundler, transpiler, or
+  framework without explicit user approval.
+- **Installable PWA**: `manifest.json` + `sw.js` (service worker) + SVG icons.
+- **Persistence**: `localStorage` under the key `bpc_save_v1`.
+- **Live production URL**: https://amantaras.github.io/bubble-pop-chain/
+  (GitHub Pages, served under the `/bubble-pop-chain/` subpath).
+- **Repo**: `amantaras/bubble-pop-chain`, default branch `master` (private).
+
+## 2. Project structure
+
+```
+index.html          # markup: menu, level map, shop, themes, HUD, modals
+styles.css          # all styling (neon-on-dark theme)
+manifest.json       # PWA manifest (RELATIVE paths — see §7)
+sw.js               # service worker, NETWORK-FIRST strategy
+icons/              # icon.svg, maskable.svg (procedural SVG)
+src/
+  main.js           # Game orchestrator: canvas loop, state machine, sessions
+  grid.js           # Board model: flood-fill, gravity, collapse, serialize/restore
+  renderer.js       # Canvas drawing
+  particles.js      # Particle FX
+  animations.js     # ScreenShake, FloatingText
+  input.js          # Pointer input + vibrate() (guarded for iOS)
+  audio.js          # WebAudio (unlocked on first pointerdown)
+  storage.js        # Storage singleton over localStorage (bpc_save_v1)
+  themes.js         # Theme catalog + unlock logic + applyThemeCss
+  levels.js         # LEVEL_COUNT=40, getLevel(id), star thresholds
+  scoring.js        # groupScore, comboMultiplier, clearBonus, starsForScore
+  rng.js            # mulberry32 seeded RNG, todayKey
+  economy.js        # Coins + power-up inventory/prices
+  daily.js          # Daily challenge + streak logic
+  monetization.js   # F2P abstraction (ads/IAP) — MOCK provider, pluggable
+  ui.js             # All DOM UI: screens, level map, shop, themes, HUD, modals
+tests/
+  unit/*.test.js    # Vitest unit tests (real modules, jsdom)
+  e2e/game.spec.js  # Playwright E2E (real browser, real input)
+  server.mjs        # zero-dep static server (port arg, default 4173)
+  setup.js          # deterministic in-memory localStorage for unit tests
+  SKILL.md          # testing + CI/CD reference doc
+.github/workflows/
+  ci.yml            # unit + e2e on every push/PR
+  deploy.yml        # deploys to GitHub Pages ONLY after CI success on master
+```
+
+## 3. THE GOLDEN RULE — features, tests and CI/CD move together
+
+Whenever you add or change a feature, you MUST update **all** of the following
+in the **same** change. A feature is not "done" until every box is checked:
+
+1. **Implement** the feature in `src/` (and `index.html`/`styles.css` if UI).
+2. **Unit tests** — add/extend `tests/unit/*.test.js` for any new logic
+   (scoring, grid ops, storage fields, economy, etc.). Test the REAL module.
+3. **E2E tests** — add/extend `tests/e2e/game.spec.js` for any new user-facing
+   flow, driving the REAL game (real clicks, real canvas taps). Cover every new
+   code path.
+4. **CI/CD** — if the feature adds files, assets, routes, scripts, env, or build
+   needs, update `.github/workflows/ci.yml` and/or `deploy.yml`, the
+   `sw.js` cache `ASSETS` list, and `manifest.json` as needed.
+5. **Run the full suite locally** and confirm GREEN before committing:
+   ```bash
+   npm test          # unit (Vitest) + e2e (Playwright) — must be 100% green
+   ```
+6. **Update docs** — keep `tests/SKILL.md` test-coverage list and this
+   `AGENTS.md` accurate when behaviour or structure changes.
+7. **Commit & push** to `master`, then **verify CI and the deploy both pass**
+   (see §6). Production is gated on CI — never bypass it.
+
+If you cannot make the tests pass, do not commit. Fix the root cause.
+
+## 4. Testing rules (NO MOCKING of game code)
+
+- **Real testing only.** Unit tests import and exercise the actual `src/*.js`
+  modules. E2E tests drive the real running game in real Chromium. The only
+  intentional stub is `src/monetization.js` (the ad/IAP provider awaiting a real
+  SDK) — test the real shipped code path; do not add extra mocking on top.
+- **The `?e2e=1` hook**: `src/main.js` exposes internals on `window.__bpc`
+  **only** when the URL has `?e2e=1`. Use it in E2E tests to set up/inspect
+  state — never to replace logic. Production never sets this param.
+- **Commands**:
+  ```bash
+  npm install              # first time
+  npm run test:install     # install Playwright Chromium (first time / CI)
+  npm run test:unit        # Vitest (fast)
+  npm run test:e2e         # Playwright (real browser, mobile + desktop)
+  npm test                 # full gate: unit then e2e
+  npm run serve            # preview at http://127.0.0.1:4173
+  ```
+- **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
+  derived values, not random outcomes. Unit tests get a clean in-memory
+  `localStorage` via `tests/setup.js` (reset before each test).
+- **Current baseline (keep growing, never shrink)**: 65 unit tests + 50 E2E
+  tests, all passing. New features must add tests, not remove coverage.
+
+## 5. CI/CD — production is gated on tests
+
+- `.github/workflows/ci.yml`: runs `unit` (Vitest) and `e2e` (Playwright on
+  Chromium) on every push and PR; uploads the Playwright HTML report.
+- `.github/workflows/deploy.yml`: triggered by `workflow_run` on **completion of
+  CI for `master`** and only proceeds when `conclusion == 'success'`, then
+  publishes to GitHub Pages. **A red test suite means no deploy — keep it that
+  way.** The deploy workflow self-enables Pages; do not remove that step.
+- Node 20 in current workflows. (GitHub deprecation warning about Node 20
+  actions is non-blocking; bump action versions only when asked.)
+
+## 6. How to verify a deploy (always do this after pushing to master)
+
+```bash
+gh run list --limit 6                       # see CI + Deploy status
+gh run watch <deploy_run_id> --exit-status  # wait for the deploy to finish
+curl -s -o /dev/null -w "%{http_code}\n" https://amantaras.github.io/bubble-pop-chain/
+```
+The deploy run must end in **success** and the live URL must return 200. If CI
+is red, the deploy is correctly skipped — fix CI first.
+
+## 7. Platform / PWA gotchas (already handled — keep them handled)
+
+- **Relative paths everywhere.** `index.html`, `manifest.json`
+  (`start_url: "./index.html"`, `scope: "./"`), and `sw.js` cache entries all
+  use `./...` (no leading `/`). This is REQUIRED for the GitHub Pages subpath
+  `/bubble-pop-chain/`. Never switch to absolute root paths.
+- **Service worker is network-first** (so updates aren't masked by stale cache).
+  When you add/rename a source or asset file, add it to the `ASSETS` list in
+  `sw.js`, or it won't be available offline.
+- **iOS Safari**: `navigator.vibrate` is unsupported — input code guards this;
+  keep haptics optional. Audio must start after a user gesture — `audio.js`
+  already unlocks on first `pointerdown`. Don't autoplay audio.
+- **Install/offline needs HTTPS.** Plain `http://<lan-ip>:4173` works for
+  gameplay but won't register the service worker. Use the Pages HTTPS URL (or a
+  tunnel) to test PWA install on a phone.
+- Works on modern Android (Chrome/Edge/Firefox/Samsung) and iOS (Safari).
+
+## 8. Persistence & save format (`bpc_save_v1`)
+
+- `Storage` (`src/storage.js`) is the single source of truth. `deepDefault`
+  merges saved data over `DEFAULT_SAVE`, so **adding a new save field is safe** —
+  add it to `DEFAULT_SAVE` and existing saves get the default automatically.
+- Permanent progression is written on level completion: `maxUnlockedLevel`,
+  per-level `stars`, `coins`, `highScoreEndless`, `daily` streak, owned/active
+  themes, power-up counts, `adsRemoved`, `muted`.
+- **Save & resume**: the in-progress *campaign* level is snapshotted to
+  `activeSession` (board grid + score + moves) after every move, on quit, and on
+  revive. The menu shows a **"Continue • Level N"** button to resume the exact
+  board; the snapshot survives reload and is cleared only when the level
+  finishes. `Board.serialize()/restore()` round-trip the colour grid. If you
+  change session shape, update both the snapshot writer (`_persistSession` in
+  `main.js`) and `resumeCampaign`, plus the resume tests.
+- Save is **per-device** (localStorage). There is no cloud sync; don't claim
+  cross-device progress.
+
+## 9. Git / workflow conventions
+
+- Branch: `master`. Commit messages: concise, imperative, with a short bullet
+  body for non-trivial changes.
+- **Commit with**: `git -c commit.gpgsign=false commit -m "..."` (GPG signing is
+  not configured in this environment; the flag avoids a signing failure).
+- Never commit `node_modules/`, `test-results/`, `playwright-report/`,
+  `coverage/` (already in `.gitignore`).
+- Do not force-push, reset shared history, or bypass CI hooks.
+- Don't create extra markdown/docs files unless the user asks. (`tests/SKILL.md`
+  and this `AGENTS.md` were explicitly requested.)
+
+## 10. Definition of done (checklist before you say "done")
+
+- [ ] Feature implemented with relative paths and existing patterns.
+- [ ] Unit tests added/updated and passing.
+- [ ] E2E tests added/updated and passing (mobile + desktop projects).
+- [ ] `sw.js` ASSETS / `manifest.json` updated if files/assets changed.
+- [ ] `npm test` is 100% green locally.
+- [ ] `tests/SKILL.md` and `AGENTS.md` updated if behaviour/structure changed.
+- [ ] Committed and pushed to `master`.
+- [ ] CI passed AND the production deploy succeeded; live URL returns 200.
