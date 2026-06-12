@@ -89,6 +89,7 @@ class UIManager {
       "win-chest", "win-chest-art", "win-chest-burst", "win-chest-hint", "win-reward-reveal",
       "lose-score", "lose-revive", "lose-retry", "lose-menu",
       "isolated", "iso-msg", "iso-pick", "iso-giveup",
+      "btn-daily",
       "btn-sound",
       "btn-tutorial", "tutorial", "coach-progress", "coach-title",
       "coach-body", "coach-hint", "coach-next", "coach-skip",
@@ -421,6 +422,15 @@ class UIManager {
     if (freeze > 0) parts.push(`<span class="ds-freeze">${freeze}❄️</span>`);
     if (done) parts.push(`<span class="ds-done">✓ played</span>`);
     el.innerHTML = parts.join("");
+
+    // The daily can be completed only once per day, so lock its menu tile once
+    // today's run is recorded — a tap then just confirms it's done (startDaily
+    // also guards, so the lock can never be bypassed).
+    const tile = this.el["btn-daily"];
+    if (tile) {
+      tile.classList.toggle("locked", done);
+      tile.setAttribute("aria-disabled", done ? "true" : "false");
+    }
   }
 
   refreshCoins() {

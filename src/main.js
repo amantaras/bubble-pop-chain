@@ -503,14 +503,20 @@ class Game {
   }
 
   startDaily() {
+    // The daily challenge can be completed only once per day. Once today's run
+    // is in the books, refuse to start a fresh board and nudge the player to
+    // come back tomorrow (the menu's Daily tile is locked to match).
+    if (alreadyPlayedToday()) {
+      UI.updateDailySummary();
+      UI.toast(`Daily done! Back tomorrow • Streak ${getStreak()}🔥`);
+      return;
+    }
     const lvl = getDailyLevel();
     this._newSession("daily", lvl);
     this.session.movesLeft = 9999;
     this.session.goals = getDailyGoals(lvl);
     const mod = lvl.modifier;
-    if (alreadyPlayedToday()) {
-      UI.toast(`Replaying today • Streak ${getStreak()}🔥`);
-    } else if (mod) {
+    if (mod) {
       UI.toast(`Today: ${mod.label} — ${mod.desc}`);
     }
   }

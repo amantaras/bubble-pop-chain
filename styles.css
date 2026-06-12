@@ -270,6 +270,18 @@ body {
 .tile:active {
   transform: scale(0.93);
 }
+/* Daily can be completed once per day — dim its tile and show a ✓ once done. */
+.tile.locked {
+  opacity: 0.55;
+  filter: saturate(0.6);
+}
+.tile.locked .tile-ic {
+  box-shadow: none;
+}
+.tile.locked .tile-label::after {
+  content: " ✓";
+  color: var(--good, #10b981);
+}
 .tile-ic {
   width: 48px;
   height: 48px;

@@ -155,7 +155,10 @@ never re‑discovered the hard way.
   `toContainText` assertions read it regardless of visibility.
 - **Daily retention** (`daily.js`): rotating seeded modifier, three tiered
   goals → daily stars, a 7‑day reward cycle, and a streak‑freeze token that
-  rescues one missed day.
+  rescues one missed day. The daily can be **completed only once per day**:
+  `recordDaily` stamps `lastDate`, `Game.startDaily` refuses to open a fresh
+  board when `alreadyPlayedToday()` (toasts "back tomorrow" instead), and the
+  menu's Daily tile is **locked** (`updateDailySummary` toggles `.locked`).
 - **Login calendar / daily gifts** (`calendar.js`, pure; `storage.js`
   `loginCalendar`): a rolling **7-day login reward cycle** that advances **once
   per calendar day** the player claims. `CALENDAR_REWARDS` is the 7-day table

@@ -407,6 +407,33 @@ test.describe("daily retention engine", () => {
     expect(daily.streak).toBeGreaterThanOrEqual(1);
     expect(daily.lastDate).not.toBeNull();
   });
+
+  test("the daily can be completed only once per day", async ({ page }) => {
+    // Complete today's daily once.
+    await page.evaluate(() => window.__bpc.game.startDaily());
+    await page.waitForTimeout(500);
+    await autoPlay(page);
+    await expect(page.locator("#win")).toBeVisible();
+    await page.locator("#win-menu").click();
+    await expect(page.locator("#menu")).toBeVisible();
+
+    // The menu's Daily tile is now locked and tapping it must NOT start a
+    // fresh board — the player stays on the menu (come back tomorrow).
+    await expect(page.locator("#btn-daily")).toHaveClass(/locked/);
+    // The tile keeps its click handler (it's only visually locked), so dispatch
+    // the click directly — startDaily's guard must still refuse to start.
+    await page.locator("#btn-daily").dispatchEvent("click");
+    await expect(page.locator("#menu")).toBeVisible();
+    // Returning to the menu cleared the session; the blocked re-entry must not
+    // have started a new daily, so no session exists.
+    expect(await page.evaluate(() => window.__bpc.game.session)).toBeNull();
+
+    // The streak/record was untouched by the blocked re-entry.
+    const daily = await page.evaluate(
+      () => JSON.parse(localStorage.getItem("bpc_save_v1")).daily
+    );
+    expect(daily.streak).toBe(1);
+  });
 });
 
 test.describe("campaign progression", () => {
