@@ -148,7 +148,8 @@ body {
 #menu {
   justify-content: center;
   align-items: center;
-  gap: 36px;
+  gap: 24px;
+  overflow-y: auto;
 }
 .logo {
   position: relative;
@@ -198,13 +199,130 @@ body {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-10px); }
 }
-.menu-buttons {
+
+/* Primary call-to-action buttons (Continue / Play) */
+.menu-primary {
   width: 100%;
-  max-width: 340px;
+  max-width: 360px;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
+.menu-cta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  padding: 15px 20px;
+}
+.cta-ic {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 18, 42, 0.16);
+}
+.menu-cta:not(.btn-primary) .cta-ic {
+  background: rgba(255, 255, 255, 0.08);
+}
+.cta-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.18;
+}
+.cta-title {
+  font-size: 19px;
+  font-weight: 800;
+}
+.cta-sub {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.78;
+}
+
+/* Secondary feature tiles */
+.menu-tiles {
+  width: 100%;
+  max-width: 360px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.tile {
+  appearance: none;
+  border: 1px solid var(--glass-brd);
+  background: var(--glass);
+  color: var(--text);
+  border-radius: 18px;
+  padding: 15px 8px 13px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: transform 0.08s ease, box-shadow 0.2s ease, border-color 0.2s;
+}
+.tile:active {
+  transform: scale(0.93);
+}
+.tile-ic {
+  width: 48px;
+  height: 48px;
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  box-shadow: 0 7px 16px rgba(0, 0, 0, 0.28);
+}
+.tile-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+.tile.t-endless .tile-ic {
+  background: linear-gradient(135deg, #8b5bff, #5b8bff);
+}
+.tile.t-daily .tile-ic {
+  background: linear-gradient(135deg, #34d399, #10b981);
+}
+.tile.t-shop .tile-ic {
+  background: linear-gradient(135deg, #ffce5b, #ff9f43);
+  color: #2a1c00;
+}
+.tile.t-themes .tile-ic {
+  background: linear-gradient(135deg, #ff6bd6, #a86bff);
+}
+.tile.t-achievements .tile-ic {
+  background: linear-gradient(135deg, #ffd35b, #ffb35b);
+  color: #2a1c00;
+}
+.tile.t-pets .tile-ic {
+  background: linear-gradient(135deg, #ff8a5b, #ff5b8b);
+}
+
+/* Slim help button */
+.menu-help {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 13px 18px;
+  font-size: 15px;
+  color: var(--text-dim);
+}
+.help-ic {
+  display: flex;
+  align-items: center;
+}
+
 .menu-foot {
   position: absolute;
   top: calc(var(--safe-top) + 14px);

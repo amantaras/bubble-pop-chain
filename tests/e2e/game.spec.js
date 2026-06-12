@@ -79,25 +79,34 @@ test.describe("menu & navigation (UI)", () => {
 
   test("main menu renders all entry points", async ({ page }) => {
     await expect(page.locator("#menu")).toBeVisible();
-    for (const name of ["Play", "Endless", "Daily Challenge", "Shop", "Themes"]) {
-      await expect(page.getByRole("button", { name, exact: true })).toBeVisible();
+    for (const id of [
+      "btn-play",
+      "btn-endless",
+      "btn-daily",
+      "btn-shop",
+      "btn-themes",
+      "btn-achievements",
+      "btn-pets",
+      "btn-tutorial",
+    ]) {
+      await expect(page.locator(`#${id}`)).toBeVisible();
     }
   });
 
   test("Play opens the level map with level 1 unlocked", async ({ page }) => {
-    await page.getByRole("button", { name: "Play", exact: true }).click();
+    await page.locator("#btn-play").click();
     await expect(page.locator("#levelmap")).toBeVisible();
     await expect(page.locator(".level-cell").first()).toContainText("1");
     await expect(page.locator(".level-cell.locked").first()).toBeVisible();
   });
 
   test("Shop and Themes open and Back returns to menu", async ({ page }) => {
-    await page.getByRole("button", { name: "Shop", exact: true }).click();
+    await page.locator("#btn-shop").click();
     await expect(page.locator("#shop")).toBeVisible();
     await page.locator("#shop-back").click();
     await expect(page.locator("#menu")).toBeVisible();
 
-    await page.getByRole("button", { name: "Themes", exact: true }).click();
+    await page.locator("#btn-themes").click();
     await expect(page.locator("#themes")).toBeVisible();
     await page.locator("#themes-back").click();
     await expect(page.locator("#menu")).toBeVisible();
@@ -413,7 +422,7 @@ test.describe("milestone events (every 5 levels)", () => {
   test.beforeEach(({ page }) => openGame(page));
 
   test("the level map flags treasure and boss milestones", async ({ page }) => {
-    await page.getByRole("button", { name: "Play", exact: true }).click();
+    await page.locator("#btn-play").click();
     await expect(page.locator("#levelmap")).toBeVisible();
     // Level 5 is a treasure beat; level 10 is a boss beat.
     await expect(page.locator(".level-cell").nth(4)).toHaveClass(
@@ -790,7 +799,7 @@ test.describe("achievements (badges & rewards)", () => {
   test("Achievements screen opens from the menu and lists every badge", async ({
     page,
   }) => {
-    await page.getByRole("button", { name: "Achievements", exact: true }).click();
+    await page.locator("#btn-achievements").click();
     await expect(page.locator("#achievements")).toBeVisible();
     const total = await page.evaluate(
       () => window.__bpc.game && document.querySelectorAll("#achv-list .achv-item").length

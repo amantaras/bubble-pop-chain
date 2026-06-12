@@ -221,12 +221,14 @@ class UIManager {
   }
 
   // Show a "Continue" entry on the menu when a campaign level is in progress.
-  updateContinue() {    const btn = this.el["btn-continue"];
+  updateContinue() {
+    const btn = this.el["btn-continue"];
     if (!btn) return;
     const play = $("btn-play");
     const snap = Storage.get("activeSession");
     if (snap && snap.mode === "campaign" && !snap.ended) {
-      btn.textContent = `Continue • Level ${snap.levelId}`;
+      const sub = btn.querySelector(".cta-sub");
+      if (sub) sub.textContent = `Resume Level ${snap.levelId}`;
       btn.classList.remove("hidden");
       if (play) play.classList.remove("btn-primary");
     } else {

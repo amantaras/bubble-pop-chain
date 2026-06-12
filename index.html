@@ -93,17 +93,102 @@
         <span class="logo-bubble b3"></span>
         <h1>Bubble<br />Pop Chain</h1>
       </div>
-      <div class="menu-buttons">
-        <button class="btn btn-primary hidden" id="btn-continue">Continue</button>
-        <button class="btn btn-primary" id="btn-play">Play</button>
-        <button class="btn" id="btn-endless">Endless</button>
-        <button class="btn" id="btn-daily">Daily Challenge</button>
-        <button class="btn" id="btn-shop">Shop</button>
-        <button class="btn" id="btn-themes">Themes</button>
-        <button class="btn" id="btn-achievements">Achievements</button>
-        <button class="btn" id="btn-pets">Pets</button>
-        <button class="btn" id="btn-tutorial">How to Play</button>
+      <div class="menu-primary">
+        <button class="btn btn-primary menu-cta hidden" id="btn-continue">
+          <span class="cta-ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
+              <circle cx="12" cy="12" r="9.25" stroke="currentColor" stroke-width="1.8" />
+              <path d="M10 8.5l5 3.5-5 3.5z" fill="currentColor" />
+            </svg>
+          </span>
+          <span class="cta-text">
+            <span class="cta-title">Continue</span>
+            <span class="cta-sub">Resume your level</span>
+          </span>
+        </button>
+        <button class="btn btn-primary menu-cta" id="btn-play">
+          <span class="cta-ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
+              <path d="M7 5.5l11 6.5-11 6.5z" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+            </svg>
+          </span>
+          <span class="cta-text">
+            <span class="cta-title">Play</span>
+            <span class="cta-sub">Campaign levels</span>
+          </span>
+        </button>
       </div>
+      <div class="menu-tiles">
+        <button class="tile t-endless" id="btn-endless">
+          <span class="tile-ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
+              <path d="M8.5 9.5a3.5 3.5 0 100 5c1.2 0 2-.8 3.5-2.5 1.5-1.7 2.3-2.5 3.5-2.5a3.5 3.5 0 110 5c-1.2 0-2-.8-3.5-2.5C11 13.3 9.7 12 8.5 9.5z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </span>
+          <span class="tile-label">Endless</span>
+        </button>
+        <button class="tile t-daily" id="btn-daily">
+          <span class="tile-ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
+              <rect x="4" y="5.5" width="16" height="14" rx="3" stroke="currentColor" stroke-width="1.9" />
+              <path d="M4 9.5h16M8 3.5v3M16 3.5v3" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" />
+              <circle cx="12" cy="14.5" r="1.6" fill="currentColor" />
+            </svg>
+          </span>
+          <span class="tile-label">Daily</span>
+        </button>
+        <button class="tile t-shop" id="btn-shop">
+          <span class="tile-ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
+              <path d="M6.5 8.5h11l-1 9.5a2 2 0 01-2 1.8H9.5a2 2 0 01-2-1.8z" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" />
+              <path d="M9 9V7.5a3 3 0 016 0V9" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" />
+            </svg>
+          </span>
+          <span class="tile-label">Shop</span>
+        </button>
+        <button class="tile t-themes" id="btn-themes">
+          <span class="tile-ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
+              <path d="M12 3.5a8.5 8.5 0 100 17c1.4 0 2-.9 2-1.8 0-.6-.4-1-.4-1.6 0-.7.6-1.3 1.4-1.3H17a4 4 0 004-4c0-4.5-4-8.3-9-8.3z" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" />
+              <circle cx="8" cy="11" r="1.1" fill="currentColor" />
+              <circle cx="12" cy="8" r="1.1" fill="currentColor" />
+              <circle cx="16" cy="11" r="1.1" fill="currentColor" />
+            </svg>
+          </span>
+          <span class="tile-label">Themes</span>
+        </button>
+        <button class="tile t-achievements" id="btn-achievements">
+          <span class="tile-ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
+              <path d="M7 4.5h10v3a5 5 0 01-10 0z" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" />
+              <path d="M7 5.5H4.5v1.5a3 3 0 003 3M17 5.5h2.5v1.5a3 3 0 01-3 3M10 12.5h4M9.5 19.5h5M12 12.5v7" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </span>
+          <span class="tile-label">Trophies</span>
+        </button>
+        <button class="tile t-pets" id="btn-pets">
+          <span class="tile-ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
+              <ellipse cx="12" cy="16" rx="3.6" ry="3" fill="currentColor" />
+              <circle cx="6.5" cy="11" r="1.7" fill="currentColor" />
+              <circle cx="17.5" cy="11" r="1.7" fill="currentColor" />
+              <circle cx="9.5" cy="7.5" r="1.7" fill="currentColor" />
+              <circle cx="14.5" cy="7.5" r="1.7" fill="currentColor" />
+            </svg>
+          </span>
+          <span class="tile-label">Pets</span>
+        </button>
+      </div>
+      <button class="btn btn-ghost menu-help" id="btn-tutorial">
+        <span class="help-ic" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
+            <path d="M9.4 9.2a2.6 2.6 0 015 .9c0 1.7-2.4 2-2.4 3.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            <circle cx="12" cy="16.6" r="1.1" fill="currentColor" />
+          </svg>
+        </span>
+        How to Play
+      </button>
       <div class="menu-foot">
         <div class="coins-pill big"><span class="coin-dot"></span><span id="menu-coins">0</span></div>
         <div class="daily-summary" id="daily-summary"></div>
