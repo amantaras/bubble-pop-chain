@@ -61,6 +61,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   keeps the highest and flags a genuine new best),
   the world-map chapters (`chapterForLevel` tiles all 40 levels into 5 themed
   chapters of 8 with no gaps),
+  the per-level bonus objectives (`objectiveForLevel`: deterministic combo/
+  group/nopowerup challenges, skipped on early + milestone levels),
   the login calendar (`calendarStatus`/`advanceCalendar`: 7-day cycle, one claim
   per day, reward index wraps after a full week),
   the pet companion system (catalog integrity + premium flags, XP/level curve,
@@ -92,6 +94,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   and the Themes toggle disables/suppresses it), per-level best score (a clear
   records a best shown on the level map, beating a prior best celebrates a
   "New best score"),
+  the world-map chapter headers on the level map (5 themed chapters with level
+  ranges), the per-level bonus objectives (HUD chip shown on ordinary levels +
+  hidden on milestones, meeting one pays a coin bonus on the win screen),
   the pet companions flow (Pets screen with starter Sparky owned/equipped,
   buy + open a crate grants a pet, the Pet Store sells premium pets + a
   Legendary Crate that grants a pet, buying a premium pet unlocks it, equipping

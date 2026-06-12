@@ -69,6 +69,7 @@ class UIManager {
       "btn-continue", "daily-summary",
       "hud-mode-label", "hud-score", "hud-target", "hud-target-wrap", "hud-target-label",
       "hud-moves", "hud-moves-label", "hud-progress-fill",
+      "hud-objective", "hud-objective-text",
       "power-meter", "power-fill", "power-label",
       "fever-meter", "fever-fill", "fever-label",
       "powerups", "pu-slot-0", "pu-slot-1", "pu-slot-2",
@@ -1296,6 +1297,21 @@ class UIManager {
     if (s.progress !== undefined)
       this.el["hud-progress-fill"].style.width = `${Math.min(100, s.progress * 100)}%`;
     this.refreshCoins();
+  }
+
+  // Show/hide the bonus-objective chip in the HUD. `obj` is the level objective
+  // ({ label, bonus, ... }) or null to hide it; `met` toggles the achieved look.
+  updateObjective(obj, met) {
+    const chip = this.el["hud-objective"];
+    if (!chip) return;
+    if (!obj) {
+      chip.classList.add("hidden");
+      return;
+    }
+    chip.classList.remove("hidden");
+    chip.classList.toggle("met", !!met);
+    const txt = this.el["hud-objective-text"];
+    if (txt) txt.textContent = met ? `${obj.label} ✓` : obj.label;
   }
 
   updatePowerups() {

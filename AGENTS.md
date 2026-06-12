@@ -241,6 +241,25 @@ never re‑discovered the hard way.
   full-width `.chapter-header` (icon, name, level range, plus a `done ✓` /
   `locked` state from `maxUnlockedLevel`) before the first level of each chapter.
   Like other map/meta displays this gets **no tutorial step**.
+- **Bonus objectives** (`levels.js` `objectiveForLevel`, `main.js`
+  `_trackObjective`/`_markPowerupUsed`, `ui.js` `updateObjective`): every
+  ordinary campaign level carries an **optional bonus objective** layered on top
+  of the score target — `combo` (reach a ×N combo), `group` (pop a single group
+  of N+), or `nopowerup` (clear without spending a power-up tool). It is
+  **purely additive**: meeting it pays bonus coins on the win screen (a
+  `🎯 Objective` `rewardBit`) but **never changes the win/star outcome** (the
+  score target stays the only win condition). Objectives are deterministic per
+  level (`objectiveForLevel(n)`, derived from the level number) and are skipped
+  on levels 1–2 and on milestone (treasure/boss) beats, which already carry
+  their own identity. `getLevel(id).objective` exposes `{ type, goal, bonus,
+  label }`. The session tracks `objective`/`objectiveMet`/`usedPowerup` (all in
+  the resume snapshot): combo/group latch as soon as reached during `popAt`
+  (`_trackObjective`); `usedPowerup` is set whenever a tool is spent
+  (`applyPowerup`/`lockMagnet`/shuffle via `_markPowerupUsed`) and `nopowerup`
+  resolves at `_finish`. The HUD shows a **🎯 objective chip** (`#hud-objective`,
+  hidden on boss/non-campaign, lit `.met` with a ✓ when achieved) and a brief
+  intro toast at level start. Like other meta/challenge displays it gets **no
+  tutorial step**.
 - **Pet companions** (`pets.js`, pure; `storage.js` `pets`): collectible helper
   pets that support the player both **passively** and with **active board
   powers**. `PET_CATALOG` holds 10 pets across four rarities

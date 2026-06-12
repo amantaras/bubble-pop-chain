@@ -61,6 +61,40 @@ function specialsForLevel(n) {
   return { rainbow, ice, lightning };
 }
 
+// Bonus objectives ----------------------------------------------------------
+// Each ordinary campaign level carries an optional bonus objective: an extra
+// challenge layered on top of the score target. Meeting it pays bonus coins on
+// the win screen, but it never affects the win/star outcome — the score target
+// stays the primary goal. Objectives are deterministic per level (derived from
+// the level number) so the campaign is reproducible, and they are skipped on
+// the first couple of levels and on milestone (treasure/boss) beats, which
+// already carry their own identity.
+export function objectiveForLevel(n) {
+  if (n <= 2 || milestoneType(n)) return null;
+  const kinds = ["combo", "group", "nopowerup"];
+  const kind = kinds[(n - 3) % kinds.length];
+  if (kind === "combo") {
+    const goal = 3 + Math.floor(n / 12); // 3 → 6 across the campaign
+    return {
+      type: "combo",
+      goal,
+      bonus: 40 + goal * 10,
+      label: `Reach a ×${goal} combo`,
+    };
+  }
+  if (kind === "group") {
+    const goal = 5 + Math.floor(n / 14); // 5 → 7 across the campaign
+    return {
+      type: "group",
+      goal,
+      bonus: 40 + goal * 8,
+      label: `Pop a group of ${goal}+`,
+    };
+  }
+  // nopowerup — clear the level without spending any power-up tool.
+  return { type: "nopowerup", goal: 0, bonus: 90, label: "Win without power-ups" };
+}
+
 export function getLevel(id) {
   const n = Math.max(1, Math.min(LEVEL_COUNT, id));
   const cols = colsForLevel(n);
@@ -101,6 +135,7 @@ export function getLevel(id) {
     milestone,
     boss,
     chapter: chapterForLevel(n),
+    objective: objectiveForLevel(n),
   };
 }
 

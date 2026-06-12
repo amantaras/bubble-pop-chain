@@ -1393,6 +1393,65 @@ test.describe("per-level best score", () => {
 });
 
 
+test.describe("bonus objectives", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("ordinary levels surface a bonus-objective chip in the HUD", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(3));
+    await page.waitForTimeout(500);
+    await expect(page.locator("#hud-objective")).toBeVisible();
+    const label = await page.evaluate(
+      () => window.__bpc.getLevel(3).objective.label
+    );
+    await expect(page.locator("#hud-objective-text")).toContainText(label);
+  });
+
+  test("milestone levels carry no bonus objective", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(5));
+    await page.waitForTimeout(500);
+    await expect(page.locator("#hud-objective")).toBeHidden();
+  });
+
+  test("meeting the objective pays a bonus on the win screen", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(3));
+    await page.waitForTimeout(500);
+    const before = await page.evaluate(() => window.__bpc.Economy.coins);
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      g.session.objectiveMet = true;
+      g.session.score = g.session.level.target;
+      g.session.movesLeft = 0;
+      g.afterMove();
+    });
+    await expect(page.locator("#win")).toBeVisible();
+    await expect(page.locator("#win-reward")).toContainText("Objective");
+    const after = await page.evaluate(() => window.__bpc.Economy.coins);
+    expect(after).toBeGreaterThan(before);
+  });
+
+  test("a 'no power-ups' objective is missed when a power-up is used", async ({
+    page,
+  }) => {
+    // Level 8 carries the 'Win without power-ups' objective.
+    await page.evaluate(() => window.__bpc.game.startCampaign(8));
+    await page.waitForTimeout(500);
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      g.session.usedPowerup = true; // spent a tool → objective failed
+      g.session.score = g.session.level.target;
+      g.session.movesLeft = 0;
+      g.afterMove();
+    });
+    await expect(page.locator("#win")).toBeVisible();
+    await expect(page.locator("#win-reward")).not.toContainText("Objective");
+  });
+});
+
+
 test.describe("falling events (gift & problem tokens)", () => {
   test.beforeEach(({ page }) => openGame(page));
 

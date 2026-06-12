@@ -323,6 +323,9 @@ class Game {
       shiftTokens: mode === "campaign" ? 0 : 5,
       stats: this._newStats(),
       bossCoreTotal,
+      objective: (mode === "campaign" && level.objective) || null,
+      objectiveMet: false,
+      usedPowerup: false,
     };
     this._enterSession();
     if (mode === "campaign") this._persistSession();
@@ -353,6 +356,16 @@ class Game {
     this._syncAlienShip();
     this.input.setEnabled(true);
     this.refreshHud();
+    // Announce the bonus objective at the start of a fresh campaign level.
+    const s = this.session;
+    if (
+      s.mode === "campaign" &&
+      s.objective &&
+      !s.objectiveMet &&
+      s.score === 0
+    ) {
+      UI.toast(`🎯 Bonus: ${s.objective.label} (+${s.objective.bonus})`, 2600);
+    }
   }
 
   // Deploy or retire the premium Nova gunship for the current session. The ship
@@ -419,6 +432,9 @@ class Game {
       shiftTokens: 0,
       stats: snap.stats || this._newStats(),
       bossCoreTotal: snap.bossCoreTotal || board.frozenRemaining(),
+      objective: level.objective || null,
+      objectiveMet: !!snap.objectiveMet,
+      usedPowerup: !!snap.usedPowerup,
     };
     this._enterSession();
   }
@@ -438,6 +454,8 @@ class Game {
       types: s.board.serializeTypes(),
       stats: s.stats,
       bossCoreTotal: s.bossCoreTotal || 0,
+      objectiveMet: !!s.objectiveMet,
+      usedPowerup: !!s.usedPowerup,
     });
   }
 
@@ -806,10 +824,38 @@ class Game {
     if (this.tutorial && this.tutorial.active) this.tutorial.onAction(type);
   }
 
+  // Track progress toward the level's optional bonus objective. Combo/group
+  // objectives latch as soon as they're reached; "nopowerup" is evaluated at
+  // finish from the usedPowerup flag. Purely additive — never affects win/stars.
+  _trackObjective({ combo = 0, group = 0 } = {}) {
+    const s = this.session;
+    if (!s || s.mode !== "campaign" || s.objectiveMet) return;
+    const obj = s.objective;
+    if (!obj) return;
+    if (obj.type === "combo" && combo >= obj.goal) s.objectiveMet = true;
+    else if (obj.type === "group" && group >= obj.goal) s.objectiveMet = true;
+    if (s.objectiveMet) {
+      Audio.coin();
+      this.floating.spawn(this.W / 2, this.H * 0.32, "🎯 Objective!", "#5be3ff", 28);
+      this.refreshHud();
+    }
+  }
+
+  // A power-up tool was spent this level (used by the "nopowerup" objective).
+  _markPowerupUsed() {
+    const s = this.session;
+    if (s && s.mode === "campaign") s.usedPowerup = true;
+  }
+
   // ---- HUD --------------------------------------------------------------
   refreshHud() {
     const s = this.session;
     if (!s) return;
+    // Bonus objective chip (campaign non-boss levels only).
+    UI.updateObjective(
+      s.mode === "campaign" && s.level.milestone !== "boss" ? s.objective : null,
+      s.objectiveMet
+    );
     if (s.mode === "campaign") {
       const mtype = s.level.milestone;
       const badge = mtype === "boss" ? "👹 " : mtype === "treasure" ? "🎁 " : "";
@@ -1029,6 +1075,8 @@ class Game {
     this._tut("pop");
     if (struck) this._tut("lightning");
     if (s.combo >= 2) this._tut("combo");
+    // Bonus objective progress: a big combo or a single large group.
+    this._trackObjective({ combo: s.combo, group: group.length });
     this.afterMove();
   }
 
@@ -1252,6 +1300,7 @@ class Game {
 
     // Tutorial mode bypasses the economy so it never spends real inventory.
     if (s.mode !== "tutorial" && !Economy.usePowerup(type)) return;
+    this._markPowerupUsed();
     const points = Math.round(
       feverPoints(groupScore(Math.max(2, cells.length)), s.feverActive) *
         s.petBuffs.scoreMult
@@ -1348,6 +1397,7 @@ class Game {
     UI.updatePowerups();
 
     const res = s.board.magnetGather(anchor.c, anchor.r, color, strength);
+    this._markPowerupUsed();
     Audio.powerup();
     vibrate(strength > 0.85 ? 28 : 14);
     const t = s.board.targetPixel(anchor.c, anchor.r);
@@ -1571,6 +1621,7 @@ class Game {
     }
     if (type === "shuffle") {
       if (!inTutorial) Economy.usePowerup(type);
+      this._markPowerupUsed();
       s.board.shuffle();
       Audio.powerup();
       UI.updatePowerups();
@@ -1834,7 +1885,21 @@ class Game {
           if (bonusCoins) Economy.addCoins(bonusCoins);
         }
 
-        const totalCoins = coins + bonusCoins;
+        // Bonus objective: pay extra coins if the level's optional challenge
+        // was met. "nopowerup" resolves from the usedPowerup flag at finish;
+        // combo/group objectives latch during play. Purely additive reward.
+        let objectiveBonus = 0;
+        if (s.objective) {
+          const met =
+            s.objective.type === "nopowerup" ? !s.usedPowerup : s.objectiveMet;
+          if (met) {
+            objectiveBonus = s.objective.bonus;
+            Economy.addCoins(objectiveBonus);
+            rewardBits.push(`🎯 Objective: +${objectiveBonus} coins`);
+          }
+        }
+
+        const totalCoins = coins + bonusCoins + objectiveBonus;
         s.coinsEarned = totalCoins;
         Economy.addCoins(coins);
         const petBit = this._awardPetXp();

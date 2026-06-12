@@ -6,6 +6,7 @@ import {
   CHAPTERS,
   CHAPTER_SIZE,
   chapterForLevel,
+  objectiveForLevel,
 } from "../../src/levels.js";
 
 describe("levels", () => {
@@ -92,5 +93,32 @@ describe("levels", () => {
     const lvl = getLevel(10);
     expect(lvl.chapter).toBeTruthy();
     expect(lvl.chapter.name).toBe(chapterForLevel(10).name);
+  });
+
+  it("bonus objectives are skipped early and on milestone beats", () => {
+    expect(objectiveForLevel(1)).toBeNull();
+    expect(objectiveForLevel(2)).toBeNull();
+    // 5/10/15... are treasure/boss milestone levels — no extra objective.
+    expect(objectiveForLevel(5)).toBeNull();
+    expect(objectiveForLevel(10)).toBeNull();
+  });
+
+  it("ordinary levels get a deterministic, well-formed objective", () => {
+    for (let n = 3; n <= LEVEL_COUNT; n++) {
+      const obj = objectiveForLevel(n);
+      if (n % 5 === 0) continue; // milestone level, handled above
+      expect(obj).toBeTruthy();
+      expect(["combo", "group", "nopowerup"]).toContain(obj.type);
+      expect(obj.bonus).toBeGreaterThan(0);
+      expect(typeof obj.label).toBe("string");
+      if (obj.type !== "nopowerup") expect(obj.goal).toBeGreaterThan(0);
+      // Deterministic per level.
+      expect(objectiveForLevel(n)).toEqual(obj);
+    }
+  });
+
+  it("getLevel carries its bonus objective", () => {
+    expect(getLevel(3).objective).toEqual(objectiveForLevel(3));
+    expect(getLevel(5).objective).toBeNull();
   });
 });

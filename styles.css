@@ -440,6 +440,29 @@ body {
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
   transition: width 0.3s ease;
 }
+/* Bonus-objective chip: an optional per-level challenge for extra coins. */
+.hud-objective {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 4px 0;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dim);
+  background: rgba(91, 227, 255, 0.1);
+  border: 1px solid rgba(91, 227, 255, 0.28);
+}
+.hud-objective .hud-objective-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+.hud-objective.met {
+  color: var(--bg);
+  background: linear-gradient(90deg, #5be3ff, #7c5cff);
+  border-color: transparent;
+}
 .power-meter {
   position: relative;
   height: 14px;
