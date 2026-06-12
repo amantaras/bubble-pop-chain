@@ -55,6 +55,9 @@ class UIManager {
   constructor() {
     this.cb = {};
     this.el = {};
+    // Optional override (ms) for the hold-to-buy repeat rate. When null, the
+    // rate comes from the persisted `buyRepeatMs` setting (default 500ms = 2/s).
+    this.buyHoldInterval = null;
   }
 
   init() {
@@ -492,6 +495,50 @@ class UIManager {
   }
 
   // ---- Shop -------------------------------------------------------------
+  // Resolved hold-to-buy repeat interval in ms (explicit override wins, else
+  // the persisted setting, else the 500ms / 2-per-second default).
+  _buyHoldMs() {
+    if (typeof this.buyHoldInterval === "number" && this.buyHoldInterval > 0) {
+      return this.buyHoldInterval;
+    }
+    const s = Storage.get("settings");
+    const ms = s && Number(s.buyRepeatMs);
+    return ms > 0 ? ms : 500;
+  }
+
+  // Wire a buy button so a single tap buys once and holding it keeps buying at
+  // the configured interval. `action()` performs one purchase and returns
+  // `false` to stop the repeat (e.g. out of coins / sold out).
+  _attachHoldRepeat(btn, action) {
+    let timer = null;
+    const stop = () => {
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+    };
+    const fire = () => {
+      if (action() === false) stop();
+    };
+    btn.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      stop();
+      fire();
+      timer = setInterval(fire, this._buyHoldMs());
+    });
+    ["pointerup", "pointerleave", "pointercancel"].forEach((ev) =>
+      btn.addEventListener(ev, stop),
+    );
+    // Keyboard accessibility: Enter/Space buys once (no auto-repeat needed —
+    // the OS key-repeat already re-fires keydown while held).
+    btn.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        fire();
+      }
+    });
+  }
+
   buildShop() {
     const list = this.el["shop-list"];
     list.innerHTML = "";
@@ -505,22 +552,27 @@ class UIManager {
       item.innerHTML = `
         <span class="si-icon">${info.icon}</span>
         <div class="si-body">
-          <div class="si-title">${info.name} <span style="color:var(--text-dim);font-weight:600">×${owned}</span></div>
+          <div class="si-title">${info.name} <span class="si-owned" style="color:var(--text-dim);font-weight:600">×${owned}</span></div>
           <div class="si-desc">${info.desc}</div>
         </div>`;
       const buy = document.createElement("button");
       buy.className = "buy-btn";
       buy.innerHTML = `<span class="coin-dot"></span>${info.price}`;
-      buy.addEventListener("click", () => {
+      // Hold to keep buying at the configured rate (default 2/sec). The owned
+      // count + coin balance update in place so the held button is never torn
+      // down mid-repeat (a full rebuildShop would cancel the hold).
+      this._attachHoldRepeat(buy, () => {
         if (Economy.buyPowerup(type)) {
           Audio.coin();
           this.toast(`${info.name} purchased!`);
-          this.buildShop();
+          const ownedEl = item.querySelector(".si-owned");
+          if (ownedEl) ownedEl.textContent = `×${Economy.getPowerup(type)}`;
           this.refreshCoins();
           this.updatePowerups();
-        } else {
-          this.toast("Not enough coins");
+          return true;
         }
+        this.toast("Not enough coins");
+        return false;
       });
       item.appendChild(buy);
       list.appendChild(item);

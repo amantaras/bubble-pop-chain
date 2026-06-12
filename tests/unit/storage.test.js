@@ -162,11 +162,22 @@ describe("storage", () => {
   });
 
   it("settings default to colorblind off and round-trip", () => {
-    expect(Storage.get("settings")).toEqual({ colorblind: false, hints: true });
+    expect(Storage.get("settings")).toEqual({
+      colorblind: false,
+      hints: true,
+      buyRepeatMs: 500,
+    });
     Storage.set("settings", { colorblind: true });
     expect(Storage.get("settings").colorblind).toBe(true);
     const raw = JSON.parse(localStorage.getItem("bpc_save_v1"));
     expect(raw.settings.colorblind).toBe(true);
+  });
+
+  it("hold-to-buy repeat rate defaults to 500ms (2 per second) and round-trips", () => {
+    expect(Storage.get("settings").buyRepeatMs).toBe(500);
+    const s = { ...Storage.get("settings"), buyRepeatMs: 250 };
+    Storage.set("settings", s);
+    expect(Storage.get("settings").buyRepeatMs).toBe(250);
   });
 
   it("grantTheme adds a theme to ownership only once", () => {

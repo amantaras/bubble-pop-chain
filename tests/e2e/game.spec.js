@@ -1016,6 +1016,109 @@ test.describe("power-ups (UI arm + apply)", () => {
   });
 });
 
+test.describe("hold-to-buy (auto-repeat purchase)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("a single tap on a power-up buy button purchases exactly one", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.Economy.addCoins(100000));
+    await page.locator("#btn-shop").click();
+    await expect(page.locator("#shop")).toBeVisible();
+
+    const before = await page.evaluate(() =>
+      window.__bpc.Economy.getPowerup("bomb"),
+    );
+    await page.locator('#shop-list .shop-item[data-pu="bomb"] .buy-btn').click();
+    const after = await page.evaluate(() =>
+      window.__bpc.Economy.getPowerup("bomb"),
+    );
+    expect(after).toBe(before + 1);
+  });
+
+  test("holding a buy button keeps purchasing at the configured rate", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.Economy.addCoins(100000));
+    await page.locator("#btn-shop").click();
+    await expect(page.locator("#shop")).toBeVisible();
+
+    // Speed up the repeat so the test is fast and deterministic.
+    await page.evaluate(() => {
+      window.__bpc.UI.buyHoldInterval = 60;
+    });
+
+    const buy = page.locator('#shop-list .shop-item[data-pu="bomb"] .buy-btn');
+    const before = await page.evaluate(() =>
+      window.__bpc.Economy.getPowerup("bomb"),
+    );
+
+    // Press and hold for ~360ms, then release.
+    await buy.dispatchEvent("pointerdown");
+    await page.waitForTimeout(360);
+    await buy.dispatchEvent("pointerup");
+
+    const after = await page.evaluate(() =>
+      window.__bpc.Economy.getPowerup("bomb"),
+    );
+    // 1 immediate buy + several repeats (~6 at 60ms over 360ms). Allow slack.
+    expect(after - before).toBeGreaterThanOrEqual(3);
+
+    // Releasing stops the repeat: the count holds steady afterwards.
+    const settled = await page.evaluate(() =>
+      window.__bpc.Economy.getPowerup("bomb"),
+    );
+    await page.waitForTimeout(200);
+    const later = await page.evaluate(() =>
+      window.__bpc.Economy.getPowerup("bomb"),
+    );
+    expect(later).toBe(settled);
+
+    // The owned count in the shop item updated in place during the hold.
+    await expect(
+      page.locator('#shop-list .shop-item[data-pu="bomb"] .si-owned'),
+    ).toHaveText(`×${after}`);
+  });
+
+  test("the hold-buy stops automatically when coins run out", async ({
+    page,
+  }) => {
+    await page.locator("#btn-shop").click();
+    await expect(page.locator("#shop")).toBeVisible();
+
+    // Probe one bomb's price, then set coins to exactly 2× that and rebuild
+    // the shop so only two purchases are affordable.
+    const price = await page.evaluate(() => {
+      const E = window.__bpc.Economy;
+      E.addCoins(100000);
+      const before = E.coins;
+      E.buyPowerup("bomb");
+      const p = before - E.coins;
+      E.addPowerup("bomb", -1); // undo the probe purchase
+      window.__bpc.Storage.set("coins", 2 * p);
+      window.__bpc.UI.buyHoldInterval = 40;
+      window.__bpc.UI.buildShop();
+      return p;
+    });
+
+    const ownedBefore = await page.evaluate(() =>
+      window.__bpc.Economy.getPowerup("bomb"),
+    );
+    const buy = page.locator('#shop-list .shop-item[data-pu="bomb"] .buy-btn');
+    await buy.dispatchEvent("pointerdown");
+    await page.waitForTimeout(400);
+    await buy.dispatchEvent("pointerup");
+
+    const coins = await page.evaluate(() => window.__bpc.Economy.coins);
+    const ownedAfter = await page.evaluate(() =>
+      window.__bpc.Economy.getPowerup("bomb"),
+    );
+    // Bought exactly the two it could afford, then auto-stopped.
+    expect(ownedAfter - ownedBefore).toBe(2);
+    expect(coins).toBeLessThan(price); // can't afford another
+  });
+});
+
 test.describe("combo escalator (#5)", () => {
   test.beforeEach(({ page }) => openGame(page));
 

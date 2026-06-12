@@ -98,7 +98,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   pointer taps on the `<canvas>`. They cover: menu/level-map/shop/themes
   navigation, popping via real taps, scoring, win/lose, revive and double-coins
   rewarded-ad flows, endless refill, daily streak, all three power-ups, shop
-  purchases, "remove ads", theme buy/apply, sound toggle, PWA service-worker
+  purchases, hold-to-buy auto-repeat (a held buy button keeps purchasing at the
+  configured rate and stops when coins run out), "remove ads", theme buy/apply,
+  sound toggle, PWA service-worker
   registration, manifest reachability, progress persistence across reloads,
   resuming an in-progress campaign level (save & Continue), real-input
   gestures (long-press Preview, double-tap Charged Blast, swipe row-shift),

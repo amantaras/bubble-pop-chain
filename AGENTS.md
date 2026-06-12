@@ -127,6 +127,16 @@ never re‑discovered the hard way.
   to + glows the matching `.shop-item[data-pu]`). `shop-back` routes through
   `UI.closeShop`, which resumes the paused level when the shop was opened
   mid-game (`_shopOverGame`) instead of dropping to the menu.
+- **Hold-to-buy** (`ui.js` `_attachHoldRepeat`/`_buyHoldMs`): power-up buy
+  buttons buy once on a tap and **keep buying while held** at a configurable
+  rate — `settings.buyRepeatMs` (default **500ms = 2/sec**; override at runtime
+  via `UI.buyHoldInterval`). The repeat fires immediately on `pointerdown`, then
+  on an interval, and stops on `pointerup`/`pointerleave`/`pointercancel` or when
+  a purchase fails (out of coins). To survive a hold, the buy updates the item's
+  `.si-owned` count + coin balance **in place** (it must NOT call `buildShop`,
+  which would tear down the held button). IAP/coin-pack/remove-ads/theme buttons
+  stay single-press (real-money or one-time buys never auto-repeat). Keyboard
+  Enter/Space buys once.
 - **Special bubbles** (`grid.js` `types` layer): **Rainbow** = colour wildcard
   that bridges regions; **Ice** = needs two hits (cracks, then clears);
   **Lightning** (`LIGHTNING`) = a charged coloured bubble — popping a group that
