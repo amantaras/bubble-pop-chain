@@ -647,5 +647,42 @@ describe("swipe-aware deadlock detection (hasShiftMove)", () => {
     const b = new Board(5, 5, 4, 7);
     expect(b._gridHasMoves(b.grid, b.types)).toBe(b.hasMoves());
   });
+
+  it("findHint returns the cells of the largest poppable group", () => {
+    const b = new Board(3, 3, 6, 1);
+    setGrid(b, [
+      [0, 0, 0],
+      [0, 1, 2],
+      [3, 4, 5],
+    ]);
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    const hint = b.findHint();
+    expect(hint).not.toBeNull();
+    // The connected colour-0 region is {(0,0),(0,1),(0,2),(1,0)} = 4 cells.
+    expect(hint.length).toBe(4);
+    expect(hint.every((p) => b.grid[p.c][p.r] === 0)).toBe(true);
+  });
+
+  it("findHint returns null when there is no tap-move", () => {
+    const b = new Board(3, 2, 9, 1);
+    setGrid(b, [
+      [0, 1],
+      [2, 3],
+      [4, 5],
+    ]);
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    expect(b.hasMoves()).toBe(false);
+    expect(b.findHint()).toBeNull();
+  });
+
+  it("findHint returns null on an empty board", () => {
+    const b = new Board(2, 2, 3, 1);
+    setGrid(b, [
+      [-1, -1],
+      [-1, -1],
+    ]);
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    expect(b.findHint()).toBeNull();
+  });
 });
 

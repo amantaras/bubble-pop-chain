@@ -271,6 +271,30 @@ export class Renderer {
     ctx.restore();
   }
 
+  // Idle-assist hint: a marching-ants cyan ring around the suggested group so
+  // a stuck player can spot a valid move. Purely cosmetic.
+  drawHint(board, cells, time) {
+    if (!cells || !cells.length) return;
+    const ctx = this.ctx;
+    const t = (time || performance.now()) / 1000;
+    const radius = board.cell * 0.5;
+    const pulse = 0.4 + 0.35 * (0.5 + 0.5 * Math.sin(t * 5));
+    const dash = board.cell * 0.22;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.strokeStyle = `rgba(120,240,255,${pulse})`;
+    ctx.lineWidth = Math.max(2, board.cell * 0.08);
+    ctx.setLineDash([dash, dash * 0.7]);
+    ctx.lineDashOffset = -t * board.cell * 2;
+    for (const cell of cells) {
+      const p = board.targetPixel(cell.c, cell.r);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   _roundRect(ctx, x, y, w, h, r) {
     ctx.moveTo(x + r, y);
     ctx.arcTo(x + w, y, x + w, y + h, r);

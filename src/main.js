@@ -79,6 +79,8 @@ import { makeRng } from "./rng.js";
 const TOP_INSET = 168;
 const BOTTOM_INSET = 120;
 const COMBO_WINDOW = 1.6; // seconds before a combo resets
+// Seconds of inactivity before the idle "hint" assist highlights a valid move.
+const HINT_DELAY = 5;
 // Magnet gauge: half-width of the green "sweet" band, in gauge units (0..1).
 // Strength tapers from 1 (dead on the sweet spot) to 0 at this distance.
 // Widened from 0.2 → 0.3 so the green zone is more forgiving to lock onto.
@@ -94,6 +96,8 @@ class Game {
     this.ctx = this.canvas.getContext("2d");
     this.renderer = new Renderer(this.ctx);
     this.renderer.colorblind = !!(Storage.get("settings") || {}).colorblind;
+    // Idle-hint assist, toggleable on the Themes screen (default on).
+    this.hintsEnabled = (Storage.get("settings") || {}).hints !== false;
     this.particles = new ParticleSystem();
     this.floating = new FloatingText();
     this.shake = new ScreenShake();
@@ -134,6 +138,10 @@ class Game {
       },
       onColorblindChange: (on) => {
         this.renderer.colorblind = !!on;
+      },
+      onHintsChange: (on) => {
+        this.hintsEnabled = !!on;
+        if (!on && this.session) this.session.hint = null;
       },
       openCrate: () => this.openCrate(),
       buyCrate: () => this.buyCrate(),
@@ -841,6 +849,7 @@ class Game {
   handleTap(px, py) {
     const s = this.session;
     if (!s || s.ended) return;
+    this._noteActivity();
 
     // A magnet is mid-aim: the next tap locks in the swinging strength gauge.
     if (s.magnet && s.magnet.aiming) {
@@ -872,6 +881,7 @@ class Game {
   handleSwipe(dir, x0, y0) {
     const s = this.session;
     if (!s || s.ended || s.armed) return;
+    this._noteActivity();
     if (dir !== "left" && dir !== "right") return; // only horizontal shifts
 
     const r = s.board.rowAtPixel(y0);
@@ -912,6 +922,7 @@ class Game {
   previewAt(px, py) {
     const s = this.session;
     if (!s || s.ended || s.armed) return;
+    this._noteActivity();
     const cell = s.board.cellAtPixel(px, py);
     if (!cell) {
       s.preview = null;
@@ -1128,6 +1139,7 @@ class Game {
   handleDoubleTap(px, py) {
     const s = this.session;
     if (!s || s.ended) return;
+    this._noteActivity();
     // While aiming a magnet, any second tap just locks the gauge.
     if (s.magnet && s.magnet.aiming) {
       this.lockMagnet();
@@ -1530,6 +1542,11 @@ class Game {
 
   // ---- End-of-move evaluation ------------------------------------------
   afterMove() {
+    if (this.session) {
+      // Any resolved move resets the idle-hint timer.
+      this.session.idleTime = 0;
+      this.session.hint = null;
+    }
     const s = this.session;
     // The tutorial is a sandbox: it never wins, loses, or persists — but it
     // must never strand the player either. Top the practice board back up
@@ -1719,12 +1736,16 @@ class Game {
       if (won) {
         const stars = Math.max(1, starsForScore(s.level, s.score));
         Storage.recordLevelResult(s.level.id, stars);
+        // Per-level personal best: celebrate when the player beats their prior
+        // best for this level (first clears don't count as a "new best").
+        const bestInfo = Storage.recordLevelScore(s.level.id, s.score);
         const coins = Math.round(coinReward(s.score, stars) * s.petBuffs.coinMult);
 
         // Milestone rewards are paid only on the first clear so they can never
         // be farmed by replaying. Score coins above still apply every time.
         const mtype = s.level.milestone;
         const rewardBits = [];
+        if (bestInfo.isNewBest) rewardBits.push("🏆 New best score!");
         let bonusCoins = 0;
         if (mtype && Storage.recordMilestone(s.level.id)) {
           if (mtype === "treasure") {
@@ -1956,6 +1977,37 @@ class Game {
         });
       }
       this._updateEvents(dt);
+      this._updateHint(dt);
+    }
+  }
+
+  // ---- Idle-hint assist -------------------------------------------------
+  // Clear any pending hint and reset the idle timer (called on every input).
+  _noteActivity() {
+    const s = this.session;
+    if (!s) return;
+    s.idleTime = 0;
+    s.hint = null;
+  }
+
+  // After HINT_DELAY seconds of inactivity, surface the largest poppable group
+  // as a gentle nudge. Suppressed in the tutorial, when disabled, or while the
+  // player is mid-gesture (arming, previewing, aiming, or chaining a combo).
+  _updateHint(dt) {
+    const s = this.session;
+    if (!s || s.ended || s.mode === "tutorial") return;
+    if (!this.hintsEnabled) {
+      s.hint = null;
+      return;
+    }
+    if (s.armed || s.preview || (s.magnet && s.magnet.aiming) || s.combo > 0) {
+      s.idleTime = 0;
+      s.hint = null;
+      return;
+    }
+    s.idleTime = (s.idleTime || 0) + dt;
+    if (s.idleTime >= HINT_DELAY && !s.hint) {
+      s.hint = s.board.findHint();
     }
   }
 
@@ -2090,6 +2142,8 @@ class Game {
           this.session.preview,
           this.theme
         );
+      } else if (this.session.hint) {
+        this.renderer.drawHint(this.session.board, this.session.hint, time);
       }
     }
     this.particles.draw(ctx);

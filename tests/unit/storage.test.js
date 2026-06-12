@@ -15,6 +15,10 @@ describe("storage", () => {
     expect(Storage.get("adsRemoved")).toBe(false);
   });
 
+  it("idle move hints are on by default", () => {
+    expect((Storage.get("settings") || {}).hints).toBe(true);
+  });
+
   it("persists set() values to localStorage", () => {
     Storage.set("coins", 500);
     const raw = JSON.parse(localStorage.getItem("bpc_save_v1"));
@@ -37,6 +41,30 @@ describe("storage", () => {
     Storage.recordLevelResult(1, 3);
     Storage.recordLevelResult(2, 2);
     expect(Storage.totalStars()).toBe(5);
+  });
+
+  it("level best score defaults to 0 and is unset initially", () => {
+    expect(Storage.getLevelScore(3)).toBe(0);
+  });
+
+  it("recordLevelScore keeps the highest and flags a genuine new best", () => {
+    // First clear: a best is set but it is NOT a "new best" (nothing to beat).
+    let res = Storage.recordLevelScore(3, 500);
+    expect(res.best).toBe(500);
+    expect(res.isNewBest).toBe(false);
+    expect(Storage.getLevelScore(3)).toBe(500);
+
+    // A lower score does not lower the record and is not a new best.
+    res = Storage.recordLevelScore(3, 300);
+    expect(res.best).toBe(500);
+    expect(res.isNewBest).toBe(false);
+    expect(Storage.getLevelScore(3)).toBe(500);
+
+    // Beating the record is a new best and updates the stored value.
+    res = Storage.recordLevelScore(3, 800);
+    expect(res.best).toBe(800);
+    expect(res.isNewBest).toBe(true);
+    expect(Storage.getLevelScore(3)).toBe(800);
   });
 
   it("reset restores a complete default save", () => {
@@ -134,7 +162,7 @@ describe("storage", () => {
   });
 
   it("settings default to colorblind off and round-trip", () => {
-    expect(Storage.get("settings")).toEqual({ colorblind: false });
+    expect(Storage.get("settings")).toEqual({ colorblind: false, hints: true });
     Storage.set("settings", { colorblind: true });
     expect(Storage.get("settings").colorblind).toBe(true);
     const raw = JSON.parse(localStorage.getItem("bpc_save_v1"));

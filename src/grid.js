@@ -400,6 +400,26 @@ export class Board {
     }
   }
 
+  // The single best tap-move available: the cells of the largest connected
+  // poppable group (>= 2, counting rainbow wildcards), or null when no tap-move
+  // exists. Powers the idle "hint" assist that nudges a stuck player.
+  findHint() {
+    let best = null;
+    const seen = new Set();
+    for (let c = 0; c < this.cols; c++) {
+      for (let r = 0; r < this.rows; r++) {
+        if (this.grid[c][r] === -1) continue;
+        const key = c * this.rows + r;
+        if (seen.has(key)) continue;
+        const group = this.getGroupAt(c, r);
+        for (const p of group) seen.add(p.c * this.rows + p.r);
+        if (group.length >= 2 && (!best || group.length > best.length))
+          best = group;
+      }
+    }
+    return best;
+  }
+
   countRemaining() {
     let n = 0;
     for (let c = 0; c < this.cols; c++)

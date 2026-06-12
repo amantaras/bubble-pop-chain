@@ -172,6 +172,40 @@ never re‑discovered the hard way.
   look). The flag is applied at startup from `Storage.get("settings")` and
   updated live via the `onColorblindChange` UI callback. The toggle lives on the
   **Themes screen** (`#cb-toggle`); the setting deep-merges into existing saves.
+- **Idle move hint** (`grid.js` `findHint`, `renderer.js` `drawHint`, `main.js`
+  `_updateHint`/`_noteActivity`/`HINT_DELAY`, `storage.js` `settings.hints`): a
+  player-friendly assist that nudges a stuck player. After `HINT_DELAY` (5s) of
+  **inactivity** the largest poppable group (`Board.findHint`, a pure scan that
+  mirrors the autoplay flood-fill: dedup via a `seen` set, keep the longest
+  `getGroupAt` group ≥ 2, or `null` when there's no tap-move) is promoted into
+  `session.hint` and drawn as a **marching-ants cyan ring** (`Renderer.drawHint`,
+  purely cosmetic) around those cells. `_updateHint(dt)` (ticked from
+  `update(dt)` inside the live-session block) accrues `session.idleTime` but
+  **suppresses** the hint while the player is mid-gesture (`armed`/`preview`/
+  magnet `aiming`/`combo > 0`), when hints are off, in the tutorial, or once the
+  session ends. Any input (`handleTap`/`handleDoubleTap`/`previewAt`/
+  `handleSwipe`) and every resolved move (`afterMove`) call `_noteActivity()`,
+  which resets the timer and clears the hint. `render()` draws the hint only
+  when there is no active `preview` (preview takes precedence). The assist is
+  toggleable on the **Themes screen** (`#hints-toggle`, default **on**) wired
+  like colourblind — `settings.hints` persists (deep-merges into old saves),
+  flips `Game.hintsEnabled` via the `onHintsChange` UI callback, and refreshes
+  through `_refreshHintsToggle`. Like colourblind/themes/achievements, this is a
+  **settings/assist toggle, not a gesture**, so it deliberately gets **no gated
+  tutorial step** (consistent precedent — the tutorial teaches gestures &
+  mechanics, not display/assist settings or meta displays).
+- **Per-level best score** (`storage.js` `levelScores`/`getLevelScore`/
+  `recordLevelScore`, `main.js` `_finish`, `ui.js` `buildLevelMap`): each
+  campaign level tracks a **personal best**. On a campaign win `_finish` calls
+  `Storage.recordLevelScore(levelId, score)`, which keeps only the highest and
+  returns `{ best, isNewBest }` — `isNewBest` is true **only when the run beats a
+  pre-existing best** (a first clear sets the best but is not celebrated). A
+  genuine new best pushes a **"🏆 New best score!"** line into the win recap's
+  `rewardBits` (`#win-reward`). The **level map** (`buildLevelMap`) shows the
+  stored best (`🏆 <score>`, `.lvl-best`) under the stars on every cleared cell.
+  `levelScores` is a new `DEFAULT_SAVE` field, so old saves auto-default to `{}`.
+  Like stars/achievements this meta-progression display gets **no tutorial
+  step**.
 - **Pet companions** (`pets.js`, pure; `storage.js` `pets`): collectible helper
   pets that support the player both **passively** and with **active board
   powers**. `PET_CATALOG` holds 10 pets across four rarities
@@ -351,7 +385,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 234 unit tests + 176 E2E
+- **Current baseline (keep growing, never shrink)**: 240 unit tests + 186 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

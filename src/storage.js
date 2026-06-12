@@ -6,6 +6,7 @@ const DEFAULT_SAVE = {
   version: 1,
   maxUnlockedLevel: 1,
   stars: {}, // { [levelId]: 0..3 }
+  levelScores: {}, // { [levelId]: best score } — per-level personal best
   highScoreEndless: 0,
   coins: 0,
   ownedThemes: ["aurora"],
@@ -13,7 +14,7 @@ const DEFAULT_SAVE = {
   adsRemoved: false,
   muted: false,
   // Accessibility / display settings.
-  settings: { colorblind: false },
+  settings: { colorblind: false, hints: true },
   powerups: { bomb: 1, colorClear: 1, shuffle: 1, chainBolt: 0, pick: 0, magnet: 1 },
   // The three power-ups shown in the HUD's quick-access slots. Players swap
   // them via a long-press picker so the bar never overflows as we add tools.
@@ -136,6 +137,25 @@ class StorageManager {
 
   totalStars() {
     return Object.values(this.data.stars).reduce((a, b) => a + b, 0);
+  }
+
+  // Per-level personal best score.
+  getLevelScore(levelId) {
+    return (this.data.levelScores && this.data.levelScores[levelId]) || 0;
+  }
+
+  // Record a level score, keeping only the highest. Returns
+  // `{ best, isNewBest }` — `isNewBest` is true only when this run beat the
+  // previous best (and there was a previous best to beat).
+  recordLevelScore(levelId, score) {
+    if (!this.data.levelScores) this.data.levelScores = {};
+    const prev = this.data.levelScores[levelId] || 0;
+    const isNewBest = prev > 0 && score > prev;
+    if (score > prev) {
+      this.data.levelScores[levelId] = score;
+      this.save();
+    }
+    return { best: Math.max(prev, score), isNewBest };
   }
 
   // Has the one-time reward for this milestone level already been paid?

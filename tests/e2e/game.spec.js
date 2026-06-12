@@ -1176,6 +1176,112 @@ test.describe("colorblind mode (accessibility)", () => {
   });
 });
 
+test.describe("idle move hint (assist)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("a hint surfaces after the player sits idle", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await page.waitForTimeout(500);
+    // Fast-forward the idle timer instead of waiting real seconds: the update
+    // loop then promotes the largest poppable group into session.hint.
+    const len = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      g.session.idleTime = 99;
+      g.update(0.05);
+      return g.session.hint ? g.session.hint.length : 0;
+    });
+    expect(len).toBeGreaterThanOrEqual(2);
+  });
+
+  test("any input clears the pending hint", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await page.waitForTimeout(500);
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      g.session.idleTime = 99;
+      g.update(0.05);
+    });
+    expect(
+      await page.evaluate(() => !!window.__bpc.game.session.hint)
+    ).toBe(true);
+    // Tapping the board resolves a move and resets the idle assist.
+    const cell = await findGroupCell(page);
+    await tapCell(page, cell.c, cell.r);
+    expect(
+      await page.evaluate(() => !!window.__bpc.game.session.hint)
+    ).toBe(false);
+  });
+
+  test("the Themes toggle disables hints and suppresses them in play", async ({
+    page,
+  }) => {
+    // On by default.
+    await page.getByRole("button", { name: "Themes", exact: true }).click();
+    await expect(page.locator("#themes")).toBeVisible();
+    await expect(page.locator("#hints-toggle-state")).toHaveText("On");
+    expect(await page.evaluate(() => window.__bpc.game.hintsEnabled)).toBe(true);
+
+    // Turn off: label, flag and saved setting all update.
+    await page.locator("#hints-toggle").click();
+    await expect(page.locator("#hints-toggle-state")).toHaveText("Off");
+    expect(await page.evaluate(() => window.__bpc.game.hintsEnabled)).toBe(false);
+    expect(
+      await page.evaluate(
+        () => JSON.parse(localStorage.getItem("bpc_save_v1")).settings.hints
+      )
+    ).toBe(false);
+    await page.locator("#themes-back").click();
+
+    // With hints off, sitting idle never surfaces a hint.
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await page.waitForTimeout(500);
+    const hint = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      g.session.idleTime = 99;
+      g.update(0.05);
+      return window.__bpc.game.session.hint;
+    });
+    expect(hint).toBeNull();
+  });
+});
+
+test.describe("per-level best score", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("clearing a level records a personal best shown on the map", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await page.waitForTimeout(600);
+    await autoPlay(page);
+    await expect(page.locator("#win")).toBeVisible();
+    const best = await page.evaluate(() =>
+      window.__bpc.Storage.getLevelScore(1)
+    );
+    expect(best).toBeGreaterThan(0);
+
+    // The level map surfaces the best score under the stars.
+    await page.locator("#win-menu").click();
+    await expect(page.locator("#menu")).toBeVisible();
+    await page.locator("#btn-play").click();
+    await expect(page.locator("#levelmap")).toBeVisible();
+    await expect(page.locator(".level-cell .lvl-best").first()).toContainText(
+      "🏆"
+    );
+  });
+
+  test("beating a prior best celebrates a New best score", async ({ page }) => {
+    // Seed a tiny prior best so any clear beats it.
+    await page.evaluate(() => window.__bpc.Storage.recordLevelScore(1, 1));
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await page.waitForTimeout(600);
+    await autoPlay(page);
+    await expect(page.locator("#win")).toBeVisible();
+    await expect(page.locator("#win-reward")).toContainText("New best score");
+  });
+});
+
+
 test.describe("falling events (gift & problem tokens)", () => {
   test.beforeEach(({ page }) => openGame(page));
 

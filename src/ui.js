@@ -54,6 +54,7 @@ class UIManager {
       "achv-badge",
       "chest", "chest-icon", "chest-title", "chest-sub", "chest-rewards", "chest-ok",
       "cb-toggle", "cb-toggle-state",
+      "hints-toggle", "hints-toggle-state",
       "pets", "pets-coins", "pets-crate", "pet-store", "pet-list", "pet-detail",
       "pet-confirm", "pet-confirm-sub", "pet-confirm-ok", "pet-confirm-cancel",
       "btn-pets", "pets-back", "hud-pet", "hud-pet-icon", "hud-pet-buff",
@@ -127,6 +128,16 @@ class UIManager {
       Storage.set("settings", settings);
       if (this.cb.onColorblindChange) this.cb.onColorblindChange(on);
       this._refreshColorblindToggle();
+    });
+
+    // Idle-hint assist toggle (Themes screen, next to colourblind).
+    click("hints-toggle", () => {
+      const settings = { ...(Storage.get("settings") || {}) };
+      const on = settings.hints === false; // currently off → turning on
+      settings.hints = on;
+      Storage.set("settings", settings);
+      if (this.cb.onHintsChange) this.cb.onHintsChange(on);
+      this._refreshHintsToggle();
     });
 
     // Sound
@@ -238,6 +249,7 @@ class UIManager {
     if (name === "themes") {
       this.buildThemes();
       this._refreshColorblindToggle();
+      this._refreshHintsToggle();
     }
     if (name === "achievements") this.buildAchievements();
   }
@@ -409,9 +421,12 @@ class UIManager {
         ? ""
         : "★".repeat(stars) + "☆".repeat(3 - stars);
       const badge = mtype === "boss" ? "👹" : mtype === "treasure" ? "🎁" : "";
+      const best = Storage.getLevelScore(i);
+      const bestStr =
+        !locked && best > 0 ? `<span class="lvl-best">🏆 ${best}</span>` : "";
       cell.innerHTML = locked
         ? `<span class="lock">🔒</span>${badge ? `<span class="lvl-badge">${badge}</span>` : ""}`
-        : `${badge ? `<span class="lvl-badge">${badge}</span>` : ""}<span class="num">${i}</span><span class="lvl-stars">${starStr}</span>`;
+        : `${badge ? `<span class="lvl-badge">${badge}</span>` : ""}<span class="num">${i}</span><span class="lvl-stars">${starStr}</span>${bestStr}`;
       if (!locked) {
         cell.addEventListener("click", () => {
           Audio.click();
@@ -623,6 +638,17 @@ class UIManager {
     }
     if (this.el["cb-toggle-state"])
       this.el["cb-toggle-state"].textContent = on ? "On" : "Off";
+  }
+
+  // Reflect the saved idle-hint setting on the Themes-screen toggle.
+  _refreshHintsToggle() {
+    const on = (Storage.get("settings") || {}).hints !== false;
+    if (this.el["hints-toggle"]) {
+      this.el["hints-toggle"].classList.toggle("on", on);
+      this.el["hints-toggle"].setAttribute("aria-pressed", on ? "true" : "false");
+    }
+    if (this.el["hints-toggle-state"])
+      this.el["hints-toggle-state"].textContent = on ? "On" : "Off";
   }
 
   // ---- Achievements -----------------------------------------------------

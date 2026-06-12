@@ -770,6 +770,13 @@ body {
   color: var(--gold);
   height: 12px;
 }
+.level-cell .lvl-best {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-dim);
+  margin-top: 1px;
+  line-height: 1;
+}
 .level-cell.locked .num {
   filter: grayscale(1);
 }

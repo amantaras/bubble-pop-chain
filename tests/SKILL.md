@@ -56,6 +56,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   Fever-mode scoring (gauge gain + double-points), the achievements engine
   (lifetime progress merge, threshold unlocks, coin payouts),
   the colourblind symbol set (distinct glyph per colour, enough for every level),
+  the idle move-hint scan (`findHint` returns the largest poppable group or
+  `null` on a deadlock) and the per-level best-score store (`recordLevelScore`
+  keeps the highest and flags a genuine new best),
   the pet companion system (catalog integrity + premium flags, XP/level curve,
   passive buff scaling, active-pet cooldown/strength/count scaling, seeded
   crate rolls including the rare premium drop chance + the boosted Legendary
@@ -79,6 +82,10 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   Fever mode (double points + gauge lighting up), the achievements flow
   (badge unlock + coin reward, the Achievements screen, tutorial play excluded),
   colourblind mode (toggle flips the renderer flag, persists, applies on reload),
+  the idle move-hint assist (a hint surfaces after idling, any input clears it,
+  and the Themes toggle disables/suppresses it), per-level best score (a clear
+  records a best shown on the level map, beating a prior best celebrates a
+  "New best score"),
   the pet companions flow (Pets screen with starter Sparky owned/equipped,
   buy + open a crate grants a pet, the Pet Store sells premium pets + a
   Legendary Crate that grants a pet, buying a premium pet unlocks it, equipping
