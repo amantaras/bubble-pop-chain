@@ -1469,6 +1469,33 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
     await expect(page.locator("#menu")).toBeVisible();
     expect(await stepId(page)).toBeNull();
   });
+
+  test("the tutorial board refills so the player never runs out of bubbles", async ({
+    page,
+  }) => {
+    await openGame(page); // dismisses the first-run tutorial → clean menu
+    await expect(page.locator("#menu")).toBeVisible();
+    await page.getByRole("button", { name: "How to Play", exact: true }).click();
+    await expect(page.locator("#tutorial")).toBeVisible();
+    // Drain the practice board hard, then let the game settle each move.
+    const remaining = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const s = g.session;
+      // Empty the whole board, then call afterMove to trigger the refill guard.
+      for (let pass = 0; pass < 6; pass++) {
+        const b = s.board;
+        for (let c = 0; c < b.cols; c++) {
+          for (let r = 0; r < b.rows; r++) b.grid[c][r] = -1;
+        }
+        g.afterMove();
+      }
+      const b = s.board;
+      return { count: b.countRemaining(), hasMoves: b.hasMoves() };
+    });
+    // The board topped itself back up — there are always fresh bubbles/moves.
+    expect(remaining.count).toBeGreaterThan(0);
+    expect(remaining.hasMoves).toBe(true);
+  });
 });
 
 test.describe("pet companions (collection & buffs)", () => {
@@ -1489,7 +1516,7 @@ test.describe("pet companions (collection & buffs)", () => {
     await expect(page.locator("#menu")).toBeVisible();
   });
 
-  test("buying then opening a crate grants a (non-premium) pet", async ({ page }) => {
+  test("buying then opening a crate grants a pet", async ({ page }) => {
     await page.evaluate(() => window.__bpc.Economy.addCoins(1000));
     await page.getByRole("button", { name: "Pets", exact: true }).click();
 
@@ -1510,12 +1537,48 @@ test.describe("pet companions (collection & buffs)", () => {
       };
     });
     expect(owned.last).not.toBeNull();
-    // Whatever rolled, it is never a premium pet.
-    const isPremium = await page.evaluate(
-      (id) => !!window.__bpc.pets.getPet(id).premium,
+    // A real catalog pet was granted, and the crate reports its premium flag.
+    const known = await page.evaluate(
+      (id) => !!window.__bpc.pets.getPet(id),
       owned.last.petId
     );
-    expect(isPremium).toBe(false);
+    expect(known).toBe(true);
+    expect(typeof owned.last.premium).toBe("boolean");
+  });
+
+  test("Pet Store sells premium pets and a legendary crate", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.Economy.addCoins(1000));
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await expect(page.locator("#pet-store")).toBeVisible();
+    // The premium pets (aurora/gizmo) are listed with real-money buy buttons.
+    await expect(page.locator('#pet-store .store-buy[data-pet="aurora"]')).toBeVisible();
+    await expect(page.locator('#pet-store .store-buy[data-pet="gizmo"]')).toBeVisible();
+    // The Legendary Crate is offered for real money.
+    await expect(page.locator("#legend-crate-buy")).toBeVisible();
+
+    // Buying the legendary crate (mock provider) grants a pet.
+    const res = await page.evaluate(() => window.__bpc.game.buyLegendaryCrate());
+    expect(res).not.toBeNull();
+    const known = await page.evaluate(
+      (id) => !!window.__bpc.pets.getPet(id),
+      res.petId
+    );
+    expect(known).toBe(true);
+    const owned = await page.evaluate(() =>
+      Object.keys(window.__bpc.Storage.getPetState().owned)
+    );
+    expect(owned).toContain(res.petId);
+  });
+
+  test("buying a premium pet from the store unlocks it", async ({ page }) => {
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await expect(page.locator("#pet-store")).toBeVisible();
+    await page.locator('#pet-store .store-buy[data-pet="aurora"]').click();
+    await expect
+      .poll(() =>
+        page.evaluate(() => !!window.__bpc.Storage.getPetState().owned.aurora)
+      )
+      .toBe(true);
   });
 
   test("equipping a passive pet refreshes the live session's score buff", async ({

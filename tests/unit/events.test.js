@@ -7,6 +7,7 @@ import {
   GIFT_COIN_MIN,
   GIFT_COIN_MAX,
   GIFT_POWERUP_POOL,
+  GIFT_CRATE_CHANCE,
   nextEventDelay,
   pickEventType,
   rollGiftReward,
@@ -43,6 +44,15 @@ describe("events / falling gift & problem logic", () => {
     const last = rollGiftReward(seq([0.1, 0.99]));
     expect(last.type).toBe("powerup");
     expect(GIFT_POWERUP_POOL).toContain(last.powerup);
+  });
+
+  it("rollGiftReward can grant a rare pet crate", () => {
+    expect(GIFT_CRATE_CHANCE).toBeGreaterThan(0);
+    const crate = rollGiftReward(seq([0]));
+    expect(crate).toEqual({ type: "crate" });
+    // Just above the crate slice should not be a crate.
+    const notCrate = rollGiftReward(seq([GIFT_CRATE_CHANCE + 0.001, 0]));
+    expect(notCrate.type).not.toBe("crate");
   });
 });
 

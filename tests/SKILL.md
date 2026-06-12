@@ -58,7 +58,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   the colourblind symbol set (distinct glyph per colour, enough for every level),
   the pet companion system (catalog integrity + premium flags, XP/level curve,
   passive buff scaling, active-pet cooldown/strength/count scaling, seeded
-  crate rolls that never yield premium pets, and the storage pet helpers —
+  crate rolls including the rare premium drop chance + the boosted Legendary
+  Crate roll, premium-pet catalog filter, and the storage pet helpers —
   grant/equip/XP/crates/cosmetics) plus the grid helpers it relies on
   (dominant colour, first-cell-of-colour, isolated-cell detection),
   special bubbles (rainbow wildcard + ice two-hit) with type round-trip, the
@@ -79,11 +80,14 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   (badge unlock + coin reward, the Achievements screen, tutorial play excluded),
   colourblind mode (toggle flips the renderer flag, persists, applies on reload),
   the pet companions flow (Pets screen with starter Sparky owned/equipped,
-  buy + open a crate grants a non-premium pet, equipping refreshes the live
+  buy + open a crate grants a pet, the Pet Store sells premium pets + a
+  Legendary Crate that grants a pet, buying a premium pet unlocks it, equipping
+  refreshes the live
   session buffs, a startCharge pet pre-fills the power meter, an active pet
   arms its gather action, premium IAP grants ownership, HUD pet badge),
   the daily retention flow (summary, streak reward), and the gated
-  step-by-step tutorial (first-run auto-open, How to Play replay, skip, and a
+  step-by-step tutorial (first-run auto-open, How to Play replay, skip, the
+  practice board auto-refilling so the player never runs out of bubbles, and a
   full walkthrough that performs each real gesture to advance). Both a mobile
   (Pixel 7) and a desktop Chromium profile are run.
 

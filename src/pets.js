@@ -19,10 +19,23 @@ export const DUP_XP = 30;
 // Coin cost to buy one crate from the Pets screen.
 export const CRATE_COST = 250;
 
+// A standard coin crate can VERY rarely surprise you with a premium pet — the
+// only free way to win one (otherwise they're bought in the Pet Store). Kept
+// well under 1% so premiums stay aspirational / mostly paid.
+export const PREMIUM_DROP_CHANCE = 0.008; // ~0.8%
+
+// The premium "Legendary Crate": bought with real money, it has boosted odds —
+// it always yields a legendary and often a premium pet.
+export const LEGENDARY_CRATE = {
+  product: "crate_legendary",
+  price: "$3.99",
+  premiumChance: 0.4, // chance the pull is a premium pet (else a free legendary)
+};
+
 export const RARITIES = ["common", "rare", "epic", "legendary"];
 
 // Drop weights for a standard (coin-bought / earned) crate. Premium pets are
-// NEVER in crates — they are purchase-only.
+// gated behind PREMIUM_DROP_CHANCE (rolled separately in `rollCrate`).
 export const RARITY_WEIGHTS = {
   common: 60,
   rare: 28,
@@ -195,9 +208,14 @@ export function petActive(petId, level) {
   };
 }
 
-// Non-premium pets of a rarity (the only ones a crate can drop).
+// Non-premium pets of a rarity (the only ones a standard crate normally drops).
 export function petsOfRarity(rarity) {
   return PET_CATALOG.filter((p) => p.rarity === rarity && !p.premium);
+}
+
+// All premium (purchase-focused) pets.
+export function premiumPets() {
+  return PET_CATALOG.filter((p) => p.premium);
 }
 
 // Roll a rarity using RARITY_WEIGHTS. `rng` is a function returning [0,1).
@@ -211,9 +229,20 @@ export function crateRarity(rng) {
   return "common";
 }
 
-// Open a crate: returns { petId, rarity }. Seeded via `rng`. Premium pets are
-// excluded; if a rolled rarity has no obtainable pet we step down the ladder.
-export function rollCrate(rng) {
+// Open a standard crate: returns { petId, rarity, premium }. Seeded via `rng`.
+// A small `premiumChance` (default PREMIUM_DROP_CHANCE, <1%) can surprise the
+// player with a premium pet; otherwise a non-premium pet drops by rarity
+// weight, stepping down the ladder if a rolled rarity has no obtainable pet.
+export function rollCrate(rng, opts = {}) {
+  const premiumChance =
+    opts.premiumChance == null ? PREMIUM_DROP_CHANCE : opts.premiumChance;
+  if (premiumChance > 0 && rng() < premiumChance) {
+    const prem = premiumPets();
+    if (prem.length) {
+      const pick = prem[Math.floor(rng() * prem.length)] || prem[0];
+      return { petId: pick.id, rarity: pick.rarity, premium: true };
+    }
+  }
   let rarity = crateRarity(rng);
   let idx = RARITIES.indexOf(rarity);
   let pool = petsOfRarity(rarity);
@@ -224,5 +253,25 @@ export function rollCrate(rng) {
   }
   if (pool.length === 0) pool = PET_CATALOG.filter((p) => !p.premium);
   const pick = pool[Math.floor(rng() * pool.length)] || pool[0];
-  return { petId: pick.id, rarity: pick.rarity };
+  return { petId: pick.id, rarity: pick.rarity, premium: false };
+}
+
+// Open the premium Legendary Crate (bought with real money). Boosted odds: a
+// high chance of a premium pet, otherwise a guaranteed free legendary (falling
+// back to epic, then any non-premium pet, if the catalog lacks one).
+export function rollLegendaryCrate(rng, opts = {}) {
+  const premiumChance =
+    opts.premiumChance == null ? LEGENDARY_CRATE.premiumChance : opts.premiumChance;
+  if (premiumChance > 0 && rng() < premiumChance) {
+    const prem = premiumPets();
+    if (prem.length) {
+      const pick = prem[Math.floor(rng() * prem.length)] || prem[0];
+      return { petId: pick.id, rarity: pick.rarity, premium: true };
+    }
+  }
+  let pool = petsOfRarity("legendary");
+  if (pool.length === 0) pool = petsOfRarity("epic");
+  if (pool.length === 0) pool = PET_CATALOG.filter((p) => !p.premium);
+  const pick = pool[Math.floor(rng() * pool.length)] || pool[0];
+  return { petId: pick.id, rarity: pick.rarity, premium: false };
 }

@@ -112,7 +112,7 @@ export const TUTORIAL_STEPS = [
   {
     id: "pets",
     title: "Pet Companions",
-    body: "You've got a buddy! Equip a pet from the Pets menu for a helping hand — some boost your score, coins, charge or Fever, while others physically help on the board: 🐶 fetches a whole colour together and 🐱 zaps lone, hard-to-match bubbles. Win pets from crates, level them up, and dress them up too!",
+    body: "You've got a buddy! Equip a pet from the Pets menu for a helping hand — some boost your score, coins, charge or Fever, while others physically help on the board: 🐶 fetches a whole colour together and 🐱 zaps lone, hard-to-match bubbles. WIN pets free by opening 🎁 crates (you start with one!) — earn more crates from milestones and falling gifts. The rarest companions live in the 💎 Pet Store. Level pets up and dress them up too!",
     advance: "button",
     cta: "Cool!",
   },

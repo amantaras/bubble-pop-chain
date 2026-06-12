@@ -825,6 +825,60 @@ body {
   display: flex;
   gap: 8px;
 }
+.pet-store {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(201, 163, 255, 0.45);
+  background: linear-gradient(180deg, rgba(201, 163, 255, 0.12), var(--glass));
+}
+.pet-store .store-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+.pet-store .store-title {
+  font-weight: 800;
+}
+.pet-store .store-note {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.store-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--glass-brd);
+  background: var(--glass);
+}
+.store-item + .store-item {
+  margin-top: 8px;
+}
+.store-legend {
+  border-color: rgba(255, 211, 91, 0.5);
+  background: linear-gradient(180deg, rgba(255, 211, 91, 0.12), var(--glass));
+}
+.store-item .store-icon {
+  font-size: 26px;
+  flex: 0 0 auto;
+}
+.store-item .store-meta {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.store-item .store-name {
+  font-weight: 700;
+}
+.store-item .store-sub {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.store-buy {
+  flex: 0 0 auto;
+}
 .pet-list {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

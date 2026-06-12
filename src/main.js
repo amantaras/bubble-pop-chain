@@ -63,11 +63,13 @@ import {
   petActive,
   levelForXp,
   rollCrate,
+  rollLegendaryCrate,
   getPet,
   getCosmetic,
   PET_XP_PER_LEVEL,
   DUP_XP,
   CRATE_COST,
+  LEGENDARY_CRATE,
 } from "./pets.js";
 import { makeRng } from "./rng.js";
 
@@ -126,6 +128,7 @@ class Game {
       },
       openCrate: () => this.openCrate(),
       buyCrate: () => this.buyCrate(),
+      buyLegendaryCrate: () => this.buyLegendaryCrate(),
       equipPet: (id) => this.equipPet(id),
       buyPremiumPet: (id) => this.buyPremiumPet(id),
       buyCosmetic: (petId, cos) => this.buyCosmetic(petId, cos),
@@ -479,18 +482,19 @@ class Game {
   }
 
   // ---- Pet companion actions (driven by the Pets screen) ----------------
-  // Open one crate: consumes a crate, rolls a (non-premium) pet, grants it (or
-  // converts a duplicate into bonus XP). Returns { petId, isNew } or null when
-  // no crate was available. The roll is seeded so opens are reproducible in
-  // tests via `?e2e=1` + a fixed seed counter.
+  // Open one crate: consumes a crate, rolls a pet (very rarely a premium
+  // surprise — see PREMIUM_DROP_CHANCE), grants it (or converts a duplicate
+  // into bonus XP). Returns { petId, isNew, premium } or null when no crate was
+  // available. The roll is seeded so opens are reproducible in tests via
+  // `?e2e=1` + a fixed seed counter.
   openCrate() {
     if (!Storage.consumeCrate()) return null;
     this._crateSeed = ((this._crateSeed || 1) * 1664525 + 1013904223) >>> 0;
     const seed = (this._crateSeed ^ ((Date.now() >>> 0) || 1)) >>> 0;
-    const { petId } = rollCrate(makeRng(seed));
+    const { petId, premium } = rollCrate(makeRng(seed));
     const isNew = Storage.grantPet(petId);
     if (!isNew) Storage.addPetXp(petId, DUP_XP);
-    return { petId, isNew };
+    return { petId, isNew, premium: !!premium };
   }
 
   // Buy one crate with coins. Returns true on success.
@@ -500,6 +504,20 @@ class Game {
       return true;
     }
     return false;
+  }
+
+  // Buy + open the premium Legendary Crate via the (mock) IAP provider. Boosted
+  // odds (see rollLegendaryCrate): always a legendary, often a premium pet.
+  // Returns { petId, isNew, premium } on success, or null if the purchase fails.
+  async buyLegendaryCrate() {
+    const res = await Monetization.purchase(LEGENDARY_CRATE.product);
+    if (!res || !res.ok) return null;
+    this._crateSeed = ((this._crateSeed || 1) * 1664525 + 1013904223) >>> 0;
+    const seed = (this._crateSeed ^ ((Date.now() >>> 0) || 1)) >>> 0;
+    const { petId, premium } = rollLegendaryCrate(makeRng(seed));
+    const isNew = Storage.grantPet(petId);
+    if (!isNew) Storage.addPetXp(petId, DUP_XP);
+    return { petId, isNew, premium: !!premium };
   }
 
   // Equip a pet you own; refreshes the live session's buffs if mid-level.
@@ -580,6 +598,22 @@ class Game {
       this._spawnTutorialEvent();
     }
     // "bomb": tutorial bypasses the economy (see armPowerup/applyPowerup).
+  }
+
+  // Rebuild the controlled practice board so the tutorial never runs out of
+  // poppable clusters no matter how much the player pops/blasts.
+  _refillTutorialBoard() {
+    const s = this.session;
+    if (!s || s.mode !== "tutorial") return;
+    const b = s.board;
+    const { colors: g, types } = buildTutorialBoard(
+      b.cols,
+      b.rows,
+      s.level.colors || 4
+    );
+    decorateSpecials(types);
+    b.restore(g, types);
+    b.layout(this.W, this.H, TOP_INSET, this._bottomInset());
   }
 
   // Drop a forgiving gift token for the tutorial's "Gifts & Problems" step. It
@@ -1162,8 +1196,16 @@ class Game {
   // ---- End-of-move evaluation ------------------------------------------
   afterMove() {
     const s = this.session;
-    // The tutorial is a sandbox: it never wins, loses, refills, or persists.
-    if (s.mode === "tutorial") return;
+    // The tutorial is a sandbox: it never wins, loses, or persists — but it
+    // must never strand the player either. Top the practice board back up
+    // whenever they've popped it down low (or run out of moves) so there are
+    // always fresh clusters to keep trying the gestures on.
+    if (s.mode === "tutorial") {
+      if (!s.board.hasMoves() || s.board.countRemaining() <= s.board.cols) {
+        this._refillTutorialBoard();
+      }
+      return;
+    }
     if (!s || s.ended) return;
 
     // Active pet companions physically help on the board every few moves
@@ -1529,7 +1571,11 @@ class Game {
       this._recordProgress({ defuses: 1 });
     } else {
       const reward = desc.reward || rollGiftReward();
-      if (reward.type === "powerup") {
+      if (reward.type === "crate") {
+        Storage.addCrates(1);
+        this.floating.spawn(cx, cy, "🎁 Pet Crate!", "#c9a3ff", 28);
+        UI.toast("🎁 Gift: a Pet Crate! Open it in the Pets menu");
+      } else if (reward.type === "powerup") {
         Economy.addPowerup(reward.powerup, 1);
         UI.updatePowerups();
         const name = (POWERUP_INFO[reward.powerup] || {}).name || "Power-up";
@@ -1622,6 +1668,6 @@ if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) 
     Monetization,
     UI,
     getLevel,
-    pets: { petBuffs, petActive, levelForXp, rollCrate, getPet },
+    pets: { petBuffs, petActive, levelForXp, rollCrate, rollLegendaryCrate, getPet },
   };
 }

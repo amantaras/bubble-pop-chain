@@ -20,6 +20,10 @@ import {
   petsOfRarity,
   crateRarity,
   rollCrate,
+  rollLegendaryCrate,
+  premiumPets,
+  PREMIUM_DROP_CHANCE,
+  LEGENDARY_CRATE,
 } from "../../src/pets.js";
 import { makeRng } from "../../src/rng.js";
 
@@ -171,24 +175,77 @@ describe("crate rolls", () => {
     }
   });
 
-  it("rollCrate is deterministic for a fixed seed and never yields premium", () => {
+  it("rollCrate is deterministic for a fixed seed", () => {
     const a = rollCrate(makeRng(1234));
     const b = rollCrate(makeRng(1234));
     expect(a).toEqual(b);
-    expect(getPet(a.petId).premium).toBe(false);
+    expect(typeof a.petId).toBe("string");
+    expect(typeof a.premium).toBe("boolean");
   });
 
-  it("rollCrate covers a range of pets across many seeds", () => {
+  it("rollCrate with premiumChance 0 never yields a premium pet", () => {
     const seen = new Set();
     for (let s = 0; s < 400; s++) {
-      const { petId } = rollCrate(makeRng(s * 7919 + 1));
+      const { petId, premium } = rollCrate(makeRng(s * 7919 + 1), {
+        premiumChance: 0,
+      });
       seen.add(petId);
+      expect(premium).toBe(false);
       expect(getPet(petId).premium).toBe(false);
     }
-    // Commons should be reachable; at least a couple distinct pets appear.
     expect(seen.size).toBeGreaterThanOrEqual(2);
     expect(seen.has("aurora")).toBe(false);
     expect(seen.has("gizmo")).toBe(false);
+  });
+
+  it("rollCrate with premiumChance 1 always yields a premium pet", () => {
+    const { petId, premium } = rollCrate(makeRng(7), { premiumChance: 1 });
+    expect(premium).toBe(true);
+    expect(getPet(petId).premium).toBe(true);
+  });
+
+  it("premium drops are rare with the default chance", () => {
+    expect(PREMIUM_DROP_CHANCE).toBeGreaterThan(0);
+    expect(PREMIUM_DROP_CHANCE).toBeLessThan(0.01);
+    let premiums = 0;
+    const N = 2000;
+    for (let s = 0; s < N; s++) {
+      if (rollCrate(makeRng(s * 104729 + 3)).premium) premiums++;
+    }
+    // Should be in the low single-digit percent ballpark, well under 5%.
+    expect(premiums / N).toBeLessThan(0.05);
+  });
+
+  it("premiumPets returns only premium catalog entries", () => {
+    const prem = premiumPets();
+    expect(prem.length).toBeGreaterThan(0);
+    for (const p of prem) expect(p.premium).toBe(true);
+    expect(prem.map((p) => p.id).sort()).toEqual(["aurora", "gizmo"]);
+  });
+
+  it("rollLegendaryCrate without premium yields a legendary pet", () => {
+    const { petId, premium, rarity } = rollLegendaryCrate(makeRng(99), {
+      premiumChance: 0,
+    });
+    expect(premium).toBe(false);
+    expect(rarity).toBe("legendary");
+    expect(getPet(petId).rarity).toBe("legendary");
+    expect(getPet(petId).premium).toBe(false);
+  });
+
+  it("rollLegendaryCrate with premiumChance 1 yields a premium pet", () => {
+    const { petId, premium } = rollLegendaryCrate(makeRng(5), {
+      premiumChance: 1,
+    });
+    expect(premium).toBe(true);
+    expect(getPet(petId).premium).toBe(true);
+  });
+
+  it("LEGENDARY_CRATE has a product id, price and boosted odds", () => {
+    expect(typeof LEGENDARY_CRATE.product).toBe("string");
+    expect(LEGENDARY_CRATE.product.startsWith("crate_")).toBe(true);
+    expect(typeof LEGENDARY_CRATE.price).toBe("string");
+    expect(LEGENDARY_CRATE.premiumChance).toBeGreaterThan(PREMIUM_DROP_CHANCE);
   });
 
   it("crateRarity respects the weight ladder edges", () => {

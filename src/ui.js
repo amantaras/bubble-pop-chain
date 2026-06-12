@@ -29,6 +29,8 @@ import {
   levelProgress,
   MAX_PET_LEVEL,
   CRATE_COST,
+  LEGENDARY_CRATE,
+  premiumPets,
 } from "./pets.js";
 
 const $ = (id) => document.getElementById(id);
@@ -46,7 +48,7 @@ class UIManager {
       "level-grid", "shop-list", "theme-list",
       "achievements", "achv-list", "achv-count", "btn-achievements", "achv-back",
       "cb-toggle", "cb-toggle-state",
-      "pets", "pets-coins", "pets-crate", "pet-list", "pet-detail",
+      "pets", "pets-coins", "pets-crate", "pet-store", "pet-list", "pet-detail",
       "btn-pets", "pets-back", "hud-pet", "hud-pet-icon", "hud-pet-buff",
       "btn-continue", "daily-summary",
       "hud-mode-label", "hud-score", "hud-target", "hud-target-wrap", "hud-target-label",
@@ -535,6 +537,7 @@ class UIManager {
       this._selectedPet = eq || PET_CATALOG[0].id;
     }
     this._buildPetCrate();
+    this._buildPetStore();
     this._buildPetList(owned);
     this._buildPetDetail(owned);
   }
@@ -563,9 +566,11 @@ class UIManager {
       const pet = getPet(res.petId);
       Audio.coin();
       this.toast(
-        res.isNew
-          ? `New pet! ${pet.icon} ${pet.name}`
-          : `${pet.icon} ${pet.name} +XP (duplicate)`
+        res.premium && res.isNew
+          ? `💎 RARE! Premium pet ${pet.icon} ${pet.name}!`
+          : res.isNew
+            ? `New pet! ${pet.icon} ${pet.name}`
+            : `${pet.icon} ${pet.name} +XP (duplicate)`
       );
       this._selectedPet = res.petId;
       this.buildPets();
@@ -592,6 +597,93 @@ class UIManager {
     btns.appendChild(buyBtn);
     wrap.appendChild(info);
     wrap.appendChild(btns);
+  }
+
+  // The Pet Store: where the most valuable (premium) companions live. They're
+  // bought directly with real money, or — very rarely (<1%) — surprise you out
+  // of an ordinary crate. The premium Legendary Crate gives boosted odds.
+  _buildPetStore() {
+    const wrap = this.el["pet-store"];
+    if (!wrap) return;
+    const { owned } = Storage.getPetState();
+    wrap.innerHTML = "";
+
+    const head = document.createElement("div");
+    head.className = "store-head";
+    head.innerHTML =
+      `<span class="store-title">💎 Pet Store</span>` +
+      `<span class="store-note">Premium companions — buy here, or a rare (&lt;1%) crate surprise.</span>`;
+    wrap.appendChild(head);
+
+    // Premium Legendary Crate (real-money, boosted odds).
+    const legend = document.createElement("div");
+    legend.className = "store-item store-legend";
+    legend.innerHTML =
+      `<span class="store-icon">🧰</span>` +
+      `<div class="store-meta"><div class="store-name">Legendary Crate</div>` +
+      `<div class="store-sub">Guaranteed legendary — high chance of a premium pet!</div></div>`;
+    const legendBtn = document.createElement("button");
+    legendBtn.className = "buy-btn store-buy";
+    legendBtn.id = "legend-crate-buy";
+    legendBtn.textContent = LEGENDARY_CRATE.price;
+    legendBtn.addEventListener("click", async () => {
+      Audio.click();
+      legendBtn.disabled = true;
+      const res = this.cb.buyLegendaryCrate && (await this.cb.buyLegendaryCrate());
+      if (res) {
+        const pet = getPet(res.petId);
+        Audio.coin();
+        this.toast(
+          res.isNew
+            ? `Legendary pull! ${pet.icon} ${pet.name}`
+            : `${pet.icon} ${pet.name} +XP (duplicate)`
+        );
+        this._selectedPet = res.petId;
+        this.buildPets();
+      } else {
+        legendBtn.disabled = false;
+        this.toast("Purchase failed");
+      }
+    });
+    legend.appendChild(legendBtn);
+    wrap.appendChild(legend);
+
+    // Premium pets, each buyable directly with real money.
+    premiumPets().forEach((pet) => {
+      const has = !!owned[pet.id];
+      const item = document.createElement("div");
+      item.className = `store-item rarity-${pet.rarity}`;
+      item.innerHTML =
+        `<span class="store-icon">${pet.icon}</span>` +
+        `<div class="store-meta"><div class="store-name">${pet.name} ` +
+        `<span class="pd-rarity tag-premium">premium</span></div>` +
+        `<div class="store-sub">${pet.desc}</div></div>`;
+      const btn = document.createElement("button");
+      btn.className = "buy-btn store-buy";
+      btn.dataset.pet = pet.id;
+      if (has) {
+        btn.textContent = "Owned";
+        btn.disabled = true;
+        btn.classList.add("active-tag");
+      } else {
+        btn.textContent = pet.price;
+        btn.addEventListener("click", async () => {
+          Audio.click();
+          btn.disabled = true;
+          const ok = this.cb.buyPremiumPet && (await this.cb.buyPremiumPet(pet.id));
+          if (ok) {
+            this.toast(`${pet.icon} ${pet.name} unlocked!`);
+            this._selectedPet = pet.id;
+            this.buildPets();
+          } else {
+            btn.disabled = false;
+            this.toast("Purchase failed");
+          }
+        });
+      }
+      item.appendChild(btn);
+      wrap.appendChild(item);
+    });
   }
 
   _buildPetList(owned) {

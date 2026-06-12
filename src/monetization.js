@@ -70,9 +70,13 @@ class MonetizationManager {
       Storage.set("adsRemoved", true);
       return { ok: true };
     }
-    // Premium pet companions (productId "pet_<id>"). Granting the pet itself is
-    // the caller's job; here we just confirm the (mock) purchase succeeded.
-    if (typeof productId === "string" && productId.startsWith("pet_")) {
+    // Premium pet companions (productId "pet_<id>") and the premium Legendary
+    // Crate ("crate_legendary"). Granting the item itself is the caller's job;
+    // here we just confirm the (mock) purchase succeeded.
+    if (
+      typeof productId === "string" &&
+      (productId.startsWith("pet_") || productId.startsWith("crate_"))
+    ) {
       return { ok: true };
     }
     return { ok: false };

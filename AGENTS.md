@@ -115,14 +115,22 @@ never re‑discovered the hard way.
   Pets gain XP each level clear (`_awardPetXp`, `PET_XP_PER_LEVEL`, cap
   `MAX_PET_LEVEL`). **Not pay-to-win**: pets are won from **crates**
   (`rollCrate`, seeded; `buyCrate` for `CRATE_COST` coins, treasure milestones
-  drop a free crate, starter save grants Sparky + 1 crate); duplicates convert
+  drop a free crate, falling 🎁 gifts can drop a crate `GIFT_CRATE_CHANCE`,
+  starter save grants Sparky + 1 crate); duplicates convert
   to XP (`DUP_XP`). The two **premium** pets (Aurora 🌈 / Gizmo 🤖, IAP
   `pet_*` via `monetization.purchase`) are passive side-grades only — the
   strongest score booster (Draco, legendary) and both active board helpers are
-  free/earnable. Cosmetic tints (`COSMETICS`, hue-rotate) are coin-bought. The
+  free/earnable. Premiums are bought directly in the **Pet Store**, or — very
+  rarely (`PREMIUM_DROP_CHANCE` ≈ 0.8%) — surprise you out of an ordinary
+  crate (`rollCrate`'s premium roll). The store also sells a real-money
+  **Legendary Crate** (`LEGENDARY_CRATE`, `crate_legendary` IAP, boosted odds
+  via `rollLegendaryCrate` → always legendary, often premium;
+  `game.buyLegendaryCrate`). Cosmetic tints (`COSMETICS`, hue-rotate) are
+  coin-bought. The
   **Pets screen** (`ui.js` `buildPets`, `#pets`, menu button) shows the crate,
-  the catalog grid (`.pet-card`, locked/owned/equipped), and a detail pane
-  (XP bar, equip, premium buy, cosmetics); a HUD badge (`#hud-pet`,
+  the **Pet Store** (`_buildPetStore`, `#pet-store` — premium pets + Legendary
+  Crate), the catalog grid (`.pet-card`, locked/owned/equipped), and a detail
+  pane (XP bar, equip, premium buy, cosmetics); a HUD badge (`#hud-pet`,
   `updatePetHud`) shows the equipped pet during play (hidden in the tutorial).
   Save state lives in `storage.js` `pets: { owned, equipped, crates }` with
   helpers (`getPetState`/`grantPet`/`addPetXp`/`equipPet`/`addCrates`/
@@ -131,8 +139,12 @@ never re‑discovered the hard way.
   auto‑opens on first run (and re‑playable via the menu's **How to Play**
   button). Each action step **blocks until the player actually performs the
   gesture** (tap, combo, preview, swipe, charged blast, power‑up, magnet, and
-  tapping a falling gift/problem `event`). It
-  must stay in sync with the game's features — see §11.
+  tapping a falling gift/problem `event`). The practice board **auto-refills**
+  when popped low or out of moves (`_refillTutorialBoard`, called from
+  `afterMove` in tutorial mode) so the player never runs out of bubbles. The
+  **pets** step explains how companions are acquired (crates, gifts,
+  milestones, the Pet Store). It must stay in sync with the game's features —
+  see §11.
 - **Live production URL**: https://amantaras.github.io/bubble-pop-chain/
   (GitHub Pages, served under the `/bubble-pop-chain/` subpath).
 - **Repo**: `amantaras/bubble-pop-chain`, default branch `master` (private).
@@ -220,7 +232,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 178 unit tests + 128 E2E
+- **Current baseline (keep growing, never shrink)**: 185 unit tests + 134 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests
