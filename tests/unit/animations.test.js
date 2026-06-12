@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { PetAnim, FloatingText, ScreenShake, AlienShip } from "../../src/animations.js";
+import {
+  PetAnim,
+  FloatingText,
+  ScreenShake,
+  AlienShip,
+  BubbleFinale,
+  BUBBLE_FINALE_VARIANTS,
+} from "../../src/animations.js";
 import { Board } from "../../src/grid.js";
 
 // A minimal 2D-context stub that records calls and supports the canvas API
@@ -332,3 +339,111 @@ function shipMockCtx() {
     set shadowBlur(v) {},
   };
 }
+
+// Full context stub for the last-bubble finale (gradients, composite op, etc.).
+function finaleMockCtx() {
+  const calls = [];
+  const rec = (name) => (...args) => calls.push([name, args]);
+  return {
+    calls,
+    save: rec("save"),
+    restore: rec("restore"),
+    translate: rec("translate"),
+    beginPath: rec("beginPath"),
+    moveTo: rec("moveTo"),
+    lineTo: rec("lineTo"),
+    arc: rec("arc"),
+    closePath: rec("closePath"),
+    stroke: rec("stroke"),
+    fill: rec("fill"),
+    createRadialGradient: () => ({ addColorStop() {} }),
+    set fillStyle(v) {},
+    set strokeStyle(v) {},
+    set lineWidth(v) {},
+    set lineCap(v) {},
+    set globalAlpha(v) {},
+    set globalCompositeOperation(v) {},
+  };
+}
+
+describe("BubbleFinale — last-bubble glow + explode", () => {
+  const opts = (over = {}) => ({
+    x: 50,
+    y: 50,
+    radius: 18,
+    color: "#ff5577",
+    variant: 0,
+    ...over,
+  });
+
+  it("starts inactive and becomes active once played", () => {
+    const f = new BubbleFinale();
+    expect(f.active).toBe(false);
+    f.play(opts());
+    expect(f.active).toBe(true);
+  });
+
+  it("clamps the variant into 0..VARIANTS-1", () => {
+    const f = new BubbleFinale();
+    f.play(opts({ variant: 7 }));
+    expect(f.item.variant).toBe(7 % BUBBLE_FINALE_VARIANTS);
+    f.play(opts({ variant: -1 }));
+    expect(f.item.variant).toBeGreaterThanOrEqual(0);
+    expect(f.item.variant).toBeLessThan(BUBBLE_FINALE_VARIANTS);
+  });
+
+  it("fires onExplode exactly once, at the glow→blast boundary", () => {
+    const f = new BubbleFinale();
+    let explodes = 0;
+    let seenVariant = null;
+    f.play(opts({ variant: 2, onExplode: (v) => { explodes++; seenVariant = v; } }));
+    f.update(0.3); // still charging
+    expect(explodes).toBe(0);
+    f.update(0.5); // crosses the 0.7s glow boundary
+    expect(explodes).toBe(1);
+    expect(seenVariant).toBe(2);
+    f.update(0.1); // already exploded — must not fire again
+    expect(explodes).toBe(1);
+  });
+
+  it("fires onDone once the full finale completes, then goes inactive", () => {
+    const f = new BubbleFinale();
+    let done = 0;
+    f.play(opts({ onDone: () => done++ }));
+    f.update(0.7); // explode boundary
+    f.update(0.65); // not quite finished
+    expect(done).toBe(0);
+    expect(f.active).toBe(true);
+    f.update(0.1); // crosses glow+blast total
+    expect(done).toBe(1);
+    expect(f.active).toBe(false);
+  });
+
+  it("cancel() clears an in-flight finale", () => {
+    const f = new BubbleFinale();
+    f.play(opts());
+    f.cancel();
+    expect(f.active).toBe(false);
+  });
+
+  it("draw() is a no-op when inactive and draws in both phases", () => {
+    const f = new BubbleFinale();
+    const ctx = finaleMockCtx();
+    f.draw(ctx, 0);
+    expect(ctx.calls.length).toBe(0);
+    // Glow phase draws.
+    f.play(opts());
+    f.update(0.2);
+    f.draw(ctx, 100);
+    expect(ctx.calls.length).toBeGreaterThan(0);
+    // Blast phase draws for every variant.
+    for (let v = 0; v < BUBBLE_FINALE_VARIANTS; v++) {
+      const c = finaleMockCtx();
+      const g = new BubbleFinale();
+      g.play(opts({ variant: v }));
+      g.update(0.75); // into the blast
+      g.draw(c, 0);
+      expect(c.calls.length).toBeGreaterThan(0);
+    }
+  });
+});

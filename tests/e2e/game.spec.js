@@ -2629,6 +2629,72 @@ test.describe("lone-bubble rescue", () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Last-bubble finale: when a board is whittled down to a single un-poppable
+// bubble, it glows then explodes (one of several random styles) and the board
+// clears, resolving the level — instead of jamming on a lone bubble.
+// ---------------------------------------------------------------------------
+
+// Leave exactly ONE bubble on the active board, then run the real end-of-move
+// evaluation that detects the single-bubble finish.
+async function leaveOneBubble(page) {
+  return page.evaluate(() => {
+    const g = window.__bpc.game;
+    const b = g.session.board;
+    for (let c = 0; c < b.cols; c++)
+      for (let r = 0; r < b.rows; r++) {
+        b.grid[c][r] = -1;
+        if (b.spriteGrid && b.spriteGrid[c]) b.spriteGrid[c][r] = null;
+        if (b.types && b.types[c]) b.types[c][r] = 0; // NORMAL
+      }
+    b.sprites = [];
+    b.grid[0][b.rows - 1] = 0; // a single lone bubble
+    g.session.score = 0; // not already a win
+    g.afterMove();
+    return {
+      active: g.finale.active,
+      finishing: g.session.finishing,
+      variant: g.session.finaleVariant,
+      remaining: b.countRemaining(),
+    };
+  });
+}
+
+test.describe("last-bubble finale", () => {
+  test("a single leftover bubble triggers the glow+explode finale", async ({
+    page,
+  }) => {
+    await openGame(page);
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(400);
+
+    const state = await leaveOneBubble(page);
+    // The finale is playing: input is suspended and a random style was chosen.
+    expect(state.active).toBe(true);
+    expect(state.finishing).toBe(true);
+    expect(state.remaining).toBe(1);
+    expect(state.variant).toBeGreaterThanOrEqual(0);
+    expect(state.variant).toBeLessThan(5);
+  });
+
+  test("the finale clears the board and resolves the level as a win", async ({
+    page,
+  }) => {
+    await openGame(page);
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(400);
+
+    await leaveOneBubble(page);
+    // Glow (~0.7s) + blast (~0.66s) + end delay (~0.48s) → the win screen shows.
+    await expect(page.locator("#win")).toBeVisible({ timeout: 4000 });
+    // The board genuinely emptied (clearing a board always wins).
+    const cleared = await page.evaluate(() =>
+      window.__bpc.game.session ? window.__bpc.game.session.board.countRemaining() : 0
+    );
+    expect(cleared).toBe(0);
+  });
+});
+
 test.describe("premium Nova gunship pet", () => {
   test.beforeEach(({ page }) => openGame(page));
 

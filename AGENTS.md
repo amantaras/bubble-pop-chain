@@ -80,6 +80,31 @@ never re‑discovered the hard way.
   poppable-after-swipe bubbles still on the board. `_gridHasMoves` is the pure
   tap-match scan shared by `hasMoves` and the swipe lookahead; it guards against
   `types` being unpopulated during `_generate` (`types[c]?.[r] === RAINBOW`).
+- **Last-bubble finale** (`animations.js` `BubbleFinale`/`BUBBLE_FINALE_VARIANTS`;
+  `grid.js` `firstFilledCell`/`forceRemove`; `main.js`
+  `_startLastBubbleFinale`/`_lastBubbleExplode`/`_finaleParticles`/
+  `_lastBubbleResolve`): a board can be whittled down to a **single un-poppable
+  bubble** (a lone bubble can never form a group of 2+). Instead of stranding the
+  player, `afterMove` intercepts `countRemaining() === 1` (after pet help, before
+  the deadlock/win checks) and plays a celebratory **glow-then-explode finale**
+  that clears the board, then re-runs `afterMove` so the normal clear logic
+  resolves the level (campaign/daily **win** since clearing the board always
+  wins; endless **refill**). `BubbleFinale` is a purely cosmetic animator (ticked
+  in `update`, drawn in `render` like the other transients): a charge-up glow
+  phase, then **one of five random explosion styles** (`variant` 0–4: Supernova,
+  Shockwave, Starburst, Flash-bloom, Firework) chosen via
+  `Math.random()*BUBBLE_FINALE_VARIANTS`. It exposes two callbacks — `onExplode`
+  fires once at the glow→blast boundary (the game does
+  `Board.forceRemove` + `settle` + a variant-flavoured particle burst, shake,
+  haptics and sound there) and `onDone` fires when the whole finale completes
+  (resolution). While it plays, `session.finishing` is set and input is disabled
+  (`afterMove` early-returns on `finishing`); the chosen style is stored on
+  `session.finaleVariant` for inspection/tests. `Board.forceRemove(c,r)` clears a
+  single cell **regardless of type** (ice cleared outright, unlike `removeCells`
+  which only cracks ice); `firstFilledCell()` locates the lone bubble. This only
+  triggers at **exactly one** bubble, so the multi-bubble lone-bubble rescue
+  (`#isolated`) still handles 2+ stranded bubbles. Like other auto-mechanic
+  visuals it gets **no tutorial step**.
 - **HUD loadout** (`ui.js`, `storage.js` `loadout`): the HUD shows **three
   quick-access slots** instead of one button per power-up (so it never grows as
   tools are added). A short **tap** arms that slot's power-up; a **long-press**

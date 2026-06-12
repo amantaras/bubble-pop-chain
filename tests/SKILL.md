@@ -77,6 +77,11 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   (dominant colour, first-cell-of-colour, isolated-cell detection),
   special bubbles (rainbow wildcard + ice two-hit + lightning row/column
   strike) with type round-trip, the
+  last-bubble finale animator (`BubbleFinale`: variant clamping to 0–4,
+  onExplode fires exactly once at the glow→blast boundary, onDone fires once at
+  completion, cancel, and draw in both phases) plus the grid helpers it relies
+  on (`firstFilledCell` locates the lone bubble, `forceRemove` clears one cell
+  regardless of type incl. ice), the
   daily retention engine (modifiers, tiered goals/stars, weekly rewards,
   streak-freeze rescue), and the interactive tutorial (step-table invariants,
   deterministic teaching-board generation, and gated step advancement). `localStorage` is a real spec-compliant store
@@ -104,6 +109,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   the season pass (Season screen lists the 10-tier ladder, earning XP unlocks +
   pays out a free tier, the premium track is gated until the pass is purchased,
   and the menu badge appears when a reward is claimable),
+  the last-bubble finale (leaving exactly one bubble triggers the glow+explode
+  finale with a random style 0–4, suspends input, and clears the board to win
+  the level),
   the pet companions flow (Pets screen with starter Sparky owned/equipped,
   buy + open a crate grants a pet, the Pet Store sells premium pets + a
   Legendary Crate that grants a pet, buying a premium pet unlocks it, equipping

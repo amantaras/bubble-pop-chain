@@ -556,3 +556,208 @@ export class AlienShip {
     ctx.restore();
   }
 }
+
+// ---- Last-bubble finale --------------------------------------------------
+// When a board is whittled down to a single un-poppable bubble, the player is
+// never stranded: that final bubble gets a celebratory "glow then explode"
+// finale that clears the board. Five distinct explosion styles are picked at
+// random so the moment stays fresh. The animator is purely cosmetic — the
+// board/score change is driven from main.js via the onExplode / onDone hooks:
+//   • onExplode(variant) fires once, at the blast moment (board removal +
+//     particle burst happen there).
+//   • onDone() fires when the whole finale finishes (level resolves there).
+export const BUBBLE_FINALE_VARIANTS = 5;
+
+export class BubbleFinale {
+  constructor() {
+    this.item = null;
+  }
+  get active() {
+    return !!this.item;
+  }
+  play({ x, y, radius = 18, color = "#ffffff", variant = 0, onExplode, onDone }) {
+    const v =
+      ((Math.floor(variant) % BUBBLE_FINALE_VARIANTS) + BUBBLE_FINALE_VARIANTS) %
+      BUBBLE_FINALE_VARIANTS;
+    this.item = {
+      x,
+      y,
+      radius,
+      color,
+      variant: v,
+      t: 0,
+      glow: 0.7, // charge-up duration (s)
+      blast: 0.66, // explosion visual duration (s)
+      exploded: false,
+      onExplode,
+      onDone,
+    };
+  }
+  cancel() {
+    this.item = null;
+  }
+  update(dt) {
+    const it = this.item;
+    if (!it) return;
+    it.t += dt;
+    if (!it.exploded && it.t >= it.glow) {
+      it.exploded = true;
+      if (it.onExplode) it.onExplode(it.variant);
+    }
+    if (it.t >= it.glow + it.blast) {
+      const done = it.onDone;
+      this.item = null;
+      if (done) done();
+    }
+  }
+  draw(ctx, time = 0) {
+    const it = this.item;
+    if (!it) return;
+    if (!it.exploded) this._drawGlow(ctx, it, time);
+    else this._drawBlast(ctx, it);
+  }
+
+  // Charge-up: a swelling aura, a tightening ring, and orbiting sparks build
+  // anticipation before the bubble bursts.
+  _drawGlow(ctx, it, time) {
+    const p = Math.min(1, it.t / it.glow);
+    const pulse = 0.5 + 0.5 * Math.sin(time * 0.018 + p * 12);
+    const R = it.radius;
+    ctx.save();
+    ctx.translate(it.x, it.y);
+    ctx.globalCompositeOperation = "lighter";
+    const auraR = R * (1.4 + p * 1.8 + pulse * 0.4);
+    const grad = ctx.createRadialGradient(0, 0, R * 0.2, 0, 0, auraR);
+    grad.addColorStop(0, withAlpha(it.color, 0.55 * (0.4 + p)));
+    grad.addColorStop(0.5, withAlpha(it.color, 0.28 * (0.4 + p)));
+    grad.addColorStop(1, withAlpha(it.color, 0));
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(0, 0, auraR, 0, Math.PI * 2);
+    ctx.fill();
+    const ringR = R * (2.6 - p * 1.4);
+    ctx.globalAlpha = 0.5 + 0.5 * p;
+    ctx.strokeStyle = withAlpha("#ffffff", 0.7);
+    ctx.lineWidth = 2 + p * 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, ringR, 0, Math.PI * 2);
+    ctx.stroke();
+    const sparks = 6;
+    for (let i = 0; i < sparks; i++) {
+      const a = time * 0.006 + (i / sparks) * Math.PI * 2;
+      ctx.globalAlpha = 0.6 + 0.4 * pulse;
+      ctx.fillStyle = withAlpha(it.color, 0.9);
+      ctx.beginPath();
+      ctx.arc(Math.cos(a) * ringR, Math.sin(a) * ringR, 2 + p * 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // Explosion: one of five distinct styles, selected by `variant`.
+  _drawBlast(ctx, it) {
+    const p = Math.min(1, (it.t - it.glow) / it.blast);
+    const e = 1 - Math.pow(1 - p, 3); // ease-out
+    const R = it.radius;
+    const fade = 1 - p;
+    ctx.save();
+    ctx.translate(it.x, it.y);
+    ctx.globalCompositeOperation = "lighter";
+    ctx.lineCap = "round";
+    switch (it.variant) {
+      case 0: {
+        // Supernova: a bright bloom ring with radial light rays.
+        const ringR = R * (1 + e * 7);
+        ctx.globalAlpha = fade;
+        ctx.lineWidth = R * (0.9 * fade + 0.1);
+        ctx.strokeStyle = withAlpha("#ffffff", 0.9 * fade);
+        ctx.beginPath();
+        ctx.arc(0, 0, ringR, 0, Math.PI * 2);
+        ctx.stroke();
+        const rays = 12;
+        ctx.strokeStyle = withAlpha(it.color, 0.85 * fade);
+        ctx.lineWidth = 3 * fade + 1;
+        for (let i = 0; i < rays; i++) {
+          const a = (i / rays) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a) * R, Math.sin(a) * R);
+          ctx.lineTo(Math.cos(a) * ringR * 1.05, Math.sin(a) * ringR * 1.05);
+          ctx.stroke();
+        }
+        break;
+      }
+      case 1: {
+        // Shockwave: three staggered concentric rings.
+        for (let k = 0; k < 3; k++) {
+          const pk = p - k * 0.18;
+          if (pk <= 0) continue;
+          const ek = 1 - Math.pow(1 - Math.min(1, pk), 3);
+          const ringR = R * (1 + ek * (6 - k));
+          ctx.globalAlpha = (1 - Math.min(1, pk)) * 0.9;
+          ctx.lineWidth = 4 * (1 - Math.min(1, pk)) + 1;
+          ctx.strokeStyle = withAlpha(k === 0 ? "#ffffff" : it.color, 0.9);
+          ctx.beginPath();
+          ctx.arc(0, 0, ringR, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        break;
+      }
+      case 2: {
+        // Starburst: a rotating multi-point star flare with a bright core.
+        const points = 8;
+        const rot = e * 0.8;
+        const outer = R * (1 + e * 6);
+        const inner = outer * 0.4;
+        ctx.globalAlpha = fade;
+        ctx.fillStyle = withAlpha(it.color, 0.85 * fade);
+        ctx.beginPath();
+        for (let i = 0; i < points * 2; i++) {
+          const a = rot + (i / (points * 2)) * Math.PI * 2;
+          const rr = i % 2 === 0 ? outer : inner;
+          const x = Math.cos(a) * rr;
+          const y = Math.sin(a) * rr;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = withAlpha("#ffffff", fade);
+        ctx.beginPath();
+        ctx.arc(0, 0, inner * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      }
+      case 3: {
+        // Flash bloom: a quick blinding flash that blooms then fades.
+        const bloom = R * (1 + e * 5);
+        const a = p < 0.25 ? p / 0.25 : 1 - (p - 0.25) / 0.75;
+        const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, bloom);
+        grad.addColorStop(0, withAlpha("#ffffff", 0.95 * a));
+        grad.addColorStop(0.4, withAlpha(it.color, 0.7 * a));
+        grad.addColorStop(1, withAlpha(it.color, 0));
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(0, 0, bloom, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      }
+      default: {
+        // Firework: an expanding ring of comet streaks.
+        const streaks = 14;
+        const reach = R * (1 + e * 7);
+        for (let i = 0; i < streaks; i++) {
+          const a = (i / streaks) * Math.PI * 2 + e * 0.3;
+          ctx.globalAlpha = fade;
+          ctx.strokeStyle = withAlpha(i % 2 ? "#ffffff" : it.color, 0.9 * fade);
+          ctx.lineWidth = 3 * fade + 1;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a) * reach * 0.55, Math.sin(a) * reach * 0.55);
+          ctx.lineTo(Math.cos(a) * reach, Math.sin(a) * reach);
+          ctx.stroke();
+        }
+        break;
+      }
+    }
+    ctx.restore();
+  }
+}

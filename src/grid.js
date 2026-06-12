@@ -461,6 +461,35 @@ export class Board {
     return this.countRemaining() === 0;
   }
 
+  // The first (top-left-most) filled cell, or null when the board is empty.
+  // Used by the last-bubble finale to locate the single leftover bubble.
+  firstFilledCell() {
+    for (let c = 0; c < this.cols; c++)
+      for (let r = 0; r < this.rows; r++)
+        if (this.grid[c][r] !== -1) return { c, r };
+    return null;
+  }
+
+  // Force-remove a single bubble regardless of its type (ice included),
+  // returning its pop FX `{ x, y, colorIndex }` (or null if the cell was empty).
+  // Unlike removeCells, ice is cleared outright rather than merely cracked — the
+  // last-bubble finale must truly empty the board.
+  forceRemove(c, r) {
+    if (c < 0 || c >= this.cols || r < 0 || r >= this.rows) return null;
+    if (this.grid[c][r] === -1) return null;
+    const s = this.spriteGrid[c][r];
+    let fx = null;
+    if (s) {
+      s.state = "pop";
+      s.t = 0;
+      fx = { x: s.x, y: s.y, colorIndex: s.color };
+    }
+    this.grid[c][r] = -1;
+    this.types[c][r] = NORMAL;
+    this.spriteGrid[c][r] = null;
+    return fx;
+  }
+
   // Count the bubbles still frozen (used by the boss "shatter the core"
   // objective). Both intact and cracked ice count as unbroken.
   frozenRemaining() {

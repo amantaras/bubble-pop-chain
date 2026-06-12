@@ -95,6 +95,43 @@ describe("grid / Board", () => {
     expect(b.isCleared()).toBe(true);
   });
 
+  it("firstFilledCell finds the top-left-most bubble, or null when empty", () => {
+    const b = new Board(3, 3, 3, 1);
+    setGrid(b, [
+      [-1, -1, -1],
+      [-1, -1, 2],
+      [-1, -1, -1],
+    ]);
+    expect(b.firstFilledCell()).toEqual({ c: 1, r: 2 });
+    setGrid(b, [
+      [-1, -1, -1],
+      [-1, -1, -1],
+      [-1, -1, -1],
+    ]);
+    expect(b.firstFilledCell()).toBe(null);
+  });
+
+  it("forceRemove clears a single cell regardless of type, incl. ice", () => {
+    const b = new Board(2, 2, 3, 1);
+    setGrid(b, [
+      [0, 1],
+      [2, 3],
+    ]);
+    b.types = [
+      [NORMAL, ICE],
+      [NORMAL, NORMAL],
+    ];
+    // Removing an ice bubble empties it outright (unlike removeCells, which
+    // only cracks ice).
+    b.forceRemove(0, 1);
+    expect(b.grid[0][1]).toBe(-1);
+    expect(b.types[0][1]).toBe(NORMAL);
+    expect(b.countRemaining()).toBe(3);
+    // Out-of-range / already-empty cells are a safe no-op.
+    expect(b.forceRemove(9, 9)).toBe(null);
+    expect(b.forceRemove(0, 1)).toBe(null);
+  });
+
   it("bombArea returns up to a 3x3 region clipped to the board", () => {
     const b = new Board(5, 5, 3, 1);
     expect(b.bombArea(2, 2).length).toBe(9); // centre => full 3x3

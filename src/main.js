@@ -2,7 +2,14 @@
 import { Board, RAINBOW, ICE, LIGHTNING } from "./grid.js";
 import { Renderer } from "./renderer.js";
 import { ParticleSystem } from "./particles.js";
-import { ScreenShake, FloatingText, PetAnim, AlienShip } from "./animations.js";
+import {
+  ScreenShake,
+  FloatingText,
+  PetAnim,
+  AlienShip,
+  BubbleFinale,
+  BUBBLE_FINALE_VARIANTS,
+} from "./animations.js";
 import { Input, vibrate } from "./input.js";
 import { Audio } from "./audio.js";
 import { Storage } from "./storage.js";
@@ -111,6 +118,7 @@ class Game {
     this.shake = new ScreenShake();
     this.petAnim = new PetAnim();
     this.alienShip = new AlienShip();
+    this.finale = new BubbleFinale();
     this.theme = getTheme(Storage.get("currentTheme"));
     this.session = null;
     this.tutorial = null;
@@ -1734,11 +1742,22 @@ class Game {
       return;
     }
     if (!s || s.ended) return;
+    // A last-bubble finale is mid-flight; it will resolve the board itself.
+    if (s.finishing) return;
 
     // Active pet companions physically help on the board every few moves
     // (gathering a colour, or zapping isolated bubbles) before we evaluate the
     // board state — so their help counts toward the win/deadlock checks below.
     this._maybePetAction();
+
+    // A single un-poppable bubble is left: rather than strand the player on a
+    // jam (a lone bubble can never form a group of 2+), give it a celebratory
+    // glow-and-explode finale — one of several random styles — that clears the
+    // board, then let the normal clear logic resolve the level.
+    if (s.board.countRemaining() === 1 && !this.finale.active) {
+      this._startLastBubbleFinale();
+      return;
+    }
 
     if (s.board.isCleared()) {
       if (s.mode === "endless") {
@@ -1888,6 +1907,88 @@ class Game {
     s.rescuing = false;
     UI.hideIsolatedHelp();
     this.afterMove(); // re-evaluate: rescue is declined, so the level ends
+  }
+
+  // ---- Last-bubble finale ----------------------------------------------
+  // Kick off the glow-then-explode finale for the single remaining bubble. A
+  // random explosion style is chosen. Input is suspended while it plays; when
+  // it finishes the (now empty) board resolves the level via afterMove().
+  _startLastBubbleFinale() {
+    const s = this.session;
+    const cell = s.board.firstFilledCell();
+    if (!cell) return;
+    s.finishing = true;
+    this.input.setEnabled(false);
+    this.alienShip.stop();
+    const px = s.board.targetPixel(cell.c, cell.r);
+    const palette = this.theme.bubbles;
+    const ci = s.board.grid[cell.c][cell.r];
+    const hex = palette[((ci % palette.length) + palette.length) % palette.length] || "#ffffff";
+    const radius = s.board.cell * 0.46;
+    const variant = (Math.random() * BUBBLE_FINALE_VARIANTS) | 0;
+    s.finaleVariant = variant; // exposed for inspection / tests
+    Audio.powerup();
+    this.finale.play({
+      x: px.x,
+      y: px.y,
+      radius,
+      color: hex,
+      variant,
+      onExplode: (v) => this._lastBubbleExplode(cell, v, px, hex),
+      onDone: () => this._lastBubbleResolve(),
+    });
+  }
+
+  // The blast moment: force-clear the final bubble and fire a variant-flavoured
+  // particle burst, screen shake, and sound on top of the drawn explosion.
+  _lastBubbleExplode(cell, variant, px, hex) {
+    const s = this.session;
+    if (!s) return;
+    s.board.forceRemove(cell.c, cell.r);
+    s.board.settle();
+    this._finaleParticles(variant, px.x, px.y, hex);
+    this.shake.add(0.5);
+    vibrate(30);
+    Audio.pop(4, 8);
+    this.floating.spawn(px.x, px.y - 30, "CLEAR!", "#ffd35b", 30);
+  }
+
+  // Particle flavour per explosion style (the drawn shapes live in BubbleFinale).
+  _finaleParticles(variant, x, y, hex) {
+    const white = "#ffffff";
+    switch (variant) {
+      case 0: // supernova
+        this.particles.burst(x, y, white, 26, 1.6);
+        this.particles.burst(x, y, hex, 22, 1.2);
+        break;
+      case 1: // shockwave
+        this.particles.burst(x, y, hex, 18, 1.4);
+        this.particles.sparkle(x, y, white, 16);
+        break;
+      case 2: // starburst
+        this.particles.burst(x, y, hex, 24, 1.1);
+        this.particles.sparkle(x, y, hex, 14);
+        break;
+      case 3: // flash bloom
+        this.particles.sparkle(x, y, white, 22);
+        this.particles.burst(x, y, hex, 14, 0.9);
+        break;
+      default: // firework
+        this.particles.burst(x, y, white, 16, 1.8);
+        this.particles.sparkle(x, y, hex, 18);
+        break;
+    }
+  }
+
+  // The finale finished: the board is empty, so re-enable input and let the
+  // standard clear logic decide the outcome (campaign/daily win, or endless
+  // board-clear refill).
+  _lastBubbleResolve() {
+    const s = this.session;
+    if (!s) return;
+    s.finishing = false;
+    this.input.setEnabled(true);
+    this.afterMove();
   }
 
   _scheduleEnd(won, reason) {
@@ -2128,6 +2229,7 @@ class Game {
     this.particles.update(dt);
     this.floating.update(dt);
     this.petAnim.update(dt);
+    this.finale.update(dt);
     if (this.session && !this.paused) {
       this.session.board.update(dt);
       if (this.session.combo > 0) {
@@ -2339,6 +2441,7 @@ class Game {
         this.renderer.drawHint(this.session.board, this.session.hint, time);
       }
     }
+    this.finale.draw(ctx, time);
     this.particles.draw(ctx);
     this.floating.draw(ctx);
     this.petAnim.draw(ctx);
