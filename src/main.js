@@ -1247,18 +1247,29 @@ class Game {
     };
   }
 
-  // Collect EVERY claimable achievement chest in one go. Claims one ready tier
-  // per category (mirroring the per-row Collect button), aggregates all the
-  // coins/tools/pets into a single reward summary for the "Collect All" reveal,
-  // and returns it — or null if nothing was claimable.
+  // Collect EVERY claimable achievement chest in one go. A category can have
+  // several earned-but-uncollected tiers stacked up at once (e.g. a metric that
+  // blew past multiple thresholds), so we keep claiming — one tier per category
+  // per pass — until nothing is claimable anywhere. All the coins/tools/pets are
+  // aggregated into a single reward summary for the "Collect All" reveal, and
+  // returned — or null if nothing was claimable.
   claimAllAchievements() {
-    const state = Storage.getAchievementState();
-    const ids = claimableCategories(state.progress, state.claims);
-    if (!ids.length) return null;
     const rewards = [];
-    for (const id of ids) {
-      const reward = this.claimAchievement(id);
-      if (reward) rewards.push(reward);
+    // Bounded loop: every successful claim advances a category's claimed-tier
+    // count, so the claimable set strictly shrinks and this always terminates.
+    for (let guard = 0; guard < 1000; guard++) {
+      const state = Storage.getAchievementState();
+      const ids = claimableCategories(state.progress, state.claims);
+      if (!ids.length) break;
+      let progressed = false;
+      for (const id of ids) {
+        const reward = this.claimAchievement(id);
+        if (reward) {
+          rewards.push(reward);
+          progressed = true;
+        }
+      }
+      if (!progressed) break; // safety: avoid spinning if a claim can't advance
     }
     if (!rewards.length) return null;
     return aggregateChestRewards(rewards);

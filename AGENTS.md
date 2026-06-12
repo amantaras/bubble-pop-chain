@@ -236,9 +236,13 @@ never re‑discovered the hard way.
   tiers; collecting opens the `#chest` reveal modal listing every reward. A
   badge on the menu Trophies tile (`refreshAchievementsBadge`) shows the chest
   count. A **Collect All 🎁** button (`#achv-collect-all`, shown only when ≥1
-  chest is ready) batch‑collects **one ready tier per category** in a single tap
-  via `Game.claimAllAchievements()` (loops `claimAchievement` over
-  `claimableCategories`); `aggregateChestRewards(rewards)` (pure, in
+  chest is ready) batch‑collects **every ready chest** in a single tap via
+  `Game.claimAllAchievements()`, which **loops** `claimAchievement` over
+  `claimableCategories` until nothing is claimable — so a category that has
+  several earned‑but‑uncollected tiers stacked up (a metric that blew past
+  multiple thresholds) is fully drained in one press, not tier‑by‑tier (the
+  loop always terminates: each claim advances a category's claimed count, so the
+  claimable set strictly shrinks). `aggregateChestRewards(rewards)` (pure, in
   `achievements.js`) merges the results into one summary (`{count, coins,
   powerups[] merged by id, pets[], categories[]}`). The model is granted
   synchronously; the UI then plays a **cosmetic flying‑gift sweep**

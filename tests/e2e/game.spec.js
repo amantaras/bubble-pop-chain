@@ -1456,6 +1456,41 @@ test.describe("achievements (tiered chests & rewards)", () => {
     expect(await page.locator(".achv-item.claimable").count()).toBe(0);
   });
 
+  test("Collect All clears stacked tiers of a category in a single press", async ({
+    page,
+  }) => {
+    // Seed lifetime pops past EVERY Popper tier (1/100/500/1000/5000) with
+    // nothing yet collected, so all five tiers are earned-but-uncollected at
+    // once. One Collect All press must grab them ALL — not advance tier-by-tier.
+    await page.evaluate(() => {
+      window.__bpc.Storage.setAchievementState({
+        progress: { pops: 5000 },
+        claims: {},
+      });
+    });
+    await page.evaluate(() => window.__bpc.UI.showScreen("achievements"));
+    await expect(page.locator("#achievements")).toBeVisible();
+
+    const collectAll = page.locator("#achv-collect-all");
+    await expect(collectAll).toBeVisible();
+
+    await collectAll.click();
+    await expect(page.locator("#chest")).toBeVisible();
+    // Five stacked tiers were collected in the one pass.
+    await expect(page.locator("#chest-title")).toContainText("5 chests");
+    await page.locator("#chest-ok").click();
+    await expect(page.locator("#achievements")).toBeVisible();
+
+    // Every Popper tier is now collected (claims.popper === totalTiers), the
+    // button is gone and nothing remains claimable — no per-tier repeat needed.
+    const claims = await page.evaluate(
+      () => window.__bpc.Storage.getAchievementState().claims
+    );
+    expect(claims.popper).toBe(5);
+    await expect(collectAll).toBeHidden();
+    expect(await page.locator(".achv-item.claimable").count()).toBe(0);
+  });
+
   test("triggering Fever makes the Fever chest claimable", async ({ page }) => {
     await page.evaluate(() => window.__bpc.game.startCampaign(2));
     await page.waitForTimeout(400);
