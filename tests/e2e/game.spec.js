@@ -1599,6 +1599,36 @@ test.describe("falling events (gift & problem tokens)", () => {
     ).toBe(true);
   });
 
+  test("a forced gift token can hand the player a free tool", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(500);
+
+    // Put a bomb in the first quick-slot so the HUD shows its live count, then
+    // record how many bombs the player owns right now.
+    const before = await page.evaluate(() => {
+      window.__bpc.Storage.setLoadoutSlot(0, "bomb");
+      window.__bpc.UI.updatePowerups();
+      return window.__bpc.Economy.getPowerup("bomb");
+    });
+
+    // Force a gift and pin its payload to a bomb power-up (a random roll could
+    // be coins or a crate instead) to assert the tool-grant path deterministically.
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      g.spawnEvent("gift");
+      g._activeEventDesc.reward = { type: "powerup", powerup: "bomb" };
+    });
+    const token = page.locator("#falling-event.gift");
+    await expect(token).toBeVisible();
+    await token.dispatchEvent("click");
+    await expect(token).toBeHidden();
+
+    // The player now owns one more bomb and the HUD quick-slot reflects it.
+    const after = await page.evaluate(() => window.__bpc.Economy.getPowerup("bomb"));
+    expect(after).toBe(before + 1);
+    await expect(page.locator("#pu-slot-0 .pu-count")).toHaveText(String(after));
+  });
+
   test("a missed problem token scatters bubbles on the board", async ({ page }) => {
     await page.evaluate(() => window.__bpc.game.startCampaign(2));
     await page.waitForTimeout(500);

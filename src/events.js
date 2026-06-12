@@ -19,9 +19,12 @@ export const EVENT_FALL_TIME = 3.8;
 export const GIFT_CHANCE = 0.55;
 
 // Gift coin payout range and the chance of a power-up gift instead of coins.
+// Power-ups are the gift that players actually feel, so they land a healthy
+// share of the time (not the occasional rarity coins used to crowd out) —
+// roughly 2-in-5 gifts hand over a free tool.
 export const GIFT_COIN_MIN = 25;
 export const GIFT_COIN_MAX = 75;
-export const GIFT_POWERUP_CHANCE = 0.25;
+export const GIFT_POWERUP_CHANCE = 0.4;
 // A gift can also (rarely) contain a pet crate, tying pet collection into
 // everyday play. Kept small so crates still feel like a treat.
 export const GIFT_CRATE_CHANCE = 0.08;

@@ -176,8 +176,9 @@ never re‑discovered the hard way.
   `ui.js` `spawnFallingEvent`): every ~12–20s a 🎁 **gift** or ⚠️ **problem**
   token drifts down the screen (`#events-layer`, `pointer-events:none` so it
   never blocks board taps; the token itself is tappable). Tap a gift to collect
-  coins (`GIFT_COIN_MIN..MAX`) or, ~25% of the time, a free power-up
-  (`GIFT_POWERUP_POOL`, excludes magnet). Tap a problem to **defuse** it for a
+  coins (`GIFT_COIN_MIN..MAX`) or, ~40% of the time (`GIFT_POWERUP_CHANCE`), a
+  free power-up (`GIFT_POWERUP_POOL`, excludes magnet) — tools land often enough
+  to feel like a real drop, not just coins. Tap a problem to **defuse** it for a
   small coin reward; if it falls off-screen untouched it calls
   `board.scatterArea`, recolouring the nearest `SCATTER_COUNT` bubbles to break
   apart connected clusters. Suspended during the tutorial (auto-spawns gated)
