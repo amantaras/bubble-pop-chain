@@ -82,6 +82,26 @@ describe("storage", () => {
     expect(Storage.get("activeSession")).toBeNull();
   });
 
+  it("tutorialBackup defaults to null and round-trips the inventory snapshot", () => {
+    // No tutorial in progress → no backup.
+    expect(Storage.get("tutorialBackup")).toBeNull();
+    const snap = {
+      powerups: { bomb: 42, colorClear: 0, shuffle: 3, chainBolt: 0, pick: 0, magnet: 1 },
+      loadout: ["pick", "shuffle", "chainBolt"],
+      pets: {
+        owned: { sparky: { xp: 0, cosmetics: ["default"], cosmetic: "default" } },
+        equipped: "sparky",
+        crates: 1,
+      },
+    };
+    Storage.set("tutorialBackup", snap);
+    const raw = JSON.parse(localStorage.getItem("bpc_save_v1"));
+    expect(raw.tutorialBackup).toEqual(snap);
+    // Clearing it (tutorial finished) stores null again.
+    Storage.set("tutorialBackup", null);
+    expect(Storage.get("tutorialBackup")).toBeNull();
+  });
+
   it("records milestone clears exactly once (non-farmable)", () => {
     expect(Storage.hasClearedMilestone(5)).toBe(false);
     expect(Storage.recordMilestone(5)).toBe(true);

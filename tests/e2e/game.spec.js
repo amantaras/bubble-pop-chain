@@ -1556,6 +1556,108 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
     expect(remaining.count).toBeGreaterThan(0);
     expect(remaining.hasMoves).toBe(true);
   });
+
+  test("loads ≥10 of every tool plus all pets, then restores the real inventory", async ({
+    page,
+  }) => {
+    await openGame(page); // dismisses the first-run tutorial → clean menu
+
+    // Give the player a distinctive REAL inventory: a big stash of one tool,
+    // none of others, plus a custom loadout — exactly what must be handed back.
+    const real = await page.evaluate(() => {
+      const { Storage } = window.__bpc;
+      Storage.set("powerups", {
+        bomb: 42,
+        colorClear: 0,
+        shuffle: 3,
+        chainBolt: 0,
+        pick: 0,
+        magnet: 1,
+      });
+      Storage.set("loadout", ["pick", "shuffle", "chainBolt"]);
+      return {
+        powerups: { ...Storage.get("powerups") },
+        loadout: Storage.getLoadout(),
+        ownedPets: Object.keys(Storage.getPetState().owned).sort(),
+      };
+    });
+
+    // Enter the tutorial sandbox.
+    await page.getByRole("button", { name: "How to Play", exact: true }).click();
+    await expect(page.locator("#tutorial")).toBeVisible();
+
+    // Every tool is stocked to AT LEAST 10, the bigger real stash is never
+    // reduced, and every catalog pet is loaded to experiment with.
+    const TOOLS = ["bomb", "colorClear", "shuffle", "chainBolt", "pick", "magnet"];
+    const loaded = await page.evaluate((tools) => {
+      const { Storage, Economy } = window.__bpc;
+      const counts = {};
+      for (const t of tools) counts[t] = Economy.getPowerup(t);
+      return {
+        counts,
+        ownedPets: Object.keys(Storage.getPetState().owned).length,
+      };
+    }, TOOLS);
+    for (const t of TOOLS) expect(loaded.counts[t]).toBeGreaterThanOrEqual(10);
+    expect(loaded.counts.bomb).toBe(42); // larger real stash preserved, not clamped
+    expect(loaded.ownedPets).toBeGreaterThan(real.ownedPets.length);
+
+    // Skipping (or finishing) the tutorial restores the EXACT real inventory
+    // and clears the backup.
+    await page.locator("#coach-skip").click();
+    await expect(page.locator("#tutorial")).toBeHidden();
+    const restored = await page.evaluate(() => {
+      const { Storage } = window.__bpc;
+      return {
+        powerups: { ...Storage.get("powerups") },
+        loadout: Storage.getLoadout(),
+        ownedPets: Object.keys(Storage.getPetState().owned).sort(),
+        backup: Storage.get("tutorialBackup"),
+      };
+    });
+    expect(restored.powerups).toEqual(real.powerups);
+    expect(restored.loadout).toEqual(real.loadout);
+    expect(restored.ownedPets).toEqual(real.ownedPets);
+    expect(restored.backup).toBeNull();
+  });
+
+  test("a mid-tutorial reload recovers the real inventory (no inflated stock left behind)", async ({
+    page,
+  }) => {
+    await openGame(page); // dismisses the first-run tutorial → clean menu
+
+    const real = await page.evaluate(() => {
+      const { Storage } = window.__bpc;
+      Storage.set("powerups", {
+        bomb: 2,
+        colorClear: 1,
+        shuffle: 0,
+        chainBolt: 0,
+        pick: 0,
+        magnet: 1,
+      });
+      return { ...Storage.get("powerups") };
+    });
+
+    // Enter the tutorial (loads the inflated practice stock), then reload the
+    // page mid-tutorial WITHOUT finishing it.
+    await page.getByRole("button", { name: "How to Play", exact: true }).click();
+    await expect(page.locator("#tutorial")).toBeVisible();
+    await page.reload();
+    await page.waitForFunction(() => window.__bpc && window.__bpc.game);
+
+    // On reload the real inventory is recovered before anything else, so the
+    // practice stock is never left behind in the real save.
+    const recovered = await page.evaluate(() => {
+      const { Storage } = window.__bpc;
+      return {
+        powerups: { ...Storage.get("powerups") },
+        backup: Storage.get("tutorialBackup"),
+      };
+    });
+    expect(recovered.powerups).toEqual(real);
+    expect(recovered.backup).toBeNull();
+  });
 });
 
 test.describe("pet companions (collection & buffs)", () => {

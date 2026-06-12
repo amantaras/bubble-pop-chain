@@ -82,6 +82,10 @@ const COMBO_WINDOW = 1.6; // seconds before a combo resets
 // Strength tapers from 1 (dead on the sweet spot) to 0 at this distance.
 // Widened from 0.2 → 0.3 so the green zone is more forgiving to lock onto.
 const MAGNET_HALF = 0.3;
+// How many of every power-up the tutorial temporarily loads so the player can
+// experiment freely with each tool. The player's real, larger stashes are
+// never reduced (we top up to at least this many) and are restored afterwards.
+const TUTORIAL_TOOL_STOCK = 10;
 
 class Game {
   constructor() {
@@ -161,6 +165,10 @@ class Game {
     window.addEventListener("resize", () => this.resize());
     this.resize();
     UI.showScreen("menu");
+
+    // Recover the real inventory if a previous tutorial was interrupted (e.g.
+    // the page was reloaded mid-tutorial) before it could restore the snapshot.
+    this._restoreTutorialInventory();
 
     // First-time players are walked through the interactive tutorial.
     if (!Storage.get("firstRunDone")) {
@@ -444,6 +452,11 @@ class Game {
   startTutorial() {
     if (this.tutorial && this.tutorial.active) return;
     clearTimeout(this._endTimer);
+    // Load a generous, complete practice inventory so the player can freely
+    // try every tool (and pet) during the sandbox. The real inventory is
+    // snapshotted first and restored when the tutorial ends — see
+    // _stockTutorialInventory / _restoreTutorialInventory.
+    this._stockTutorialInventory();
     const cols = 7;
     const rows = 9;
     const colors = 4;
@@ -485,10 +498,56 @@ class Game {
 
   finishTutorial() {
     this.tutorial = null;
+    // Hand the player back exactly the inventory they had before the tutorial
+    // loaded its practice stock — never overwrite what they really own.
+    this._restoreTutorialInventory();
     Storage.set("firstRunDone", true);
     this.session = null;
     this.input.setEnabled(false);
     UI.showScreen("menu");
+  }
+
+  // Temporarily load a complete, generous inventory for the tutorial sandbox so
+  // the player can experiment with EVERY tool and pet. The real inventory is
+  // snapshotted into `tutorialBackup` first (only once — a restart before
+  // finishing keeps the original snapshot) and that snapshot is persisted, so a
+  // mid-tutorial reload can still recover it. The player's real counts are
+  // never reduced: each tool is topped up to at least TUTORIAL_TOOL_STOCK.
+  _stockTutorialInventory() {
+    if (!Storage.get("tutorialBackup")) {
+      Storage.set("tutorialBackup", {
+        powerups: { ...Storage.get("powerups") },
+        loadout: Storage.getLoadout(),
+        pets: JSON.parse(JSON.stringify(Storage.get("pets"))),
+      });
+    }
+    const real = Storage.get("tutorialBackup").powerups || {};
+    const stocked = { ...real };
+    for (const type of Object.keys(POWERUP_INFO)) {
+      stocked[type] = Math.max(real[type] || 0, TUTORIAL_TOOL_STOCK);
+    }
+    Storage.set("powerups", stocked);
+    // Load every companion too, leaving the equipped pet untouched.
+    const pets = JSON.parse(JSON.stringify(Storage.get("pets")));
+    pets.owned = pets.owned || {};
+    for (const pet of PET_CATALOG) {
+      if (!pets.owned[pet.id]) {
+        pets.owned[pet.id] = { xp: 0, cosmetics: ["default"], cosmetic: "default" };
+      }
+    }
+    Storage.set("pets", pets);
+  }
+
+  // Restore the player's real inventory snapshot taken by
+  // _stockTutorialInventory and clear the backup. Safe to call when no backup
+  // exists (no-op), so it also recovers cleanly after an interrupted tutorial.
+  _restoreTutorialInventory() {
+    const backup = Storage.get("tutorialBackup");
+    if (!backup) return;
+    if (backup.powerups) Storage.set("powerups", { ...backup.powerups });
+    if (backup.loadout) Storage.set("loadout", backup.loadout.slice());
+    if (backup.pets) Storage.set("pets", JSON.parse(JSON.stringify(backup.pets)));
+    Storage.set("tutorialBackup", null);
   }
 
   // ---- Pet companion actions (driven by the Pets screen) ----------------

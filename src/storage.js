@@ -57,6 +57,14 @@ const DEFAULT_SAVE = {
     equipped: "sparky",
     crates: 1,
   },
+  // While the interactive tutorial is running it temporarily loads a generous,
+  // complete inventory so the player can experiment with every tool and pet.
+  // The player's REAL inventory (power-ups, loadout, pets) is snapshotted here
+  // first and restored verbatim when the tutorial ends. Persisting the snapshot
+  // means a mid-tutorial page reload can still recover the real inventory
+  // instead of leaving the inflated practice counts behind. `null` when no
+  // tutorial is in progress.
+  tutorialBackup: null,
 };
 
 function deepDefault(saved) {

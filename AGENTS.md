@@ -178,8 +178,15 @@ never re‑discovered the hard way.
   when popped low or out of moves (`_refillTutorialBoard`, called from
   `afterMove` in tutorial mode) so the player never runs out of bubbles. The
   **pets** step explains how companions are acquired (crates, gifts,
-  milestones, the Pet Store). It must stay in sync with the game's features —
-  see §11.
+  milestones, the Pet Store). On entry the tutorial **loads a generous practice
+  inventory** (≥10 of every power-up plus all catalog pets) so the player can
+  freely experiment; the real inventory (power-ups, loadout, pets) is
+  snapshotted into `tutorialBackup` (persisted, so a mid-tutorial reload still
+  recovers it via `_restoreTutorialInventory` on `init`) and restored verbatim
+  on finish/skip — the tutorial **never overwrites what the player owns** and
+  larger real stashes are never reduced (see `_stockTutorialInventory` /
+  `_restoreTutorialInventory`, `TUTORIAL_TOOL_STOCK`). It must stay in sync with
+  the game's features — see §11.
 - **Live production URL**: https://amantaras.github.io/bubble-pop-chain/
   (GitHub Pages, served under the `/bubble-pop-chain/` subpath).
 - **Repo**: `amantaras/bubble-pop-chain`, default branch `master` (private).
@@ -267,7 +274,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 201 unit tests + 144 E2E
+- **Current baseline (keep growing, never shrink)**: 202 unit tests + 148 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests
