@@ -782,6 +782,35 @@ test.describe("power-ups (UI arm + apply)", () => {
     expect(loadout[0]).toBe("shuffle");
     expect(new Set(loadout).size).toBe(3);
   });
+
+  test("tapping an empty tool slot opens the shop with that tool highlighted and pauses the level", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(700);
+
+    // Put a tool the player owns NONE of into slot 0.
+    await page.evaluate(() => window.__bpc.UI.assignLoadout(0, "chainBolt"));
+    expect(
+      await page.evaluate(() => window.__bpc.Economy.getPowerup("chainBolt"))
+    ).toBe(0);
+
+    // Tapping the empty slot routes to the shop (with the tool highlighted)
+    // instead of arming nothing.
+    await page.locator("#pu-slot-0").click();
+    await expect(page.locator("#shop")).toBeVisible();
+    await expect(
+      page.locator('#shop-list .shop-item[data-pu="chainBolt"]')
+    ).toHaveClass(/highlight/);
+    // The live level is paused while the player shops.
+    expect(await page.evaluate(() => window.__bpc.game.paused)).toBe(true);
+
+    // Back returns to the level (HUD) and resumes it — not the menu.
+    await page.locator("#shop-back").click();
+    await expect(page.locator("#hud")).toBeVisible();
+    await expect(page.locator("#menu")).toBeHidden();
+    expect(await page.evaluate(() => window.__bpc.game.paused)).toBe(false);
+  });
 });
 
 test.describe("fever mode (double points)", () => {
@@ -1111,6 +1140,24 @@ test.describe("falling events (gift & problem tokens)", () => {
     }, snap);
     expect(result.diff).toBe(0); // defused in time => board untouched
     expect(result.coins).toBeGreaterThan(before); // small relief reward
+  });
+
+  test("an in-flight token freezes (and can't miss) while on another window", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(500);
+    await page.evaluate(() => window.__bpc.game.spawnEvent("gift"));
+    await expect(page.locator("#falling-event.gift")).toBeVisible();
+
+    // Leaving the playing window (e.g. opening the pet manager over the level)
+    // pauses the game and freezes the token so it can never silently miss.
+    await page.evaluate(() => window.__bpc.game.pauseForOverlay());
+    await expect(page.locator("#events-layer")).toHaveClass(/paused/);
+    expect(await page.evaluate(() => window.__bpc.game.activeEvent)).toBe(true);
+
+    // Returning to the level resumes the fall from where it left off.
+    await page.evaluate(() => window.__bpc.game.resumeFromOverlay());
+    await expect(page.locator("#events-layer")).not.toHaveClass(/paused/);
+    expect(await page.evaluate(() => window.__bpc.game.activeEvent)).toBe(true);
   });
 });
 
@@ -1825,6 +1872,60 @@ test.describe("pet companions (collection & buffs)", () => {
     expect(active).not.toBeNull();
     expect(active.type).toBe("gather");
     expect(active.cooldown).toBeGreaterThan(0);
+  });
+
+  test("an active pet (Comet) arms a diagonal action on the session", async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      window.__bpc.Storage.grantPet("comet");
+      window.__bpc.game.equipPet("comet");
+    });
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    const active = await page.evaluate(() => window.__bpc.game.session.petActive);
+    expect(active).not.toBeNull();
+    expect(active.type).toBe("diagonal");
+    expect(active.cooldown).toBeGreaterThan(0);
+  });
+
+  test("the diagonal pet (Comet) blasts a diagonal streak off the board", async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      window.__bpc.Storage.grantPet("comet");
+      window.__bpc.game.equipPet("comet");
+    });
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    const result = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      // Paint a guaranteed ↘ diagonal of one colour in the top-left corner
+      // (NORMAL === 0 in the bubble-type grid).
+      for (let i = 0; i < 3; i++) {
+        b.grid[i][i] = 0;
+        b.types[i][i] = 0;
+        const sp = b.spriteGrid[i][i];
+        if (sp) {
+          sp.color = 0;
+          sp.type = 0;
+        }
+      }
+      const runLen = b.diagonalRun(3).length;
+      const beforeCount = b.countRemaining();
+      g._petDiagonal(g.session.petActive);
+      return {
+        runLen,
+        beforeCount,
+        afterCount: b.countRemaining(),
+        busy: g.petAnim.busy,
+        kind: g.petAnim.items[0] && g.petAnim.items[0].kind,
+      };
+    });
+    expect(result.runLen).toBeGreaterThanOrEqual(3);
+    // The diagonal streak (which a normal tap can never clear) is gone.
+    expect(result.afterCount).toBeLessThanOrEqual(result.beforeCount - 3);
+    expect(result.busy).toBe(true);
+    expect(result.kind).toBe("diagonal");
   });
 
   test("premium pet purchase via the mock provider grants ownership", async ({

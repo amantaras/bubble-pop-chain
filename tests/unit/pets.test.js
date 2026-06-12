@@ -72,6 +72,15 @@ describe("pets catalog", () => {
     expect(cleanse.premium).toBe(false);
   });
 
+  it("provides a free diagonal-blasting active pet", () => {
+    const diag = PET_CATALOG.find((p) => p.active && p.active.type === "diagonal");
+    expect(diag).toBeTruthy();
+    expect(diag.premium).toBe(false);
+    const act = petActive(diag.id, 1);
+    expect(act.type).toBe("diagonal");
+    expect(act.cooldown).toBeGreaterThan(0);
+  });
+
   it("getPet / getCosmetic return defaults for unknown ids", () => {
     expect(getPet("nope")).toBeNull();
     expect(getCosmetic("nope")).toBe(COSMETICS[0]);

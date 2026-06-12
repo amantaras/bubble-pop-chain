@@ -1357,6 +1357,19 @@ body {
 .shop-item .si-icon {
   font-size: 30px;
 }
+/* A shop row the player was sent to (e.g. tapped an empty tool slot): glows and
+   pulses briefly so it's easy to spot. Box-shadow/opacity only — no transform,
+   so automated taps on the buy button stay reliable. */
+.shop-item.highlight {
+  border-color: var(--accent, #5be3ff);
+  box-shadow: 0 0 0 2px var(--accent, #5be3ff),
+    0 0 22px rgba(91, 227, 255, 0.55);
+  animation: shop-attn 1.1s ease-in-out 3;
+}
+@keyframes shop-attn {
+  0%, 100% { box-shadow: 0 0 0 2px var(--accent, #5be3ff), 0 0 14px rgba(91, 227, 255, 0.4); }
+  50% { box-shadow: 0 0 0 2px var(--accent, #5be3ff), 0 0 28px rgba(91, 227, 255, 0.8); }
+}
 .shop-item .si-body,
 .theme-item .ti-body {
   flex: 1;
@@ -1996,6 +2009,15 @@ body {
   z-index: 38; /* above the HUD, below ad/modals/toast */
   pointer-events: none; /* never blocks taps on the board */
   overflow: hidden;
+}
+/* While the player is off the playing window (shop, pet manager, paused), the
+   token freezes mid-fall and hides — so it never silently "misses". */
+.events-layer.paused {
+  visibility: hidden;
+}
+.events-layer.paused .falling-event,
+.events-layer.paused .falling-event::after {
+  animation-play-state: paused;
 }
 .falling-event {
   position: absolute;

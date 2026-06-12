@@ -41,7 +41,14 @@ never re‑discovered the hard way.
   match) so the player can't just lock dead-centre; strength tapers from full on
   the sweet spot to zero `MAGNET_HALF` away. The closer to green, the more of
   that colour is pulled into one connected blob (a perfect hit gathers the whole
-  colour). While aiming, the **target-colour bubbles shake** harder the nearer
+  colour). The pull is a **real relocation**: `magnetGather` swaps the actual
+  sprite objects between cells (not just their colour fields) and starts a slow
+  `MAGNET_GLIDE` (~0.6s) ease on each moved bubble (`_startGlide`, animated in
+  `Board.update`), so the player sees the coloured bubbles physically travel
+  across the board and the displaced ones drift out. Gravity/collapse cancel any
+  in-flight glide (`glideDur = 0`) so settling stays snappy. The grid/colour
+  model ends up identical to before, so the blob is immediately poppable.
+  While aiming, the **target-colour bubbles shake** harder the nearer
   the needle is to green (`Renderer.drawBubbles` `aim` jitter). The Magnet is the
   dearest power-up (500 coins) and also drops from the treasure rotation.
 - **Lone-bubble rescue** (`main.js` `_offerIsolatedRescue`/`_canRescue`/
@@ -67,6 +74,12 @@ never re‑discovered the hard way.
   entry — choosing one assigns it to the held slot via
   `Storage.setLoadoutSlot`, which keeps the three slots distinct (swapping if
   the tool is already equipped). The loadout deep-merges into existing saves.
+  Tapping a slot the player has **no charges of** (`armPowerup` sees
+  `Economy.getPowerup(type) <= 0`) doesn't just toast — it opens the shop
+  focused on that tool (`UI.openShopForPowerup`: pauses the live level, scrolls
+  to + glows the matching `.shop-item[data-pu]`). `shop-back` routes through
+  `UI.closeShop`, which resumes the paused level when the shop was opened
+  mid-game (`_shopOverGame`) instead of dropping to the menu.
 - **Special bubbles** (`grid.js` `types` layer): **Rainbow** = colour wildcard
   that bridges regions; **Ice** = needs two hits (cracks, then clears). Seeded
   spawn rates ramp in by level. Types are part of the save/resume snapshot.
@@ -106,8 +119,12 @@ never re‑discovered the hard way.
   small coin reward; if it falls off-screen untouched it calls
   `board.scatterArea`, recolouring the nearest `SCATTER_COUNT` bubbles to break
   apart connected clusters. Suspended during the tutorial (auto-spawns gated)
-  and once a session ends. `events.js` is pure/seedable; `game.spawnEvent(type)`
-  is an E2E hook.
+  and once a session ends. Also **paused** while the player is off the playing
+  window: `pauseForOverlay`/`resumeFromOverlay` (used by the pet manager and the
+  mid-level shop) call `UI.pauseFallingEvents`/`resumeFallingEvents`, which add a
+  `paused` class to `#events-layer` that freezes the token's CSS fall (so it
+  can't silently miss) and hides it until the player returns. `events.js` is
+  pure/seedable; `game.spawnEvent(type)` is an E2E hook.
 - **Achievements** (`achievements.js`, pure): 8 **tiered categories** that
   reward lifetime play (Popper, Combo Master, Big Bang, Fever Pitch,
   Trailblazer, Star Collector, Bomb Squad, High Roller). Each category tracks
@@ -144,22 +161,28 @@ never re‑discovered the hard way.
   **Themes screen** (`#cb-toggle`); the setting deep-merges into existing saves.
 - **Pet companions** (`pets.js`, pure; `storage.js` `pets`): collectible helper
   pets that support the player both **passively** and with **active board
-  powers**. `PET_CATALOG` holds 8 pets across four rarities
+  powers**. `PET_CATALOG` holds 9 pets across four rarities
   (`common`/`rare`/`epic`/`legendary`). **Passive pets** carry an `ability`
   (`scoreMult`/`coinMult`/`powerMult`/`feverMult`/`startCharge`) that scales per
   level (`petBuffs`/`abilityValue`). **Active pets** carry an `active` config and
   manipulate the board on a cooldown (`petActive`): **Rover 🐶** gathers the
   dominant colour into a blob (`grid.dominantColor`/`firstCellOfColor` →
   `magnetGather`), **Whiskers 🐱** zaps isolated single bubbles
-  (`grid.isolatedCells`). The companion runs in `main.js` via
+  (`grid.isolatedCells`), **Comet ☄️** blasts the longest same-colour **diagonal**
+  streak off the board (`grid.diagonalRun` → `_petDiagonal`) — a line the
+  orthogonal flood-fill behind tapping can never clear on its own. The companion
+  runs in `main.js` via
   `_equippedBuffs`/`_equippedActive` (folded into `popAt`/`chargedBlast`/
   `applyPowerup`/`_finish` scoring and the meters) and `_maybePetAction`/
-  `_petGather`/`_petCleanse` (ticked from `afterMove` on `session.petTimer`).
+  `_petGather`/`_petCleanse`/`_petDiagonal` (ticked from `afterMove` on
+  `session.petTimer`).
   When an active pet fires, it plays an on-board **ability animation** (`PetAnim`
   in `animations.js`, ticked/drawn from the game loop via `game.petAnim`): the
   equipped pet's emoji flies in and performs its move — **Rover 🐶** dashes in
   and reels the colour together with a sparkle "leash" (`gather`), **Whiskers
-  🐱** pounces and claw-slashes the lone bubbles (`cleanse`). The animation is
+  🐱** pounces and claw-slashes the lone bubbles (`cleanse`), **Comet ☄️**
+  streaks in diagonally and fires a bright beam along the popped streak
+  (`diagonal`). The animation is
   purely cosmetic; the board change happens immediately when triggered.
   Pets gain XP each level clear (`_awardPetXp`, `PET_XP_PER_LEVEL`, cap
   `MAX_PET_LEVEL`). **Not pay-to-win**: pets are won from **crates**
@@ -168,8 +191,8 @@ never re‑discovered the hard way.
   starter save grants Sparky + 1 crate); duplicates convert
   to XP (`DUP_XP`). The two **premium** pets (Aurora 🌈 / Gizmo 🤖, IAP
   `pet_*` via `monetization.purchase`) are passive side-grades only — the
-  strongest score booster (Draco, legendary) and both active board helpers are
-  free/earnable. Premiums are bought directly in the **Pet Store**, or — very
+  strongest score booster (Draco, legendary) and all three active board helpers
+  are free/earnable. Premiums are bought directly in the **Pet Store**, or — very
   rarely (`PREMIUM_DROP_CHANCE` ≈ 0.8%) — surprise you out of an ordinary
   crate (`rollCrate`'s premium roll). The store also sells a real-money
   **Legendary Crate** (`LEGENDARY_CRATE`, `crate_legendary` IAP, boosted odds
@@ -302,7 +325,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 202 unit tests + 158 E2E
+- **Current baseline (keep growing, never shrink)**: 214 unit tests + 166 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

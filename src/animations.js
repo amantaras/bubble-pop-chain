@@ -112,11 +112,20 @@ export class PetAnim {
   }
 
   // Trigger a pet ability animation.
-  //   opts.kind    — "gather" | "cleanse"
-  //   opts.icon    — pet emoji to fly across the screen
-  //   opts.anchor  — { x, y } focal point of the ability (pixels)
-  //   opts.targets — [{ x, y }, ...] affected bubble centres (pixels)
-  //   opts.color   — accent colour for trails/sparkles
+  //   opts.kind       — "gather" | "cleanse" | "diagonal"
+  //   opts.icon       — pet emoji to fly across the screen
+  //   opts.anchor     — { x, y } focal point of the ability (pixels)
+  //   opts.targets    — [{ x, y }, ...] affected bubble centres (pixels)
+  //   opts.color      — accent colour for trails/sparkles
+  //   opts.board      — (optional) live board, so the animation can track
+  //                     bubbles that move/vanish while it plays
+  //   opts.anchorCell — (optional) { c, r } grid anchor (used with board)
+  //   opts.cells      — (optional) [{ c, r }, ...] affected grid cells
+  //
+  // When `opts.board` + grid cells are supplied (gather/magnet, where bubbles
+  // persist and may be popped by the player mid-animation), pixel positions are
+  // recomputed every frame from the live board and any cell the player has
+  // since removed is dropped — so leashes never reel toward an empty location.
   play(opts = {}) {
     const targets = Array.isArray(opts.targets) ? opts.targets : [];
     let cx = opts.anchor ? opts.anchor.x : 0;
@@ -125,19 +134,59 @@ export class PetAnim {
       cx = targets.reduce((a, t) => a + t.x, 0) / targets.length;
       cy = targets.reduce((a, t) => a + t.y, 0) / targets.length;
     }
+    const kind =
+      opts.kind === "cleanse"
+        ? "cleanse"
+        : opts.kind === "diagonal"
+          ? "diagonal"
+          : "gather";
     this.items.push({
-      kind: opts.kind === "cleanse" ? "cleanse" : "gather",
+      kind,
       icon: opts.icon || "🐾",
       color: opts.color || "#9be7ff",
       cx,
       cy,
       targets,
+      // Live tracking is only meaningful for non-destructive moves (gather),
+      // where the affected bubbles stay on the board. Cleanse/diagonal pop
+      // their cells immediately, so they keep their frozen snapshot.
+      board: kind === "gather" ? opts.board || null : null,
+      anchorCell: opts.anchorCell || null,
+      cells: Array.isArray(opts.cells) ? opts.cells : null,
       life: 0,
       enter: 0.42,
       act: 0.6,
       exit: 0.4,
     });
   }
+
+  // For a live (board-tracked) item, refresh its focal point + target pixels
+  // from the current board, dropping any bubble the player has popped since the
+  // ability fired. Re-homes the focal point to the surviving bubbles if the
+  // anchor itself was cleared, so nothing reels toward an empty cell.
+  _syncLive(it) {
+    const b = it.board;
+    if (!b) return;
+    const occupied = (cell) =>
+      cell &&
+      b.grid[cell.c] !== undefined &&
+      b.grid[cell.c][cell.r] !== undefined &&
+      b.grid[cell.c][cell.r] !== -1;
+    if (it.cells) {
+      it.targets = it.cells
+        .filter(occupied)
+        .map((cell) => b.targetPixel(cell.c, cell.r));
+    }
+    if (occupied(it.anchorCell)) {
+      const a = b.targetPixel(it.anchorCell.c, it.anchorCell.r);
+      it.cx = a.x;
+      it.cy = a.y;
+    } else if (it.targets.length) {
+      it.cx = it.targets.reduce((s, t) => s + t.x, 0) / it.targets.length;
+      it.cy = it.targets.reduce((s, t) => s + t.y, 0) / it.targets.length;
+    }
+  }
+
 
   update(dt) {
     for (let i = this.items.length - 1; i >= 0; i--) {
@@ -152,15 +201,20 @@ export class PetAnim {
   }
 
   _drawItem(ctx, it) {
+    // Keep board-tracked (gather) items pinned to live bubbles, never to cells
+    // the player has cleared while the animation was still playing.
+    if (it.board) this._syncLive(it);
     const L = it.life;
     const hoverX = it.cx;
     const hoverY = it.cy - 60;
     // Entry origin depends on ability: Rover dashes in from the left, Whiskers
-    // drops down from above.
+    // drops down from above, Comet streaks in from the top-left diagonal.
     const origin =
       it.kind === "cleanse"
         ? { x: it.cx, y: it.cy - 320 }
-        : { x: it.cx - 300, y: it.cy - 30 };
+        : it.kind === "diagonal"
+          ? { x: it.cx - 280, y: it.cy - 280 }
+          : { x: it.cx - 300, y: it.cy - 30 };
 
     let px;
     let py;
@@ -184,6 +238,11 @@ export class PetAnim {
         py = hoverY + dip * 56;
         scale = 1.1 - dip * 0.12;
         rot = Math.sin(actP * Math.PI * 3) * 0.18;
+      } else if (it.kind === "diagonal") {
+        // Streak: a sharp tilted zip with a quick spin as the beam fires.
+        py = hoverY - Math.sin(actP * Math.PI) * 8;
+        scale = 1.15;
+        rot = -0.6 + Math.sin(actP * Math.PI * 2) * 0.25;
       } else {
         // Tug: lean back and forth as it reels colours in, with a happy bob.
         py = hoverY - Math.abs(Math.sin(actP * Math.PI * 2)) * 10;
@@ -202,6 +261,7 @@ export class PetAnim {
     // Effects tied to the affected bubbles (drawn under the sprite).
     ctx.save();
     if (it.kind === "gather") this._drawGatherFx(ctx, it, actP);
+    else if (it.kind === "diagonal") this._drawDiagonalFx(ctx, it, actP);
     else this._drawCleanseFx(ctx, it, actP);
     ctx.restore();
 
@@ -270,6 +330,43 @@ export class PetAnim {
       ctx.beginPath();
       ctx.arc(t.x, t.y, len * 1.2, 0, Math.PI * 2);
       ctx.stroke();
+    }
+  }
+
+  // ☄️ Comet: a bright beam sweeps along the diagonal streak, with a flash on
+  // each bubble as the streak is blasted away.
+  _drawDiagonalFx(ctx, it, actP) {
+    const pts = it.targets;
+    if (!pts.length) return;
+    const sweep = Easing.outCubic(Math.min(1, actP * 1.3));
+    const fade = 1 - Math.max(0, (actP - 0.55) / 0.45);
+    const a = pts[0];
+    const b = pts[pts.length - 1];
+    // The beam grows from the first target toward the last along the diagonal.
+    const ex = a.x + (b.x - a.x) * sweep;
+    const ey = a.y + (b.y - a.y) * sweep;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = withAlpha(it.color, 0.85 * fade);
+    ctx.lineWidth = 10;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+    ctx.strokeStyle = withAlpha("#ffffff", 0.95 * fade);
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+    // Spark flash on each bubble the beam has reached.
+    for (const t of pts) {
+      const along =
+        Math.hypot(t.x - a.x, t.y - a.y) <= Math.hypot(ex - a.x, ey - a.y) + 1;
+      if (!along) continue;
+      ctx.fillStyle = withAlpha("#ffffff", 0.9 * fade);
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, 5, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 }

@@ -622,12 +622,16 @@ class Game {
   pauseForOverlay() {
     this.paused = true;
     if (this.input) this.input.setEnabled(false);
+    // Suspend any in-flight gift/problem token so it doesn't keep falling (and
+    // miss) while the player is on another window.
+    UI.pauseFallingEvents();
   }
 
   // Resume the level when the pet overlay closes without a companion switch.
   resumeFromOverlay() {
     this.paused = false;
     if (this.input) this.input.setEnabled(true);
+    UI.resumeFallingEvents();
   }
 
   // Equip a different companion and restart the current level from scratch so
@@ -1212,6 +1216,27 @@ class Game {
     const sweet = s.magnet.sweet == null ? 0.5 : s.magnet.sweet;
     const strength = Math.max(0, 1 - Math.abs(value - sweet) / MAGNET_HALF);
 
+    // The bubble we aimed at may have been recoloured (or cleared) while the
+    // gauge swept — re-anchor onto a still-present bubble of the target colour
+    // so the magnet always gathers an EXISTING colour at a valid location.
+    let anchor = { c, r };
+    if (
+      s.board.grid[c][r] !== color ||
+      s.board.types[c][r] !== 0
+    ) {
+      anchor = s.board.firstCellOfColor(color);
+    }
+    // The whole colour is gone (or down to a single bubble) — nothing useful to
+    // gather. Cancel the aim without spending a charge.
+    if (!anchor || s.board.colorCells(color).length < 2) {
+      s.magnet = null;
+      s.armed = null;
+      UI.clearArmedPowerups();
+      UI.hideMagnetGauge();
+      UI.toast("Magnet fizzled — no bubbles to pull");
+      return;
+    }
+
     // Spend a real charge (tutorial bypasses the economy).
     if (s.mode !== "tutorial" && !Economy.usePowerup("magnet")) {
       s.magnet = null;
@@ -1227,10 +1252,10 @@ class Game {
     UI.hideMagnetGauge();
     UI.updatePowerups();
 
-    const res = s.board.magnetGather(c, r, color, strength);
+    const res = s.board.magnetGather(anchor.c, anchor.r, color, strength);
     Audio.powerup();
     vibrate(strength > 0.85 ? 28 : 14);
-    const t = s.board.targetPixel(c, r);
+    const t = s.board.targetPixel(anchor.c, anchor.r);
     const label = strength > 0.85 ? "PERFECT MAGNET!" : `MAGNET ×${res.gathered}`;
     this.floating.spawn(t.x, t.y, label, strength > 0.85 ? "#5be3ff" : "#ffffff", 28);
     if (s.stats) s.stats.powerups += 1;
@@ -1252,6 +1277,7 @@ class Game {
     s.petTimer = act.cooldown;
     if (act.type === "cleanse") this._petCleanse(act);
     else if (act.type === "gather") this._petGather(act);
+    else if (act.type === "diagonal") this._petDiagonal(act);
   }
 
   // 🐱 Whiskers: pounce on lone, hard-to-match bubbles and clear them.
@@ -1298,18 +1324,52 @@ class Game {
     const res = s.board.magnetGather(anchor.c, anchor.r, color, act.strength);
     if (!res || res.gathered <= 1) return;
     const anchorPx = s.board.targetPixel(anchor.c, anchor.r);
-    const targets = (before.length ? before : [anchor])
-      .map((cell) => s.board.targetPixel(cell.c, cell.r))
-      .slice(0, 14);
+    const cells = (before.length ? before : [anchor]).slice(0, 14);
+    const targets = cells.map((cell) => s.board.targetPixel(cell.c, cell.r));
     this.petAnim.play({
       kind: "gather",
       icon: this._equippedPetIcon("🐶"),
       anchor: anchorPx,
       targets,
+      // Track the live board: if the player pops the anchor or any of these
+      // bubbles while the leash is still reeling, the animation re-homes to the
+      // surviving bubbles instead of pulling toward an emptied cell.
+      board: s.board,
+      anchorCell: anchor,
+      cells,
       color: "#ffd35b",
     });
     Audio.powerup();
     this.floating.spawn(anchorPx.x, anchorPx.y - 36, "Fetch!", "#ffd35b", 26);
+    this.refreshHud();
+  }
+
+  // ☄️ Comet: blast the longest diagonal streak of one colour clean off the
+  // board — a line the orthogonal flood-fill behind tapping can never clear.
+  _petDiagonal(act) {
+    const s = this.session;
+    const cells = s.board.diagonalRun(3);
+    if (cells.length < 3) return;
+    const raw = cells.length * 16;
+    const points = Math.round(
+      feverPoints(raw, s.feverActive) * s.petBuffs.scoreMult
+    );
+    s.score += points;
+    const targets = cells.map((cell) => s.board.targetPixel(cell.c, cell.r));
+    const anchor = targets.reduce(
+      (a, t) => ({ x: a.x + t.x / targets.length, y: a.y + t.y / targets.length }),
+      { x: 0, y: 0 }
+    );
+    this.petAnim.play({
+      kind: "diagonal",
+      icon: this._equippedPetIcon("☄️"),
+      anchor,
+      targets,
+      color: "#ffd35b",
+    });
+    this._popCells(cells, points, cells.length, 1, 0.7);
+    Audio.powerup();
+    this.floating.spawn(anchor.x, anchor.y - 36, "Streak!", "#ffd35b", 26);
     this.refreshHud();
   }
 
@@ -1357,7 +1417,9 @@ class Game {
     const s = this.session;
     const inTutorial = s.mode === "tutorial";
     if (!inTutorial && Economy.getPowerup(type) <= 0) {
-      UI.toast("None left — buy in Shop");
+      // Out of this tool — take the player straight to the shop with it already
+      // highlighted so they can stock up, then return to the level.
+      UI.openShopForPowerup(type);
       return;
     }
     if (type === "shuffle") {

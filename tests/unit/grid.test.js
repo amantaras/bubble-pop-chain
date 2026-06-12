@@ -150,6 +150,115 @@ describe("grid / Board", () => {
     expect(b.magnetGather(0, 0, 0, 1).gathered).toBe(1);
   });
 
+  it("magnetGather self-heals when the anchor cell holds the wrong colour", () => {
+    const b = new Board(5, 1, 2, 1);
+    setGrid(b, [[1], [0], [0], [1], [0]]); // colour 0 at c=1,2,4
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    // Aim at c=0, which is colour 1 — a stale anchor. It must re-anchor onto a
+    // real colour-0 bubble rather than gathering nothing.
+    const res = b.magnetGather(0, 0, 0, 1);
+    expect(res.gathered).toBe(3);
+    expect(res.color).toBe(0);
+    expect(b.colorCells(0).length).toBe(3); // multiset preserved
+  });
+
+  it("magnetGather self-heals when the anchor cell was emptied", () => {
+    const b = new Board(4, 1, 2, 1);
+    setGrid(b, [[-1], [0], [0], [0]]); // c=0 is empty
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    const res = b.magnetGather(0, 0, 0, 1);
+    expect(res.gathered).toBe(3);
+    expect(res.color).toBe(0);
+  });
+
+  it("magnetGather returns 0 when the target colour is gone entirely", () => {
+    const b = new Board(3, 1, 3, 1);
+    setGrid(b, [[1], [2], [1]]); // no colour 0 anywhere
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    expect(b.magnetGather(0, 0, 0, 1).gathered).toBe(0);
+  });
+
+  it("magnetGather physically relocates sprites — a glide, not an in-place recolour", () => {
+    // A real board (with sprites) laid out deterministically: colour 0 scattered
+    // so the pull must move at least one bubble across a cell.
+    const b = new Board(5, 1, 2, 1);
+    const layout = [[0], [1], [0], [1], [0]];
+    for (let c = 0; c < 5; c++) {
+      b.grid[c][0] = layout[c][0];
+      b.types[c][0] = NORMAL;
+      b.spriteGrid[c][0].color = layout[c][0];
+      b.spriteGrid[c][0].type = NORMAL;
+    }
+    b.layout(300, 300, 0, 0);
+    b.snapToTargets();
+    expect(b.sprites.every((s) => !s.glideDur)).toBe(true);
+
+    b.magnetGather(0, 0, 0, 1);
+    // A real relocation kicks off a slow glide on the swapped bubbles…
+    expect(b.sprites.some((s) => s.glideDur > 0)).toBe(true);
+    // …and the colour rides along with the moving sprite (it stays coupled to
+    // its cell), settling exactly on its new target once the glide completes.
+    for (let i = 0; i < 120; i++) b.update(1 / 60); // ~2s, past MAGNET_GLIDE
+    for (const s of b.sprites) {
+      expect(s.color).toBe(b.grid[s.c][s.r]);
+      const t = b.targetPixel(s.c, s.r);
+      expect(Math.hypot(s.x - t.x, s.y - t.y)).toBeLessThan(1);
+    }
+  });
+
+  it("diagonalRun finds the longest same-colour ↘ diagonal streak", () => {
+    const b = new Board(3, 3, 2, 1);
+    setGrid(b, [
+      [0, 1, 1],
+      [1, 0, 1],
+      [1, 1, 0],
+    ]);
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    expect(b.diagonalRun(3)).toEqual([
+      { c: 0, r: 0 },
+      { c: 1, r: 1 },
+      { c: 2, r: 2 },
+    ]);
+  });
+
+  it("diagonalRun detects an anti-diagonal (↗) streak too", () => {
+    const b = new Board(3, 3, 2, 1);
+    setGrid(b, [
+      [1, 1, 0],
+      [1, 0, 1],
+      [0, 1, 1],
+    ]);
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    expect(b.diagonalRun(3)).toEqual([
+      { c: 0, r: 2 },
+      { c: 1, r: 1 },
+      { c: 2, r: 0 },
+    ]);
+  });
+
+  it("diagonalRun ignores streaks shorter than the minimum length", () => {
+    const b = new Board(3, 3, 2, 1);
+    setGrid(b, [
+      [0, 1, 1],
+      [1, 0, 1],
+      [1, 1, 0],
+    ]);
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    expect(b.diagonalRun(4)).toEqual([]); // longest diagonal is only 3
+  });
+
+  it("diagonalRun skips non-NORMAL (frozen) cells that break the run", () => {
+    const b = new Board(3, 3, 2, 1);
+    setGrid(b, [
+      [0, 1, 1],
+      [1, 0, 1],
+      [1, 1, 0],
+    ]);
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[1][1] = ICE; // break the diagonal in the middle
+    expect(b.diagonalRun(3)).toEqual([]);
+  });
+
   it("shuffle preserves the colour multiset and yields a solvable board", () => {
     const b = new Board(6, 8, 4, 999);
     const before = b.countRemaining();

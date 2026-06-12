@@ -102,7 +102,10 @@ class UIManager {
 
     // Back buttons
     click("lm-back", () => this.showScreen("menu"));
-    click("shop-back", () => this.showScreen("menu"));
+    // Shop can be reached from the menu OR popped open mid-level when the
+    // player taps an empty tool slot. In the latter case, returning resumes the
+    // paused level instead of dropping back to the menu.
+    click("shop-back", () => this.closeShop());
     click("themes-back", () => this.showScreen("menu"));
     click("achv-back", () => this.showScreen("menu"));
     click("pets-back", () => this.closePetOverlay());
@@ -237,6 +240,45 @@ class UIManager {
       this._refreshColorblindToggle();
     }
     if (name === "achievements") this.buildAchievements();
+  }
+
+  // Open the shop focused on a specific power-up, highlighting and scrolling to
+  // it. When invoked mid-level (the player tapped an empty tool slot) the live
+  // level is paused and remembered so closing the shop resumes it.
+  openShopForPowerup(type) {
+    const overGame = !!(this.cb.isLevelActive && this.cb.isLevelActive());
+    this._shopOverGame = overGame;
+    if (overGame && this.cb.pauseGame) this.cb.pauseGame();
+    this.showScreen("shop");
+    this._highlightShopPowerup(type);
+  }
+
+  // Leave the shop: resume the paused level if we opened over one, otherwise
+  // fall back to the menu (the default entry point).
+  closeShop() {
+    if (this._shopOverGame) {
+      this._shopOverGame = false;
+      this.hideScreens();
+      this.hideModals();
+      if (this.cb.resumeGame) this.cb.resumeGame();
+      this.showHud(true);
+      return;
+    }
+    this.showScreen("menu");
+  }
+
+  // Visually mark a shop power-up row and bring it into view.
+  _highlightShopPowerup(type) {
+    const list = this.el["shop-list"];
+    if (!list || !type) return;
+    list
+      .querySelectorAll(".shop-item.highlight")
+      .forEach((n) => n.classList.remove("highlight"));
+    const item = list.querySelector(`.shop-item[data-pu="${type}"]`);
+    if (item) {
+      item.classList.add("highlight");
+      item.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
   }
 
   // ---- Pet companion manager (solid overlay over menu or live level) ----
@@ -390,6 +432,7 @@ class UIManager {
       const owned = Economy.getPowerup(type);
       const item = document.createElement("div");
       item.className = "shop-item";
+      item.dataset.pu = type;
       item.innerHTML = `
         <span class="si-icon">${info.icon}</span>
         <div class="si-body">
@@ -1490,7 +1533,25 @@ class UIManager {
   // session ends or the player quits to the menu).
   clearFallingEvents() {
     const layer = this.el["events-layer"];
-    if (layer) layer.innerHTML = "";
+    if (layer) {
+      layer.innerHTML = "";
+      // Drop any lingering pause state so the next session's tokens are visible.
+      layer.classList.remove("paused");
+    }
+  }
+
+  // Freeze any in-flight token's fall (and hide the layer) while the player is
+  // away from the playing window — e.g. browsing the shop or the pet manager.
+  // The CSS animation is paused, so it never fires its miss handler; resuming
+  // continues the fall from exactly where it left off.
+  pauseFallingEvents() {
+    const layer = this.el["events-layer"];
+    if (layer) layer.classList.add("paused");
+  }
+
+  resumeFallingEvents() {
+    const layer = this.el["events-layer"];
+    if (layer) layer.classList.remove("paused");
   }
 
   // ---- Toast ------------------------------------------------------------

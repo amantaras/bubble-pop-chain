@@ -98,6 +98,73 @@ describe("PetAnim — pet ability animations", () => {
     pa.play({ kind: "cleanse", targets: [{ x: 2, y: 2 }] });
     expect(pa.items.length).toBe(2);
   });
+
+  // A tiny board stub for live tracking: grid[c][r] holds a colour or -1, and
+  // targetPixel maps a cell to a deterministic pixel.
+  function mockBoard(grid) {
+    return {
+      grid,
+      targetPixel: (c, r) => ({ x: c * 100, y: r * 100 }),
+    };
+  }
+
+  it("a live gather drops leashes for bubbles the player has popped", () => {
+    const grid = [[0], [0], [0]];
+    const board = mockBoard(grid);
+    const pa = new PetAnim();
+    pa.play({
+      kind: "gather",
+      anchor: { x: 0, y: 0 },
+      targets: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 200, y: 0 }],
+      board,
+      anchorCell: { c: 0, r: 0 },
+      cells: [{ c: 0, r: 0 }, { c: 1, r: 0 }, { c: 2, r: 0 }],
+    });
+    const it = pa.items[0];
+    expect(it.board).toBe(board);
+    // Player pops the middle bubble mid-animation.
+    grid[1][0] = -1;
+    pa.draw(mockCtx());
+    expect(it.targets).toHaveLength(2);
+    expect(it.targets).toContainEqual({ x: 0, y: 0 });
+    expect(it.targets).toContainEqual({ x: 200, y: 0 });
+  });
+
+  it("a live gather re-homes its focal point when the anchor is cleared", () => {
+    const grid = [[0], [0], [0]];
+    const board = mockBoard(grid);
+    const pa = new PetAnim();
+    pa.play({
+      kind: "gather",
+      anchor: { x: 0, y: 0 },
+      targets: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 200, y: 0 }],
+      board,
+      anchorCell: { c: 0, r: 0 },
+      cells: [{ c: 0, r: 0 }, { c: 1, r: 0 }, { c: 2, r: 0 }],
+    });
+    const it = pa.items[0];
+    // The anchor bubble itself is popped — focal point must move to the
+    // centroid of the survivors, never stay on the empty cell.
+    grid[0][0] = -1;
+    pa.draw(mockCtx());
+    expect(it.targets).toHaveLength(2);
+    expect(it.cx).toBe(150); // centroid of x=100 and x=200
+    expect(it.cy).toBe(0);
+  });
+
+  it("does NOT live-track destructive abilities (cleanse keeps its snapshot)", () => {
+    const board = mockBoard([[0]]);
+    const pa = new PetAnim();
+    pa.play({
+      kind: "cleanse",
+      anchor: { x: 0, y: 0 },
+      targets: [{ x: 5, y: 5 }],
+      board,
+      cells: [{ c: 0, r: 0 }],
+    });
+    // Cleanse pops its cells immediately, so the frozen pixels are correct.
+    expect(pa.items[0].board).toBe(null);
+  });
 });
 
 describe("existing animators still parse/behave", () => {

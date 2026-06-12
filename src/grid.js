@@ -10,6 +10,11 @@ export const ICE = 1; // frozen — needs two hits (cracks, then clears)
 export const RAINBOW = 2; // wildcard — matches any adjacent colour
 export const ICE_CRACKED = 3; // ice after one hit — one more clears it
 
+// How long a magnet-pulled bubble takes to glide to its new cell (seconds).
+// Deliberately slower than the snappy gravity settle so the player can see the
+// bubbles physically travel and re-locate across the board.
+export const MAGNET_GLIDE = 0.6;
+
 export class Board {
   constructor(cols, rows, colorCount, seed, specials = null) {
     this.cols = cols;
@@ -136,6 +141,7 @@ export class Board {
       s.state = "idle";
       s.t = 0;
       s.delay = 0;
+      s.glideDur = 0;
     }
   }
 
@@ -394,7 +400,10 @@ export class Board {
             const s = this.spriteGrid[c][r];
             this.spriteGrid[c][writeR] = s;
             this.spriteGrid[c][r] = null;
-            if (s) s.r = writeR;
+            if (s) {
+              s.r = writeR;
+              s.glideDur = 0; // gravity overrides any in-progress magnet glide
+            }
           }
           writeR--;
         }
@@ -416,7 +425,10 @@ export class Board {
             const s = this.spriteGrid[c][r];
             this.spriteGrid[writeC][r] = s;
             this.spriteGrid[c][r] = null;
-            if (s) s.c = writeC;
+            if (s) {
+              s.c = writeC;
+              s.glideDur = 0; // gravity overrides any in-progress magnet glide
+            }
           }
         }
         writeC++;
@@ -520,6 +532,46 @@ export class Board {
     return out;
   }
 
+  // Longest straight diagonal run (↘ or ↗) of same-colour NORMAL bubbles. The
+  // orthogonal flood-fill that powers tapping can never clear a pure diagonal,
+  // so the "diagonal" pet companion blasts the longest such streak. Returns the
+  // cells of the best run (length >= minLen), or [] if none qualifies.
+  diagonalRun(minLen = 3) {
+    let best = [];
+    const dirs = [
+      [1, 1], // ↘
+      [1, -1], // ↗
+    ];
+    const sameColor = (c, r, color) =>
+      c >= 0 &&
+      c < this.cols &&
+      r >= 0 &&
+      r < this.rows &&
+      this.grid[c][r] === color &&
+      this.types[c][r] === NORMAL;
+    for (let c = 0; c < this.cols; c++) {
+      for (let r = 0; r < this.rows; r++) {
+        const color = this.grid[c][r];
+        if (color === -1 || this.types[c][r] !== NORMAL) continue;
+        for (const [dc, dr] of dirs) {
+          // Only start counting at a run's top end (nothing same-colour
+          // behind us), so each maximal run is measured exactly once.
+          if (sameColor(c - dc, r - dr, color)) continue;
+          const run = [];
+          let cc = c;
+          let rr = r;
+          while (sameColor(cc, rr, color)) {
+            run.push({ c: cc, r: rr });
+            cc += dc;
+            rr += dr;
+          }
+          if (run.length >= minLen && run.length > best.length) best = run;
+        }
+      }
+    }
+    return best;
+  }
+
   // A random filled NORMAL cell (used by hazard events to anchor a scatter).
   // Returns null when the board has no plain bubbles. `rand` keeps it testable.
   randomFilledCell(rand = Math.random) {
@@ -584,13 +636,21 @@ export class Board {
   // Magnet: pull bubbles of `color` together into one connected blob anchored at
   // (c,r). `strength` (0..1) decides how many are gathered — a perfect (1) pull
   // collects EVERY bubble of that colour into a single connected group, while a
-  // weak pull only nudges a few in. Bubbles are relocated by swapping colours
-  // with cells inside the target blob, so positions/gravity are unchanged and
-  // the result is immediately poppable. Ice/Rainbow cells act as walls and are
-  // never moved. Returns { gathered, color }.
+  // weak pull only nudges a few in. Bubbles are physically RELOCATED: the
+  // coloured bubble and the bubble occupying its destination trade cells and
+  // glide there (see MAGNET_GLIDE), so the player sees the colour travel across
+  // the board rather than cells merely recolouring. Ice/Rainbow cells act as
+  // walls and are never moved. Returns { gathered, color }.
   magnetGather(c, r, color, strength) {
+    // Self-heal the anchor: if the requested cell no longer holds this colour
+    // (the player may have popped or a hazard recoloured it since the magnet
+    // was aimed), re-anchor onto any surviving NORMAL bubble of the colour so
+    // we never gather toward an empty or wrong-coloured location.
     if (this.grid[c][r] !== color || this.types[c][r] !== NORMAL) {
-      return { gathered: 0, color };
+      const alt = this.firstCellOfColor(color);
+      if (!alt) return { gathered: 0, color };
+      c = alt.c;
+      r = alt.r;
     }
     // Every normal bubble of this colour (the anchor included).
     const sources = [];
@@ -637,29 +697,46 @@ export class Board {
     const donors = sources.filter((p) => !inRegion.has(key(p.c, p.r)));
     const count = Math.min(need.length, donors.length);
     for (let i = 0; i < count; i++) {
-      const a = need[i];
-      const b = donors[i];
-      // Swap colour + type between the donor and the blob slot.
+      const a = need[i]; // blob slot that should become the target colour
+      const b = donors[i]; // a target-colour bubble out in the field
+      // Swap the colour + type arrays so the model stays consistent…
       const ac = this.grid[a.c][a.r];
       const at = this.types[a.c][a.r];
       this.grid[a.c][a.r] = this.grid[b.c][b.r];
       this.types[a.c][a.r] = this.types[b.c][b.r];
       this.grid[b.c][b.r] = ac;
       this.types[b.c][b.r] = at;
+      // …and swap the actual sprite objects so each bubble physically travels
+      // to its new home. Each keeps its current pixel position as the glide
+      // start, then eases (slowly) to its new cell — a real relocation, with
+      // the colour carried along by the moving bubble.
       const sa = this.spriteGrid[a.c][a.r];
       const sb = this.spriteGrid[b.c][b.r];
-      if (sa) {
-        sa.color = this.grid[a.c][a.r];
-        sa.type = this.types[a.c][a.r];
-        sa.scale = 0.55; // pulse in
-      }
+      this.spriteGrid[a.c][a.r] = sb;
+      this.spriteGrid[b.c][b.r] = sa;
       if (sb) {
-        sb.color = this.grid[b.c][b.r];
-        sb.type = this.types[b.c][b.r];
-        sb.scale = 0.7;
+        sb.c = a.c;
+        sb.r = a.r;
+        this._startGlide(sb);
+      }
+      if (sa) {
+        sa.c = b.c;
+        sa.r = b.r;
+        this._startGlide(sa);
       }
     }
     return { gathered: this.getGroupAt(c, r).length, color };
+  }
+
+  // Begin a slow glide for a sprite from its current pixel position to whatever
+  // cell it now belongs to. Used by the magnet so pulled bubbles visibly drift
+  // across the board instead of snapping.
+  _startGlide(s) {
+    if (!s) return;
+    s.fx = s.x;
+    s.fy = s.y;
+    s.glideT = 0;
+    s.glideDur = MAGNET_GLIDE;
   }
 
   // Reshuffle colors of remaining bubbles until at least one move exists.
@@ -720,6 +797,20 @@ export class Board {
       }
 
       const t = this.targetPixel(s.c, s.r);
+      // A magnet glide eases the bubble slowly from where it was grabbed to its
+      // new cell, so the relocation reads clearly. Once finished it falls back
+      // to the normal snappy follow below.
+      if (s.glideDur > 0) {
+        s.glideT = Math.min(s.glideDur, s.glideT + dt);
+        const k = s.glideT / s.glideDur;
+        const e = k * k * (3 - 2 * k); // smoothstep ease in/out
+        s.x = s.fx + (t.x - s.fx) * e;
+        s.y = s.fy + (t.y - s.fy) * e;
+        if (s.scale < 1) s.scale += (1 - s.scale) * smooth;
+        else s.scale = 1;
+        if (s.glideT >= s.glideDur) s.glideDur = 0;
+        continue;
+      }
       s.x += (t.x - s.x) * smooth;
       s.y += (t.y - s.y) * smooth;
       if (s.scale < 1) s.scale += (1 - s.scale) * smooth;

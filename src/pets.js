@@ -55,9 +55,11 @@ export const RARITY_WEIGHTS = {
 //
 //  • ACTIVE board action — the pet physically helps on the board every few
 //    moves (a cooldown that shortens as the pet levels up):
-//      gather  — pulls a whole colour's scattered bubbles together into one
-//                connected blob, ready to pop ("bring colours closer")
-//      cleanse — destroys the lone, isolated bubbles that are hardest to match
+//      gather   — pulls a whole colour's scattered bubbles together into one
+//                 connected blob, ready to pop ("bring colours closer")
+//      cleanse  — destroys the lone, isolated bubbles that are hardest to match
+//      diagonal — blasts the longest diagonal streak of one colour off the
+//                 board (a line the orthogonal flood-fill can never clear)
 //    declared as `active: { type, baseCooldown, minCooldown, baseCount,
 //    countPer, label }`.
 //
@@ -88,6 +90,14 @@ export const PET_CATALOG = [
     active: {
       type: "cleanse", baseCooldown: 5, minCooldown: 3, baseCount: 1, countPer: 1,
       label: "Clears isolated bubbles every few moves",
+    },
+  },
+  {
+    id: "comet", name: "Comet", icon: "☄️", rarity: "epic", premium: false,
+    desc: "A streaking comet that blasts a diagonal line of bubbles off the board — a row the flood-fill can never clear.",
+    active: {
+      type: "diagonal", baseCooldown: 6, minCooldown: 3,
+      label: "Pops a diagonal streak every few moves",
     },
   },
   {
