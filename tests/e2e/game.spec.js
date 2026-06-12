@@ -359,6 +359,11 @@ test.describe("campaign progression", () => {
     await expect(page.locator("#win-stats")).toContainText("Moves");
     await expect(page.locator("#win-stats")).toContainText("Popped");
 
+    // The coin payout is sealed in a chest — tap it open to reveal the reward.
+    await expect(page.locator("#win-chest")).toBeVisible();
+    await page.locator("#win-chest").click();
+    await expect(page.locator("#win-reward-reveal")).toBeVisible();
+
     // Coins count up to a positive total in the recap window.
     await expect
       .poll(async () =>
@@ -408,6 +413,9 @@ test.describe("campaign progression", () => {
     await page.waitForTimeout(600);
     await autoPlay(page);
     await expect(page.locator("#win")).toBeVisible();
+    // The double-coins offer is revealed only once the chest is opened.
+    await page.locator("#win-chest").click();
+    await expect(page.locator("#win-double")).toBeVisible();
     const before = await page.evaluate(() => window.__bpc.Economy.coins);
     await page.locator("#win-double").click();
     await expect(page.locator("#ad-overlay")).toBeVisible();
@@ -415,6 +423,38 @@ test.describe("campaign progression", () => {
     const after = await page.evaluate(() => window.__bpc.Economy.coins);
     expect(after).toBeGreaterThan(before);
     await expect(page.locator("#win-double")).toBeHidden();
+  });
+
+  test("the win screen seals the reward in a shaking chest until it is tapped", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await page.waitForTimeout(600);
+    await autoPlay(page);
+    await expect(page.locator("#win")).toBeVisible();
+
+    // Closed state: chest is shaking, hint is shown, the coin reward is sealed.
+    await expect(page.locator("#win-chest-art")).toHaveClass(/shaking/);
+    await expect(page.locator("#win-chest-art")).not.toHaveClass(/open/);
+    await expect(page.locator("#win-reward-reveal")).toBeHidden();
+    expect(await page.locator("#win-coins-num").textContent()).toBe("0");
+
+    // Tap to open: lid flips, the reward reveals and the coins count up.
+    await page.locator("#win-chest").click();
+    await expect(page.locator("#win-chest-art")).toHaveClass(/open/);
+    await expect(page.locator("#win-chest-art")).not.toHaveClass(/shaking/);
+    await expect(page.locator("#win-reward-reveal")).toBeVisible();
+    await expect
+      .poll(async () => Number(await page.locator("#win-coins-num").textContent()))
+      .toBeGreaterThan(0);
+
+    // Once the count-up settles, re-tapping the chest must not reset/replay it.
+    await page.waitForTimeout(1300);
+    const coins = await page.locator("#win-coins-num").textContent();
+    expect(Number(coins)).toBeGreaterThan(0);
+    await page.locator("#win-chest").click();
+    await page.waitForTimeout(300);
+    expect(await page.locator("#win-coins-num").textContent()).toBe(coins);
   });
 });
 
@@ -1837,6 +1877,91 @@ test.describe("pet companions (collection & buffs)", () => {
         timeout: 4000,
       })
       .toBe(false);
+  });
+
+  test("tapping the HUD pet badge opens the pet manager overlay over the level", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await expect(page.locator("#hud-pet")).toBeVisible();
+    // Opening the overlay over a live level pauses the game.
+    await page.locator("#hud-pet").click();
+    await expect(page.locator("#pets")).toBeVisible();
+    expect(await page.evaluate(() => window.__bpc.game.paused)).toBe(true);
+    // Closing without switching resumes the level (no restart).
+    await page.locator("#pets-back").click();
+    await expect(page.locator("#pets")).toBeHidden();
+    expect(await page.evaluate(() => window.__bpc.game.paused)).toBe(false);
+    await expect(page.locator("#hud-pet")).toBeVisible();
+  });
+
+  test("switching companion mid-level warns, then restarts on accept", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.Storage.grantPet("clover"));
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    // Build up some score so we can prove the level was restarted.
+    await page.evaluate(() => {
+      window.__bpc.game.session.score = 4242;
+    });
+    await page.locator("#hud-pet").click();
+    await expect(page.locator("#pets")).toBeVisible();
+    // Select Clover, then press Equip → the switch confirmation appears.
+    await page.locator('.pet-card[data-pet="clover"]').click();
+    await page.locator("#pet-equip").click();
+    await expect(page.locator("#pet-confirm")).toBeVisible();
+    // Accept → equips Clover, restarts the level (score back to 0), closes.
+    await page.locator("#pet-confirm-ok").click();
+    await expect(page.locator("#pets")).toBeHidden();
+    await expect(page.locator("#pet-confirm")).toBeHidden();
+    expect(await page.evaluate(() => window.__bpc.Storage.getPetState().equipped)).toBe(
+      "clover"
+    );
+    expect(await page.evaluate(() => window.__bpc.game.session.score)).toBe(0);
+    expect(await page.evaluate(() => window.__bpc.game.paused)).toBe(false);
+    await expect(page.locator("#hud-pet")).toBeVisible();
+  });
+
+  test("cancelling a mid-level companion switch keeps playing the same level", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.Storage.grantPet("clover"));
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.evaluate(() => {
+      window.__bpc.game.session.score = 777;
+    });
+    await page.locator("#hud-pet").click();
+    await page.locator('.pet-card[data-pet="clover"]').click();
+    await page.locator("#pet-equip").click();
+    await expect(page.locator("#pet-confirm")).toBeVisible();
+    // Cancel → confirmation closes, overlay stays, nothing changed.
+    await page.locator("#pet-confirm-cancel").click();
+    await expect(page.locator("#pet-confirm")).toBeHidden();
+    await expect(page.locator("#pets")).toBeVisible();
+    expect(await page.evaluate(() => window.__bpc.Storage.getPetState().equipped)).toBe(
+      "sparky"
+    );
+    // Closing the overlay resumes the untouched level.
+    await page.locator("#pets-back").click();
+    expect(await page.evaluate(() => window.__bpc.game.session.score)).toBe(777);
+  });
+
+  test("equipping from the menu does not warn or restart anything", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.Storage.grantPet("clover"));
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await expect(page.locator("#pets")).toBeVisible();
+    await page.locator('.pet-card[data-pet="clover"]').click();
+    await page.locator("#pet-equip").click();
+    // No active level → equips immediately, no confirmation modal.
+    await expect(page.locator("#pet-confirm")).toBeHidden();
+    expect(await page.evaluate(() => window.__bpc.Storage.getPetState().equipped)).toBe(
+      "clover"
+    );
+    // Overlay stays open (rebuilt) and there is no running session.
+    await expect(page.locator("#pets")).toBeVisible();
+    expect(await page.evaluate(() => !!window.__bpc.game.session)).toBe(false);
   });
 });
 

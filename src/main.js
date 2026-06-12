@@ -139,6 +139,10 @@ class Game {
       equipPet: (id) => this.equipPet(id),
       buyPremiumPet: (id) => this.buyPremiumPet(id),
       buyCosmetic: (petId, cos) => this.buyCosmetic(petId, cos),
+      isLevelActive: () => this.isLevelActive(),
+      pauseGame: () => this.pauseForOverlay(),
+      resumeGame: () => this.resumeFromOverlay(),
+      equipPetAndRestart: (id) => this.equipPetAndRestart(id),
       rescuePick: () => this._rescueWithPick(),
       rescueGiveUp: () => this._giveUpRescue(),
       claimAchievement: (id) => this.claimAchievement(id),
@@ -317,6 +321,7 @@ class Game {
   _enterSession() {
     const board = this.session.board;
     this.session.magnet = null;
+    this.paused = false;
     board.layout(this.W, this.H, TOP_INSET, this._bottomInset());
     this.particles.particles.length = 0;
     this.floating.items.length = 0;
@@ -603,7 +608,37 @@ class Game {
     return true;
   }
 
-  // Purchase a premium pet via the (mock) IAP provider, then grant it.
+  // True while a real (non-tutorial) level is being played. Used by the pet
+  // overlay to decide whether switching companions should warn + restart.
+  isLevelActive() {
+    return !!(
+      this.session &&
+      !this.session.ended &&
+      this.session.mode !== "tutorial"
+    );
+  }
+
+  // Freeze the running level while the pet overlay is open over it.
+  pauseForOverlay() {
+    this.paused = true;
+    if (this.input) this.input.setEnabled(false);
+  }
+
+  // Resume the level when the pet overlay closes without a companion switch.
+  resumeFromOverlay() {
+    this.paused = false;
+    if (this.input) this.input.setEnabled(true);
+  }
+
+  // Equip a different companion and restart the current level from scratch so
+  // the new buffs apply to a fresh board. Invoked from the overlay's confirm.
+  equipPetAndRestart(id) {
+    Storage.equipPet(id);
+    this.paused = false;
+    this.retryLevel();
+  }
+
+
   async buyPremiumPet(id) {
     const pet = getPet(id);
     if (!pet || !pet.premium) return false;
@@ -1732,7 +1767,7 @@ class Game {
     this.particles.update(dt);
     this.floating.update(dt);
     this.petAnim.update(dt);
-    if (this.session) {
+    if (this.session && !this.paused) {
       this.session.board.update(dt);
       if (this.session.combo > 0) {
         this.session.comboTimer -= dt;

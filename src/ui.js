@@ -55,6 +55,7 @@ class UIManager {
       "chest", "chest-icon", "chest-title", "chest-sub", "chest-rewards", "chest-ok",
       "cb-toggle", "cb-toggle-state",
       "pets", "pets-coins", "pets-crate", "pet-store", "pet-list", "pet-detail",
+      "pet-confirm", "pet-confirm-sub", "pet-confirm-ok", "pet-confirm-cancel",
       "btn-pets", "pets-back", "hud-pet", "hud-pet-icon", "hud-pet-buff",
       "btn-continue", "daily-summary",
       "hud-mode-label", "hud-score", "hud-target", "hud-target-wrap", "hud-target-label",
@@ -67,6 +68,7 @@ class UIManager {
       "events-layer",
       "combo-banner", "toast",      "win-stars", "win-score", "win-reward", "win-double", "win-next", "win-menu",
       "win-stats", "win-coins", "win-coins-num",
+      "win-chest", "win-chest-art", "win-chest-burst", "win-chest-hint", "win-reward-reveal",
       "lose-score", "lose-revive", "lose-retry", "lose-menu",
       "isolated", "iso-msg", "iso-pick", "iso-giveup",
       "btn-sound",
@@ -95,7 +97,7 @@ class UIManager {
     click("btn-shop", () => this.showScreen("shop"));
     click("btn-themes", () => this.showScreen("themes"));
     click("btn-achievements", () => this.showScreen("achievements"));
-    click("btn-pets", () => this.showScreen("pets"));
+    click("btn-pets", () => this.openPetOverlay());
     click("btn-tutorial", () => this.cb.startTutorial && this.cb.startTutorial());
 
     // Back buttons
@@ -103,9 +105,16 @@ class UIManager {
     click("shop-back", () => this.showScreen("menu"));
     click("themes-back", () => this.showScreen("menu"));
     click("achv-back", () => this.showScreen("menu"));
-    click("pets-back", () => this.showScreen("menu"));
+    click("pets-back", () => this.closePetOverlay());
     click("chest-ok", () => this.showScreen("achievements"));
     click("btn-back", () => this.cb.quitToMenu && this.cb.quitToMenu());
+
+    // In-game pet badge doubles as a shortcut to the companion manager.
+    click("hud-pet", () => this.openPetOverlay());
+
+    // Switch-companion confirmation (only seen when changing pets mid-level).
+    click("pet-confirm-cancel", () => this._cancelEquip());
+    click("pet-confirm-ok", () => this._confirmEquip());
 
     // Colourblind symbols toggle (lives on the Themes screen).
     click("cb-toggle", () => {
@@ -178,6 +187,9 @@ class UIManager {
     click("win-menu", () => this.cb.quitToMenu && this.cb.quitToMenu());
     const wd = $("win-double");
     if (wd) wd.addEventListener("click", () => this.cb.doubleCoins && this.cb.doubleCoins());
+    // Tap the reward chest to burst it open and reveal the coins.
+    const wc = $("win-chest");
+    if (wc) wc.addEventListener("click", () => this.openWinChest());
 
     // Lose modal
     click("lose-retry", () => this.cb.retryLevel && this.cb.retryLevel());
@@ -225,7 +237,74 @@ class UIManager {
       this._refreshColorblindToggle();
     }
     if (name === "achievements") this.buildAchievements();
-    if (name === "pets") this.buildPets();
+  }
+
+  // ---- Pet companion manager (solid overlay over menu or live level) ----
+  // Opens the rich pet UI (#pets) as a full-screen solid overlay. When opened
+  // over a running level the game is paused and input disabled; closing resumes
+  // play. Opened from the menu it behaves like a normal screen.
+  openPetOverlay() {
+    const overGame = !!(this.cb.isLevelActive && this.cb.isLevelActive());
+    this._petOverlayOverGame = overGame;
+    this._selectedPet = null;
+    if (overGame && this.cb.pauseGame) this.cb.pauseGame();
+    this.hideModals();
+    this.buildPets();
+    this.refreshCoins();
+    if (this.el["pets"]) this.el["pets"].classList.remove("hidden");
+  }
+
+  closePetOverlay() {
+    const overGame = this._petOverlayOverGame;
+    this._petOverlayOverGame = false;
+    this._pendingEquipId = null;
+    if (this.el["pet-confirm"]) this.el["pet-confirm"].classList.add("hidden");
+    if (this.el["pets"]) this.el["pets"].classList.add("hidden");
+    if (overGame) {
+      if (this.cb.resumeGame) this.cb.resumeGame();
+      this.showHud(true);
+    } else {
+      this.showScreen("menu");
+    }
+  }
+
+  // Equip request from the pet detail panel. Mid-level switches restart the
+  // level, so we confirm first; from the menu we equip immediately.
+  _requestEquip(pet) {
+    if (
+      this._petOverlayOverGame &&
+      this.cb.isLevelActive &&
+      this.cb.isLevelActive()
+    ) {
+      this._pendingEquipId = pet.id;
+      if (this.el["pet-confirm-sub"]) {
+        this.el["pet-confirm-sub"].textContent =
+          `Equipping ${pet.icon} ${pet.name} restarts this level from the beginning.`;
+      }
+      if (this.el["pet-confirm"]) this.el["pet-confirm"].classList.remove("hidden");
+      return;
+    }
+    if (this.cb.equipPet && this.cb.equipPet(pet.id)) {
+      this.toast(`${pet.icon} ${pet.name} equipped!`);
+      this.buildPets();
+    }
+  }
+
+  _cancelEquip() {
+    this._pendingEquipId = null;
+    if (this.el["pet-confirm"]) this.el["pet-confirm"].classList.add("hidden");
+  }
+
+  _confirmEquip() {
+    const id = this._pendingEquipId;
+    this._pendingEquipId = null;
+    if (this.el["pet-confirm"]) this.el["pet-confirm"].classList.add("hidden");
+    if (!id) return;
+    // Equip + restart the level fresh with the new companion, then drop the
+    // overlay so the player lands straight back in the (restarted) level.
+    this._petOverlayOverGame = false;
+    if (this.el["pets"]) this.el["pets"].classList.add("hidden");
+    if (this.cb.equipPetAndRestart) this.cb.equipPetAndRestart(id);
   }
 
   // Show a "Continue" entry on the menu when a campaign level is in progress.
@@ -894,11 +973,8 @@ class UIManager {
         equip.textContent = "Equip";
         equip.classList.add("owned");
         equip.addEventListener("click", () => {
-          if (this.cb.equipPet && this.cb.equipPet(pet.id)) {
-            Audio.click();
-            this.toast(`${pet.icon} ${pet.name} equipped!`);
-            this.buildPets();
-          }
+          Audio.click();
+          this._requestEquip(pet);
         });
       }
       panel.appendChild(equip);
@@ -1171,6 +1247,7 @@ class UIManager {
     if (this.el["isolated"]) this.el["isolated"].classList.add("hidden");
     if (this.el["loadout"]) this.el["loadout"].classList.add("hidden");
     if (this.el["chest"]) this.el["chest"].classList.add("hidden");
+    if (this.el["pet-confirm"]) this.el["pet-confirm"].classList.add("hidden");
   }
 
   showWin({ stars, score, coins = 0, rewardText, stats, showNext, showDouble }) {
@@ -1193,13 +1270,83 @@ class UIManager {
 
     this.el["win-reward"].textContent = rewardText || "";
     this.el["win-next"].style.display = showNext ? "" : "none";
-    this.el["win-double"].style.display = showDouble ? "" : "none";
+    // The coins, reward line and "double coins" offer stay sealed inside the
+    // chest until the player taps it open. Remember whether the double-coins
+    // offer should appear after opening.
+    this._winShowDouble = !!showDouble;
+    this._winCoinsPending = coins;
+    this._winChestOpened = false;
+    this.el["win-double"].style.display = "none";
+    if (this.el["win-coins-num"]) this.el["win-coins-num"].textContent = "0";
+    const reveal = this.el["win-reward-reveal"];
+    if (reveal) reveal.classList.add("is-sealed"), reveal.classList.remove("revealed");
+    const chest = this.el["win-chest"];
+    const art = this.el["win-chest-art"];
+    if (chest) chest.classList.remove("opened");
+    if (this.el["win-chest-hint"]) this.el["win-chest-hint"].style.display = "";
+    if (art) {
+      art.classList.remove("open");
+      // Restart the shake animation cleanly each time the screen shows.
+      art.classList.remove("shaking");
+      void art.offsetWidth;
+      art.classList.add("shaking");
+    }
+    if (this.el["win-chest-burst"]) this.el["win-chest-burst"].innerHTML = "";
+
     this.showHud(false);
     this.el["win"].classList.remove("hidden");
 
-    // Count the score and coins up from zero for a rewarding finish.
+    // Count the score up from zero immediately (the score is the achievement);
+    // the coin payout is revealed only once the chest is opened.
     this._animateNumber(this.el["win-score"], score, 700);
-    this._animateCoins(coins);
+  }
+
+  // Burst the reward chest open: stop the shake, flip the lid, fling a shower
+  // of coins, then reveal + count up the coin payout. Idempotent per win.
+  openWinChest() {
+    if (this._winChestOpened) return;
+    this._winChestOpened = true;
+    Audio.coin();
+    const art = this.el["win-chest-art"];
+    if (art) {
+      art.classList.remove("shaking");
+      art.classList.add("open");
+    }
+    if (this.el["win-chest"]) this.el["win-chest"].classList.add("opened");
+    this._spawnChestBurst();
+    const reveal = this.el["win-reward-reveal"];
+    if (reveal) {
+      reveal.classList.remove("is-sealed");
+      void reveal.offsetWidth;
+      reveal.classList.add("revealed");
+    }
+    if (this._winShowDouble) this.el["win-double"].style.display = "";
+    // Let the lid pop before the coins start tallying.
+    setTimeout(() => this._animateCoins(this._winCoinsPending || 0), 180);
+  }
+
+  // Fling a handful of coin/sparkle glyphs out of the chest along random arcs.
+  _spawnChestBurst() {
+    const host = this.el["win-chest-burst"];
+    if (!host) return;
+    host.innerHTML = "";
+    const glyphs = ["🪙", "🪙", "🪙", "✨", "⭐"];
+    const n = 12;
+    for (let i = 0; i < n; i++) {
+      const s = document.createElement("span");
+      s.textContent = glyphs[i % glyphs.length];
+      const ang = (-Math.PI / 2) + (Math.random() - 0.5) * Math.PI * 1.1;
+      const dist = 38 + Math.random() * 46;
+      s.style.setProperty("--tx", `${Math.cos(ang) * dist}px`);
+      s.style.setProperty("--ty", `${Math.sin(ang) * dist}px`);
+      s.style.setProperty("--r", `${(Math.random() - 0.5) * 360}deg`);
+      s.style.animationDelay = `${Math.random() * 0.12}s`;
+      host.appendChild(s);
+    }
+    // Clean up the burst nodes once they've finished animating.
+    setTimeout(() => {
+      if (host) host.innerHTML = "";
+    }, 1100);
   }
 
   // Re-run the coin counter (e.g. after a "double coins" reward).

@@ -79,10 +79,11 @@
         </div>
       </div>
       <div class="combo-banner hidden" id="combo-banner"></div>
-      <div class="hud-pet hidden" id="hud-pet" aria-label="Active pet companion">
+      <button class="hud-pet hidden" id="hud-pet" type="button" aria-label="Change pet companion">
         <span class="hud-pet-icon" id="hud-pet-icon">⚡</span>
         <span class="hud-pet-buff" id="hud-pet-buff"></span>
-      </div>
+        <span class="hud-pet-swap" aria-hidden="true">⇄</span>
+      </button>
     </div>
 
     <!-- Main menu -->
@@ -256,6 +257,20 @@
       <div class="pet-detail" id="pet-detail"></div>
     </div>
 
+    <!-- Switch-companion confirmation (shown when changing pets mid-level) -->
+    <div id="pet-confirm" class="overlay modal hidden">
+      <div class="modal-card">
+        <h2 class="modal-title">Switch companion?</h2>
+        <p class="modal-sub" id="pet-confirm-sub">
+          Changing your pet restarts this level from the beginning.
+        </p>
+        <div class="modal-buttons">
+          <button class="btn btn-ghost" id="pet-confirm-cancel">Cancel</button>
+          <button class="btn btn-primary" id="pet-confirm-ok">Switch &amp; restart</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Win screen -->
     <div id="win" class="overlay screen modal hidden">
       <div class="modal-card">
@@ -265,8 +280,23 @@
         </div>
         <div class="modal-score">Score <b id="win-score">0</b></div>
         <div class="win-stats" id="win-stats"></div>
-        <div class="win-coins" id="win-coins">🪙 <b id="win-coins-num">0</b> coins</div>
-        <div class="modal-reward" id="win-reward"></div>
+
+        <!-- Tap-to-open reward chest: shakes until clicked, then bursts open. -->
+        <button class="win-chest" id="win-chest" type="button" aria-label="Open your reward chest">
+          <span class="win-chest-art" id="win-chest-art">
+            <span class="wc-glow"></span>
+            <span class="wc-burst" id="win-chest-burst" aria-hidden="true"></span>
+            <span class="wc-lid"><span class="wc-lid-band"></span></span>
+            <span class="wc-body"><span class="wc-body-band"></span></span>
+            <span class="wc-lock"></span>
+          </span>
+          <span class="win-chest-hint" id="win-chest-hint">Tap to open!</span>
+        </button>
+
+        <div class="win-reward-reveal is-sealed" id="win-reward-reveal">
+          <div class="win-coins" id="win-coins">🪙 <b id="win-coins-num">0</b> coins</div>
+          <div class="modal-reward" id="win-reward"></div>
+        </div>
         <div class="modal-buttons">
           <button class="btn btn-ghost" id="win-menu">Menu</button>
           <button class="btn btn-primary" id="win-next">Next</button>

@@ -80,6 +80,20 @@ never re‑discovered the hard way.
   until the next day (`adRewards` tracker resets on `todayKey` rollover). Paid
   IAP packs (`COIN_PACKS`) are coins-only: Bag 1500/$1.99, Chest 5000/$4.99 —
   there is no longer an unlimited "watch ad for coins" pouch.
+- **Win-screen reward chest** (`ui.js` `showWin`/`openWinChest`, `#win`): coins
+  are credited to `Economy` *before* `showWin`, so the chest is purely
+  presentational. On show, the reward block (`#win-reward-reveal`) starts
+  **sealed** (`.is-sealed`, hidden) and a CSS-built treasure chest
+  (`#win-chest-art`) **shakes** (`@keyframes wc-shake` on the inner art, never on
+  the clickable `#win-chest` button — transforms on clickable elements flake
+  Playwright clicks) with a "Tap to open!" hint. Tapping the chest →
+  `openWinChest` (idempotent via `_winChestOpened`): lid flips
+  (`.open` → `rotateX`), `_spawnChestBurst` flings coin/sparkle glyphs, the
+  reward reveals (`.revealed`, `wc-reveal` fade-up), the coins count up
+  (`_animateCoins` from 0 to `_winCoinsPending`), and the **Double coins**
+  rewarded-ad offer (`#win-double`) is shown only if `_winShowDouble`. The
+  reward text still lives in `#win-reward` inside the sealed block, so
+  `toContainText` assertions read it regardless of visibility.
 - **Daily retention** (`daily.js`): rotating seeded modifier, three tiered
   goals → daily stars, a 7‑day reward cycle, and a streak‑freeze token that
   rescues one missed day.
@@ -167,6 +181,20 @@ never re‑discovered the hard way.
   Crate), the catalog grid (`.pet-card`, locked/owned/equipped), and a detail
   pane (XP bar, equip, premium buy, cosmetics); a HUD badge (`#hud-pet`,
   `updatePetHud`) shows the equipped pet during play (hidden in the tutorial).
+  **Pet manager overlay** (`ui.js` `openPetOverlay`/`closePetOverlay`): `#pets`
+  is a **solid-background overlay** (not a routed `.screen`) reached two ways —
+  the menu **Pets** tile, or by **tapping the in-game `#hud-pet` badge** (now a
+  `<button>` with a ⇄ swap glyph). Opening it over a live level **pauses** the
+  game (`main.js` `pauseForOverlay`/`resumeFromOverlay` toggle `Game.paused`,
+  checked in `update(dt)`; input is disabled) so you can activate/buy/upgrade a
+  companion without leaving the board; closing resumes play. **Switching the
+  equipped pet mid-level restarts the level** (the new buffs apply to a fresh
+  board), so the Equip button routes through a confirm modal (`#pet-confirm`,
+  `_requestEquip`/`_confirmEquip`/`_cancelEquip`): **accept** →
+  `equipPetAndRestart(id)` (equip + `retryLevel`) and close; **cancel** → keep
+  playing. Equipping from the **menu** (no active level) equips immediately with
+  no warning. `isLevelActive()` (non-null, non-ended, non-tutorial session)
+  gates the warn-and-restart behaviour.
   Save state lives in `storage.js` `pets: { owned, equipped, crates }` with
   helpers (`getPetState`/`grantPet`/`addPetXp`/`equipPet`/`addCrates`/
   `consumeCrate`/`grantCosmetic`/`setCosmetic`); it deep-merges into old saves.
@@ -274,7 +302,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 202 unit tests + 148 E2E
+- **Current baseline (keep growing, never shrink)**: 202 unit tests + 158 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests
