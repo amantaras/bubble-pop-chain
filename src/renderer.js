@@ -1,6 +1,6 @@
 // Canvas renderer: animated background + glossy neon bubbles.
 
-import { RAINBOW, ICE, ICE_CRACKED, NORMAL } from "./grid.js";
+import { RAINBOW, ICE, ICE_CRACKED, NORMAL, LIGHTNING } from "./grid.js";
 
 // Distinct glyphs used by colourblind mode — one per colour index. There are
 // always at least as many symbols as a level has colours.
@@ -227,6 +227,29 @@ export class Renderer {
           ctx.lineTo(s.x + rad * 0.55, s.y - rad * 0.45);
           ctx.stroke();
         }
+      }
+
+      // Lightning overlay: a glowing yellow bolt glyph that pulses, marking a
+      // charged bubble whose group also clears its row + column.
+      if (s.type === LIGHTNING) {
+        const pulse = 0.6 + 0.4 * Math.abs(Math.sin(performance.now() / 220));
+        ctx.globalAlpha = s.alpha;
+        ctx.shadowColor = "rgba(255,232,90,0.95)";
+        ctx.shadowBlur = rad * 0.9 * pulse;
+        ctx.fillStyle = "rgba(255,236,120,0.98)";
+        ctx.strokeStyle = "rgba(120,80,0,0.85)";
+        ctx.lineWidth = Math.max(1, rad * 0.08);
+        const k = rad;
+        ctx.beginPath();
+        ctx.moveTo(s.x + k * 0.18, s.y - k * 0.6);
+        ctx.lineTo(s.x - k * 0.3, s.y + k * 0.08);
+        ctx.lineTo(s.x + k * 0.02, s.y + k * 0.08);
+        ctx.lineTo(s.x - k * 0.18, s.y + k * 0.6);
+        ctx.lineTo(s.x + k * 0.34, s.y - k * 0.12);
+        ctx.lineTo(s.x + k * 0.02, s.y - k * 0.12);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
       }
 
       ctx.restore();

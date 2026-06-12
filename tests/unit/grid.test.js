@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Board, NORMAL, ICE, RAINBOW, ICE_CRACKED } from "../../src/grid.js";
+import { Board, NORMAL, ICE, RAINBOW, ICE_CRACKED, LIGHTNING } from "../../src/grid.js";
 
 // Helper: overwrite a board's logic grid and clear sprite coupling so we can
 // assert pure grid behaviour deterministically. (settle() guards null sprites.)
@@ -122,6 +122,52 @@ describe("grid / Board", () => {
     expect(b.crossCells(1, 1).length).toBe(5);
     // Corner: clipped to the board, still no duplicate of the shared cell.
     expect(b.crossCells(0, 0).length).toBe(5);
+  });
+
+  it("lightningStrike returns the group unchanged when it has no bolt", () => {
+    const b = new Board(3, 3, 3, 1);
+    setGrid(b, [
+      [0, 1, 2],
+      [0, 1, 2],
+      [0, 1, 2],
+    ]);
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    const group = [
+      { c: 0, r: 0 },
+      { c: 0, r: 1 },
+    ];
+    expect(b.lightningStrike(group)).toHaveLength(2);
+  });
+
+  it("lightningStrike adds the bolt's full row + column (deduped)", () => {
+    const b = new Board(3, 3, 3, 1);
+    setGrid(b, [
+      [0, 1, 2],
+      [0, 1, 2],
+      [0, 1, 2],
+    ]);
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[1][1] = LIGHTNING;
+    expect(b.isLightning(1, 1)).toBe(true);
+    // Group is just the two centre-column cells incl. the bolt at (1,1). The
+    // strike expands to that cell's row + column: 5 unique cells, and the
+    // group's other cell (1,0) is already counted → 5 total.
+    const cells = b.lightningStrike([
+      { c: 1, r: 1 },
+      { c: 1, r: 0 },
+    ]);
+    const keys = new Set(cells.map((p) => `${p.c},${p.r}`));
+    expect(keys.size).toBe(cells.length); // no dupes
+    expect(cells.length).toBe(5);
+  });
+
+  it("a lightning spawn rate sprinkles lightning bubbles deterministically", () => {
+    const b = new Board(8, 8, 4, 7, { rainbow: 0, ice: 0, lightning: 0.5 });
+    let bolts = 0;
+    for (let c = 0; c < b.cols; c++)
+      for (let r = 0; r < b.rows; r++)
+        if (b.types[c][r] === LIGHTNING) bolts++;
+    expect(bolts).toBeGreaterThan(0);
   });
 
   it("magnetGather pulls a whole colour into one connected blob at full strength", () => {

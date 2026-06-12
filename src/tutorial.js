@@ -20,11 +20,12 @@ import { NORMAL, ICE, RAINBOW } from "./grid.js";
 //               "button"  → player taps the CTA (informational step)
 //               otherwise → an ACTION TYPE that must be observed in-game:
 //                           "pop" | "combo" | "preview" | "swipe" | "blast"
-//                           | "powerup" | "magnet" | "event"
+//                           | "powerup" | "magnet" | "event" | "lightning"
 //   cta     — button label for "button" steps
 //   hint    — short call-to-action shown for action steps
 //   grant   — optional setup applied when the step is entered
-//             ("power" | "fever" | "bomb" | "specials" | "magnet" | "event")
+//             ("power" | "fever" | "bomb" | "specials" | "magnet" | "event"
+//              | "lightning")
 export const TUTORIAL_STEPS = [
   {
     id: "welcome",
@@ -108,6 +109,14 @@ export const TUTORIAL_STEPS = [
     advance: "button",
     cta: "Got it",
     grant: "specials",
+  },
+  {
+    id: "lightning",
+    title: "Lightning Bubbles",
+    body: "⚡ Lightning bubbles are charged! Pop a cluster that includes one and it discharges along its whole row AND column — a board-clearing jolt. Pop the lightning cluster now!",
+    advance: "lightning",
+    hint: "⚡ Pop the cluster with the lightning bubble",
+    grant: "lightning",
   },
   {
     id: "pets",

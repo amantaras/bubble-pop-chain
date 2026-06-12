@@ -1,5 +1,5 @@
 // Game orchestrator: canvas loop, state machine, and all session logic.
-import { Board, RAINBOW, ICE } from "./grid.js";
+import { Board, RAINBOW, ICE, LIGHTNING } from "./grid.js";
 import { Renderer } from "./renderer.js";
 import { ParticleSystem } from "./particles.js";
 import { ScreenShake, FloatingText, PetAnim, AlienShip } from "./animations.js";
@@ -729,10 +729,28 @@ class Game {
       );
       decorateSpecials(types);
       b.restore(g, types);
+    } else if (kind === "lightning") {
+      // Fresh practice board with a lightning bubble parked inside a guaranteed
+      // cluster so popping it always triggers a strike and advances the step.
+      const b = s.board;
+      const { colors: g, types } = buildTutorialBoard(
+        b.cols,
+        b.rows,
+        s.level.colors || 4
+      );
+      decorateSpecials(types);
+      this._placeTutorialLightning(types);
+      b.restore(g, types);
     } else if (kind === "event") {
       this._spawnTutorialEvent();
     }
     // "bomb": tutorial bypasses the economy (see armPowerup/applyPowerup).
+  }
+
+  // Drop a LIGHTNING bubble into a corner 2×2 block of the practice board (a
+  // guaranteed same-colour cluster), so the lightning step can always be cleared.
+  _placeTutorialLightning(types) {
+    if (types && types[0] && types[0][0] !== undefined) types[0][0] = LIGHTNING;
   }
 
   // Rebuild the controlled practice board so the tutorial never runs out of
@@ -747,6 +765,10 @@ class Game {
       s.level.colors || 4
     );
     decorateSpecials(types);
+    // Keep a lightning bubble available while the lightning step is active.
+    if (this.tutorial && this.tutorial.stepId === "lightning") {
+      this._placeTutorialLightning(types);
+    }
     b.restore(g, types);
     b.layout(this.W, this.H, TOP_INSET, this._bottomInset());
   }
@@ -965,8 +987,13 @@ class Game {
       return;
     }
 
+    // Lightning bubbles in the group discharge along their row + column,
+    // expanding the cleared set. Score reflects everything cleared.
+    const struck = group.some((p) => s.board.isLightning(p.c, p.r));
+    const cells = struck ? s.board.lightningStrike(group) : group;
+
     // Score with combo multiplier.
-    const base = groupScore(group.length);
+    const base = groupScore(cells.length);
     const mult = comboMultiplier(s.combo);
     const comboPoints = Math.round(base * mult);
     const points = Math.round(
@@ -981,7 +1008,12 @@ class Game {
     // Build the Fever gauge — quick chains fill it and trigger double points.
     this._addFever(feverGain(s.combo) * s.petBuffs.feverMult);
 
-    this._popCells(group, points, group.length, s.combo);
+    if (struck) {
+      const p = s.board.targetPixel(c, r);
+      this.floating.spawn(p.x, p.y - 28, "⚡ ZAP!", "#9fe8ff", 30);
+      Audio.powerup();
+    }
+    this._popCells(cells, points, cells.length, s.combo, struck ? 1.3 : 1);
 
     if (s.stats) {
       s.stats.pops += 1;
@@ -990,11 +1022,12 @@ class Game {
     this._recordProgress({
       pops: 1,
       bestCombo: s.combo,
-      biggestGroup: group.length,
+      biggestGroup: cells.length,
     });
     if (s.mode === "campaign") s.movesLeft -= 1;
     this.refreshHud();
     this._tut("pop");
+    if (struck) this._tut("lightning");
     if (s.combo >= 2) this._tut("combo");
     this.afterMove();
   }

@@ -47,4 +47,14 @@ describe("levels", () => {
     expect(t.two).toBeGreaterThan(t.one);
     expect(t.three).toBeGreaterThan(t.two);
   });
+
+  it("lightning bubbles ramp in from level 14 and not before", () => {
+    expect(getLevel(13).specials.lightning || 0).toBe(0);
+    expect(getLevel(14).specials.lightning).toBeGreaterThan(0);
+    // Rate climbs with level but stays capped.
+    expect(getLevel(40).specials.lightning).toBeGreaterThanOrEqual(
+      getLevel(14).specials.lightning
+    );
+    expect(getLevel(40).specials.lightning).toBeLessThanOrEqual(0.04);
+  });
 });

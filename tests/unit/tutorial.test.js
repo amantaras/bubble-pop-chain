@@ -18,7 +18,7 @@ describe("tutorial step definitions", () => {
 
   it("covers every core feature exactly once", () => {
     const actions = TUTORIAL_STEPS.map((s) => s.advance);
-    for (const a of ["pop", "combo", "preview", "swipe", "blast", "powerup", "magnet", "event"]) {
+    for (const a of ["pop", "combo", "preview", "swipe", "blast", "powerup", "magnet", "event", "lightning"]) {
       expect(actions).toContain(a);
     }
   });
@@ -35,6 +35,13 @@ describe("tutorial step definitions", () => {
     expect(fever).toBeTruthy();
     expect(fever.advance).toBe("button");
     expect(fever.grant).toBe("fever");
+  });
+
+  it("includes a gated lightning step that grants a lightning board", () => {
+    const bolt = TUTORIAL_STEPS.find((s) => s.id === "lightning");
+    expect(bolt).toBeTruthy();
+    expect(bolt.advance).toBe("lightning");
+    expect(bolt.grant).toBe("lightning");
   });
 
   it("includes an informational pets step before the finish", () => {

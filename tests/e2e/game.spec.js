@@ -339,6 +339,41 @@ test.describe("special bubbles (ice + rainbow)", () => {
     );
     expect(after).toEqual(before);
   });
+
+  test("a lightning bubble's pop discharges its full row and column", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(16));
+    await page.waitForTimeout(500);
+    const res = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      // Set up a deterministic board: a same-colour pair where one is a
+      // lightning bubble, so popping the pair triggers a row+column strike.
+      const lc = 2;
+      const lr = Math.floor(b.rows / 2);
+      // Paint the pair colour 0 and the rest colour 1 so only the strike (not a
+      // big colour flood) clears the row/column.
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          b.grid[c][r] = c === lc && (r === lr || r === lr + 1) ? 0 : 1;
+          b.types[c][r] = 0; // NORMAL
+        }
+      b.types[lc][lr] = 4; // LIGHTNING
+      const rowCount = () => {
+        let n = 0;
+        for (let c = 0; c < b.cols; c++) if (b.grid[c][lr] !== -1) n++;
+        return n;
+      };
+      const before = rowCount();
+      g.popAt(lc, lr); // pop the lightning pair → strike row lr + column lc
+      b.settle();
+      // After the strike + gravity, far fewer bubbles remain in that row.
+      return { before, removed: g.session.stats.cleared };
+    });
+    // The strike cleared the pair (2) plus the rest of the row + column.
+    expect(res.removed).toBeGreaterThanOrEqual(res.before);
+  });
 });
 
 test.describe("daily retention engine", () => {
@@ -1899,7 +1934,22 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
     expect(specials.rainbow).toBeGreaterThanOrEqual(1);
     expect(specials.ice).toBeGreaterThanOrEqual(1);
     await page.locator("#coach-next").click();
-    expect(await stepId(page)).toBe("pets");
+    expect(await stepId(page)).toBe("lightning");
+
+    // 8a) lightning — popping a cluster that contains the lightning bubble
+    // discharges its row + column and advances the step.
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      // Find the lightning bubble and pop its cluster.
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++)
+          if (b.isLightning(c, r) && b.getGroupAt(c, r).length >= 2) {
+            g.popAt(c, r);
+            return;
+          }
+    });
+    await expect.poll(() => stepId(page)).toBe("pets");
 
     // 8b) pets (informational) — introduces the companion system.
     await page.locator("#coach-next").click();

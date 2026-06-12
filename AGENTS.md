@@ -94,8 +94,16 @@ never re‑discovered the hard way.
   `UI.closeShop`, which resumes the paused level when the shop was opened
   mid-game (`_shopOverGame`) instead of dropping to the menu.
 - **Special bubbles** (`grid.js` `types` layer): **Rainbow** = colour wildcard
-  that bridges regions; **Ice** = needs two hits (cracks, then clears). Seeded
-  spawn rates ramp in by level. Types are part of the save/resume snapshot.
+  that bridges regions; **Ice** = needs two hits (cracks, then clears);
+  **Lightning** (`LIGHTNING`) = a charged coloured bubble — popping a group that
+  contains one **discharges along its whole row + column**
+  (`grid.lightningStrike` expands the cleared set via `crossCells`, deduped;
+  `popAt` scores the full strike and emits `_tut("lightning")`). Seeded spawn
+  rates ramp in by level (rainbow ≥6, ice ≥10, lightning ≥14 — see
+  `levels.js specialsForLevel`). Lightning draws a glowing pulsing bolt glyph
+  (`renderer.js`). All types are part of the save/resume snapshot. The tutorial
+  teaches Lightning with a gated step (`grant: "lightning"` →
+  `Game._placeTutorialLightning`).
 - **Ads gating** (`monetization.js`): forced interstitials only from
   `adsStartLevel` (7) onward; rewarded ads always available.
 - **Coin economy** (`scoring.coinReward`, `economy.js`): level payout is
@@ -529,7 +537,8 @@ How the tutorial is wired (touch every layer that applies):
      button label). Use for informational steps.
    - `advance: "<action>"` → a **gated** step that only advances when the game
      emits that action. Current actions: `pop`, `combo`, `preview`, `swipe`,
-     `blast`, `powerup`, `magnet`, `event`. `hint` is the nudge text shown while
+     `blast`, `powerup`, `magnet`, `event`, `lightning`. `hint` is the nudge
+     text shown while
      waiting. (The `fever` step is informational — `advance: "button"` — with a
      `grant: "fever"` that fires Fever as a live demo.)
    - `grant` → a one‑time setup applied on entering the step (e.g. fill the

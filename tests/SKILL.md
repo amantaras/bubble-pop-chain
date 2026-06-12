@@ -67,7 +67,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   Crate roll, premium-pet catalog filter, and the storage pet helpers —
   grant/equip/XP/crates/cosmetics) plus the grid helpers it relies on
   (dominant colour, first-cell-of-colour, isolated-cell detection),
-  special bubbles (rainbow wildcard + ice two-hit) with type round-trip, the
+  special bubbles (rainbow wildcard + ice two-hit + lightning row/column
+  strike) with type round-trip, the
   daily retention engine (modifiers, tiered goals/stars, weekly rewards,
   streak-freeze rescue), and the interactive tutorial (step-table invariants,
   deterministic teaching-board generation, and gated step advancement). `localStorage` is a real spec-compliant store
@@ -80,7 +81,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   registration, manifest reachability, progress persistence across reloads,
   resuming an in-progress campaign level (save & Continue), real-input
   gestures (long-press Preview, double-tap Charged Blast, swipe row-shift),
-  special-bubble spawning + reload persistence, no forced ads before level 7,
+  special-bubble spawning + reload persistence, lightning row/column discharge,
+  no forced ads before level 7,
   Fever mode (double points + gauge lighting up), the achievements flow
   (badge unlock + coin reward, the Achievements screen, tutorial play excluded),
   colourblind mode (toggle flips the renderer flag, persists, applies on reload),

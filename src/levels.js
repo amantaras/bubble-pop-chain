@@ -31,7 +31,10 @@ function colorsForLevel(n) {
 function specialsForLevel(n) {
   const rainbow = n >= 6 ? Math.min(0.05, 0.015 + (n - 6) * 0.0015) : 0;
   const ice = n >= 10 ? Math.min(0.1, 0.03 + (n - 10) * 0.003) : 0;
-  return { rainbow, ice };
+  // Lightning bubbles ramp in from level 14 — a rarer, powerful treat that
+  // clears a full row + column when its group pops.
+  const lightning = n >= 14 ? Math.min(0.04, 0.012 + (n - 14) * 0.0012) : 0;
+  return { rainbow, ice, lightning };
 }
 
 export function getLevel(id) {

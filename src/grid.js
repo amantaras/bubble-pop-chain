@@ -9,6 +9,7 @@ export const NORMAL = 0; // ordinary coloured bubble
 export const ICE = 1; // frozen — needs two hits (cracks, then clears)
 export const RAINBOW = 2; // wildcard — matches any adjacent colour
 export const ICE_CRACKED = 3; // ice after one hit — one more clears it
+export const LIGHTNING = 4; // charged — popping its group also clears row+col
 
 // How long a magnet-pulled bubble takes to glide to its new cell (seconds).
 // Deliberately slower than the snappy gravity settle so the player can see the
@@ -21,7 +22,7 @@ export class Board {
     this.rows = rows;
     this.colorCount = colorCount;
     this.rng = makeRng(seed >>> 0);
-    this.specials = specials || { ice: 0, rainbow: 0 };
+    this.specials = specials || { ice: 0, rainbow: 0, lightning: 0 };
 
     this.grid = []; // [c][r] => color index or -1
     this.types = []; // [c][r] => NORMAL | ICE | RAINBOW | ICE_CRACKED
@@ -60,6 +61,7 @@ export class Board {
   _assignSpecials() {
     const iceRate = this.specials.ice || 0;
     const rainbowRate = this.specials.rainbow || 0;
+    const lightningRate = this.specials.lightning || 0;
     this.types = [];
     for (let c = 0; c < this.cols; c++) {
       this.types[c] = [];
@@ -71,6 +73,8 @@ export class Board {
         const roll = this.rng();
         if (roll < rainbowRate) this.types[c][r] = RAINBOW;
         else if (roll < rainbowRate + iceRate) this.types[c][r] = ICE;
+        else if (roll < rainbowRate + iceRate + lightningRate)
+          this.types[c][r] = LIGHTNING;
         else this.types[c][r] = NORMAL;
       }
     }
@@ -237,6 +241,32 @@ export class Board {
   // ---- Queries ----------------------------------------------------------
   isRainbow(c, r) {
     return this.types[c] && this.types[c][r] === RAINBOW;
+  }
+
+  isLightning(c, r) {
+    return this.types[c] && this.types[c][r] === LIGHTNING;
+  }
+
+  // Expand a popped group: if it contains any LIGHTNING bubble, every lightning
+  // cell discharges along its full row and column (via crossCells), and those
+  // cells are merged into the cleared set (deduped). Returns the full cell list
+  // to remove. When the group has no lightning, the group is returned as-is.
+  lightningStrike(group) {
+    const hasBolt = group.some((p) => this.isLightning(p.c, p.r));
+    if (!hasBolt) return group;
+    const seen = new Set();
+    const out = [];
+    const add = (cell) => {
+      const k = cell.c * this.rows + cell.r;
+      if (seen.has(k)) return;
+      seen.add(k);
+      out.push({ c: cell.c, r: cell.r });
+    };
+    group.forEach(add);
+    for (const p of group) {
+      if (this.isLightning(p.c, p.r)) this.crossCells(p.c, p.r).forEach(add);
+    }
+    return out;
   }
 
   // Flood-fill the connected group at (c,r). Rainbow bubbles act as wildcards:
