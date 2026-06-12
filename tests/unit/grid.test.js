@@ -414,6 +414,21 @@ describe("grid / Board", () => {
         expect(b.getGroupAt(cell.c, cell.r).length).toBe(1);
       }
     });
+
+    it("detects a lone-bubble jam: only isolated distinct colours remain", () => {
+      // This is exactly the state the rescue prompt watches for — a board with
+      // bubbles left but no poppable group of 2+.
+      const b = new Board(3, 3, 4, 1);
+      setGridTyped(b, [
+        [0, 1, 2],
+        [3, 0, 1],
+        [2, 3, 0],
+      ]);
+      expect(b.hasMoves()).toBe(false); // jammed
+      expect(b.isCleared()).toBe(false); // but bubbles remain
+      // every remaining bubble is a lone single (the rescue trigger).
+      expect(b.isolatedCells().length).toBe(b.countRemaining());
+    });
   });
 });
 

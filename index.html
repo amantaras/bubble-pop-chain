@@ -202,6 +202,22 @@
       </div>
     </div>
 
+    <!-- Lone-bubble rescue: single bubbles can't be popped normally, so steer
+         the player to the Pick tool instead of stranding/failing them. -->
+    <div id="isolated" class="overlay screen modal hidden">
+      <div class="modal-card">
+        <h2 class="modal-title">Oh no! Lone bubbles 😮</h2>
+        <p class="iso-msg" id="iso-msg">
+          These single bubbles can't be popped on their own. Don't panic —
+          the Pick 🔨 tool removes one bubble at a time!
+        </p>
+        <div class="modal-buttons">
+          <button class="btn btn-ghost" id="iso-giveup">Give Up</button>
+          <button class="btn btn-primary" id="iso-pick">Use Pick 🔨</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Loadout picker: choose which power-up fills a quick-access HUD slot -->
     <div id="loadout" class="overlay modal hidden">
       <div class="modal-card loadout-card">

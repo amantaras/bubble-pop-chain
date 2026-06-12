@@ -44,6 +44,22 @@ never re‑discovered the hard way.
   colour). While aiming, the **target-colour bubbles shake** harder the nearer
   the needle is to green (`Renderer.drawBubbles` `aim` jitter). The Magnet is the
   dearest power-up (500 coins) and also drops from the treasure rotation.
+- **Lone-bubble rescue** (`main.js` `_offerIsolatedRescue`/`_canRescue`/
+  `_showIsolatedHelp`/`_rescueWithPick`/`_giveUpRescue`; `ui.js`
+  `showIsolatedHelp`/`hideIsolatedHelp`, `#isolated` modal): single bubbles of
+  different colours can't be popped on their own (a group of 2+ is required), so
+  a board can **jam** with bubbles still on it. Instead of stranding or instantly
+  failing the player, the deadlock is intercepted in `afterMove` (only when it
+  would otherwise be a **loss** — campaign score < target, boss fail, or endless
+  game-over; **daily** still completes as a win) and a friendly **"Oh no! Lone
+  bubbles"** prompt steers the player to the **Pick 🔨** tool. The modal adapts:
+  **Use Pick** if owned, **Buy Pick** (`POWERUP_INFO.pick.price`) if affordable,
+  or informational if neither. Choosing Pick arms it (`armPowerup("pick")`) and
+  keeps the level alive (`session.rescuing`); popping a lone bubble can make
+  others fall into fresh matches (gravity in `settle`), which clears the rescue
+  state so a later jam re-prompts. **Give Up** (`session.gaveUp`) declines the
+  rescue and lets the level end normally. Power-ups never cost a move, so the
+  Pick rescues even at `movesLeft === 0`.
 - **HUD loadout** (`ui.js`, `storage.js` `loadout`): the HUD shows **three
   quick-access slots** instead of one button per power-up (so it never grows as
   tools are added). A short **tap** arms that slot's power-up; a **long-press**
@@ -238,7 +254,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 195 unit tests + 136 E2E
+- **Current baseline (keep growing, never shrink)**: 196 unit tests + 142 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

@@ -1678,3 +1678,77 @@ test.describe("pet companions (collection & buffs)", () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Lone-bubble rescue: when the board jams on isolated single bubbles (no
+// poppable group of 2+), the player isn't stranded/failed — a friendly prompt
+// steers them to the Pick 🔨 tool.
+// ---------------------------------------------------------------------------
+
+// Jam the active board so only isolated, distinct-colour bubbles remain, then
+// re-run the move resolution that detects the deadlock.
+async function jamBoardWithLoneBubbles(page) {
+  await page.evaluate(() => {
+    const g = window.__bpc.game;
+    const b = g.session.board;
+    for (let c = 0; c < b.cols; c++)
+      for (let r = 0; r < b.rows; r++) {
+        b.grid[c][r] = -1;
+        if (b.spriteGrid && b.spriteGrid[c]) b.spriteGrid[c][r] = null;
+        if (b.types && b.types[c]) b.types[c][r] = 0; // NORMAL
+      }
+    b.sprites = [];
+    // Two lone bubbles of different colours, far apart → no group of 2+.
+    b.grid[0][b.rows - 1] = 0;
+    b.grid[b.cols - 1][b.rows - 1] = 1;
+    g.session.score = 0; // ensure this isn't already a win
+    g.afterMove();
+  });
+}
+
+test.describe("lone-bubble rescue", () => {
+  test("offers the Pick tool when the board jams on single bubbles", async ({
+    page,
+  }) => {
+    await openGame(page);
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.evaluate(() => window.__bpc.Economy.addPowerup("pick", 2));
+    await jamBoardWithLoneBubbles(page);
+
+    await expect(page.locator("#isolated")).toBeVisible();
+    // The level is NOT over — the player can still act.
+    const ended = await page.evaluate(
+      () => window.__bpc.game.session.ended
+    );
+    expect(ended).toBe(false);
+  });
+
+  test("Use Pick arms the Pick tool and resumes play", async ({ page }) => {
+    await openGame(page);
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.evaluate(() => window.__bpc.Economy.addPowerup("pick", 2));
+    await jamBoardWithLoneBubbles(page);
+    await expect(page.locator("#isolated")).toBeVisible();
+
+    await page.locator("#iso-pick").click();
+    await expect(page.locator("#isolated")).toBeHidden();
+    const armed = await page.evaluate(
+      () => window.__bpc.game.session.armed
+    );
+    expect(armed).toBe("pick");
+  });
+
+  test("Give Up lets the level end normally", async ({ page }) => {
+    await openGame(page);
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.evaluate(() => window.__bpc.Economy.addPowerup("pick", 2));
+    await jamBoardWithLoneBubbles(page);
+    await expect(page.locator("#isolated")).toBeVisible();
+
+    await page.locator("#iso-giveup").click();
+    // Score is 0 < target, so the level ends as a loss.
+    await expect(page.locator("#lose")).toBeVisible({ timeout: 4000 });
+    await expect(page.locator("#isolated")).toBeHidden();
+  });
+});
+
+

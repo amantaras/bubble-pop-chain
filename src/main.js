@@ -134,6 +134,8 @@ class Game {
       equipPet: (id) => this.equipPet(id),
       buyPremiumPet: (id) => this.buyPremiumPet(id),
       buyCosmetic: (petId, cos) => this.buyCosmetic(petId, cos),
+      rescuePick: () => this._rescueWithPick(),
+      rescueGiveUp: () => this._giveUpRescue(),
     });
 
     this.input = new Input(this.canvas, {
@@ -286,6 +288,8 @@ class Game {
       coinsEarned: 0,
       doubled: false,
       revived: false,
+      rescuing: false,
+      gaveUp: false,
       preview: null,
       power: buffs.startCharge,
       petBuffs: buffs,
@@ -1278,6 +1282,13 @@ class Game {
 
     const deadlock = !s.board.hasMoves();
 
+    // The board is playable again (e.g. a Pick made bubbles fall into matches):
+    // clear any rescue state so a future jam re-shows the friendly prompt.
+    if (!deadlock) {
+      s.rescuing = false;
+      s.gaveUp = false;
+    }
+
     if (s.mode === "campaign") {
       if (s.level.milestone === "boss") {
         // Boss objective: shatter the entire frozen core before moves run out.
@@ -1287,15 +1298,23 @@ class Game {
           return;
         }
         if (s.movesLeft <= 0 || deadlock) {
+          // Lone-bubble jam: offer the Pick rescue before failing the boss.
+          if (deadlock && this._offerIsolatedRescue()) return;
           this._scheduleEnd(false, "bossfail");
           return;
         }
       } else if (s.movesLeft <= 0 || deadlock) {
         const won = s.score >= s.level.target;
+        // If the board jammed on un-poppable lone bubbles and the player hasn't
+        // hit the target yet, offer the Pick tool instead of losing outright.
+        if (!won && deadlock && this._offerIsolatedRescue()) return;
         this._scheduleEnd(won, won ? "target" : "fail");
       }
     } else if (s.mode === "endless") {
-      if (deadlock) this._scheduleEnd(false, "gameover");
+      if (deadlock) {
+        if (this._offerIsolatedRescue()) return;
+        this._scheduleEnd(false, "gameover");
+      }
     } else if (s.mode === "daily") {
       if (deadlock) this._scheduleEnd(true, "daily");
     }
@@ -1304,9 +1323,85 @@ class Game {
     this._persistSession();
   }
 
+  // ---- Lone-bubble rescue (isolated single bubbles) ---------------------
+  // When the board jams on single bubbles that can't be popped normally, we
+  // don't strand or instantly fail the player: we surface a friendly prompt
+  // pointing them at the Pick 🔨 tool (which removes one bubble at a time).
+  // Returns true when the rescue takes over the deadlock (caller must NOT end
+  // the level); false to let the level end normally.
+  _offerIsolatedRescue() {
+    const s = this.session;
+    if (!s || s.ended) return false;
+    if (s.gaveUp) return false; // player already chose to end this jam
+    if (s.board.isCleared()) return false; // nothing to rescue
+
+    if (s.rescuing) {
+      // Already rescuing: keep the level alive so the player can keep using
+      // Pick. Only re-surface the prompt if they can no longer act.
+      if (!this._canRescue()) this._showIsolatedHelp();
+      return true;
+    }
+    s.rescuing = true;
+    this._showIsolatedHelp();
+    return true;
+  }
+
+  // The deadlock is escapable if the player owns a Pick or can afford to buy one.
+  _canRescue() {
+    return (
+      Economy.getPowerup("pick") > 0 ||
+      Economy.coins >= POWERUP_INFO.pick.price
+    );
+  }
+
+  _showIsolatedHelp() {
+    const s = this.session;
+    if (!s) return;
+    this.input.setEnabled(false); // the prompt takes over until dismissed
+    const pickCount = Economy.getPowerup("pick");
+    UI.showIsolatedHelp({
+      pickCount,
+      canBuy: pickCount <= 0 && Economy.coins >= POWERUP_INFO.pick.price,
+      pickPrice: POWERUP_INFO.pick.price,
+    });
+  }
+
+  // "Use Pick" — buy one if needed, then arm it so the next tap clears a lone
+  // bubble. The player stays in the level (rescue mode) until the board clears,
+  // they hit the target, or they give up.
+  _rescueWithPick() {
+    const s = this.session;
+    if (!s) return;
+    if (Economy.getPowerup("pick") <= 0) {
+      if (!Economy.buyPowerup("pick")) {
+        UI.toast("Not enough coins for a Pick");
+        return;
+      }
+      UI.updatePowerups();
+      UI.refreshCoins();
+    }
+    UI.hideIsolatedHelp();
+    UI.showHud(true);
+    this.input.setEnabled(true);
+    this.armPowerup("pick");
+    UI.toast("Tap a lone bubble to remove it 🔨");
+  }
+
+  // "Give Up" — stop rescuing and let the level end with its natural outcome.
+  _giveUpRescue() {
+    const s = this.session;
+    if (!s) return;
+    s.gaveUp = true;
+    s.rescuing = false;
+    UI.hideIsolatedHelp();
+    this.afterMove(); // re-evaluate: rescue is declined, so the level ends
+  }
+
   _scheduleEnd(won, reason) {
     const s = this.session;
     s.ended = true;
+    s.rescuing = false;
+    UI.hideIsolatedHelp();
     this.input.setEnabled(false);
     UI.clearFallingEvents();
     this.activeEvent = false;

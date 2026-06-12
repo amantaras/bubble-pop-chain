@@ -62,6 +62,7 @@ class UIManager {
       "combo-banner", "toast",      "win-stars", "win-score", "win-reward", "win-double", "win-next", "win-menu",
       "win-stats", "win-coins", "win-coins-num",
       "lose-score", "lose-revive", "lose-retry", "lose-menu",
+      "isolated", "iso-msg", "iso-pick", "iso-giveup",
       "btn-sound",
       "btn-tutorial", "tutorial", "coach-progress", "coach-title",
       "coach-body", "coach-hint", "coach-next", "coach-skip",
@@ -176,6 +177,10 @@ class UIManager {
     click("lose-menu", () => this.cb.quitToMenu && this.cb.quitToMenu());
     const lr = $("lose-revive");
     if (lr) lr.addEventListener("click", () => this.cb.reviveLevel && this.cb.reviveLevel());
+
+    // Lone-bubble rescue modal
+    click("iso-pick", () => this.cb.rescuePick && this.cb.rescuePick());
+    click("iso-giveup", () => this.cb.rescueGiveUp && this.cb.rescueGiveUp());
 
     // Tutorial coach
     click("coach-next", () => this.cb.tutorialNext && this.cb.tutorialNext());
@@ -1039,6 +1044,7 @@ class UIManager {
   hideModals() {
     this.el["win"].classList.add("hidden");
     this.el["lose"].classList.add("hidden");
+    if (this.el["isolated"]) this.el["isolated"].classList.add("hidden");
     if (this.el["loadout"]) this.el["loadout"].classList.add("hidden");
   }
 
@@ -1122,6 +1128,51 @@ class UIManager {
     this.el["lose-revive"].style.display = showRevive ? "" : "none";
     this.showHud(false);
     this.el["lose"].classList.remove("hidden");
+  }
+
+  // Lone-bubble rescue prompt: explains the Pick tool when the board jams on
+  // single bubbles. The action button adapts to whether the player owns a
+  // Pick, can buy one, or has neither (informational only).
+  showIsolatedHelp({ pickCount = 0, canBuy = false, pickPrice = 0 } = {}) {
+    const msg = this.el["iso-msg"];
+    const pick = this.el["iso-pick"];
+    const give = this.el["iso-giveup"];
+    if (pickCount > 0) {
+      if (msg)
+        msg.innerHTML =
+          "These single bubbles can't be popped on their own. Don't panic — " +
+          `use your <b>Pick \uD83D\uDD28</b> to remove them one by one! ` +
+          `<span class="iso-have">You have ${pickCount}.</span>`;
+      if (pick) {
+        pick.style.display = "";
+        pick.textContent = `Use Pick \uD83D\uDD28 (${pickCount})`;
+      }
+      if (give) give.textContent = "Give Up";
+    } else if (canBuy) {
+      if (msg)
+        msg.innerHTML =
+          "These single bubbles can't be popped on their own. Don't panic — " +
+          "the <b>Pick \uD83D\uDD28</b> tool removes them. Grab one now!";
+      if (pick) {
+        pick.style.display = "";
+        pick.textContent = `Buy Pick \uD83D\uDD28 (${pickPrice})`;
+      }
+      if (give) give.textContent = "Give Up";
+    } else {
+      if (msg)
+        msg.innerHTML =
+          "These single bubbles can't be popped on their own. The " +
+          "<b>Pick \uD83D\uDD28</b> tool removes them — grab one from the Shop " +
+          "next time!";
+      if (pick) pick.style.display = "none";
+      if (give) give.textContent = "End Level";
+    }
+    this.showHud(false);
+    this.el["isolated"].classList.remove("hidden");
+  }
+
+  hideIsolatedHelp() {
+    if (this.el["isolated"]) this.el["isolated"].classList.add("hidden");
   }
 
   // ---- Falling events (gift / problem) ----------------------------------

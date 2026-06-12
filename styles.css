@@ -1265,6 +1265,23 @@ body {
   flex: 1;
 }
 
+/* ---------- Lone-bubble rescue prompt ---------- */
+.iso-msg {
+  margin: 4px 0 18px;
+  line-height: 1.5;
+  color: var(--text, #e8ecff);
+  font-size: 15px;
+}
+.iso-msg b {
+  color: var(--gold, #ffd35b);
+}
+.iso-have {
+  display: block;
+  margin-top: 8px;
+  opacity: 0.85;
+  font-size: 13px;
+}
+
 /* ---------- Loadout picker ---------- */
 .loadout-card {
   text-align: left;
