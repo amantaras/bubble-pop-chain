@@ -118,6 +118,7 @@ test.describe("menu & navigation (UI)", () => {
       "btn-achievements",
       "btn-pets",
       "btn-calendar",
+      "btn-season",
       "btn-tutorial",
     ]) {
       await expect(page.locator(`#${id}`)).toBeVisible();
@@ -1231,6 +1232,78 @@ test.describe("login calendar (daily gifts)", () => {
     });
     expect(res.first).not.toBeNull();
     expect(res.second).toBeNull();
+  });
+});
+
+test.describe("season pass (battle pass)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("Season screen opens from the menu and lists the tier ladder", async ({
+    page,
+  }) => {
+    await page.locator("#btn-season").click();
+    await expect(page.locator("#season")).toBeVisible();
+    // Ten tiers, each with a free + premium reward cell.
+    expect(await page.locator("#season-track .season-row").count()).toBe(10);
+    expect(await page.locator("#season-track .season-cell").count()).toBe(20);
+    // Fresh save: no XP, nothing claimable, premium not owned.
+    await expect(page.locator("#season-buy")).toBeVisible();
+    await expect(page.locator(".season-cell.claimable")).toHaveCount(0);
+    await page.locator("#season-back").click();
+    await expect(page.locator("#menu")).toBeVisible();
+  });
+
+  test("earning XP unlocks a free tier that pays out when claimed", async ({
+    page,
+  }) => {
+    // Grant enough XP for tier 1, then re-open the screen.
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      g._awardSeasonXp(120);
+    });
+    await page.locator("#btn-season").click();
+    await expect(page.locator("#season")).toBeVisible();
+
+    // Tier 1 (free) is now claimable; the menu badge would show too.
+    const claimable = page.locator(".season-row").first().locator(".season-free");
+    await expect(claimable).toHaveClass(/claimable/);
+
+    const before = await page.evaluate(() => window.__bpc.Economy.coins);
+    await claimable.click();
+    const after = await page.evaluate(() => window.__bpc.Economy.coins);
+    // Tier 1 free reward is 30 coins.
+    expect(after).toBe(before + 30);
+    // The cell is now claimed (locked) and not claimable.
+    await expect(
+      page.locator(".season-row").first().locator(".season-free")
+    ).toHaveClass(/claimed/);
+  });
+
+  test("premium track is gated until the pass is purchased", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game._awardSeasonXp(120));
+    await page.locator("#btn-season").click();
+
+    // Premium tier 1 starts locked.
+    const prem = page.locator(".season-row").first().locator(".season-premium");
+    await expect(prem).toHaveClass(/prem-locked/);
+
+    // Buy premium, then it becomes claimable.
+    await page.locator("#season-buy").click();
+    await expect(page.locator("#season-buy")).toBeHidden();
+    await expect(
+      page.locator(".season-row").first().locator(".season-premium")
+    ).toHaveClass(/claimable/);
+    expect(
+      await page.evaluate(() => window.__bpc.Storage.get("season").premium)
+    ).toBe(true);
+  });
+
+  test("the menu badge appears when a reward is claimable", async ({ page }) => {
+    await expect(page.locator("#season-badge")).toBeHidden();
+    await page.evaluate(() => window.__bpc.game._awardSeasonXp(100));
+    // Re-render the menu so the badge refresh runs.
+    await page.evaluate(() => window.__bpc.UI.showScreen("menu"));
+    await expect(page.locator("#season-badge")).toBeVisible();
   });
 });
 

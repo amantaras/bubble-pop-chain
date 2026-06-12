@@ -27,6 +27,12 @@ import {
   CALENDAR_CYCLE,
   calendarStatus,
 } from "./calendar.js";
+import {
+  SEASON_TIERS,
+  SEASON_TIER_COUNT,
+  seasonStatus,
+  tierReward,
+} from "./season.js";
 import { todayKey } from "./rng.js";
 import {
   PET_CATALOG,
@@ -60,6 +66,8 @@ class UIManager {
       "achv-badge",
       "calendar", "cal-grid", "cal-status", "cal-claim", "cal-back",
       "btn-calendar", "cal-badge",
+      "season", "season-track", "season-coins", "season-back", "season-buy",
+      "season-xp-label", "season-xp-fill", "btn-season", "season-badge",
       "chest", "chest-icon", "chest-title", "chest-sub", "chest-rewards", "chest-ok",
       "cb-toggle", "cb-toggle-state",
       "hints-toggle", "hints-toggle-state",
@@ -108,6 +116,7 @@ class UIManager {
     click("btn-themes", () => this.showScreen("themes"));
     click("btn-achievements", () => this.showScreen("achievements"));
     click("btn-calendar", () => this.showScreen("calendar"));
+    click("btn-season", () => this.showScreen("season"));
     click("btn-pets", () => this.openPetOverlay());
     click("btn-tutorial", () => this.cb.startTutorial && this.cb.startTutorial());
 
@@ -121,6 +130,8 @@ class UIManager {
     click("achv-back", () => this.showScreen("menu"));
     click("cal-back", () => this.showScreen("menu"));
     click("cal-claim", () => this._claimCalendar());
+    click("season-back", () => this.showScreen("menu"));
+    click("season-buy", () => this._buySeasonPremium());
     click("pets-back", () => this.closePetOverlay());
     click("chest-ok", () => this.showScreen("achievements"));
     click("btn-back", () => this.cb.quitToMenu && this.cb.quitToMenu());
@@ -240,7 +251,7 @@ class UIManager {
 
   // ---- Screen switching -------------------------------------------------
   hideScreens() {
-    ["menu", "levelmap", "shop", "themes", "achievements", "pets"].forEach((s) =>
+    ["menu", "levelmap", "shop", "themes", "achievements", "calendar", "season", "pets"].forEach((s) =>
       this.el[s].classList.add("hidden")
     );
   }
@@ -256,6 +267,7 @@ class UIManager {
       this.updateDailySummary();
       this.refreshAchievementsBadge();
       this.refreshCalendarBadge();
+      this.refreshSeasonBadge();
     }
     if (name === "levelmap") this.buildLevelMap();
     if (name === "shop") this.buildShop();
@@ -266,6 +278,7 @@ class UIManager {
     }
     if (name === "achievements") this.buildAchievements();
     if (name === "calendar") this.buildCalendar();
+    if (name === "season") this.buildSeason();
   }
 
   // Open the shop focused on a specific power-up, highlighting and scrolling to
@@ -411,7 +424,7 @@ class UIManager {
 
   refreshCoins() {
     const c = Economy.coins;
-    ["menu-coins", "lm-coins", "shop-coins", "themes-coins", "hud-coins", "pets-coins"].forEach(
+    ["menu-coins", "lm-coins", "shop-coins", "themes-coins", "hud-coins", "pets-coins", "season-coins"].forEach(
       (id) => {
         if (this.el[id]) this.el[id].textContent = c;
       }
@@ -914,6 +927,112 @@ class UIManager {
     const st = calendarStatus(Storage.get("loginCalendar"), todayKey());
     if (st.claimable) {
       badge.textContent = "!";
+      badge.classList.remove("hidden");
+    } else {
+      badge.classList.add("hidden");
+    }
+  }
+
+  // ---- Season Pass ------------------------------------------------------
+  buildSeason() {
+    const track = this.el["season-track"];
+    if (!track) return;
+    const state = Storage.get("season");
+    const st = seasonStatus(state);
+
+    // XP / tier header.
+    const label = this.el["season-xp-label"];
+    if (label) {
+      label.textContent = st.maxed
+        ? `Tier ${SEASON_TIER_COUNT} — Season complete!`
+        : `Tier ${st.tier + 1} · ${st.intoTier}/${st.perTier} XP`;
+    }
+    const fill = this.el["season-xp-fill"];
+    if (fill) fill.style.width = `${Math.round(st.progress * 100)}%`;
+
+    const buy = this.el["season-buy"];
+    if (buy) {
+      buy.classList.toggle("hidden", st.premium);
+      buy.textContent = "Unlock Premium";
+    }
+
+    // Tier ladder: free + premium reward per row.
+    track.innerHTML = "";
+    SEASON_TIERS.forEach((tier, i) => {
+      const unlocked = i < st.unlocked;
+      const row = document.createElement("div");
+      row.className = "season-row" + (unlocked ? " unlocked" : " locked");
+
+      const num = document.createElement("div");
+      num.className = "season-tier-num";
+      num.textContent = i + 1;
+      row.appendChild(num);
+
+      row.appendChild(this._seasonReward(state, i, "free", unlocked, st));
+      row.appendChild(this._seasonReward(state, i, "premium", unlocked, st));
+      track.appendChild(row);
+    });
+    this.refreshSeasonBadge();
+  }
+
+  _seasonReward(state, index, trackName, unlocked, st) {
+    const reward = tierReward(index, trackName) || {};
+    const cell = document.createElement("div");
+    cell.className = `season-cell season-${trackName}`;
+    const claimedList = trackName === "premium" ? "claimedPrem" : "claimedFree";
+    const claimed = (state[claimedList] || []).includes(index);
+    const premiumLocked = trackName === "premium" && !st.premium;
+    const claimable = unlocked && !claimed && !premiumLocked;
+
+    if (claimed) cell.classList.add("claimed");
+    if (claimable) cell.classList.add("claimable");
+    if (premiumLocked) cell.classList.add("prem-locked");
+
+    cell.innerHTML =
+      `<span class="season-ic">${this._calRewardIcon(reward)}</span>` +
+      `<span class="season-amt">${this._calRewardLabel(reward)}</span>` +
+      (claimed ? `<span class="season-tick">✓</span>` : "");
+
+    if (claimable) {
+      cell.setAttribute("role", "button");
+      cell.addEventListener("click", () => {
+        Audio.click();
+        this._claimSeasonTier(index, trackName);
+      });
+    }
+    return cell;
+  }
+
+  _claimSeasonTier(index, track) {
+    if (!this.cb.claimSeasonTier) return;
+    const reward = this.cb.claimSeasonTier(index, track);
+    if (!reward) {
+      this.buildSeason();
+      return;
+    }
+    Audio.coin();
+    const bits = [];
+    if (reward.coins) bits.push(`+${reward.coins} coins`);
+    if (reward.powerup) bits.push(`${reward.powerup.icon} ${reward.powerup.name}`);
+    if (reward.crate) bits.push(`📦 crate`);
+    this.toast(`⭐ ${bits.join(" + ")}`);
+    this.buildSeason();
+  }
+
+  async _buySeasonPremium() {
+    if (!this.cb.buySeasonPremium) return;
+    const ok = await this.cb.buySeasonPremium();
+    if (ok) this.toast("⭐ Premium Season Pass unlocked!");
+    this.buildSeason();
+  }
+
+  // Badge on the menu's Season tile whenever a reward tier is claimable.
+  refreshSeasonBadge() {
+    const badge = this.el["season-badge"];
+    if (!badge) return;
+    const st = seasonStatus(Storage.get("season"));
+    if (st.claimable > 0) {
+      badge.textContent = st.claimable > 9 ? "9+" : String(st.claimable);
       badge.classList.remove("hidden");
     } else {
       badge.classList.add("hidden");

@@ -305,6 +305,10 @@ body {
 .tile.t-pets .tile-ic {
   background: linear-gradient(135deg, #ff8a5b, #ff5b8b);
 }
+.tile.t-season .tile-ic {
+  background: linear-gradient(135deg, #ffd35b, #ff8a3c);
+  color: #2a1c00;
+}
 
 /* Slim help button */
 .menu-help {
@@ -1110,6 +1114,115 @@ body {
 .cal-claim:disabled {
   opacity: 0.5;
   filter: grayscale(0.6);
+}
+
+/* ---------- Season Pass ---------- */
+.season-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 16px 12px;
+}
+.season-xp {
+  flex: 1;
+}
+.season-xp-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.season-xp-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.season-xp-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ffd35b, #ff8a3c);
+  transition: width 0.3s ease;
+}
+.season-buy {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  font-size: 13px;
+}
+.season-track {
+  overflow-y: auto;
+  padding: 0 12px 20px;
+  -webkit-overflow-scrolling: touch;
+}
+.season-row {
+  display: grid;
+  grid-template-columns: 32px 1fr 1fr;
+  align-items: stretch;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.season-row.locked {
+  opacity: 0.5;
+}
+.season-tier-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  color: var(--text-dim);
+  border-radius: 12px;
+  background: var(--glass);
+  border: 1px solid var(--glass-brd);
+}
+.season-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 6px;
+  border-radius: 12px;
+  background: var(--glass);
+  border: 1px solid var(--glass-brd);
+  text-align: center;
+}
+.season-cell.season-premium {
+  background: linear-gradient(160deg, rgba(255, 211, 91, 0.16), var(--glass));
+  border-color: rgba(255, 211, 91, 0.4);
+}
+.season-cell .season-ic {
+  font-size: 20px;
+  line-height: 1;
+}
+.season-cell .season-amt {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+.season-cell.claimable {
+  cursor: pointer;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(124, 92, 255, 0.3);
+  animation: season-pulse 1.4s ease-in-out infinite;
+}
+.season-cell.claimed {
+  opacity: 0.6;
+}
+.season-cell.prem-locked {
+  opacity: 0.4;
+}
+.season-cell .season-tick {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 12px;
+  color: var(--gold);
+}
+@keyframes season-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(124, 92, 255, 0.3); }
+  50% { box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.55); }
 }
 
 /* "Chests waiting" badge on the menu Trophies tile */

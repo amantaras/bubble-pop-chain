@@ -260,6 +260,24 @@ never re‑discovered the hard way.
   hidden on boss/non-campaign, lit `.met` with a ✓ when achieved) and a brief
   intro toast at level start. Like other meta/challenge displays it gets **no
   tutorial step**.
+- **Season Pass / Battle Pass** (`season.js`, pure; `storage.js` `season`;
+  `monetization.js` `season_premium` product; `main.js`
+  `_awardSeasonXp`/`claimSeasonTier`/`buySeasonPremium`; `ui.js`
+  `buildSeason`/`refreshSeasonBadge`): a meta progression track of **10 tiers**,
+  each `100` XP apart (`SEASON_XP_PER_TIER`). Clearing levels grants season XP
+  (campaign `30 + stars*15`, endless `min(60, 10+floor(score/800))`, daily `40`;
+  **tutorial play never counts**). Every unlocked tier offers a **free** reward
+  (everyone) and a richer **premium** reward (only after buying the
+  `season_premium` pass via the mock IAP). Rewards reuse the calendar shape
+  (`{ coins | powerup | crate }`) and are **claimed explicitly + idempotently**:
+  `claimTier(state, i, track)` records the claim, `tierReward(i, track)` is what
+  gets granted; `seasonStatus(state)` drives the XP bar (`progress`), tier label,
+  and the **claimable count** badge on the menu Season tile (`#season-badge`).
+  `season.js` is **pure** (no DOM/storage) — `tiersUnlocked`, `tierReward`,
+  `canClaim`, `seasonStatus`, `addSeasonXp`, `claimTier`, `unlockPremium` all
+  return new state without mutating input. It is **purely additive** (never
+  affects win/star outcomes) and, like other meta displays, gets **no tutorial
+  step**.
 - **Pet companions** (`pets.js`, pure; `storage.js` `pets`): collectible helper
   pets that support the player both **passively** and with **active board
   powers**. `PET_CATALOG` holds 10 pets across four rarities
@@ -380,6 +398,7 @@ src/
   economy.js        # Coins + power-up inventory/prices
   daily.js          # Daily challenge + streak logic
   calendar.js       # Login calendar / daily gifts (pure: 7-day reward cycle)
+  season.js         # Season Pass / Battle Pass (pure: 10-tier free+premium track)
   events.js         # Falling gift/problem events (pure: delay/type/reward rolls)
   pets.js           # Pet companions (pure: catalog, buffs, active actions, crate rolls)
   monetization.js   # F2P abstraction (ads/IAP) — MOCK provider, pluggable  tutorial.js       # Gated step-by-step onboarding: TUTORIAL_STEPS + Tutorial class  ui.js             # All DOM UI: screens, level map, shop, themes, HUD, modals

@@ -65,6 +65,10 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   group/nopowerup challenges, skipped on early + milestone levels),
   the login calendar (`calendarStatus`/`advanceCalendar`: 7-day cycle, one claim
   per day, reward index wraps after a full week),
+  the season pass (`season.js`: tiersUnlocked thresholds, tierReward tracks,
+  canClaim gating on premium ownership/unlock state, seasonStatus progress +
+  claimable counts, addSeasonXp/claimTier immutability + idempotency,
+  unlockPremium),
   the pet companion system (catalog integrity + premium flags, XP/level curve,
   passive buff scaling, active-pet cooldown/strength/count scaling, seeded
   crate rolls including the rare premium drop chance + the boosted Legendary
@@ -97,6 +101,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   the world-map chapter headers on the level map (5 themed chapters with level
   ranges), the per-level bonus objectives (HUD chip shown on ordinary levels +
   hidden on milestones, meeting one pays a coin bonus on the win screen),
+  the season pass (Season screen lists the 10-tier ladder, earning XP unlocks +
+  pays out a free tier, the premium track is gated until the pass is purchased,
+  and the menu badge appears when a reward is claimable),
   the pet companions flow (Pets screen with starter Sparky owned/equipped,
   buy + open a crate grants a pet, the Pet Store sells premium pets + a
   Legendary Crate that grants a pet, buying a premium pet unlocks it, equipping

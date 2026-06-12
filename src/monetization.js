@@ -70,6 +70,11 @@ class MonetizationManager {
       Storage.set("adsRemoved", true);
       return { ok: true };
     }
+    // The premium Season Pass unlock. Recording the premium flag is the
+    // caller's job; here we just confirm the (mock) purchase succeeded.
+    if (productId === "season_premium") {
+      return { ok: true };
+    }
     // Premium pet companions (productId "pet_<id>") and the premium Legendary
     // Crate ("crate_legendary"). Granting the item itself is the caller's job;
     // here we just confirm the (mock) purchase succeeded.

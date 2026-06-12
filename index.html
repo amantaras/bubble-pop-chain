@@ -194,6 +194,15 @@
           <span class="tile-label">Gifts</span>
           <span class="tile-badge hidden" id="cal-badge" aria-hidden="true"></span>
         </button>
+        <button class="tile t-season" id="btn-season">
+          <span class="tile-ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
+              <path d="M12 3l2.5 5.2 5.7.8-4.1 4 1 5.6L12 21l-5.1 2.6 1-5.6-4.1-4 5.7-.8z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" />
+            </svg>
+          </span>
+          <span class="tile-label">Season</span>
+          <span class="tile-badge hidden" id="season-badge" aria-hidden="true"></span>
+        </button>
       </div>
       <button class="btn btn-ghost menu-help" id="btn-tutorial">
         <span class="help-ic" aria-hidden="true">
@@ -275,6 +284,23 @@
       <p class="cal-intro">Come back every day for a reward. Day 7 holds the grand prize!</p>
       <div class="cal-grid" id="cal-grid"></div>
       <button class="btn btn-primary cal-claim" id="cal-claim">Claim today's gift</button>
+    </div>
+
+    <!-- Season Pass -->
+    <div id="season" class="overlay screen hidden">
+      <div class="screen-head">
+        <button class="icon-btn" id="season-back" aria-label="Back">‹</button>
+        <h2>Season Pass</h2>
+        <div class="coins-pill"><span class="coin-dot"></span><span id="season-coins">0</span></div>
+      </div>
+      <div class="season-head" id="season-head">
+        <div class="season-xp">
+          <div class="season-xp-label" id="season-xp-label">Tier 1</div>
+          <div class="season-xp-bar"><div class="season-xp-fill" id="season-xp-fill"></div></div>
+        </div>
+        <button class="btn btn-primary season-buy" id="season-buy">Unlock Premium</button>
+      </div>
+      <div class="season-track" id="season-track"></div>
     </div>
 
     <!-- Pets -->

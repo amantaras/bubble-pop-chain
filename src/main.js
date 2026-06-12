@@ -75,6 +75,14 @@ import {
   PET_CATALOG,
 } from "./pets.js";
 import { calendarStatus, advanceCalendar } from "./calendar.js";
+import {
+  seasonStatus,
+  addSeasonXp,
+  claimTier,
+  tierReward,
+  unlockPremium,
+  SEASON_PREMIUM_PRODUCT,
+} from "./season.js";
 import { makeRng, todayKey } from "./rng.js";
 const TOP_INSET = 168;
 const BOTTOM_INSET = 120;
@@ -157,6 +165,8 @@ class Game {
       rescueGiveUp: () => this._giveUpRescue(),
       claimAchievement: (id) => this.claimAchievement(id),
       claimCalendar: () => this.claimCalendar(),
+      claimSeasonTier: (index, track) => this.claimSeasonTier(index, track),
+      buySeasonPremium: () => this.buySeasonPremium(),
     });
 
     this.input = new Input(this.canvas, {
@@ -1249,6 +1259,55 @@ class Game {
     return { index: st.index, coins, powerup, crate, day: st.day + 1 };
   }
 
+  // ---- Season Pass ------------------------------------------------------
+  // Award season XP for completing play (campaign/daily wins). Updates the
+  // saved track and refreshes the menu badge. Tutorial play never counts.
+  _awardSeasonXp(amount) {
+    if (!amount) return;
+    if (this.session && this.session.mode === "tutorial") return;
+    Storage.set("season", addSeasonXp(Storage.get("season"), amount));
+    UI.refreshSeasonBadge();
+  }
+
+  // Claim a reward tier on a track ("free" | "premium"). Idempotent: grants the
+  // reward and records the claim only when the tier is unlocked + unclaimed
+  // (and, for premium, the pass is owned). Returns a recap, or null otherwise.
+  claimSeasonTier(index, track) {
+    const state = Storage.get("season");
+    const next = claimTier(state, index, track);
+    if (!next) return null;
+
+    const reward = tierReward(index, track) || {};
+    const coins = reward.coins || 0;
+    if (coins > 0) Economy.addCoins(coins);
+    let powerup = null;
+    if (reward.powerup) {
+      Economy.addPowerup(reward.powerup, 1);
+      const info = POWERUP_INFO[reward.powerup] || {};
+      powerup = { id: reward.powerup, name: info.name || reward.powerup, icon: info.icon || "✨" };
+    }
+    let crate = 0;
+    if (reward.crate) {
+      Storage.addCrates(reward.crate);
+      crate = reward.crate;
+    }
+
+    Storage.set("season", next);
+    UI.refreshCoins();
+    UI.refreshSeasonBadge();
+    return { index, track, coins, powerup, crate };
+  }
+
+  // Buy the premium Season Pass (mock IAP). Unlocks the premium track so all
+  // already-earned premium tiers become claimable. Returns true on success.
+  async buySeasonPremium() {
+    const res = await Monetization.purchase(SEASON_PREMIUM_PRODUCT);
+    if (!res || !res.ok) return false;
+    Storage.set("season", unlockPremium(Storage.get("season")));
+    UI.refreshSeasonBadge();
+    return true;
+  }
+
   handleDoubleTap(px, py) {
     const s = this.session;
     if (!s || s.ended) return;
@@ -1909,6 +1968,8 @@ class Game {
           totalStars: Storage.totalStars(),
           coinsEarned: totalCoins,
         });
+        // Season Pass XP scales with the star result of the clear.
+        this._awardSeasonXp(30 + stars * 15);
         Audio.win();
         UI.setWinTitle(
           mtype === "boss"
@@ -1943,6 +2004,7 @@ class Game {
       const coins = Math.round(Math.floor(s.score / 200) * s.petBuffs.coinMult);
       Economy.addCoins(coins);
       this._awardPetXp();
+      this._awardSeasonXp(Math.min(60, 10 + Math.floor(s.score / 800)));
       Audio.lose();
       UI.showLose({
         score: s.score,
@@ -1959,6 +2021,7 @@ class Game {
         (info.coins || 0);
       s.coinsEarned = coins;
       Economy.addCoins(coins);
+      this._awardSeasonXp(40);
       Audio.win();
       UI.setWinTitle("Daily Complete");
       const bits = [`Streak ${info.streak}🔥`];
@@ -2307,5 +2370,6 @@ if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) 
     getLevel,
     pets: { petBuffs, petActive, levelForXp, rollCrate, rollLegendaryCrate, getPet },
     calendar: { calendarStatus, advanceCalendar, todayKey },
+    season: { seasonStatus, addSeasonXp, claimTier, tierReward },
   };
 }
