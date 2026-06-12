@@ -1,6 +1,6 @@
 // DOM-based UI: menus, level map, shop, themes, HUD, modals, toasts.
 import { Storage } from "./storage.js";
-import { LEVEL_COUNT, getLevel } from "./levels.js";
+import { LEVEL_COUNT, getLevel, CHAPTERS, CHAPTER_SIZE } from "./levels.js";
 import { milestoneType } from "./milestones.js";
 import {
   THEMES,
@@ -423,6 +423,22 @@ class UIManager {
     grid.innerHTML = "";
     const maxUnlocked = Storage.get("maxUnlockedLevel");
     for (let i = 1; i <= LEVEL_COUNT; i++) {
+      // Insert a chapter header before the first level of each chapter so the
+      // map reads as a journey across themed worlds.
+      if ((i - 1) % CHAPTER_SIZE === 0) {
+        const ch = CHAPTERS[Math.floor((i - 1) / CHAPTER_SIZE)];
+        if (ch) {
+          const endLevel = Math.min(LEVEL_COUNT, i + CHAPTER_SIZE - 1);
+          const chapterDone = maxUnlocked > endLevel;
+          const chapterLocked = maxUnlocked < i;
+          const header = document.createElement("div");
+          header.className = "chapter-header";
+          if (chapterDone) header.classList.add("done");
+          if (chapterLocked) header.classList.add("locked");
+          header.innerHTML = `<span class="ch-icon">${ch.icon}</span><span class="ch-name">${ch.name}</span><span class="ch-range">${i}–${endLevel}</span>`;
+          grid.appendChild(header);
+        }
+      }
       const cell = document.createElement("div");
       cell.className = "level-cell";
       const locked = i > maxUnlocked;

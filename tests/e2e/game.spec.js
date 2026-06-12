@@ -539,6 +539,19 @@ test.describe("milestone events (every 5 levels)", () => {
     );
   });
 
+  test("the level map groups levels into themed chapter headers", async ({
+    page,
+  }) => {
+    await page.locator("#btn-play").click();
+    await expect(page.locator("#levelmap")).toBeVisible();
+    // 40 levels / 8 per chapter = 5 chapter headers, each spanning a range.
+    const headers = page.locator(".chapter-header");
+    await expect(headers).toHaveCount(5);
+    await expect(headers.first()).toContainText("1–8");
+    await expect(headers.nth(1)).toContainText("9–16");
+    await expect(headers.last()).toContainText("33–40");
+  });
+
   test("a treasure level pays a one-time bonus + free power-up (not farmable)", async ({
     page,
   }) => {

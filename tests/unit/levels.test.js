@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { getLevel, starThresholds, LEVEL_COUNT } from "../../src/levels.js";
+import {
+  getLevel,
+  starThresholds,
+  LEVEL_COUNT,
+  CHAPTERS,
+  CHAPTER_SIZE,
+  chapterForLevel,
+} from "../../src/levels.js";
 
 describe("levels", () => {
   it("exposes a positive level count", () => {
@@ -56,5 +63,34 @@ describe("levels", () => {
       getLevel(14).specials.lightning
     );
     expect(getLevel(40).specials.lightning).toBeLessThanOrEqual(0.04);
+  });
+
+  it("groups every level into a chapter and covers the whole campaign", () => {
+    // Chapters tile the campaign contiguously with no gaps or overlaps.
+    expect(CHAPTERS.length * CHAPTER_SIZE).toBeGreaterThanOrEqual(LEVEL_COUNT);
+    for (let n = 1; n <= LEVEL_COUNT; n++) {
+      const ch = chapterForLevel(n);
+      expect(ch.name).toBeTruthy();
+      expect(ch.icon).toBeTruthy();
+      expect(n).toBeGreaterThanOrEqual(ch.startLevel);
+      expect(n).toBeLessThanOrEqual(ch.endLevel);
+    }
+  });
+
+  it("chapter boundaries land on CHAPTER_SIZE multiples", () => {
+    expect(chapterForLevel(1).startLevel).toBe(1);
+    expect(chapterForLevel(CHAPTER_SIZE).endLevel).toBe(CHAPTER_SIZE);
+    expect(chapterForLevel(CHAPTER_SIZE + 1).startLevel).toBe(CHAPTER_SIZE + 1);
+    // Successive levels stay in the same chapter until the size boundary.
+    expect(chapterForLevel(1).id).toBe(chapterForLevel(CHAPTER_SIZE).id);
+    expect(chapterForLevel(1).id).not.toBe(
+      chapterForLevel(CHAPTER_SIZE + 1).id
+    );
+  });
+
+  it("getLevel carries its chapter metadata", () => {
+    const lvl = getLevel(10);
+    expect(lvl.chapter).toBeTruthy();
+    expect(lvl.chapter.name).toBe(chapterForLevel(10).name);
   });
 });

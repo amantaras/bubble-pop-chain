@@ -230,6 +230,17 @@ never re‑discovered the hard way.
   `levelScores` is a new `DEFAULT_SAVE` field, so old saves auto-default to `{}`.
   Like stars/achievements this meta-progression display gets **no tutorial
   step**.
+- **World map chapters** (`levels.js` `CHAPTERS`/`CHAPTER_SIZE`/
+  `chapterForLevel`, `ui.js` `buildLevelMap`): the 40-level campaign is grouped
+  into **5 themed chapters of 8 levels** (Bubble Meadow 🌱, Frosty Peaks ❄️,
+  Thunder Valley ⚡, Crystal Caverns 💎, Cosmic Finale 🌌) so the level map reads
+  as a journey across worlds. `CHAPTERS` is pure presentation/flavour metadata
+  (it does **not** alter difficulty, which stays driven by the per-level
+  helpers); `chapterForLevel(id)` resolves the chapter + `startLevel`/`endLevel`
+  range and is folded into `getLevel(id).chapter`. `buildLevelMap` inserts a
+  full-width `.chapter-header` (icon, name, level range, plus a `done ✓` /
+  `locked` state from `maxUnlockedLevel`) before the first level of each chapter.
+  Like other map/meta displays this gets **no tutorial step**.
 - **Pet companions** (`pets.js`, pure; `storage.js` `pets`): collectible helper
   pets that support the player both **passively** and with **active board
   powers**. `PET_CATALOG` holds 10 pets across four rarities
@@ -344,7 +355,7 @@ src/
   audio.js          # WebAudio (unlocked on first pointerdown)
   storage.js        # Storage singleton over localStorage (bpc_save_v1)
   themes.js         # Theme catalog + unlock logic + applyThemeCss
-  levels.js         # LEVEL_COUNT=40, getLevel(id), star thresholds
+  levels.js         # LEVEL_COUNT=40, getLevel(id), star thresholds, world chapters
   scoring.js        # groupScore, comboMultiplier, clearBonus, starsForScore
   rng.js            # mulberry32 seeded RNG, todayKey
   economy.js        # Coins + power-up inventory/prices

@@ -805,6 +805,47 @@ body {
   filter: grayscale(1);
 }
 
+/* Chapter headers split the campaign into themed "worlds" on the level map. */
+.chapter-header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 2px 2px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: linear-gradient(100deg, rgba(124, 92, 255, 0.22), var(--glass));
+  border: 1px solid var(--glass-brd);
+  font-weight: 800;
+}
+.chapter-header:first-child {
+  margin-top: 0;
+}
+.chapter-header .ch-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+.chapter-header .ch-name {
+  font-size: 15px;
+  letter-spacing: 0.3px;
+}
+.chapter-header .ch-range {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+.chapter-header.done {
+  border-color: rgba(255, 211, 91, 0.5);
+}
+.chapter-header.done .ch-name::after {
+  content: " ✓";
+  color: var(--gold);
+}
+.chapter-header.locked {
+  opacity: 0.5;
+}
+
 /* ---------- Shop / Themes ---------- */
 .shop-list,
 .theme-list {

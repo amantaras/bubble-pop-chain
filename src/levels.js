@@ -6,6 +6,30 @@ import { milestoneType, bossConfig } from "./milestones.js";
 
 export const LEVEL_COUNT = 40;
 
+// World map chapters -------------------------------------------------------
+// The 40-level campaign is grouped into themed chapters of 8 levels each so the
+// level map reads as a journey across distinct "worlds" rather than one long
+// list. This is purely organisational metadata (presentation + flavour); it
+// does not change difficulty, which is driven by the per-level helpers below.
+export const CHAPTER_SIZE = 8;
+export const CHAPTERS = [
+  { id: 1, name: "Bubble Meadow", icon: "🌱" },
+  { id: 2, name: "Frosty Peaks", icon: "❄️" },
+  { id: 3, name: "Thunder Valley", icon: "⚡" },
+  { id: 4, name: "Crystal Caverns", icon: "💎" },
+  { id: 5, name: "Cosmic Finale", icon: "🌌" },
+];
+
+// Resolve the chapter a (1-based) level belongs to, including its level range.
+export function chapterForLevel(id) {
+  const n = Math.max(1, Math.min(LEVEL_COUNT, id));
+  const index = Math.floor((n - 1) / CHAPTER_SIZE);
+  const base = CHAPTERS[index] || CHAPTERS[CHAPTERS.length - 1];
+  const startLevel = index * CHAPTER_SIZE + 1;
+  const endLevel = Math.min(LEVEL_COUNT, startLevel + CHAPTER_SIZE - 1);
+  return { ...base, index, startLevel, endLevel };
+}
+
 // Difficulty curve helpers ---------------------------------------------------
 function colsForLevel(n) {
   if (n <= 5) return 6;
@@ -76,6 +100,7 @@ export function getLevel(id) {
     seed: hashSeed(`level-${n}-bpc`),
     milestone,
     boss,
+    chapter: chapterForLevel(n),
   };
 }
 
