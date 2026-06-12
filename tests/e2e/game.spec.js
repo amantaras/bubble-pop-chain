@@ -1136,6 +1136,49 @@ test.describe("achievements (tiered chests & rewards)", () => {
     expect(claims.popper).toBe(1);
   });
 
+  test("Collect All grabs every ready chest at once and reveals the haul", async ({
+    page,
+  }) => {
+    // Seed lifetime progress so exactly three first-tier chests are ready
+    // (and NOT their second tiers, so collecting empties the list).
+    await page.evaluate(() => {
+      window.__bpc.Storage.setAchievementState({
+        progress: { pops: 1, bestCombo: 5, biggestGroup: 8 },
+        claims: {},
+      });
+    });
+    const beforeCoins = await page.evaluate(() => window.__bpc.Economy.coins);
+    await page.evaluate(() => window.__bpc.UI.showScreen("achievements"));
+    await expect(page.locator("#achievements")).toBeVisible();
+
+    const collectAll = page.locator("#achv-collect-all");
+    await expect(collectAll).toBeVisible();
+    expect(await page.locator(".achv-item.claimable").count()).toBe(3);
+
+    await collectAll.click();
+    // The aggregate reveal opens summarising the haul.
+    await expect(page.locator("#chest")).toBeVisible();
+    await expect(page.locator("#chest-title")).toContainText("Collected");
+    expect(
+      await page.locator("#chest-rewards .chest-row").count()
+    ).toBeGreaterThanOrEqual(1);
+    await page.locator("#chest-ok").click();
+    await expect(page.locator("#achievements")).toBeVisible();
+
+    // All three chests were collected: coins grew, the categories advanced a
+    // tier, the button hides and nothing is left to claim.
+    const afterCoins = await page.evaluate(() => window.__bpc.Economy.coins);
+    expect(afterCoins).toBeGreaterThan(beforeCoins);
+    const claims = await page.evaluate(
+      () => window.__bpc.Storage.getAchievementState().claims
+    );
+    expect(claims.popper).toBe(1);
+    expect(claims.combo).toBe(1);
+    expect(claims.bigbang).toBe(1);
+    await expect(collectAll).toBeHidden();
+    expect(await page.locator(".achv-item.claimable").count()).toBe(0);
+  });
+
   test("triggering Fever makes the Fever chest claimable", async ({ page }) => {
     await page.evaluate(() => window.__bpc.game.startCampaign(2));
     await page.waitForTimeout(400);
@@ -1680,6 +1723,42 @@ test.describe("shop & monetization (UI)", () => {
     );
     expect(bombAfter).toBe(bombBefore + 1);
     await expect(page.locator("#shop-coins")).toHaveText("250");
+  });
+
+  test("buying a power-up refreshes the HUD tool-slot count", async ({
+    page,
+  }) => {
+    // Regression: the HUD slot counts used to stay stale after a shop purchase
+    // because the buy handler refreshed the shop + coins but not the slots.
+    await page.evaluate(() => window.__bpc.Economy.addCoins(1000));
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(300);
+    // Put the bomb in the first HUD slot so its count is on screen.
+    await page.evaluate(() => {
+      window.__bpc.Storage.setLoadoutSlot(0, "bomb");
+      window.__bpc.UI.updatePowerups();
+    });
+    const before = await page.evaluate(() =>
+      window.__bpc.Economy.getPowerup("bomb")
+    );
+    await expect(page.locator("#pu-slot-0 .pu-count")).toHaveText(
+      String(before)
+    );
+    // Open the shop over the live level and buy a bomb.
+    await page.evaluate(() => window.__bpc.UI.openShopForPowerup("bomb"));
+    await expect(page.locator("#shop")).toBeVisible();
+    await page
+      .locator('#shop-list .shop-item[data-pu="bomb"] button')
+      .click();
+    await page.waitForTimeout(150);
+    const after = await page.evaluate(() =>
+      window.__bpc.Economy.getPowerup("bomb")
+    );
+    expect(after).toBe(before + 1);
+    // The HUD slot now shows the new total without any extra refresh.
+    await expect(page.locator("#pu-slot-0 .pu-count")).toHaveText(
+      String(after)
+    );
   });
 
   test("remove ads disables interstitials and hides double-coins", async ({

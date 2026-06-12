@@ -63,7 +63,7 @@ class UIManager {
       "menu-coins", "lm-coins", "shop-coins", "themes-coins", "hud-coins",
       "level-grid", "shop-list", "theme-list",
       "achievements", "achv-list", "achv-count", "btn-achievements", "achv-back",
-      "achv-badge",
+      "achv-badge", "achv-collect-all",
       "calendar", "cal-grid", "cal-status", "cal-claim", "cal-back",
       "btn-calendar", "cal-badge",
       "season", "season-track", "season-coins", "season-back", "season-buy",
@@ -128,6 +128,7 @@ class UIManager {
     click("shop-back", () => this.closeShop());
     click("themes-back", () => this.showScreen("menu"));
     click("achv-back", () => this.showScreen("menu"));
+    click("achv-collect-all", () => this._claimAllAchievements());
     click("cal-back", () => this.showScreen("menu"));
     click("cal-claim", () => this._claimCalendar());
     click("season-back", () => this.showScreen("menu"));
@@ -506,6 +507,7 @@ class UIManager {
           this.toast(`${info.name} purchased!`);
           this.buildShop();
           this.refreshCoins();
+          this.updatePowerups();
         } else {
           this.toast("Not enough coins");
         }
@@ -771,6 +773,8 @@ class UIManager {
         ? `${ready} ready 🎁`
         : "All collected";
     }
+    const collectAll = this.el["achv-collect-all"];
+    if (collectAll) collectAll.classList.toggle("hidden", ready < 1);
     this.refreshAchievementsBadge();
   }
 
@@ -785,6 +789,135 @@ class UIManager {
     }
     this._showChestReveal(reward);
     this.buildAchievements();
+  }
+
+  // Collect EVERY claimable chest at once. The model updates synchronously
+  // (coins/tools/pets granted immediately), then a cosmetic "sweep" sends a
+  // flying gift up from each collected row before an aggregate reveal lists
+  // everything that dropped.
+  _claimAllAchievements() {
+    if (!this.cb.claimAllAchievements) return;
+    const list = this.el["achv-list"];
+    const rows = list
+      ? Array.from(list.querySelectorAll(".achv-item.claimable"))
+      : [];
+    const agg = this.cb.claimAllAchievements();
+    if (!agg || !agg.count) {
+      this.buildAchievements();
+      return;
+    }
+    // Capture row positions and launch the flying-gift sweep BEFORE we rebuild
+    // the list (which removes the rows we are animating from).
+    this._playCollectAllSweep(rows);
+    this.buildAchievements();
+    this._showCollectAllReveal(agg);
+  }
+
+  // A celebratory sweep: each collected row launches a gift that flies up to
+  // the top of the screen, staggered, ending in a sparkle burst. Purely
+  // cosmetic and self-cleaning; safe if Web Animations aren't available.
+  _playCollectAllSweep(rows) {
+    if (!rows || !rows.length || typeof document === "undefined") return;
+    const layer = document.createElement("div");
+    layer.className = "collect-all-fx";
+    document.body.appendChild(layer);
+    const vw = window.innerWidth || 360;
+    const vh = window.innerHeight || 640;
+    const destX = vw / 2;
+    const destY = Math.max(40, vh * 0.12);
+    let last = 0;
+    rows.forEach((row, i) => {
+      const r = row.getBoundingClientRect();
+      const startX = r.left + r.width / 2;
+      const startY = r.top + r.height / 2;
+      const tok = document.createElement("div");
+      tok.className = "caf-token";
+      tok.textContent = "🎁";
+      tok.style.left = `${startX}px`;
+      tok.style.top = `${startY}px`;
+      layer.appendChild(tok);
+      const delay = i * 90;
+      const dur = 720;
+      last = Math.max(last, delay + dur);
+      const dx = destX - startX;
+      const dy = destY - startY;
+      if (tok.animate) {
+        tok.animate(
+          [
+            { transform: "translate(-50%,-50%) scale(0.4)", opacity: 0 },
+            { transform: "translate(-50%,-50%) scale(1.25)", opacity: 1, offset: 0.18 },
+            {
+              transform: `translate(calc(-50% + ${dx * 0.55}px), calc(-50% + ${dy * 0.55}px)) scale(1.05)`,
+              opacity: 1,
+              offset: 0.62,
+            },
+            {
+              transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0.45)`,
+              opacity: 0,
+            },
+          ],
+          { duration: dur, delay, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" }
+        );
+      }
+    });
+    // A little sparkle pop where the gifts gather.
+    const burst = document.createElement("div");
+    burst.className = "caf-burst";
+    burst.style.left = `${destX}px`;
+    burst.style.top = `${destY}px`;
+    layer.appendChild(burst);
+    if (burst.animate) {
+      burst.animate(
+        [
+          { transform: "translate(-50%,-50%) scale(0)", opacity: 0 },
+          { transform: "translate(-50%,-50%) scale(6)", opacity: 0.9, offset: 0.6 },
+          { transform: "translate(-50%,-50%) scale(10)", opacity: 0 },
+        ],
+        { duration: 520, delay: Math.max(0, last - 360), easing: "ease-out", fill: "forwards" }
+      );
+    }
+    setTimeout(() => layer.remove(), last + 400);
+  }
+
+  // Reveal everything a "Collect All" pass dropped, reusing the chest modal.
+  _showCollectAllReveal(agg) {
+    const modal = this.el["chest"];
+    if (!modal) {
+      this.toast(`🎁 +${agg.coins} coins from ${agg.count} chests!`);
+      return;
+    }
+    Audio.coin();
+    if (this.el["chest-icon"]) this.el["chest-icon"].textContent = "🎁";
+    if (this.el["chest-title"])
+      this.el["chest-title"].textContent = `Collected ${agg.count} chest${
+        agg.count === 1 ? "" : "s"
+      }!`;
+    if (this.el["chest-sub"])
+      this.el["chest-sub"].textContent = "Every reward is yours.";
+
+    const rewards = this.el["chest-rewards"];
+    if (rewards) {
+      rewards.innerHTML = "";
+      const row = (icon, label, cls = "") => {
+        const el = document.createElement("div");
+        el.className = "chest-row" + (cls ? ` ${cls}` : "");
+        el.innerHTML = `<span class="chest-row-ic">${icon}</span><span class="chest-row-tx">${label}</span>`;
+        rewards.appendChild(el);
+      };
+      row(`<span class="coin-dot"></span>`, `<b>+${agg.coins}</b> coins`);
+      agg.powerups.forEach((p) => row(p.icon, `<b>${p.name}</b> ×${p.n}`));
+      agg.pets.forEach((pet) => {
+        const tag = pet.isNew ? "New pet!" : "+XP (duplicate)";
+        row(
+          pet.icon,
+          `<b>${pet.name}</b> — ${tag}`,
+          pet.premium ? "chest-pet premium" : "chest-pet"
+        );
+      });
+    }
+
+    this.hideModals();
+    modal.classList.remove("hidden");
   }
 
   // Show the chest-opening reveal modal listing everything the chest dropped.

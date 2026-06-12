@@ -260,3 +260,36 @@ export function rollChest(rng, opts = {}) {
 
   return out;
 }
+
+// Combine several claimed-chest reward summaries (each shaped like the object
+// the game's `claimAchievement` returns) into one aggregate for the "Collect
+// All" reveal. Sums coins, merges identical power-ups by id, and gathers the
+// pets and the categories that were cleared. Pure + order-preserving.
+export function aggregateChestRewards(rewards) {
+  const out = { count: 0, coins: 0, powerups: [], pets: [], categories: [] };
+  const byId = new Map();
+  for (const r of rewards || []) {
+    if (!r) continue;
+    out.count += 1;
+    out.coins += r.coins || 0;
+    if (r.category) {
+      out.categories.push({
+        id: r.category.id,
+        name: r.category.name,
+        icon: r.category.icon,
+        tierIndex: r.tierIndex || 0,
+      });
+    }
+    for (const p of r.powerups || []) {
+      const cur = byId.get(p.id);
+      if (cur) cur.n += p.n;
+      else {
+        const copy = { ...p };
+        byId.set(p.id, copy);
+        out.powerups.push(copy);
+      }
+    }
+    if (r.pet) out.pets.push(r.pet);
+  }
+  return out;
+}

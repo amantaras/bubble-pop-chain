@@ -212,7 +212,17 @@ never re‑discovered the hard way.
   card with a tier badge, progress bar and a "Collect 🎁" button on claimable
   tiers; collecting opens the `#chest` reveal modal listing every reward. A
   badge on the menu Trophies tile (`refreshAchievementsBadge`) shows the chest
-  count.
+  count. A **Collect All 🎁** button (`#achv-collect-all`, shown only when ≥1
+  chest is ready) batch‑collects **one ready tier per category** in a single tap
+  via `Game.claimAllAchievements()` (loops `claimAchievement` over
+  `claimableCategories`); `aggregateChestRewards(rewards)` (pure, in
+  `achievements.js`) merges the results into one summary (`{count, coins,
+  powerups[] merged by id, pets[], categories[]}`). The model is granted
+  synchronously; the UI then plays a **cosmetic flying‑gift sweep**
+  (`_playCollectAllSweep`: a `.caf-token` 🎁 flies from each collected row up to
+  the screen top via the Web Animations API, staggered, with a `.caf-burst`)
+  and shows the **aggregate reveal** (`_showCollectAllReveal`) reusing the
+  `#chest` modal ("Collected N chest(s)!").
 - **Colourblind mode** (`renderer.js` `CB_SYMBOLS`, `storage.js`
   `settings.colorblind`): an accessibility toggle that stamps a **distinct
   symbol per colour** on plain bubbles so colours are readable by shape, not

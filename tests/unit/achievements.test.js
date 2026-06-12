@@ -8,6 +8,7 @@ import {
   claimableCount,
   claimableCategories,
   rollChest,
+  aggregateChestRewards,
   CHEST_POWERUPS,
 } from "../../src/achievements.js";
 
@@ -162,5 +163,50 @@ describe("rollChest", () => {
     const a = rollChest(seq(values), { tierIndex: 2, coins: 200 });
     const b = rollChest(seq(values), { tierIndex: 2, coins: 200 });
     expect(a).toEqual(b);
+  });
+});
+
+describe("aggregateChestRewards (Collect All)", () => {
+  it("sums coins, merges power-ups by id and gathers pets + categories", () => {
+    const agg = aggregateChestRewards([
+      {
+        coins: 60,
+        category: { id: "popper", name: "Popper", icon: "👆" },
+        tierIndex: 1,
+        powerups: [
+          { id: "bomb", n: 1, name: "Bomb", icon: "💣" },
+          { id: "shuffle", n: 2, name: "Shuffle", icon: "🔀" },
+        ],
+        pet: null,
+      },
+      {
+        coins: 40,
+        category: { id: "combo", name: "Combo Master", icon: "⚡" },
+        tierIndex: 0,
+        powerups: [{ id: "bomb", n: 1, name: "Bomb", icon: "💣" }],
+        pet: { id: "rover", name: "Rover", icon: "🐶", isNew: true },
+      },
+    ]);
+    expect(agg.count).toBe(2);
+    expect(agg.coins).toBe(100);
+    // bomb appears in both chests → merged into a single ×2 entry.
+    const bomb = agg.powerups.find((p) => p.id === "bomb");
+    expect(bomb.n).toBe(2);
+    expect(agg.powerups.find((p) => p.id === "shuffle").n).toBe(2);
+    expect(agg.pets).toHaveLength(1);
+    expect(agg.pets[0].id).toBe("rover");
+    expect(agg.categories.map((c) => c.id)).toEqual(["popper", "combo"]);
+  });
+
+  it("ignores null entries and returns an empty aggregate for no rewards", () => {
+    const agg = aggregateChestRewards([null, undefined]);
+    expect(agg).toEqual({
+      count: 0,
+      coins: 0,
+      powerups: [],
+      pets: [],
+      categories: [],
+    });
+    expect(aggregateChestRewards()).toEqual(agg);
   });
 });

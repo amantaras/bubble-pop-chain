@@ -63,6 +63,8 @@ import {
   getCategory,
   categoryStatus,
   claimableCount,
+  claimableCategories,
+  aggregateChestRewards,
   rollChest,
 } from "./achievements.js";
 import {
@@ -172,6 +174,7 @@ class Game {
       rescuePick: () => this._rescueWithPick(),
       rescueGiveUp: () => this._giveUpRescue(),
       claimAchievement: (id) => this.claimAchievement(id),
+      claimAllAchievements: () => this.claimAllAchievements(),
       claimCalendar: () => this.claimCalendar(),
       claimSeasonTier: (index, track) => this.claimSeasonTier(index, track),
       buySeasonPremium: () => this.buySeasonPremium(),
@@ -1234,6 +1237,23 @@ class Game {
       powerups,
       pet,
     };
+  }
+
+  // Collect EVERY claimable achievement chest in one go. Claims one ready tier
+  // per category (mirroring the per-row Collect button), aggregates all the
+  // coins/tools/pets into a single reward summary for the "Collect All" reveal,
+  // and returns it — or null if nothing was claimable.
+  claimAllAchievements() {
+    const state = Storage.getAchievementState();
+    const ids = claimableCategories(state.progress, state.claims);
+    if (!ids.length) return null;
+    const rewards = [];
+    for (const id of ids) {
+      const reward = this.claimAchievement(id);
+      if (reward) rewards.push(reward);
+    }
+    if (!rewards.length) return null;
+    return aggregateChestRewards(rewards);
   }
 
   // Claim today's login-calendar reward (idempotent per day). Returns a recap
