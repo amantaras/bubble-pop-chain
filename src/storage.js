@@ -29,10 +29,11 @@ const DEFAULT_SAVE = {
   firstRunDone: false,
   activeSession: null, // snapshot of an in-progress campaign level (resume)
   milestonesCleared: [], // level ids whose one-time milestone reward was paid
-  // Lifetime achievement state: `unlocked` is the list of earned badge ids and
-  // `progress` accumulates the counters those badges test against.
+  // Lifetime achievement state: `progress` accumulates the lifetime counters
+  // the tiered categories test against, and `claims` maps a category id to the
+  // number of its tiers the player has collected a chest for.
   achievements: {
-    unlocked: [],
+    claims: {},
     progress: {
       pops: 0,
       bestCombo: 0,
@@ -147,20 +148,20 @@ class StorageManager {
   }
 
   // Read the lifetime achievement state, always returning a well-formed
-  // `{ unlocked: [...], progress: {...} }` (safe for old saves).
+  // `{ progress: {...}, claims: {...} }` (safe for old saves).
   getAchievementState() {
     const a = this.data.achievements || {};
     return {
-      unlocked: Array.isArray(a.unlocked) ? a.unlocked.slice() : [],
       progress: { ...(a.progress || {}) },
+      claims: { ...(a.claims || {}) },
     };
   }
 
-  // Persist a new achievement state (unlocked ids + progress counters).
+  // Persist a new achievement state (progress counters + per-category claims).
   setAchievementState(state) {
     this.data.achievements = {
-      unlocked: Array.isArray(state.unlocked) ? state.unlocked.slice() : [],
       progress: { ...(state.progress || {}) },
+      claims: { ...(state.claims || {}) },
     };
     this.save();
   }

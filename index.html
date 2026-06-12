@@ -165,6 +165,7 @@
             </svg>
           </span>
           <span class="tile-label">Trophies</span>
+          <span class="tile-badge hidden" id="achv-badge" aria-hidden="true"></span>
         </button>
         <button class="tile t-pets" id="btn-pets">
           <span class="tile-ic" aria-hidden="true">
@@ -237,7 +238,7 @@
       <div class="screen-head">
         <button class="icon-btn" id="achv-back" aria-label="Back">‹</button>
         <h2>Achievements</h2>
-        <div class="achv-count" id="achv-count">0/0</div>
+        <div class="achv-count" id="achv-count">All collected</div>
       </div>
       <div class="achv-list" id="achv-list"></div>
     </div>
@@ -310,6 +311,17 @@
         <p class="loadout-sub" id="loadout-sub">Pick the power-up for this slot.</p>
         <div class="loadout-list" id="loadout-list"></div>
         <button class="btn btn-primary" id="loadout-close">Done</button>
+      </div>
+    </div>
+
+    <!-- Achievement chest reveal: shows everything a collected chest dropped -->
+    <div id="chest" class="overlay modal hidden">
+      <div class="modal-card chest-card">
+        <div class="chest-icon" id="chest-icon">🎁</div>
+        <h2 class="modal-title chest-title" id="chest-title">Chest</h2>
+        <p class="chest-sub" id="chest-sub">Chest opened!</p>
+        <div class="chest-rewards" id="chest-rewards"></div>
+        <button class="btn btn-primary" id="chest-ok">Collect</button>
       </div>
     </div>
 

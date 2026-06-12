@@ -17,7 +17,11 @@ import {
   getFreezeTokens,
   alreadyPlayedToday,
 } from "./daily.js";
-import { ACHIEVEMENTS } from "./achievements.js";
+import {
+  ACHIEVEMENT_CATEGORIES,
+  categoryStatus,
+  claimableCount,
+} from "./achievements.js";
 import {
   PET_CATALOG,
   COSMETICS,
@@ -47,6 +51,8 @@ class UIManager {
       "menu-coins", "lm-coins", "shop-coins", "themes-coins", "hud-coins",
       "level-grid", "shop-list", "theme-list",
       "achievements", "achv-list", "achv-count", "btn-achievements", "achv-back",
+      "achv-badge",
+      "chest", "chest-icon", "chest-title", "chest-sub", "chest-rewards", "chest-ok",
       "cb-toggle", "cb-toggle-state",
       "pets", "pets-coins", "pets-crate", "pet-store", "pet-list", "pet-detail",
       "btn-pets", "pets-back", "hud-pet", "hud-pet-icon", "hud-pet-buff",
@@ -98,6 +104,7 @@ class UIManager {
     click("themes-back", () => this.showScreen("menu"));
     click("achv-back", () => this.showScreen("menu"));
     click("pets-back", () => this.showScreen("menu"));
+    click("chest-ok", () => this.showScreen("achievements"));
     click("btn-back", () => this.cb.quitToMenu && this.cb.quitToMenu());
 
     // Colourblind symbols toggle (lives on the Themes screen).
@@ -209,6 +216,7 @@ class UIManager {
     if (name === "menu") {
       this.updateContinue();
       this.updateDailySummary();
+      this.refreshAchievementsBadge();
     }
     if (name === "levelmap") this.buildLevelMap();
     if (name === "shop") this.buildShop();
@@ -500,38 +508,152 @@ class UIManager {
     const list = this.el["achv-list"];
     if (!list) return;
     list.innerHTML = "";
-    const { unlocked } = Storage.getAchievementState();
-    const have = new Set(unlocked || []);
+    const { progress, claims } = Storage.getAchievementState();
 
-    ACHIEVEMENTS.forEach((ach) => {
-      const earned = have.has(ach.id);
+    let ready = 0;
+    ACHIEVEMENT_CATEGORIES.forEach((cat) => {
+      const st = categoryStatus(cat, progress, claims);
+      if (st.claimable) ready += 1;
+
       const item = document.createElement("div");
-      item.className = "achv-item" + (earned ? " earned" : " locked");
+      item.className =
+        "achv-item" +
+        (st.claimable ? " claimable" : "") +
+        (st.maxed ? " maxed" : "");
 
       const icon = document.createElement("div");
       icon.className = "achv-icon";
-      icon.textContent = earned ? ach.icon : "🔒";
+      icon.textContent = cat.icon;
 
       const body = document.createElement("div");
       body.className = "achv-body";
-      body.innerHTML =
-        `<div class="achv-name">${ach.name}</div>` +
-        `<div class="achv-desc">${ach.desc}</div>`;
 
-      const reward = document.createElement("div");
-      reward.className = "achv-reward";
-      reward.innerHTML = earned
-        ? `<span class="achv-done">✓</span>`
-        : `<span class="coin-dot"></span>${ach.coins}`;
+      const head = document.createElement("div");
+      head.className = "achv-head";
+      head.innerHTML =
+        `<span class="achv-name">${cat.name}</span>` +
+        `<span class="achv-tier">${
+          st.maxed ? "MAX" : `Tier ${st.level}/${st.totalTiers}`
+        }</span>`;
+
+      const bar = document.createElement("div");
+      bar.className = "achv-bar";
+      const fill = document.createElement("div");
+      fill.className = "achv-bar-fill";
+      fill.style.width = `${Math.round(st.progress01 * 100)}%`;
+      bar.appendChild(fill);
+
+      const meta = document.createElement("div");
+      meta.className = "achv-meta";
+      if (st.maxed) {
+        meta.innerHTML = `<span class="achv-desc">All tiers complete!</span>`;
+      } else {
+        meta.innerHTML =
+          `<span class="achv-desc">${Math.min(st.value, st.goal)} / ${st.goal} ${cat.unit}</span>` +
+          `<span class="achv-reward"><span class="coin-dot"></span>${st.tier.coins}</span>`;
+      }
+
+      body.appendChild(head);
+      body.appendChild(bar);
+      body.appendChild(meta);
+
+      const action = document.createElement("div");
+      action.className = "achv-action";
+      if (st.claimable) {
+        const btn = document.createElement("button");
+        btn.className = "buy-btn achv-claim";
+        btn.textContent = "Collect 🎁";
+        btn.addEventListener("click", () => this._claimAchievement(cat.id));
+        action.appendChild(btn);
+      } else if (st.maxed) {
+        action.innerHTML = `<span class="achv-done">✓</span>`;
+      }
 
       item.appendChild(icon);
       item.appendChild(body);
-      item.appendChild(reward);
+      item.appendChild(action);
       list.appendChild(item);
     });
 
     if (this.el["achv-count"]) {
-      this.el["achv-count"].textContent = `${have.size}/${ACHIEVEMENTS.length}`;
+      this.el["achv-count"].textContent = ready
+        ? `${ready} ready 🎁`
+        : "All collected";
+    }
+    this.refreshAchievementsBadge();
+  }
+
+  // Collect a category's chest via the game, then reveal its contents and
+  // rebuild the screen so the category shows its next tier.
+  _claimAchievement(categoryId) {
+    if (!this.cb.claimAchievement) return;
+    const reward = this.cb.claimAchievement(categoryId);
+    if (!reward) {
+      this.buildAchievements();
+      return;
+    }
+    this._showChestReveal(reward);
+    this.buildAchievements();
+  }
+
+  // Show the chest-opening reveal modal listing everything the chest dropped.
+  _showChestReveal(reward) {
+    const modal = this.el["chest"];
+    if (!modal) {
+      // No modal markup — fall back to a toast so rewards are never silent.
+      this.toast(`🎁 +${reward.coins} coins!`);
+      return;
+    }
+    Audio.coin();
+    if (this.el["chest-icon"]) this.el["chest-icon"].textContent = "🎁";
+    if (this.el["chest-title"])
+      this.el["chest-title"].textContent = `${reward.category.name} — Tier ${
+        reward.tierIndex + 1
+      }`;
+    if (this.el["chest-sub"])
+      this.el["chest-sub"].textContent = "Chest opened!";
+
+    const rewards = this.el["chest-rewards"];
+    if (rewards) {
+      rewards.innerHTML = "";
+      const row = (icon, label, cls = "") => {
+        const el = document.createElement("div");
+        el.className = "chest-row" + (cls ? ` ${cls}` : "");
+        el.innerHTML = `<span class="chest-row-ic">${icon}</span><span class="chest-row-tx">${label}</span>`;
+        rewards.appendChild(el);
+      };
+      row(
+        `<span class="coin-dot"></span>`,
+        `<b>+${reward.coins}</b> coins`
+      );
+      reward.powerups.forEach((p) =>
+        row(p.icon, `<b>${p.name}</b> ×${p.n}`)
+      );
+      if (reward.pet) {
+        const tag = reward.pet.isNew ? "New pet!" : "+XP (duplicate)";
+        row(
+          reward.pet.icon,
+          `<b>${reward.pet.name}</b> — ${tag}`,
+          reward.pet.premium ? "chest-pet premium" : "chest-pet"
+        );
+      }
+    }
+
+    this.hideModals();
+    modal.classList.remove("hidden");
+  }
+
+  // Toggle the little "chests waiting" badge on the menu's Trophies tile.
+  refreshAchievementsBadge() {
+    const badge = this.el["achv-badge"];
+    if (!badge) return;
+    const { progress, claims } = Storage.getAchievementState();
+    const n = claimableCount(progress, claims);
+    if (n > 0) {
+      badge.textContent = n > 9 ? "9+" : String(n);
+      badge.classList.remove("hidden");
+    } else {
+      badge.classList.add("hidden");
     }
   }
 
@@ -1048,6 +1170,7 @@ class UIManager {
     this.el["lose"].classList.add("hidden");
     if (this.el["isolated"]) this.el["isolated"].classList.add("hidden");
     if (this.el["loadout"]) this.el["loadout"].classList.add("hidden");
+    if (this.el["chest"]) this.el["chest"].classList.add("hidden");
   }
 
   showWin({ stars, score, coins = 0, rewardText, stats, showNext, showDouble }) {

@@ -793,26 +793,29 @@ test.describe("fever mode (double points)", () => {
   });
 });
 
-test.describe("achievements (badges & rewards)", () => {
+test.describe("achievements (tiered chests & rewards)", () => {
   test.beforeEach(({ page }) => openGame(page));
 
-  test("Achievements screen opens from the menu and lists every badge", async ({
+  test("Achievements screen opens from the menu and lists every category", async ({
     page,
   }) => {
     await page.locator("#btn-achievements").click();
     await expect(page.locator("#achievements")).toBeVisible();
     const total = await page.evaluate(
-      () => window.__bpc.game && document.querySelectorAll("#achv-list .achv-item").length
+      () =>
+        window.__bpc.game &&
+        document.querySelectorAll("#achv-list .achv-item").length
     );
     expect(total).toBeGreaterThanOrEqual(8);
-    // Fresh save: nothing earned yet, all items locked.
-    await expect(page.locator("#achv-count")).toHaveText(`0/${total}`);
-    expect(await page.locator(".achv-item.earned").count()).toBe(0);
+    // Fresh save: no chests waiting yet, so nothing is claimable.
+    expect(await page.locator(".achv-item.claimable").count()).toBe(0);
+    // Every category shows a progress bar.
+    expect(await page.locator("#achv-list .achv-bar").count()).toBe(total);
     await page.locator("#achv-back").click();
     await expect(page.locator("#menu")).toBeVisible();
   });
 
-  test("popping a cluster unlocks 'First Pop' and pays its coin reward", async ({
+  test("popping a cluster makes the Popper chest claimable and collecting it pays coins", async ({
     page,
   }) => {
     await page.evaluate(() => window.__bpc.game.startCampaign(2));
@@ -820,38 +823,86 @@ test.describe("achievements (badges & rewards)", () => {
 
     const res = await page.evaluate(() => {
       const g = window.__bpc.game;
-      const before = window.__bpc.Economy.coins;
       const b = g.session.board;
-      for (let c = 0; c < b.cols; c++)
+      let popped = false;
+      for (let c = 0; c < b.cols && !popped; c++)
         for (let r = 0; r < b.rows; r++) {
           if (b.grid[c][r] === -1) continue;
           if (b.getGroupAt(c, r).length >= 2) {
             g.popAt(c, r);
-            const st = window.__bpc.Storage.getAchievementState();
-            return {
-              unlocked: st.unlocked,
-              pops: st.progress.pops,
-              coinDelta: window.__bpc.Economy.coins - before,
-            };
+            popped = true;
+            break;
           }
         }
-      return null;
+      // Collecting the chest pays coins separately from the pop's score.
+      const before = window.__bpc.Economy.coins;
+      const reward = g.claimAchievement("popper");
+      const st = window.__bpc.Storage.getAchievementState();
+      return {
+        popped,
+        reward,
+        coinDelta: window.__bpc.Economy.coins - before,
+        claims: st.claims,
+        pops: st.progress.pops,
+      };
     });
-    expect(res).not.toBeNull();
-    expect(res.unlocked).toContain("first_pop");
+    expect(res.popped).toBe(true);
     expect(res.pops).toBeGreaterThanOrEqual(1);
-    // First Pop pays 10 coins on top of the pop's score coins (>= 10).
+    expect(res.reward).not.toBeNull();
+    // The chest always pays at least the tier's guaranteed coins.
+    expect(res.reward.coins).toBeGreaterThanOrEqual(10);
     expect(res.coinDelta).toBeGreaterThanOrEqual(10);
+    // The Popper category has advanced one tier.
+    expect(res.claims.popper).toBe(1);
   });
 
-  test("triggering Fever unlocks the 'Fever Pitch' badge", async ({ page }) => {
+  test("collecting a chest from the Achievements screen reveals its contents", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(400);
+    // Pop a cluster so the Popper tier becomes claimable.
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          if (b.grid[c][r] !== -1 && b.getGroupAt(c, r).length >= 2) {
+            g.popAt(c, r);
+            return;
+          }
+        }
+    });
+    await page.evaluate(() => window.__bpc.UI.showScreen("achievements"));
+    await expect(page.locator("#achievements")).toBeVisible();
+    const claim = page.locator(".achv-item.claimable .achv-claim").first();
+    await expect(claim).toBeVisible();
+    await claim.click();
+    // The reveal modal opens listing at least the coin reward.
+    await expect(page.locator("#chest")).toBeVisible();
+    expect(
+      await page.locator("#chest-rewards .chest-row").count()
+    ).toBeGreaterThanOrEqual(1);
+    await page.locator("#chest-ok").click();
+    await expect(page.locator("#achievements")).toBeVisible();
+    const claims = await page.evaluate(
+      () => window.__bpc.Storage.getAchievementState().claims
+    );
+    expect(claims.popper).toBe(1);
+  });
+
+  test("triggering Fever makes the Fever chest claimable", async ({ page }) => {
     await page.evaluate(() => window.__bpc.game.startCampaign(2));
     await page.waitForTimeout(400);
     await page.evaluate(() => window.__bpc.game._startFever());
-    const unlocked = await page.evaluate(
-      () => window.__bpc.Storage.getAchievementState().unlocked
-    );
-    expect(unlocked).toContain("fever_1");
+    const res = await page.evaluate(() => {
+      const fevers = window.__bpc.Storage.getAchievementState().progress.fevers;
+      const reward = window.__bpc.game.claimAchievement("fever");
+      return { fevers, reward };
+    });
+    expect(res.fevers).toBeGreaterThanOrEqual(1);
+    expect(res.reward).not.toBeNull();
+    expect(res.reward.category.id).toBe("fever");
   });
 
   test("tutorial play never counts toward achievements", async ({ page }) => {
@@ -872,7 +923,7 @@ test.describe("achievements (badges & rewards)", () => {
     const st = await page.evaluate(() =>
       window.__bpc.Storage.getAchievementState()
     );
-    expect(st.unlocked).toEqual([]);
+    expect(st.claims).toEqual({});
     expect(st.progress.pops || 0).toBe(0);
   });
 });

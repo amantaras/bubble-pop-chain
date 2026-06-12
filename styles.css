@@ -856,7 +856,7 @@ body {
 /* Achievements screen */
 .achv-count {
   font-weight: 800;
-  font-size: 15px;
+  font-size: 14px;
   color: var(--text-dim);
 }
 .achv-list {
@@ -875,12 +875,12 @@ body {
   border: 1px solid var(--glass-brd);
   background: var(--glass);
 }
-.achv-item.locked {
-  opacity: 0.55;
-}
-.achv-item.earned {
+.achv-item.claimable {
   border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent) inset;
+  box-shadow: 0 0 0 1px var(--accent) inset, 0 0 18px rgba(255, 200, 60, 0.25);
+}
+.achv-item.maxed {
+  opacity: 0.7;
 }
 .achv-item .achv-icon {
   font-size: 28px;
@@ -890,10 +890,48 @@ body {
 }
 .achv-item .achv-body {
   flex: 1;
+  min-width: 0;
+}
+.achv-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
 }
 .achv-item .achv-name {
   font-weight: 800;
   font-size: 15px;
+}
+.achv-tier {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.achv-bar {
+  position: relative;
+  height: 8px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+  margin: 7px 0 5px;
+}
+.achv-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 5px;
+  background: linear-gradient(90deg, #4dd2ff, #6c8cff);
+  transition: width 0.35s ease;
+}
+.achv-item.claimable .achv-bar-fill {
+  background: linear-gradient(90deg, #ffd24d, #ff9d2e);
+}
+.achv-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 .achv-item .achv-desc {
   font-size: 12px;
@@ -904,12 +942,100 @@ body {
   align-items: center;
   gap: 4px;
   font-weight: 800;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-dim);
+}
+.achv-action {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+.achv-claim {
+  white-space: nowrap;
+  animation: achv-pulse 1.4s ease-in-out infinite;
+}
+@keyframes achv-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 200, 60, 0); }
+  50% { box-shadow: 0 0 14px 2px rgba(255, 200, 60, 0.55); }
 }
 .achv-item .achv-done {
   color: var(--accent);
-  font-size: 18px;
+  font-size: 20px;
+}
+
+/* "Chests waiting" badge on the menu Trophies tile */
+.tile {
+  position: relative;
+}
+.tile-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: #ff4d6d;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 18px;
+  text-align: center;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* Chest reveal modal */
+.chest-card {
+  text-align: center;
+}
+.chest-icon {
+  font-size: 56px;
+  line-height: 1;
+  margin-bottom: 6px;
+  animation: chest-pop 0.5s cubic-bezier(0.2, 1.4, 0.5, 1);
+}
+@keyframes chest-pop {
+  0% { transform: scale(0.3) rotate(-12deg); opacity: 0; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+.chest-sub {
+  color: var(--text-dim);
+  font-size: 13px;
+  margin: 2px 0 12px;
+}
+.chest-rewards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.chest-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--glass-brd);
+  background: var(--glass);
+  font-size: 14px;
+}
+.chest-row-ic {
+  font-size: 20px;
+  width: 26px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.chest-row-tx {
+  flex: 1;
+  text-align: left;
+}
+.chest-row.chest-pet {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent) inset;
+}
+.chest-row.chest-pet.premium {
+  border-color: #ffd24d;
+  box-shadow: 0 0 0 1px #ffd24d inset, 0 0 16px rgba(255, 210, 77, 0.3);
 }
 
 /* ---- Pets ------------------------------------------------------------ */

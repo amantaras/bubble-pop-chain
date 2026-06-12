@@ -96,21 +96,21 @@ describe("storage", () => {
 
   it("achievement state defaults are well-formed and round-trip", () => {
     const init = Storage.getAchievementState();
-    expect(init.unlocked).toEqual([]);
+    expect(init.claims).toEqual({});
     expect(init.progress.pops).toBe(0);
     expect(init.progress.totalStars).toBe(0);
     // Persisting and reading back keeps the shape.
     Storage.setAchievementState({
-      unlocked: ["first_pop"],
+      claims: { popper: 2 },
       progress: { pops: 3, bestCombo: 5 },
     });
     const after = Storage.getAchievementState();
-    expect(after.unlocked).toEqual(["first_pop"]);
+    expect(after.claims).toEqual({ popper: 2 });
     expect(after.progress.pops).toBe(3);
     expect(after.progress.bestCombo).toBe(5);
     // It really hit localStorage.
     const raw = JSON.parse(localStorage.getItem("bpc_save_v1"));
-    expect(raw.achievements.unlocked).toEqual(["first_pop"]);
+    expect(raw.achievements.claims).toEqual({ popper: 2 });
   });
 
   it("settings default to colorblind off and round-trip", () => {

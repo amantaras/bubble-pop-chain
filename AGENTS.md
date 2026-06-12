@@ -94,19 +94,32 @@ never re‑discovered the hard way.
   apart connected clusters. Suspended during the tutorial (auto-spawns gated)
   and once a session ends. `events.js` is pure/seedable; `game.spawnEvent(type)`
   is an E2E hook.
-- **Achievements** (`achievements.js`, pure): 8 one‑time badges that reward
-  lifetime play (first pop, ×5 combo, 8+ cluster, trigger Fever, clear 5
-  levels, 15 total stars, defuse a problem, earn 500 coins). The module is pure
-  — `mergeProgress` folds a delta into a lifetime `progress` object (sum, or max
-  for best‑fields), `newlyUnlocked` returns badges that now qualify and aren't
-  held, `coinsForAchievements` totals their payouts. State lives in
-  `storage.js` `achievements: { unlocked, progress }` (`getAchievementState`/
-  `setAchievementState`). `Game._recordProgress(delta)` is called from `popAt`,
-  `_startFever`, the defuse handler and `_finish` (campaign win); it unlocks
-  badges, pays their coins (`Economy.addCoins`) and toasts each
-  (`_announceAchievement`). **Tutorial play never counts** (guarded). The
-  **Achievements screen** (`ui.js` `buildAchievements`, `#achievements`, menu
-  button) lists every badge with locked/earned state and an `n/total` count.
+- **Achievements** (`achievements.js`, pure): 8 **tiered categories** that
+  reward lifetime play (Popper, Combo Master, Big Bang, Fever Pitch,
+  Trailblazer, Star Collector, Bomb Squad, High Roller). Each category tracks
+  one lifetime metric and has an escalating ladder of 5 tiers (e.g. Popper:
+  1 → 100 → 500 → 1000 → 5000 pops). Clearing a tier fills its **progress bar**
+  and makes a **collectible chest** claimable. The module is pure —
+  `mergeProgress` folds a delta into a lifetime `progress` object (sum, or max
+  for best‑fields), `ACHIEVEMENT_CATEGORIES`/`getCategory` describe the ladders,
+  `categoryStatus(cat, progress, claims)` returns the current tier + progress +
+  `claimable` flag, `claimableCount`/`claimableCategories` summarise what's
+  ready, and `rollChest(rng, {tierIndex, coins})` rolls seeded chest contents
+  (`{ coins, bonusCoins, powerups[], petRoll }`). State lives in `storage.js`
+  `achievements: { progress, claims }` where `claims` maps a category id → how
+  many tiers have been collected (`getAchievementState`/`setAchievementState`).
+  `Game._recordProgress(delta)` is called from `popAt`, `_startFever`, the
+  defuse handler and `_finish`; it accrues progress and toasts when a new chest
+  becomes claimable (coins are **not** auto‑paid). `Game.claimAchievement(id)`
+  validates a claimable tier, rolls the chest (seeded, like crate opens),
+  grants coins + power‑ups (`Economy.addPowerup`) + a rare pet (`rollCrate` +
+  `Storage.grantPet`, ~4% chance), and advances the category. **Tutorial play
+  never counts** (guarded). The **Achievements screen** (`ui.js`
+  `buildAchievements`, `#achievements`, menu button) renders each category as a
+  card with a tier badge, progress bar and a "Collect 🎁" button on claimable
+  tiers; collecting opens the `#chest` reveal modal listing every reward. A
+  badge on the menu Trophies tile (`refreshAchievementsBadge`) shows the chest
+  count.
 - **Colourblind mode** (`renderer.js` `CB_SYMBOLS`, `storage.js`
   `settings.colorblind`): an accessibility toggle that stamps a **distinct
   symbol per colour** on plain bubbles so colours are readable by shape, not
@@ -254,7 +267,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 196 unit tests + 142 E2E
+- **Current baseline (keep growing, never shrink)**: 201 unit tests + 144 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

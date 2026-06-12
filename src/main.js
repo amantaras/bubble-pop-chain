@@ -53,9 +53,10 @@ import {
 } from "./events.js";
 import {
   mergeProgress,
-  newlyUnlocked,
-  coinsForAchievements,
-  getAchievement,
+  getCategory,
+  categoryStatus,
+  claimableCount,
+  rollChest,
 } from "./achievements.js";
 import {
   petBuffs,
@@ -136,6 +137,7 @@ class Game {
       buyCosmetic: (petId, cos) => this.buyCosmetic(petId, cos),
       rescuePick: () => this._rescueWithPick(),
       rescueGiveUp: () => this._giveUpRescue(),
+      claimAchievement: (id) => this.claimAchievement(id),
     });
 
     this.input = new Input(this.canvas, {
@@ -913,38 +915,98 @@ class Game {
   }
 
   // ---- Achievements -----------------------------------------------------
-  // Fold a progress delta into the lifetime achievement state, unlock any
-  // badges that newly qualify, pay their one-time coin rewards and announce
-  // them. Tutorial play never counts toward achievements. Returns the list of
-  // newly unlocked ids.
+  // Fold a progress delta into the lifetime achievement state. Progress accrues
+  // automatically, but coins are NOT auto-paid: clearing a tier instead makes a
+  // chest claimable on the Achievements screen. We toast when a new chest
+  // becomes available. Tutorial play never counts. Returns the number of newly
+  // claimable chests created by this delta.
   _recordProgress(delta) {
     const s = this.session;
-    if (s && s.mode === "tutorial") return [];
-    if (this.tutorial && this.tutorial.active) return [];
+    if (s && s.mode === "tutorial") return 0;
+    if (this.tutorial && this.tutorial.active) return 0;
     const state = Storage.getAchievementState();
+    const before = claimableCount(state.progress, state.claims);
     const progress = mergeProgress(state.progress, delta);
-    const fresh = newlyUnlocked(progress, state.unlocked);
-    const unlocked = state.unlocked.concat(fresh);
-    Storage.setAchievementState({ unlocked, progress });
-    if (fresh.length) {
-      const coins = coinsForAchievements(fresh);
-      if (coins > 0) Economy.addCoins(coins);
-      fresh.forEach((id, i) => this._announceAchievement(getAchievement(id), i));
-      UI.refreshCoins();
-    }
-    return fresh;
+    Storage.setAchievementState({ progress, claims: state.claims });
+    const after = claimableCount(progress, state.claims);
+    const gained = after - before;
+    if (gained > 0) this._announceChestReady(gained);
+    UI.refreshAchievementsBadge();
+    return gained;
   }
 
-  // Toast an unlocked badge. Multiple simultaneous unlocks are spaced out so
-  // each is readable.
-  _announceAchievement(ach, index = 0) {
-    if (!ach) return;
-    const show = () => {
-      Audio.coin();
-      UI.toast(`🏆 ${ach.icon} ${ach.name}  +${ach.coins}`, 2000);
+  // Toast that one or more achievement chests are ready to collect.
+  _announceChestReady(count = 1) {
+    Audio.coin();
+    const msg =
+      count > 1
+        ? `🎁 ${count} reward chests ready!`
+        : "🎁 Reward chest ready to collect!";
+    UI.toast(msg, 2200);
+  }
+
+  // Collect the chest for a claimable category tier. Validates that a chest is
+  // actually due, rolls its contents with a seeded RNG, grants the coins, tools
+  // and (rarely) a pet, advances the category to the next tier and returns a
+  // reward summary for the reveal UI — or null if nothing was claimable.
+  claimAchievement(categoryId) {
+    const cat = getCategory(categoryId);
+    if (!cat) return null;
+    const state = Storage.getAchievementState();
+    const st = categoryStatus(cat, state.progress, state.claims);
+    if (!st.claimable) return null;
+
+    // Seeded roll, mirroring the crate-open pattern so opens are reproducible.
+    this._crateSeed = ((this._crateSeed || 1) * 1664525 + 1013904223) >>> 0;
+    const seed = (this._crateSeed ^ ((Date.now() >>> 0) || 1)) >>> 0;
+    const rng = makeRng(seed);
+    const chest = rollChest(rng, { tierIndex: st.tierIndex, coins: st.tier.coins });
+
+    // Grant coins (guaranteed tier payout + bonus).
+    const coins = chest.coins + chest.bonusCoins;
+    if (coins > 0) Economy.addCoins(coins);
+
+    // Grant power-up tools.
+    const powerups = chest.powerups.map(({ id, n }) => {
+      Economy.addPowerup(id, n);
+      const info = POWERUP_INFO[id] || {};
+      return { id, n, name: info.name || id, icon: info.icon || "✨" };
+    });
+
+    // Rarely, a pet. New pets join the collection; duplicates grant XP.
+    let pet = null;
+    if (chest.petRoll) {
+      const { petId, premium } = rollCrate(rng);
+      const isNew = Storage.grantPet(petId);
+      if (!isNew) Storage.addPetXp(petId, DUP_XP);
+      const def = getPet(petId) || {};
+      pet = {
+        id: petId,
+        isNew,
+        premium: !!premium,
+        name: def.name || petId,
+        icon: def.icon || "🐾",
+        rarity: def.rarity || "common",
+      };
+    }
+
+    // Advance the category: record one more claimed tier.
+    const claims = { ...state.claims, [cat.id]: st.claimed + 1 };
+    Storage.setAchievementState({ progress: state.progress, claims });
+
+    UI.refreshCoins();
+    UI.refreshAchievementsBadge();
+
+    return {
+      category: cat,
+      tier: st.tier,
+      tierIndex: st.tierIndex,
+      coins,
+      baseCoins: chest.coins,
+      bonusCoins: chest.bonusCoins,
+      powerups,
+      pet,
     };
-    if (index === 0) show();
-    else setTimeout(show, index * 2100);
   }
 
   handleDoubleTap(px, py) {
