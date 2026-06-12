@@ -40,8 +40,38 @@ async function autoPlay(page) {
           if (grp.length >= 2 && (!best || grp.length > best.length))
             best = { c, r, len: grp.length };
         }
-      if (!best) break;
-      g.popAt(best.c, best.r);
+      if (best) {
+        g.popAt(best.c, best.r);
+        await new Promise((res) => setTimeout(res, 18));
+        guard++;
+        continue;
+      }
+      // No tap-group left: a row swipe is still a real move, so look for one
+      // that realigns bubbles into a fresh match (mirrors a human player). If a
+      // productive shift exists and the player can afford it, perform it;
+      // otherwise the board is genuinely deadlocked and afterMove ends the run.
+      const canShift =
+        g.session.mode === "campaign"
+          ? g.session.movesLeft > 0
+          : g.session.shiftTokens > 0;
+      let swiped = false;
+      if (canShift) {
+        for (let r = 0; r < b.rows && !swiped; r++) {
+          for (const dir of ["right", "left"]) {
+            const grid = b.grid.map((col) => col.slice());
+            const types = b.types.map((col) => col.slice());
+            b._simShiftRow(grid, types, r, dir);
+            b._simSettle(grid, types);
+            if (b._gridHasMoves(grid, types)) {
+              const y = b.targetPixel(0, r).y;
+              g.handleSwipe(dir, b.originX + b.boardW / 2, y);
+              swiped = true;
+              break;
+            }
+          }
+        }
+      }
+      if (!swiped) break;
       await new Promise((res) => setTimeout(res, 18));
       guard++;
     }
@@ -586,6 +616,102 @@ test.describe("endless & daily modes", () => {
     expect(save.daily.lastDate).not.toBeNull();
   });
 });
+
+test.describe("swipe-aware completion (no premature deadlock)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  // Regression: a level must NOT finish while bubbles remain if the player has
+  // moves left and a row-shift (swipe) could still realign them into a match.
+  test("level stays open when only a swipe can create a match", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(500);
+
+    const state = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const s = g.session;
+      const b = s.board;
+      s.petActive = null; // isolate the deadlock logic from pet help
+      // Wipe the board, then lay a single bottom row with NO same-colour
+      // neighbours (no tap-move) but whose ends share a colour, so one wrap
+      // shift produces a poppable pair.
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          b.grid[c][r] = -1;
+          b.types[c][r] = 0;
+          b.spriteGrid[c][r] = null;
+        }
+      const br = b.rows - 1;
+      for (let c = 0; c < b.cols; c++) {
+        b.grid[c][br] = c === 0 || c === b.cols - 1 ? 1 : c % 2 === 0 ? 2 : 0;
+        b.types[c][br] = 0;
+      }
+      s.movesLeft = 5; // plenty of moves remain
+      const hadTapMove = b.hasMoves();
+      const hadShiftMove = b.hasShiftMove();
+      g.afterMove(); // run the real end-of-move evaluation
+      return {
+        hadTapMove,
+        hadShiftMove,
+        ended: s.ended,
+        remaining: b.countRemaining(),
+      };
+    });
+
+    expect(state.hadTapMove).toBe(false);
+    expect(state.hadShiftMove).toBe(true);
+    expect(state.remaining).toBeGreaterThan(0);
+    // The level must remain in play — no win/lose/rescue while a swipe is open.
+    expect(state.ended).toBe(false);
+    await expect(page.locator("#win")).toBeHidden();
+    await expect(page.locator("#lose")).toBeHidden();
+    await expect(page.locator("#isolated")).toBeHidden();
+
+    // And the swipe genuinely unsticks the board.
+    const afterSwipe = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      const y = b.targetPixel(0, b.rows - 1).y;
+      g.handleSwipe("right", b.originX + b.boardW / 2, y);
+      return { hasMoves: b.hasMoves(), ended: g.session.ended };
+    });
+    expect(afterSwipe.hasMoves).toBe(true);
+    expect(afterSwipe.ended).toBe(false);
+  });
+
+  // The genuine deadlock (no tap AND no useful swipe) still ends the level.
+  test("a true deadlock with no swipe-move still resolves", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(500);
+
+    const state = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const s = g.session;
+      const b = s.board;
+      s.petActive = null;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          b.grid[c][r] = -1;
+          b.types[c][r] = 0;
+          b.spriteGrid[c][r] = null;
+        }
+      // Two single bubbles of DIFFERENT colours: no shift can ever match them.
+      const br = b.rows - 1;
+      b.grid[0][br] = 0;
+      b.grid[b.cols - 1][br] = 1;
+      s.movesLeft = 5;
+      s.score = s.level.target + 1; // already at target → deadlock = win
+      const hadShiftMove = b.hasShiftMove();
+      g.afterMove();
+      return { hadShiftMove, ended: s.ended };
+    });
+
+    expect(state.hadShiftMove).toBe(false);
+    expect(state.ended).toBe(true); // genuine deadlock resolves the level
+  });
+});
+
 
 test.describe("power-ups (UI arm + apply)", () => {
   test.beforeEach(({ page }) => openGame(page));
@@ -2136,6 +2262,78 @@ test.describe("lone-bubble rescue", () => {
     // Score is 0 < target, so the level ends as a loss.
     await expect(page.locator("#lose")).toBeVisible({ timeout: 4000 });
     await expect(page.locator("#isolated")).toBeHidden();
+  });
+});
+
+test.describe("premium Nova gunship pet", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("equipped Nova auto-blasts bottom bubbles with no player input", async ({
+    page,
+  }) => {
+    // Own + max-level + equip Nova so its gunship deploys at full firepower.
+    await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      S.grantPet("nova");
+      for (let i = 0; i < 12; i++) S.addPetXp("nova", 999);
+      S.equipPet("nova");
+    });
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await page.waitForTimeout(500);
+
+    // The gunship is deployed for this (non-tutorial) session.
+    expect(await page.evaluate(() => window.__bpc.game.alienShip.active)).toBe(true);
+
+    const before = await page.evaluate(() =>
+      window.__bpc.game.session.board.countRemaining()
+    );
+    // Let it patrol and fire for a couple of seconds — without any taps.
+    await page.waitForTimeout(2600);
+    const after = await page.evaluate(() =>
+      window.__bpc.game.session
+        ? window.__bpc.game.session.board.countRemaining()
+        : 0
+    );
+    // It cleared bubbles entirely on its own.
+    expect(after).toBeLessThan(before);
+  });
+
+  test("Nova is $$$-only: buyable via the store, never from crates", async ({
+    page,
+  }) => {
+    // The mock IAP purchase grants the pet, which then shows as owned.
+    const bought = await page.evaluate(async () => {
+      const ok = await window.__bpc.game.buyPremiumPet("nova");
+      return { ok, owns: window.__bpc.Storage.ownsPet("nova") };
+    });
+    expect(bought.ok).toBe(true);
+    expect(bought.owns).toBe(true);
+
+    // Forcing the premium branch of both crate types must never yield Nova.
+    const fromCrate = await page.evaluate(() => {
+      const { rollCrate, rollLegendaryCrate } = window.__bpc.pets;
+      // makeRng isn't exposed; a plain incrementing PRNG is enough here.
+      let seed = 1;
+      const rng = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+      const ids = new Set();
+      for (let i = 0; i < 100; i++) {
+        ids.add(rollCrate(rng, { premiumChance: 1 }).petId);
+        ids.add(rollLegendaryCrate(rng, { premiumChance: 1 }).petId);
+      }
+      return [...ids];
+    });
+    expect(fromCrate).not.toContain("nova");
+  });
+
+  test("Nova does not deploy in the tutorial sandbox", async ({ page }) => {
+    await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      S.grantPet("nova");
+      S.equipPet("nova");
+    });
+    await page.evaluate(() => window.__bpc.game.startTutorial());
+    await page.waitForTimeout(300);
+    expect(await page.evaluate(() => window.__bpc.game.alienShip.active)).toBe(false);
   });
 });
 

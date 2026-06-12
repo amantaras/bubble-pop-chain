@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { PetAnim, FloatingText, ScreenShake } from "../../src/animations.js";
+import { PetAnim, FloatingText, ScreenShake, AlienShip } from "../../src/animations.js";
+import { Board } from "../../src/grid.js";
 
 // A minimal 2D-context stub that records calls and supports the canvas API
 // the animators touch (gradients included).
@@ -183,3 +184,151 @@ describe("existing animators still parse/behave", () => {
     expect(s.trauma).toBeLessThan(1);
   });
 });
+
+// A laid-out board with a known bubble in column 2 (and an empty column 1).
+function shipBoard() {
+  const b = new Board(4, 5, 3, 1);
+  b.layout(400, 700, 0, 0);
+  // Deterministic logic grid: only column 2 holds a single bottom bubble.
+  b.cols = 4;
+  b.rows = 5;
+  b.grid = [
+    [-1, -1, -1, -1, -1],
+    [-1, -1, -1, -1, -1],
+    [-1, -1, -1, -1, 0], // column 2, bottom row
+    [-1, -1, -1, -1, -1],
+  ];
+  return b;
+}
+
+describe("AlienShip — premium Nova gunship", () => {
+  const L1 = { fireInterval: 1.5, shots: 1, nuke: false, nukeInterval: 0, moveSpeed: 95 };
+  const L5 = { fireInterval: 0.66, shots: 3, nuke: true, nukeInterval: 7, moveSpeed: 155 };
+
+  it("starts inactive and is only armed by start()", () => {
+    const ship = new AlienShip();
+    expect(ship.active).toBe(false);
+    ship.update(0.1, shipBoard(), {}); // no-op while inactive
+    expect(ship.bullets.length).toBe(0);
+    ship.start(L1, shipBoard());
+    expect(ship.active).toBe(true);
+  });
+
+  it("parks at the bottom-centre of the board", () => {
+    const b = shipBoard();
+    const ship = new AlienShip();
+    ship.start(L1, b);
+    expect(ship.x).toBeCloseTo(b.originX + b.boardW / 2, 3);
+    expect(ship.y).toBeGreaterThan(b.originY + b.boardH);
+  });
+
+  it("patrols and bounces off the side walls", () => {
+    const b = shipBoard();
+    const ship = new AlienShip();
+    ship.start(L1, b);
+    // Park near the right wall and drive right: it must clamp and flip to left.
+    ship.x = b.originX + b.boardW;
+    ship.dir = 1;
+    ship.update(0.05, b, {});
+    expect(ship.dir).toBe(-1);
+    // Over many steps it always stays within the board bounds.
+    for (let i = 0; i < 200; i++) ship.update(0.05, b, {});
+    expect(ship.x).toBeLessThanOrEqual(b.originX + b.boardW);
+    expect(ship.x).toBeGreaterThanOrEqual(b.originX);
+  });
+
+  it("fires on its cadence and a bullet destroys the column's bottom bubble", () => {
+    const b = shipBoard();
+    const ship = new AlienShip();
+    ship.start(L1, b);
+    // Park the ship over column 2 so its volley targets the lone bubble.
+    ship.x = b.originX + 2 * b.cell + b.cell / 2;
+    ship.dir = 0; // freeze horizontal drift for a deterministic shot
+    const hits = [];
+    const hooks = { hitColumn: (c) => hits.push(c), nuke: () => {} };
+    // Advance past the fire interval, then let the bolt travel to the target.
+    let fired = false;
+    for (let i = 0; i < 200 && !hits.length; i++) {
+      ship.update(0.05, b, hooks);
+      if (ship.bullets.length) fired = true;
+    }
+    expect(fired).toBe(true);
+    expect(hits).toContain(2);
+  });
+
+  it("never fires bullets outside the board's columns", () => {
+    const b = shipBoard();
+    const ship = new AlienShip();
+    ship.start(L5, b); // 3 parallel cannons
+    ship.x = b.originX + b.cell / 2; // far-left column 0
+    ship.dir = 0;
+    for (let i = 0; i < 60; i++) ship.update(0.05, b, { hitColumn() {}, nuke() {} });
+    for (const bl of ship.bullets) {
+      expect(bl.tc).toBeGreaterThanOrEqual(0);
+      expect(bl.tc).toBeLessThan(b.cols);
+    }
+  });
+
+  it("only fires nukes at a level that has them unlocked", () => {
+    const b = shipBoard();
+    const lowNukes = [];
+    const low = new AlienShip();
+    low.start(L1, b);
+    low.dir = 0;
+    for (let i = 0; i < 400; i++) low.update(0.05, b, { hitColumn() {}, nuke: () => lowNukes.push(1) });
+    expect(lowNukes.length).toBe(0);
+
+    const hiNukes = [];
+    const hi = new AlienShip();
+    hi.start(L5, b);
+    hi.dir = 0;
+    for (let i = 0; i < 400; i++) hi.update(0.05, b, { hitColumn() {}, nuke: () => hiNukes.push(1) });
+    expect(hiNukes.length).toBeGreaterThan(0);
+  });
+
+  it("stop() clears bullets and deactivates", () => {
+    const b = shipBoard();
+    const ship = new AlienShip();
+    ship.start(L5, b);
+    ship.dir = 0;
+    for (let i = 0; i < 20; i++) ship.update(0.05, b, { hitColumn() {}, nuke() {} });
+    ship.stop();
+    expect(ship.active).toBe(false);
+    expect(ship.bullets.length).toBe(0);
+  });
+
+  it("draw() is a no-op when inactive and draws when active", () => {
+    const ctx = shipMockCtx();
+    const ship = new AlienShip();
+    ship.draw(ctx);
+    expect(ctx.calls.length).toBe(0);
+    ship.start({ ...L5 }, shipBoard());
+    ship.draw(ctx);
+    expect(ctx.calls.length).toBeGreaterThan(0);
+  });
+});
+
+// Extended context stub that also supports ellipse + shadow props used by the
+// gunship's draw routine.
+function shipMockCtx() {
+  const calls = [];
+  const rec = (name) => (...args) => calls.push([name, args]);
+  return {
+    calls,
+    save: rec("save"),
+    restore: rec("restore"),
+    beginPath: rec("beginPath"),
+    moveTo: rec("moveTo"),
+    lineTo: rec("lineTo"),
+    arc: rec("arc"),
+    ellipse: rec("ellipse"),
+    stroke: rec("stroke"),
+    fill: rec("fill"),
+    set fillStyle(v) {},
+    set strokeStyle(v) {},
+    set lineWidth(v) {},
+    set globalAlpha(v) {},
+    set shadowColor(v) {},
+    set shadowBlur(v) {},
+  };
+}

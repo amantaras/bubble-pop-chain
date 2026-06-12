@@ -22,6 +22,8 @@ import {
   rollCrate,
   rollLegendaryCrate,
   premiumPets,
+  cratePremiumPets,
+  shooterStats,
   PREMIUM_DROP_CHANCE,
   LEGENDARY_CRATE,
 } from "../../src/pets.js";
@@ -43,13 +45,11 @@ describe("pets catalog", () => {
     }
   });
 
-  it("only premium pets carry a price/product, and they are passive side-grades", () => {
+  it("only premium pets carry a price/product", () => {
     for (const p of PET_CATALOG) {
       if (p.premium) {
         expect(typeof p.product).toBe("string");
         expect(p.product.startsWith("pet_")).toBe(true);
-        // Premium pets are passive side-grades (not active board powers).
-        expect(!!p.ability).toBe(true);
       } else {
         expect(p.product).toBeUndefined();
       }
@@ -229,7 +229,7 @@ describe("crate rolls", () => {
     const prem = premiumPets();
     expect(prem.length).toBeGreaterThan(0);
     for (const p of prem) expect(p.premium).toBe(true);
-    expect(prem.map((p) => p.id).sort()).toEqual(["aurora", "gizmo"]);
+    expect(prem.map((p) => p.id).sort()).toEqual(["aurora", "gizmo", "nova"]);
   });
 
   it("rollLegendaryCrate without premium yields a legendary pet", () => {
@@ -269,5 +269,59 @@ describe("crate rolls", () => {
     expect(PET_XP_PER_LEVEL).toBeGreaterThan(0);
     expect(DUP_XP).toBeGreaterThan(0);
     expect(RARITY_WEIGHTS.common).toBeGreaterThan(RARITY_WEIGHTS.legendary);
+  });
+});
+
+describe("Nova premium gunship", () => {
+  it("is a premium, store-only, active shooter", () => {
+    const nova = getPet("nova");
+    expect(nova).toBeTruthy();
+    expect(nova.premium).toBe(true);
+    expect(nova.storeOnly).toBe(true);
+    expect(nova.product).toBe("pet_nova");
+    expect(nova.active && nova.active.type).toBe("shooter");
+  });
+
+  it("is excluded from crate surprise rolls (purchasable with $$$ only)", () => {
+    // Store-only pets must never appear as a crate premium surprise.
+    expect(cratePremiumPets().some((p) => p.id === "nova")).toBe(false);
+    // Forcing the premium branch in both crate types never yields Nova.
+    for (let i = 0; i < 200; i++) {
+      const rng = makeRng(i + 1);
+      expect(rollCrate(rng, { premiumChance: 1 }).petId).not.toBe("nova");
+      expect(rollLegendaryCrate(makeRng(i + 7), { premiumChance: 1 }).petId).not.toBe(
+        "nova"
+      );
+    }
+  });
+
+  it("still appears in the Pet Store list", () => {
+    expect(premiumPets().some((p) => p.id === "nova")).toBe(true);
+  });
+});
+
+describe("shooterStats progression", () => {
+  it("clamps level to 1..MAX and reports it", () => {
+    expect(shooterStats(0).level).toBe(1);
+    expect(shooterStats(-5).level).toBe(1);
+    expect(shooterStats(99).level).toBe(MAX_PET_LEVEL);
+    expect(shooterStats(3).level).toBe(3);
+  });
+
+  it("gets strictly stronger as it levels: faster, more cannons, then nukes", () => {
+    const levels = [1, 2, 3, 4, 5].map(shooterStats);
+    // Fire interval never increases (it gets faster or holds).
+    for (let i = 1; i < levels.length; i++) {
+      expect(levels[i].fireInterval).toBeLessThanOrEqual(levels[i - 1].fireInterval);
+      expect(levels[i].shots).toBeGreaterThanOrEqual(levels[i - 1].shots);
+      expect(levels[i].moveSpeed).toBeGreaterThanOrEqual(levels[i - 1].moveSpeed);
+    }
+    // L1 is a single slow cannon; the top level fires multiple and unlocks nukes.
+    expect(levels[0].shots).toBe(1);
+    expect(levels[0].nuke).toBe(false);
+    expect(levels[4].shots).toBeGreaterThan(1);
+    expect(levels[4].nuke).toBe(true);
+    expect(levels[4].nukeInterval).toBeGreaterThan(0);
+    expect(levels[4].fireInterval).toBeLessThan(levels[0].fireInterval);
   });
 });

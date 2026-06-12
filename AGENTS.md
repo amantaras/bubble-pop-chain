@@ -67,6 +67,19 @@ never re‑discovered the hard way.
   state so a later jam re-prompts. **Give Up** (`session.gaveUp`) declines the
   rescue and lets the level end normally. Power-ups never cost a move, so the
   Pick rescues even at `movesLeft === 0`.
+- **Swipe-aware deadlock detection** (`main.js` `_isDeadlocked`; `grid.js`
+  `hasShiftMove`/`_gridHasMoves`/`_simShiftRow`/`_simSettle`): a row **swipe** is
+  a real move, so the board is only **deadlocked** when there is no tap-match
+  (`Board.hasMoves`) **AND** no swipe the player can still afford would realign
+  bubbles into a fresh match. `_isDeadlocked` first checks `hasMoves`, then — if
+  the player can still shift (`movesLeft > 0` in campaign, `shiftTokens > 0` in
+  endless/daily) — checks `Board.hasShiftMove`, which clones the grid/types and
+  simulates each row shifted left/right (`_simShiftRow` + `_simSettle`, no
+  sprites) to see whether any resulting board has a tap-match. `afterMove` uses
+  `_isDeadlocked()` (not the raw `hasMoves`) so a level never finishes early with
+  poppable-after-swipe bubbles still on the board. `_gridHasMoves` is the pure
+  tap-match scan shared by `hasMoves` and the swipe lookahead; it guards against
+  `types` being unpopulated during `_generate` (`types[c]?.[r] === RAINBOW`).
 - **HUD loadout** (`ui.js`, `storage.js` `loadout`): the HUD shows **three
   quick-access slots** instead of one button per power-up (so it never grows as
   tools are added). A short **tap** arms that slot's power-up; a **long-press**
@@ -161,7 +174,7 @@ never re‑discovered the hard way.
   **Themes screen** (`#cb-toggle`); the setting deep-merges into existing saves.
 - **Pet companions** (`pets.js`, pure; `storage.js` `pets`): collectible helper
   pets that support the player both **passively** and with **active board
-  powers**. `PET_CATALOG` holds 9 pets across four rarities
+  powers**. `PET_CATALOG` holds 10 pets across four rarities
   (`common`/`rare`/`epic`/`legendary`). **Passive pets** carry an `ability`
   (`scoreMult`/`coinMult`/`powerMult`/`feverMult`/`startCharge`) that scales per
   level (`petBuffs`/`abilityValue`). **Active pets** carry an `active` config and
@@ -170,7 +183,17 @@ never re‑discovered the hard way.
   `magnetGather`), **Whiskers 🐱** zaps isolated single bubbles
   (`grid.isolatedCells`), **Comet ☄️** blasts the longest same-colour **diagonal**
   streak off the board (`grid.diagonalRun` → `_petDiagonal`) — a line the
-  orthogonal flood-fill behind tapping can never clear on its own. The companion
+  orthogonal flood-fill behind tapping can never clear on its own. One **premium**
+  active pet, **Nova 🛸** (a `shooter`), is an autonomous alien **gunship** that
+  patrols the base of the board in real time (`AlienShip` in `animations.js`),
+  bounces off the walls and auto-blasts the lowest bubble in its column(s) via
+  `grid.bottomBubble`/`bottomBlock` → game hooks `_shipHitColumn`/`_shipNuke`
+  (which destroy through the normal pop/score path). Its firepower scales with
+  pet level through the pure `shooterStats(level)` table — faster cannons →
+  parallel fire → board-clearing **nukes**. The ship is deployed/retired by
+  `_syncAlienShip` in `_enterSession`, ticked in `update(dt)` and drawn in
+  `render`; it never flies in the tutorial and stops on level end/quit. The
+  companion
   runs in `main.js` via
   `_equippedBuffs`/`_equippedActive` (folded into `popAt`/`chargedBlast`/
   `applyPowerup`/`_finish` scoring and the meters) and `_maybePetAction`/
@@ -189,12 +212,15 @@ never re‑discovered the hard way.
   (`rollCrate`, seeded; `buyCrate` for `CRATE_COST` coins, treasure milestones
   drop a free crate, falling 🎁 gifts can drop a crate `GIFT_CRATE_CHANCE`,
   starter save grants Sparky + 1 crate); duplicates convert
-  to XP (`DUP_XP`). The two **premium** pets (Aurora 🌈 / Gizmo 🤖, IAP
-  `pet_*` via `monetization.purchase`) are passive side-grades only — the
-  strongest score booster (Draco, legendary) and all three active board helpers
-  are free/earnable. Premiums are bought directly in the **Pet Store**, or — very
-  rarely (`PREMIUM_DROP_CHANCE` ≈ 0.8%) — surprise you out of an ordinary
-  crate (`rollCrate`'s premium roll). The store also sells a real-money
+  to XP (`DUP_XP`). The **premium** pets (Aurora 🌈 / Gizmo 🤖 are passive
+  side-grades; **Nova 🛸** is the one premium *active* gunship — IAP `pet_*` via
+  `monetization.purchase`). The strongest score booster (Draco, legendary) and
+  all three free active board helpers stay free/earnable. Premiums are bought
+  directly in the **Pet Store**, or — very rarely (`PREMIUM_DROP_CHANCE` ≈ 0.8%)
+  — surprise you out of an ordinary crate (`rollCrate`'s premium roll, which
+  draws from `cratePremiumPets`). **Nova is flagged `storeOnly`** so it is
+  excluded from `cratePremiumPets` and can be obtained **only with real money**
+  in the store (never a crate drop). The store also sells a real-money
   **Legendary Crate** (`LEGENDARY_CRATE`, `crate_legendary` IAP, boosted odds
   via `rollLegendaryCrate` → always legendary, often premium;
   `game.buyLegendaryCrate`). Cosmetic tints (`COSMETICS`, hue-rotate) are
@@ -325,7 +351,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 214 unit tests + 166 E2E
+- **Current baseline (keep growing, never shrink)**: 234 unit tests + 176 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

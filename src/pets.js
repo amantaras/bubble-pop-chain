@@ -60,11 +60,18 @@ export const RARITY_WEIGHTS = {
 //      cleanse  — destroys the lone, isolated bubbles that are hardest to match
 //      diagonal — blasts the longest diagonal streak of one colour off the
 //                 board (a line the orthogonal flood-fill can never clear)
+//      shooter  — (PREMIUM "Nova") an alien gunship that patrols the bottom of
+//                 the board in real time and auto-blasts the lowest bubbles.
+//                 Its firepower grows with the pet's level: faster cannons →
+//                 parallel cannons → board-clearing nukes (see `shooterStats`).
 //    declared as `active: { type, baseCooldown, minCooldown, baseCount,
 //    countPer, label }`.
 //
-// Active board helpers are intentionally FREE/earnable (Rover, Whiskers) and
-// premium pets stay passive side-grades, so the game is never pay-to-win.
+// Active board helpers are intentionally FREE/earnable (Rover, Whiskers, Comet)
+// so the game is never pay-to-win on the *free* track. The one deliberate
+// exception is the premium **Nova** gunship: a paid, spectacle-grade active pet
+// (an autonomous shooter) reserved for players who buy it — powerful, but it
+// only speeds up clears the player could achieve anyway.
 export const PET_CATALOG = [
   {
     id: "sparky", name: "Sparky", icon: "⚡", rarity: "common", premium: false,
@@ -122,7 +129,42 @@ export const PET_CATALOG = [
     desc: "A premium bot that boots up every level fully charged.",
     ability: { key: "startCharge", per: 0.1, label: "Start charged up" },
   },
+  {
+    id: "nova", name: "Nova", icon: "🛸", rarity: "legendary", premium: true,
+    storeOnly: true, price: "$4.99", product: "pet_nova",
+    desc:
+      "A premium alien gunship that patrols the base of the board and auto-blasts the lowest bubbles. Level it up for faster cannons, parallel fire, then board-clearing nukes.",
+    active: {
+      type: "shooter",
+      // The shooter doesn't use the move-based cooldown system (it fires in
+      // real time); these keep `petActive` well-formed for shared UI/tests.
+      baseCooldown: 0, minCooldown: 0,
+      label: "Patrols the bottom and blasts bubbles",
+    },
+  },
 ];
+
+// Real-time firepower for the premium "Nova" gunship at each pet level. The
+// shooter is autonomous (driven by the game loop, not by moves), so its
+// progression lives here as a pure table rather than in `petActive`:
+//   • fireInterval — seconds between volleys (lower = faster)
+//   • shots        — parallel cannons per volley (covers adjacent columns)
+//   • nuke         — whether periodic area-clearing nukes are unlocked
+//   • nukeInterval — seconds between nukes (0 when locked)
+//   • moveSpeed    — patrol speed across the bottom (px/sec)
+export const SHOOTER_LEVELS = {
+  1: { fireInterval: 1.5, shots: 1, nuke: false, nukeInterval: 0, moveSpeed: 95 },
+  2: { fireInterval: 1.2, shots: 1, nuke: false, nukeInterval: 0, moveSpeed: 110 },
+  3: { fireInterval: 1.0, shots: 2, nuke: false, nukeInterval: 0, moveSpeed: 125 },
+  4: { fireInterval: 0.82, shots: 3, nuke: false, nukeInterval: 0, moveSpeed: 140 },
+  5: { fireInterval: 0.66, shots: 3, nuke: true, nukeInterval: 7, moveSpeed: 155 },
+};
+
+// The Nova gunship's stats at a given pet level (clamped to 1..MAX_PET_LEVEL).
+export function shooterStats(level) {
+  const lvl = Math.max(1, Math.min(MAX_PET_LEVEL, Math.floor(level || 1)));
+  return { level: lvl, ...SHOOTER_LEVELS[lvl] };
+}
 
 // Cosmetic tints applicable to any owned pet. Stored per-pet; applied in the UI
 // as a CSS hue-rotate on the pet icon. "default" is free and always owned.
@@ -223,9 +265,16 @@ export function petsOfRarity(rarity) {
   return PET_CATALOG.filter((p) => p.rarity === rarity && !p.premium);
 }
 
-// All premium (purchase-focused) pets.
+// All premium (purchase-focused) pets — shown for sale in the Pet Store.
 export function premiumPets() {
   return PET_CATALOG.filter((p) => p.premium);
+}
+
+// Premium pets that may appear as a random crate "surprise". Store-only pets
+// (e.g. the Nova gunship) are excluded so they remain purchasable ONLY with
+// real money in the Pet Store, never as a lucky crate drop.
+export function cratePremiumPets() {
+  return PET_CATALOG.filter((p) => p.premium && !p.storeOnly);
 }
 
 // Roll a rarity using RARITY_WEIGHTS. `rng` is a function returning [0,1).
@@ -247,7 +296,7 @@ export function rollCrate(rng, opts = {}) {
   const premiumChance =
     opts.premiumChance == null ? PREMIUM_DROP_CHANCE : opts.premiumChance;
   if (premiumChance > 0 && rng() < premiumChance) {
-    const prem = premiumPets();
+    const prem = cratePremiumPets();
     if (prem.length) {
       const pick = prem[Math.floor(rng() * prem.length)] || prem[0];
       return { petId: pick.id, rarity: pick.rarity, premium: true };
@@ -273,7 +322,7 @@ export function rollLegendaryCrate(rng, opts = {}) {
   const premiumChance =
     opts.premiumChance == null ? LEGENDARY_CRATE.premiumChance : opts.premiumChance;
   if (premiumChance > 0 && rng() < premiumChance) {
-    const prem = premiumPets();
+    const prem = cratePremiumPets();
     if (prem.length) {
       const pick = prem[Math.floor(rng() * prem.length)] || prem[0];
       return { petId: pick.id, rarity: pick.rarity, premium: true };

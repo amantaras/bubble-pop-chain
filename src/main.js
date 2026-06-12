@@ -2,7 +2,7 @@
 import { Board, RAINBOW, ICE } from "./grid.js";
 import { Renderer } from "./renderer.js";
 import { ParticleSystem } from "./particles.js";
-import { ScreenShake, FloatingText, PetAnim } from "./animations.js";
+import { ScreenShake, FloatingText, PetAnim, AlienShip } from "./animations.js";
 import { Input, vibrate } from "./input.js";
 import { Audio } from "./audio.js";
 import { Storage } from "./storage.js";
@@ -62,6 +62,7 @@ import {
   petBuffs,
   neutralBuffs,
   petActive,
+  shooterStats,
   levelForXp,
   rollCrate,
   rollLegendaryCrate,
@@ -97,6 +98,7 @@ class Game {
     this.floating = new FloatingText();
     this.shake = new ScreenShake();
     this.petAnim = new PetAnim();
+    this.alienShip = new AlienShip();
     this.theme = getTheme(Storage.get("currentTheme"));
     this.session = null;
     this.tutorial = null;
@@ -339,8 +341,24 @@ class Game {
     UI.updatePower(this.session.power || 0, (this.session.power || 0) >= 1);
     UI.updateFever(this.session.fever || 0, !!this.session.feverActive);
     UI.updatePetHud(this.session.mode === "tutorial" ? null : Storage.getEquippedPet());
+    this._syncAlienShip();
     this.input.setEnabled(true);
     this.refreshHud();
+  }
+
+  // Deploy or retire the premium Nova gunship for the current session. The ship
+  // only flies for a real (non-tutorial) session whose equipped pet is the
+  // autonomous shooter; its firepower is read from the pet's level.
+  _syncAlienShip() {
+    const s = this.session;
+    const act = s && s.petActive;
+    if (s && s.mode !== "tutorial" && act && act.type === "shooter") {
+      const eq = Storage.getEquippedPet();
+      const stats = shooterStats(levelForXp(eq ? eq.xp || 0 : 0));
+      this.alienShip.start(stats, s.board);
+    } else {
+      this.alienShip.stop();
+    }
   }
 
   // ---- Resume of an in-progress campaign level -------------------------
@@ -1373,6 +1391,58 @@ class Game {
     this.refreshHud();
   }
 
+  // ---- Premium Nova gunship hits ---------------------------------------
+  // The gunship's cannon reaches the lowest bubble in a column and blasts it.
+  // Returns true if a bubble was destroyed.
+  _shipHitColumn(c) {
+    const s = this.session;
+    if (!s || s.ended) return false;
+    const cell = s.board.bottomBubble(c);
+    if (!cell) return false;
+    const points = Math.round(
+      feverPoints(12, s.feverActive) * s.petBuffs.scoreMult
+    );
+    s.score += points;
+    this._popCells([cell], points, 1, 1, 0.5);
+    if (s.stats) s.stats.shipHits = (s.stats.shipHits || 0) + 1;
+    this.refreshHud();
+    this._afterShip();
+    return true;
+  }
+
+  // A levelled-up gunship periodically drops a nuke: an area blast that clears
+  // the bottom bubbles across a few columns around its current position.
+  _shipNuke(centerCol) {
+    const s = this.session;
+    if (!s || s.ended) return;
+    const cells = s.board.bottomBlock(centerCol, 1, 2);
+    if (!cells.length) return;
+    const raw = cells.length * 18;
+    const points = Math.round(
+      feverPoints(raw, s.feverActive) * s.petBuffs.scoreMult
+    );
+    s.score += points;
+    this._popCells(cells, points, cells.length, 1, 1.2);
+    if (s.stats) s.stats.shipHits = (s.stats.shipHits || 0) + cells.length;
+    const px = s.board.targetPixel(centerCol, s.board.rows - 1);
+    this.floating.spawn(px.x, px.y - 30, "NUKE!", "#ff7bf0", 30);
+    Audio.powerup();
+    this.refreshHud();
+    this._afterShip();
+  }
+
+  // Re-evaluate the board after a gunship blast. The ship only ends the level by
+  // clearing the board (a win); it never triggers the deadlock/rescue or
+  // out-of-moves loss paths — those stay driven by the player's own moves.
+  _afterShip() {
+    const s = this.session;
+    if (!s || s.ended) return;
+    if (s.board.isCleared()) {
+      s.score += clearBonus(Math.max(0, s.movesLeft));
+      this._scheduleEnd(true, "cleared");
+    }
+  }
+
   // Icon of the currently equipped pet (falls back to a default emoji).
   _equippedPetIcon(fallback) {
     const eq = Storage.getEquippedPet && Storage.getEquippedPet();
@@ -1498,7 +1568,7 @@ class Game {
       return;
     }
 
-    const deadlock = !s.board.hasMoves();
+    const deadlock = this._isDeadlocked();
 
     // The board is playable again (e.g. a Pick made bubbles fall into matches):
     // clear any rescue state so a future jam re-shows the friendly prompt.
@@ -1542,6 +1612,19 @@ class Game {
   }
 
   // ---- Lone-bubble rescue (isolated single bubbles) ---------------------
+  // True when the board is genuinely stuck: no tap-match exists AND no swipe the
+  // player can still afford would realign bubbles into a fresh match. Row shifts
+  // are real moves, so the level must never be declared deadlocked while a
+  // useful swipe (and a move/token to spend on it) is still available.
+  _isDeadlocked() {
+    const s = this.session;
+    if (s.board.hasMoves()) return false;
+    const canShift =
+      s.mode === "campaign" ? s.movesLeft > 0 : s.shiftTokens > 0;
+    if (canShift && s.board.hasShiftMove()) return false;
+    return true;
+  }
+
   // When the board jams on single bubbles that can't be popped normally, we
   // don't strand or instantly fail the player: we surface a friendly prompt
   // pointing them at the Pick 🔨 tool (which removes one bubble at a time).
@@ -1622,6 +1705,7 @@ class Game {
     UI.hideIsolatedHelp();
     this.input.setEnabled(false);
     UI.clearFallingEvents();
+    this.alienShip.stop();
     this.activeEvent = false;
     clearTimeout(this._endTimer);
     this._endTimer = setTimeout(() => this._finish(won, reason), 480);
@@ -1819,6 +1903,7 @@ class Game {
     this.session = null;
     this.input.setEnabled(false);
     UI.clearFallingEvents();
+    this.alienShip.stop();
     this.activeEvent = false;
     UI.showScreen("menu");
   }
@@ -1860,6 +1945,15 @@ class Game {
           m.dir = 1;
         }
         UI.updateMagnetGauge(m.value);
+      }
+      // Drive the premium Nova gunship (real-time auto-shooter) while play is
+      // live. It performs its destruction through the same pop/score path as a
+      // manual move, so scoring and win-detection stay consistent.
+      if (this.alienShip.active && !this.session.ended) {
+        this.alienShip.update(dt, this.session.board, {
+          hitColumn: (c) => this._shipHitColumn(c),
+          nuke: (c) => this._shipNuke(c),
+        });
       }
       this._updateEvents(dt);
     }
@@ -2001,6 +2095,7 @@ class Game {
     this.particles.draw(ctx);
     this.floating.draw(ctx);
     this.petAnim.draw(ctx);
+    if (this.alienShip.active) this.alienShip.draw(ctx);
     ctx.restore();
   }
 

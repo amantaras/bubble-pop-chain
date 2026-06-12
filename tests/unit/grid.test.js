@@ -550,3 +550,102 @@ function colourHistogram(board) {
     }
   return h;
 }
+
+describe("gunship targeting helpers (bottomBubble / bottomBlock)", () => {
+  it("bottomBubble finds the lowest filled cell in a column", () => {
+    const b = new Board(3, 4, 3, 1);
+    setGrid(b, [
+      [-1, -1, 0, 1], // column 0: bottom is r=3
+      [-1, -1, -1, -1], // column 1: empty
+      [2, -1, -1, -1], // column 2: only r=0 filled
+    ]);
+    expect(b.bottomBubble(0)).toEqual({ c: 0, r: 3 });
+    expect(b.bottomBubble(1)).toBeNull();
+    expect(b.bottomBubble(2)).toEqual({ c: 2, r: 0 });
+    // Out of range columns are safe.
+    expect(b.bottomBubble(-1)).toBeNull();
+    expect(b.bottomBubble(9)).toBeNull();
+  });
+
+  it("bottomBlock collects the bottom N bubbles across nearby columns", () => {
+    const b = new Board(4, 4, 3, 1);
+    setGrid(b, [
+      [-1, 0, 0, 0], // col0: bottom two = r3,r2
+      [-1, -1, 1, 1], // col1: bottom two = r3,r2
+      [-1, -1, -1, 2], // col2: only r3
+      [3, 3, 3, 3], // col3 (outside the +-1 window around col1)
+    ]);
+    const cells = b.bottomBlock(1, 1, 2); // columns 0,1,2; up to 2 each
+    // col0: (0,3),(0,2); col1: (1,3),(1,2); col2: (2,3) only
+    expect(cells).toEqual([
+      { c: 0, r: 3 },
+      { c: 0, r: 2 },
+      { c: 1, r: 3 },
+      { c: 1, r: 2 },
+      { c: 2, r: 3 },
+    ]);
+    // Column 3 is outside the window, so it is never included.
+    expect(cells.some((x) => x.c === 3)).toBe(false);
+  });
+
+  it("columnAtPixel clamps to the board edges", () => {
+    const b = new Board(5, 5, 3, 1);
+    b.layout(400, 700, 0, 0);
+    const mid = b.originX + b.boardW / 2;
+    expect(b.columnAtPixel(mid)).toBeGreaterThanOrEqual(0);
+    expect(b.columnAtPixel(mid)).toBeLessThan(b.cols);
+    expect(b.columnAtPixel(-9999)).toBe(0);
+    expect(b.columnAtPixel(99999)).toBe(b.cols - 1);
+  });
+});
+
+describe("swipe-aware deadlock detection (hasShiftMove)", () => {
+  // Force every type to NORMAL so the colour grid alone drives the checks.
+  function setNormalGrid(board, grid) {
+    setGrid(board, grid);
+    board.types = grid.map((col) => col.map(() => NORMAL));
+  }
+
+  it("finds a row-shift that creates a match when no tap-move exists", () => {
+    const b = new Board(4, 2, 4, 1);
+    // No two same-colour bubbles are orthogonally adjacent, so there is no
+    // tap-move — but shifting the bottom row wraps the trailing 1 next to the
+    // leading 1, producing a poppable pair.
+    setNormalGrid(b, [
+      [0, 1], // c0: top 0, bottom 1
+      [2, 0], // c1: top 2, bottom 0
+      [1, 2], // c2: top 1, bottom 2
+      [0, 1], // c3: top 0, bottom 1
+    ]);
+    expect(b.hasMoves()).toBe(false);
+    expect(b.hasShiftMove()).toBe(true);
+  });
+
+  it("reports no shift-move for a genuine deadlock (colours can never match)", () => {
+    const b = new Board(3, 1, 3, 1);
+    // Three single bubbles of distinct colours: no tap-move and no shift (which
+    // only rotates the row) can ever place two equal colours side by side.
+    setNormalGrid(b, [[0], [1], [2]]);
+    expect(b.hasMoves()).toBe(false);
+    expect(b.hasShiftMove()).toBe(false);
+  });
+
+  it("hasShiftMove does not mutate the real board", () => {
+    const b = new Board(4, 2, 4, 1);
+    setNormalGrid(b, [
+      [0, 1],
+      [2, 0],
+      [1, 2],
+      [0, 1],
+    ]);
+    const before = JSON.stringify(b.grid);
+    b.hasShiftMove();
+    expect(JSON.stringify(b.grid)).toBe(before);
+  });
+
+  it("_gridHasMoves matches hasMoves on the live grid", () => {
+    const b = new Board(5, 5, 4, 7);
+    expect(b._gridHasMoves(b.grid, b.types)).toBe(b.hasMoves());
+  });
+});
+

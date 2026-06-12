@@ -370,3 +370,189 @@ export class PetAnim {
     }
   }
 }
+
+// ---- Premium "Nova" alien gunship -----------------------------------------
+// An autonomous shooter pet (premium-only). It patrols the base of the board in
+// real time, bounces off the side walls, and fires cannon bolts straight up to
+// destroy the lowest bubble in its target column(s). Its firepower — fire rate,
+// parallel cannons and periodic nukes — comes from `shooterStats(level)`.
+//
+// The ship is only the *driver*: it owns position, direction, timers and
+// in-flight bullets, and calls game hooks (`hitColumn` / `nuke`) to perform the
+// actual destruction through the game's normal pop/score path, so scoring,
+// particles, fever and win-detection stay consistent with manual play.
+export class AlienShip {
+  constructor() {
+    this.active = false;
+    this.stats = null;
+    this.x = 0;
+    this.y = 0;
+    this.dir = 1; // +1 right, -1 left
+    this.fireT = 0;
+    this.nukeT = 0;
+    this.bullets = []; // { x, y, vy, tc, ty }
+    this.blasts = []; // nuke shockwaves { x, y, t, dur }
+    this.t = 0; // age, drives the engine-glow pulse
+  }
+
+  // Begin patrolling with the given firepower, parked at the board's base.
+  start(stats, board) {
+    this.active = true;
+    this.stats = stats || {};
+    this.bullets.length = 0;
+    this.blasts.length = 0;
+    this.dir = 1;
+    this.fireT = (stats && stats.fireInterval) || 1.2;
+    this.nukeT = (stats && stats.nukeInterval) || 0;
+    this.t = 0;
+    this._place(board);
+  }
+
+  stop() {
+    this.active = false;
+    this.bullets.length = 0;
+    this.blasts.length = 0;
+  }
+
+  _place(board) {
+    if (!board || !board.boardW) return;
+    this.x = board.originX + board.boardW / 2;
+    this.y = board.originY + board.boardH + 30;
+  }
+
+  // Advance the ship. `board` supplies geometry + `bottomBubble`; `hooks`
+  // performs the real destruction: { hitColumn(col), nuke(col) }.
+  update(dt, board, hooks) {
+    if (!this.active || !board || !board.boardW) return;
+    const s = this.stats || {};
+    this.t += dt;
+    // Hover just below the board (re-read so it tracks layout changes).
+    this.y = board.originY + board.boardH + 30;
+
+    // Patrol left/right, bouncing off the side walls.
+    const left = board.originX + board.cell * 0.6;
+    const right = board.originX + board.boardW - board.cell * 0.6;
+    this.x += this.dir * (s.moveSpeed || 100) * dt;
+    if (this.x <= left) {
+      this.x = left;
+      this.dir = 1;
+    } else if (this.x >= right) {
+      this.x = right;
+      this.dir = -1;
+    }
+
+    // Advance bullets upward; on reaching their target row, blast that column.
+    for (const b of this.bullets) {
+      b.y += b.vy * dt;
+      if (b.y <= b.ty) {
+        b.dead = true;
+        if (hooks && hooks.hitColumn) hooks.hitColumn(b.tc);
+      }
+    }
+    this.bullets = this.bullets.filter(
+      (b) => !b.dead && b.y > board.originY - 24
+    );
+
+    // Fire a volley on the cadence.
+    this.fireT -= dt;
+    if (this.fireT <= 0) {
+      this.fireT = s.fireInterval || 1.2;
+      this._fire(board);
+    }
+
+    // Periodic area-clearing nuke once unlocked (max progression).
+    if (s.nuke && s.nukeInterval > 0) {
+      this.nukeT -= dt;
+      if (this.nukeT <= 0) {
+        this.nukeT = s.nukeInterval;
+        const col = board.columnAtPixel(this.x);
+        if (hooks && hooks.nuke) hooks.nuke(col);
+        this.blasts.push({
+          x: this.x,
+          y: board.originY + board.boardH - board.cell,
+          t: 0,
+          dur: 0.6,
+        });
+      }
+    }
+    for (const z of this.blasts) z.t += dt;
+    this.blasts = this.blasts.filter((z) => z.t < z.dur);
+  }
+
+  // Launch this volley at the ship's column plus any parallel cannons.
+  _fire(board) {
+    const center = board.columnAtPixel(this.x);
+    const shots = Math.max(1, (this.stats && this.stats.shots) || 1);
+    const cols = [];
+    const half = Math.floor(shots / 2);
+    for (let i = -half; cols.length < shots && i <= shots; i++) {
+      const c = center + i;
+      if (c >= 0 && c < board.cols && !cols.includes(c)) cols.push(c);
+    }
+    if (!cols.length) cols.push(Math.max(0, Math.min(board.cols - 1, center)));
+    for (const c of cols) {
+      if (c < 0 || c >= board.cols) continue;
+      const target = board.bottomBubble(c);
+      const ty = target ? board.targetPixel(c, target.r).y : board.originY;
+      this.bullets.push({
+        x: board.originX + c * board.cell + board.cell / 2,
+        y: this.y - 16,
+        vy: -700,
+        tc: c,
+        ty,
+      });
+    }
+  }
+
+  draw(ctx) {
+    if (!this.active) return;
+    // Tracer bolts.
+    for (const b of this.bullets) {
+      ctx.save();
+      ctx.fillStyle = withAlpha("#7df9ff", 0.95);
+      ctx.shadowColor = "#7df9ff";
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.ellipse(b.x, b.y, 4, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    // Nuke shockwaves.
+    for (const z of this.blasts) {
+      const k = z.t / z.dur;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, 1 - k);
+      ctx.strokeStyle = "#ff7bf0";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(z.x, z.y, 14 + k * 72, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+    // The saucer.
+    const x = this.x;
+    const y = this.y;
+    const pulse = 0.5 + 0.5 * Math.sin(this.t * 8);
+    ctx.save();
+    ctx.globalAlpha = 0.45 + 0.35 * pulse;
+    ctx.fillStyle = withAlpha("#7df9ff", 0.5);
+    ctx.beginPath();
+    ctx.ellipse(x, y + 10, 18, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "#b9c4d6";
+    ctx.beginPath();
+    ctx.ellipse(x, y, 22, 9, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = withAlpha("#7df9ff", 0.9);
+    ctx.beginPath();
+    ctx.ellipse(x, y - 4, 10, 8, 0, Math.PI, 0);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,0.35)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(x, y, 22, 9, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+}

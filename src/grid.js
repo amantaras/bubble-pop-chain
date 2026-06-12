@@ -199,6 +199,41 @@ export class Board {
     return r;
   }
 
+  // Column index under a pixel X, clamped to the board (used by the Nova
+  // gunship to aim straight up from wherever it is patrolling).
+  columnAtPixel(px) {
+    const c = Math.floor((px - this.originX) / this.cell);
+    return Math.max(0, Math.min(this.cols - 1, c));
+  }
+
+  // The lowest filled cell in a column (largest r with a bubble), or null if
+  // the column is empty. This is the bubble the gunship's shot would hit first.
+  bottomBubble(c) {
+    if (c < 0 || c >= this.cols) return null;
+    for (let r = this.rows - 1; r >= 0; r--) {
+      if (this.grid[c][r] !== -1) return { c, r };
+    }
+    return null;
+  }
+
+  // The bottom `height` bubbles across the columns within `halfW` of `centerCol`
+  // — the area a Nova nuke clears. Returns a de-duplicated list of {c,r}.
+  bottomBlock(centerCol, halfW = 1, height = 2) {
+    const cells = [];
+    const lo = Math.max(0, centerCol - halfW);
+    const hi = Math.min(this.cols - 1, centerCol + halfW);
+    for (let c = lo; c <= hi; c++) {
+      let taken = 0;
+      for (let r = this.rows - 1; r >= 0 && taken < height; r--) {
+        if (this.grid[c][r] !== -1) {
+          cells.push({ c, r });
+          taken++;
+        }
+      }
+    }
+    return cells;
+  }
+
   // ---- Queries ----------------------------------------------------------
   isRainbow(c, r) {
     return this.types[c] && this.types[c][r] === RAINBOW;
@@ -253,27 +288,116 @@ export class Board {
   }
 
   hasMoves() {
-    for (let c = 0; c < this.cols; c++) {
-      for (let r = 0; r < this.rows; r++) {
-        const v = this.grid[c][r];
+    return this._gridHasMoves(this.grid, this.types);
+  }
+
+  // Pure-data tap-move test over a {grid, types} snapshot (no sprites). Shared
+  // by hasMoves() and the swipe look-ahead in hasShiftMove() so both stay in
+  // perfect sync. A move exists when two same-colour bubbles are orthogonally
+  // adjacent, or a rainbow sits next to any bubble.
+  _gridHasMoves(grid, types) {
+    const cols = grid.length;
+    const rows = grid[0].length;
+    const isR = (c, r) => !!(types && types[c] && types[c][r] === RAINBOW);
+    for (let c = 0; c < cols; c++) {
+      for (let r = 0; r < rows; r++) {
+        const v = grid[c][r];
         if (v === -1) continue;
         // A rainbow next to any bubble is always a valid move.
-        if (this.isRainbow(c, r)) {
+        if (isR(c, r)) {
           if (
-            (c + 1 < this.cols && this.grid[c + 1][r] !== -1) ||
-            (c - 1 >= 0 && this.grid[c - 1][r] !== -1) ||
-            (r + 1 < this.rows && this.grid[c][r + 1] !== -1) ||
-            (r - 1 >= 0 && this.grid[c][r - 1] !== -1)
+            (c + 1 < cols && grid[c + 1][r] !== -1) ||
+            (c - 1 >= 0 && grid[c - 1][r] !== -1) ||
+            (r + 1 < rows && grid[c][r + 1] !== -1) ||
+            (r - 1 >= 0 && grid[c][r - 1] !== -1)
           )
             return true;
         }
-        if (c + 1 < this.cols && this.grid[c + 1][r] === v) return true;
-        if (r + 1 < this.rows && this.grid[c][r + 1] === v) return true;
-        if (c + 1 < this.cols && this.isRainbow(c + 1, r)) return true;
-        if (r + 1 < this.rows && this.isRainbow(c, r + 1)) return true;
+        if (c + 1 < cols && grid[c + 1][r] === v) return true;
+        if (r + 1 < rows && grid[c][r + 1] === v) return true;
+        if (c + 1 < cols && isR(c + 1, r)) return true;
+        if (r + 1 < rows && isR(c, r + 1)) return true;
       }
     }
     return false;
+  }
+
+  // True when at least one available row-shift (a left/right swipe) would, after
+  // the board settles, create a poppable group. The deadlock check uses this so
+  // a level is never declared stuck while a swipe could still realign lone
+  // bubbles into a fresh match. Pure data — never touches sprites.
+  hasShiftMove() {
+    for (let r = 0; r < this.rows; r++) {
+      let bubbles = 0;
+      for (let c = 0; c < this.cols; c++) if (this.grid[c][r] !== -1) bubbles++;
+      if (bubbles === 0) continue; // empty row: shifting does nothing
+      for (const dir of ["left", "right"]) {
+        const grid = this.grid.map((col) => col.slice());
+        const types = this.types.map((col) => col.slice());
+        this._simShiftRow(grid, types, r, dir);
+        this._simSettle(grid, types);
+        if (this._gridHasMoves(grid, types)) return true;
+      }
+    }
+    return false;
+  }
+
+  // Wrap-around row shift on a {grid, types} snapshot (mirrors shiftRow).
+  _simShiftRow(grid, types, r, dir) {
+    const cols = grid.length;
+    const gr = [];
+    const tr = [];
+    for (let c = 0; c < cols; c++) {
+      gr.push(grid[c][r]);
+      tr.push(types[c][r]);
+    }
+    if (dir === "right") {
+      gr.unshift(gr.pop());
+      tr.unshift(tr.pop());
+    } else {
+      gr.push(gr.shift());
+      tr.push(tr.shift());
+    }
+    for (let c = 0; c < cols; c++) {
+      grid[c][r] = gr[c];
+      types[c][r] = tr[c];
+    }
+  }
+
+  // Gravity + empty-column collapse on a {grid, types} snapshot (mirrors
+  // _applyGravity + _collapseColumns, without sprite bookkeeping).
+  _simSettle(grid, types) {
+    const cols = grid.length;
+    const rows = grid[0].length;
+    for (let c = 0; c < cols; c++) {
+      let writeR = rows - 1;
+      for (let r = rows - 1; r >= 0; r--) {
+        if (grid[c][r] !== -1) {
+          if (r !== writeR) {
+            grid[c][writeR] = grid[c][r];
+            grid[c][r] = -1;
+            types[c][writeR] = types[c][r];
+            types[c][r] = NORMAL;
+          }
+          writeR--;
+        }
+      }
+    }
+    let writeC = 0;
+    for (let c = 0; c < cols; c++) {
+      const colEmpty = grid[c].every((v) => v === -1);
+      if (!colEmpty) {
+        if (c !== writeC) {
+          for (let r = 0; r < rows; r++) {
+            grid[writeC][r] = grid[c][r];
+            grid[c][r] = -1;
+            types[writeC][r] = types[c][r];
+            types[c][r] = NORMAL;
+          }
+        }
+        writeC++;
+      }
+    }
   }
 
   countRemaining() {
