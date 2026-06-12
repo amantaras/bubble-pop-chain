@@ -158,6 +158,17 @@ never re‑discovered the hard way.
   until the next day (`adRewards` tracker resets on `todayKey` rollover). Paid
   IAP packs (`COIN_PACKS`) are coins-only: Bag 1500/$1.99, Chest 5000/$4.99 —
   there is no longer an unlimited "watch ad for coins" pouch.
+- **Starter Pack** (`economy.js` `STARTER_PACK`, `storage.js` `starterPack`,
+  `monetization.js`, `main.js` `buyStarterPack`, `ui.js`
+  `_buildStarterPackItem`): a one-time value bundle shown at the **top of the
+  shop** (`.shop-starter`, "BEST VALUE" badge). `STARTER_PACK` is
+  `{ id:"starter_pack", price:"$1.99", coins:2000, powerups:{bomb:3,colorClear:2,
+  shuffle:2,magnet:1}, crates:1 }`. `Game.buyStarterPack()` goes through the
+  (mock) IAP (`Monetization.purchase("starter_pack")`), then grants the coins,
+  every bundled power-up, and the pet crate, and flags `starterPack: true` in the
+  save so it is **one-time only** (a second buy returns `{ ok:false, owned:true }`
+  and the shop renders "Owned ✓"). `starterPack` deep-merges into old saves. Meta
+  IAP — **no tutorial step**.
 - **Win-screen reward chest** (`ui.js` `showWin`/`openWinChest`, `#win`): coins
   are credited to `Economy` *before* `showWin`, so the chest is purely
   presentational. On show, the reward block (`#win-reward-reveal`) starts

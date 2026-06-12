@@ -31,7 +31,7 @@ import {
   feverPoints,
   FEVER_DURATION,
 } from "./scoring.js";
-import { Economy, POWERUP_INFO } from "./economy.js";
+import { Economy, POWERUP_INFO, STARTER_PACK } from "./economy.js";
 import { Monetization } from "./monetization.js";
 import { UI } from "./ui.js";
 import {
@@ -179,6 +179,7 @@ class Game {
       claimCalendar: () => this.claimCalendar(),
       claimSeasonTier: (index, track) => this.claimSeasonTier(index, track),
       buySeasonPremium: () => this.buySeasonPremium(),
+      buyStarterPack: () => this.buyStarterPack(),
     });
 
     this.input = new Input(this.canvas, {
@@ -724,6 +725,22 @@ class Game {
     if (!res || !res.ok) return false;
     Storage.grantPet(id);
     return true;
+  }
+
+  // Buy the one-time Starter Pack bundle via the (mock) IAP provider. Grants
+  // coins + a spread of power-ups + a pet crate, then flags the save so it can
+  // never be bought again. Returns { ok, owned?, pack? }.
+  async buyStarterPack() {
+    if (Storage.get("starterPack")) return { ok: false, owned: true };
+    const res = await Monetization.purchase(STARTER_PACK.id);
+    if (!res || !res.ok) return { ok: false };
+    Economy.addCoins(STARTER_PACK.coins);
+    Object.entries(STARTER_PACK.powerups).forEach(([type, n]) =>
+      Economy.addPowerup(type, n)
+    );
+    if (STARTER_PACK.crates) Storage.addCrates(STARTER_PACK.crates);
+    Storage.set("starterPack", true);
+    return { ok: true, pack: STARTER_PACK };
   }
 
   // Buy a cosmetic tint for a pet with coins. Returns true on success.

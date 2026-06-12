@@ -70,6 +70,11 @@ class MonetizationManager {
       Storage.set("adsRemoved", true);
       return { ok: true };
     }
+    // One-time Starter Pack bundle. Granting the contents is the caller's job;
+    // here we just confirm the (mock) purchase succeeded.
+    if (productId === "starter_pack") {
+      return { ok: true };
+    }
     // The premium Season Pass unlock. Recording the premium flag is the
     // caller's job; here we just confirm the (mock) purchase succeeded.
     if (productId === "season_premium") {

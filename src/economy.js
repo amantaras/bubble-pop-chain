@@ -19,6 +19,19 @@ export const COIN_PACKS = [
   { id: "coins_large", name: "Chest of Coins", amount: 5000, label: "$4.99", ad: false },
 ];
 
+// One-time "Starter Pack" bundle (mock IAP). A heavily-discounted kickstart of
+// coins + a spread of power-ups + a pet crate, buyable exactly once. It is
+// purely additive value (never required to progress) and is gated by the
+// `starterPack` save flag so it can be bought a single time.
+export const STARTER_PACK = {
+  id: "starter_pack",
+  name: "Starter Pack",
+  price: "$1.99",
+  coins: 2000,
+  powerups: { bomb: 3, colorClear: 2, shuffle: 2, magnet: 1 },
+  crates: 1,
+};
+
 // Free "watch an ad for coins" reward. It is capped per day and the payout
 // escalates with each watch, so players form a daily habit of watching a few
 // ads without trivialising the economy (which an unlimited reward would).

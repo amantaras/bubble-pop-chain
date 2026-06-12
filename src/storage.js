@@ -12,6 +12,8 @@ const DEFAULT_SAVE = {
   ownedThemes: ["aurora"],
   currentTheme: "aurora",
   adsRemoved: false,
+  // One-time "Starter Pack" IAP — true once purchased so it can't be bought again.
+  starterPack: false,
   muted: false,
   // Accessibility / display settings.
   // buyRepeatMs: how often a held shop buy button repeats a purchase

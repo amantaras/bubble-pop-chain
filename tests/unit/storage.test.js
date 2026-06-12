@@ -15,6 +15,12 @@ describe("storage", () => {
     expect(Storage.get("adsRemoved")).toBe(false);
   });
 
+  it("starter pack is unowned by default and round-trips", () => {
+    expect(Storage.get("starterPack")).toBe(false);
+    Storage.set("starterPack", true);
+    expect(Storage.get("starterPack")).toBe(true);
+  });
+
   it("idle move hints are on by default", () => {
     expect((Storage.get("settings") || {}).hints).toBe(true);
   });

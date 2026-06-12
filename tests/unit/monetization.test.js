@@ -32,6 +32,11 @@ describe("monetization (real code paths, mock provider)", () => {
     expect(res.ok).toBe(false);
   });
 
+  it("purchase(starter_pack) is accepted by the provider", async () => {
+    const res = await Monetization.purchase("starter_pack");
+    expect(res.ok).toBe(true);
+  });
+
   it("interstitial shows on the configured cadence and respects min interval", async () => {
     expect(await Monetization.maybeShowInterstitial()).toBe(false); // 1
     expect(await Monetization.maybeShowInterstitial()).toBe(false); // 2

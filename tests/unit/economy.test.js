@@ -4,6 +4,7 @@ import {
   Economy,
   POWERUP_INFO,
   COIN_PACKS,
+  STARTER_PACK,
   AD_COIN_REWARDS,
   AD_COIN_DAILY_CAP,
 } from "../../src/economy.js";
@@ -76,6 +77,21 @@ describe("economy", () => {
     expect(Economy.getPowerup("magnet")).toBe(start + 1);
     expect(Economy.usePowerup("magnet")).toBe(true);
     expect(Economy.getPowerup("magnet")).toBe(start);
+  });
+
+  describe("starter pack bundle", () => {
+    it("bundles coins, several power-ups, and a crate", () => {
+      expect(STARTER_PACK.id).toBe("starter_pack");
+      expect(STARTER_PACK.coins).toBeGreaterThan(0);
+      expect(Object.keys(STARTER_PACK.powerups).length).toBeGreaterThanOrEqual(2);
+      Object.entries(STARTER_PACK.powerups).forEach(([type, n]) => {
+        // Every bundled power-up is a real catalog tool, granted positively.
+        expect(POWERUP_INFO[type]).toBeTruthy();
+        expect(n).toBeGreaterThan(0);
+      });
+      expect(STARTER_PACK.crates).toBeGreaterThanOrEqual(1);
+      expect(typeof STARTER_PACK.price).toBe("string");
+    });
   });
 
   describe("daily ad-coin reward (watch ad for coins)", () => {

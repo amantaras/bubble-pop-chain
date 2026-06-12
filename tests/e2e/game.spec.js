@@ -2120,6 +2120,42 @@ test.describe("shop & monetization (UI)", () => {
     await expect(page.locator("#win-double")).toBeHidden();
   });
 
+  test("starter pack shows in the shop and grants the bundle once", async ({
+    page,
+  }) => {
+    await page.getByRole("button", { name: "Shop", exact: true }).click();
+    // The bundle is the first shop item.
+    await expect(page.locator('#shop-list .shop-starter')).toBeVisible();
+    await expect(page.locator("#shop-starter-buy")).toContainText("$1.99");
+
+    const before = await page.evaluate(() => ({
+      coins: window.__bpc.Economy.coins,
+      bomb: window.__bpc.Economy.getPowerup("bomb"),
+      crates: window.__bpc.Storage.get("pets").crates,
+    }));
+    const res = await page.evaluate(() => window.__bpc.game.buyStarterPack());
+    expect(res.ok).toBe(true);
+    const after = await page.evaluate(() => ({
+      coins: window.__bpc.Economy.coins,
+      bomb: window.__bpc.Economy.getPowerup("bomb"),
+      crates: window.__bpc.Storage.get("pets").crates,
+      owned: window.__bpc.Storage.get("starterPack"),
+    }));
+    expect(after.coins).toBe(before.coins + 2000);
+    expect(after.bomb).toBe(before.bomb + 3);
+    expect(after.crates).toBe(before.crates + 1);
+    expect(after.owned).toBe(true);
+
+    // A second purchase is refused — the bundle is one-time only.
+    const again = await page.evaluate(() => window.__bpc.game.buyStarterPack());
+    expect(again.ok).toBe(false);
+    expect(again.owned).toBe(true);
+
+    // The shop now shows it as owned.
+    await page.evaluate(() => window.__bpc.UI.buildShop());
+    await expect(page.locator("#shop-starter-buy")).toContainText("Owned");
+  });
+
   test("no forced interstitial before level 7 (new-player grace)", async ({
     page,
   }) => {

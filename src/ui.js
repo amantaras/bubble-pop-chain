@@ -8,7 +8,7 @@ import {
   isThemeUnlocked,
   applyThemeCss,
 } from "./themes.js";
-import { Economy, POWERUP_INFO, COIN_PACKS } from "./economy.js";
+import { Economy, POWERUP_INFO, COIN_PACKS, STARTER_PACK } from "./economy.js";
 import { Monetization } from "./monetization.js";
 import { Audio } from "./audio.js";
 import {
@@ -658,10 +658,53 @@ class UIManager {
     });
   }
 
+  // Render the one-time Starter Pack bundle. Always shown (so it reads as
+  // "Owned ✓" after purchase); the buy goes through the mock IAP.
+  _buildStarterPackItem(list) {
+    const owned = !!Storage.get("starterPack");
+    const item = document.createElement("div");
+    item.className = "shop-item shop-starter";
+    item.dataset.pack = "starter";
+    const puText = Object.entries(STARTER_PACK.powerups)
+      .map(([type, n]) => `${POWERUP_INFO[type].icon}×${n}`)
+      .join(" ");
+    item.innerHTML = `
+      <span class="si-icon">🎁</span>
+      <div class="si-body">
+        <div class="si-title">${STARTER_PACK.name} <span class="si-badge">BEST VALUE</span></div>
+        <div class="si-desc">🪙 ${STARTER_PACK.coins} coins · ${puText} · 🧰×${STARTER_PACK.crates} crate</div>
+      </div>`;
+    const buy = document.createElement("button");
+    buy.id = "shop-starter-buy";
+    buy.className = "buy-btn" + (owned ? " owned" : "");
+    buy.textContent = owned ? "Owned ✓" : STARTER_PACK.price;
+    if (!owned) {
+      buy.addEventListener("click", async () => {
+        if (!this.cb.buyStarterPack) return;
+        buy.disabled = true;
+        const res = await this.cb.buyStarterPack();
+        if (res && res.ok) {
+          Audio.coin();
+          this.toast("Starter Pack unlocked — enjoy!");
+          this.refreshCoins();
+          this.updatePowerups();
+          this.buildShop();
+        } else {
+          buy.disabled = false;
+          this.toast(res && res.owned ? "Already owned" : "Purchase failed");
+        }
+      });
+    }
+    item.appendChild(buy);
+    list.appendChild(item);
+  }
+
   buildShop() {
     const list = this.el["shop-list"];
     list.innerHTML = "";
 
+    // One-time Starter Pack — a prominent value bundle at the very top.
+    this._buildStarterPackItem(list);
     // Power-ups
     Object.entries(POWERUP_INFO).forEach(([type, info]) => {
       const owned = Economy.getPowerup(type);

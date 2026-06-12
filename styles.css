@@ -1562,6 +1562,27 @@ body {
 .tag-legendary { color: #ffc850; }
 .tag-premium { color: #ff6ec7; }
 
+/* One-time Starter Pack shop bundle ---------------------------------------- */
+.shop-starter {
+  border: 1.5px solid var(--accent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent) 14%, transparent),
+    transparent 70%
+  );
+}
+.si-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+  vertical-align: middle;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #1a1030;
+}
+
 /* New-companion celebration ------------------------------------------------ */
 .pet-reveal-card {
   --pr-color: #ffc850;
