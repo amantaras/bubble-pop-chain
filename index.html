@@ -335,6 +335,27 @@
       </div>
     </div>
 
+    <!-- Big "new companion" celebration shown when a brand-new pet is won -->
+    <div id="pet-reveal" class="overlay modal hidden">
+      <div class="modal-card pet-reveal-card">
+        <div class="pr-confetti" id="pet-reveal-confetti" aria-hidden="true"></div>
+        <div class="pr-congrats" id="pet-reveal-congrats">🎉 New Companion!</div>
+        <div class="pr-stage">
+          <span class="pr-rays" aria-hidden="true"></span>
+          <span class="pr-glow" id="pet-reveal-glow" aria-hidden="true"></span>
+          <span class="pr-icon" id="pet-reveal-icon">🐶</span>
+        </div>
+        <h2 class="modal-title pr-name" id="pet-reveal-name">Pet</h2>
+        <div class="pr-rarity" id="pet-reveal-rarity">rare</div>
+        <div class="pr-ability" id="pet-reveal-ability">Ability</div>
+        <p class="pr-desc" id="pet-reveal-desc">Description</p>
+        <div class="modal-buttons">
+          <button class="btn btn-ghost" id="pet-reveal-close">Maybe later</button>
+          <button class="btn btn-primary" id="pet-reveal-equip">Equip &amp; Play</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Win screen -->
     <div id="win" class="overlay screen modal hidden">
       <div class="modal-card">

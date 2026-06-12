@@ -133,7 +133,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   the level),
   the pet companions flow (Pets screen with starter Sparky owned/equipped,
   buy + open a crate grants a pet, the Pet Store sells premium pets + a
-  Legendary Crate that grants a pet, buying a premium pet unlocks it, equipping
+  Legendary Crate that grants a pet, buying a premium pet unlocks it,
+  winning a new pet fires the `#pet-reveal` celebration showing its name/rarity/
+  ability with an Equip & Play CTA, equipping
   refreshes the live
   session buffs, a startCharge pet pre-fills the power meter, an active pet
   arms its gather action, the diagonal pet blasts a streak, the pick pet (Talon)

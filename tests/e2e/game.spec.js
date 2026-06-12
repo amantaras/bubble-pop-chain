@@ -2769,6 +2769,43 @@ test.describe("pet companions (collection & buffs)", () => {
       .toBe(true);
   });
 
+  test("winning a new pet shows the big celebration reveal", async ({ page }) => {
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    // Own rover so it can be equipped, then fire the reveal deterministically.
+    await page.evaluate(() => {
+      window.__bpc.Storage.grantPet("rover");
+      window.__bpc.UI.showPetReveal({ petId: "rover", isNew: true });
+    });
+    // The celebration modal surfaces the pet, its rarity, and its ability so
+    // the player immediately knows what their new companion does.
+    await expect(page.locator("#pet-reveal")).toBeVisible();
+    await expect(page.locator("#pet-reveal-name")).toHaveText("Rover");
+    await expect(page.locator("#pet-reveal-icon")).toHaveText("🐶");
+    await expect(page.locator("#pet-reveal-rarity")).toHaveText("rare");
+    await expect(page.locator("#pet-reveal-ability")).toContainText("colour");
+    // "Equip & Play" equips the brand-new companion and dismisses the reveal.
+    await page.locator("#pet-reveal-equip").click();
+    await expect
+      .poll(() =>
+        page.evaluate(() => window.__bpc.Storage.getPetState().equipped)
+      )
+      .toBe("rover");
+    await expect(page.locator("#pet-reveal")).toBeHidden();
+  });
+
+  test("buying a premium pet fires the new-companion celebration", async ({
+    page,
+  }) => {
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator('#pet-store .store-buy[data-pet="aurora"]').click();
+    await expect(page.locator("#pet-reveal")).toBeVisible();
+    await expect(page.locator("#pet-reveal-name")).toHaveText("Aurora");
+    // Premium legendaries get the louder headline.
+    await expect(page.locator("#pet-reveal-congrats")).toContainText("LEGENDARY");
+    await page.locator("#pet-reveal-close").click();
+    await expect(page.locator("#pet-reveal")).toBeHidden();
+  });
+
   test("equipping a passive pet refreshes the live session's score buff", async ({
     page,
   }) => {

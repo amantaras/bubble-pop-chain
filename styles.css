@@ -1562,6 +1562,131 @@ body {
 .tag-legendary { color: #ffc850; }
 .tag-premium { color: #ff6ec7; }
 
+/* New-companion celebration ------------------------------------------------ */
+.pet-reveal-card {
+  --pr-color: #ffc850;
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+}
+.pr-confetti {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 2;
+}
+.pr-confetti-bit {
+  position: absolute;
+  top: 0;
+  width: 9px;
+  height: 14px;
+  border-radius: 2px;
+  transform: translate(-50%, -16px);
+  will-change: transform, opacity;
+}
+.pr-congrats {
+  position: relative;
+  z-index: 3;
+  font-weight: 900;
+  font-size: 19px;
+  letter-spacing: 0.3px;
+  color: var(--pr-color);
+  text-shadow: 0 0 14px color-mix(in srgb, var(--pr-color) 60%, transparent);
+}
+.pr-stage {
+  position: relative;
+  z-index: 1;
+  height: 132px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 6px 0 2px;
+}
+.pr-rays {
+  position: absolute;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    color-mix(in srgb, var(--pr-color) 38%, transparent) 0deg 12deg,
+    transparent 12deg 30deg
+  );
+  opacity: 0.55;
+  animation: pr-spin 9s linear infinite;
+}
+.pr-glow {
+  position: absolute;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--pr-color) 75%, transparent) 0%,
+    transparent 68%
+  );
+  animation: pr-pulse 1.8s ease-in-out infinite;
+}
+.pr-icon {
+  position: relative;
+  z-index: 2;
+  font-size: 88px;
+  line-height: 1;
+  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.45));
+}
+.pr-icon.pr-pop {
+  animation: pr-icon-pop 0.7s cubic-bezier(0.18, 1.4, 0.4, 1) both;
+}
+.pr-name {
+  position: relative;
+  z-index: 3;
+  margin: 2px 0 6px;
+}
+.pr-rarity {
+  display: inline-block;
+  z-index: 3;
+  position: relative;
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  padding: 3px 12px;
+  border: 1.5px solid var(--pr-color);
+  border-radius: 999px;
+}
+.pr-ability {
+  position: relative;
+  z-index: 3;
+  margin: 12px 0 4px;
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--pr-color);
+}
+.pr-desc {
+  position: relative;
+  z-index: 3;
+  margin: 0 0 6px;
+  font-size: 13px;
+  opacity: 0.78;
+}
+@keyframes pr-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes pr-pulse {
+  0%, 100% { transform: scale(0.92); opacity: 0.55; }
+  50% { transform: scale(1.12); opacity: 0.85; }
+}
+@keyframes pr-icon-pop {
+  0% { transform: scale(0.2) rotate(-18deg); opacity: 0; }
+  55% { transform: scale(1.25) rotate(8deg); opacity: 1; }
+  75% { transform: scale(0.94) rotate(-3deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pr-rays, .pr-glow, .pr-icon.pr-pop { animation: none; }
+}
+
 .pet-detail {
   border-radius: var(--radius);
   border: 1px solid var(--glass-brd);

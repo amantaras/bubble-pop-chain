@@ -76,6 +76,9 @@ class UIManager {
       "hints-toggle", "hints-toggle-state",
       "pets", "pets-coins", "pets-crate", "pet-store", "pet-list", "pet-detail",
       "pet-confirm", "pet-confirm-sub", "pet-confirm-ok", "pet-confirm-cancel",
+      "pet-reveal", "pet-reveal-confetti", "pet-reveal-congrats", "pet-reveal-glow",
+      "pet-reveal-icon", "pet-reveal-name", "pet-reveal-rarity", "pet-reveal-ability",
+      "pet-reveal-desc", "pet-reveal-close", "pet-reveal-equip",
       "btn-pets", "pets-back", "hud-pet", "hud-pet-icon", "hud-pet-buff",
       "btn-continue", "daily-summary",
       "hud-mode-label", "hud-score", "hud-target", "hud-target-wrap", "hud-target-label",
@@ -147,6 +150,10 @@ class UIManager {
     // Switch-companion confirmation (only seen when changing pets mid-level).
     click("pet-confirm-cancel", () => this._cancelEquip());
     click("pet-confirm-ok", () => this._confirmEquip());
+
+    // New-companion celebration buttons.
+    click("pet-reveal-close", () => this._closePetReveal());
+    click("pet-reveal-equip", () => this._equipFromReveal());
 
     // Colourblind symbols toggle (lives on the Themes screen).
     click("cb-toggle", () => {
@@ -391,6 +398,118 @@ class UIManager {
     this._petOverlayOverGame = false;
     if (this.el["pets"]) this.el["pets"].classList.add("hidden");
     if (this.cb.equipPetAndRestart) this.cb.equipPetAndRestart(id);
+  }
+
+  // Big celebration when a brand-new companion is won (from a crate, the
+  // legendary crate, or a premium store purchase). Duplicates skip this and
+  // just toast +XP — the fanfare is reserved for genuinely new pets.
+  showPetReveal(res) {
+    const pet = res && getPet(res.petId);
+    const modal = this.el["pet-reveal"];
+    if (!pet || !modal) {
+      if (pet) this.toast(`New pet! ${pet.icon} ${pet.name}`);
+      return;
+    }
+    this._revealPetId = pet.id;
+    const rarity = res.premium ? "premium" : pet.rarity;
+    const colorFor = {
+      common: "#7ddc8f",
+      rare: "#5b9fff",
+      epic: "#b478ff",
+      legendary: "#ffc850",
+      premium: "#ff6ec7",
+    };
+    const color = colorFor[rarity] || "#7ddc8f";
+    const ability =
+      (pet.ability && pet.ability.label) || (pet.active && pet.active.label) || "Special ability";
+
+    const card = modal.querySelector(".pet-reveal-card");
+    if (card) card.style.setProperty("--pr-color", color);
+
+    const congrats = this.el["pet-reveal-congrats"];
+    if (congrats) {
+      congrats.textContent =
+        rarity === "premium" || rarity === "legendary"
+          ? "🎉 LEGENDARY Companion!"
+          : "🎉 New Companion!";
+    }
+    if (this.el["pet-reveal-icon"]) this.el["pet-reveal-icon"].textContent = pet.icon;
+    if (this.el["pet-reveal-name"]) this.el["pet-reveal-name"].textContent = pet.name;
+    const rar = this.el["pet-reveal-rarity"];
+    if (rar) {
+      rar.textContent = rarity === "premium" ? "premium legendary" : rarity;
+      rar.style.color = color;
+      rar.style.borderColor = color;
+    }
+    if (this.el["pet-reveal-ability"])
+      this.el["pet-reveal-ability"].textContent = `✨ ${ability}`;
+    if (this.el["pet-reveal-desc"]) this.el["pet-reveal-desc"].textContent = pet.desc || "";
+
+    Audio.coin();
+    this.hideModals();
+    modal.classList.remove("hidden");
+    // Restart the icon entrance animation on every reveal.
+    const icon = this.el["pet-reveal-icon"];
+    if (icon) {
+      icon.classList.remove("pr-pop");
+      // Force reflow so re-adding the class replays the keyframes.
+      void icon.offsetWidth;
+      icon.classList.add("pr-pop");
+    }
+    this._playPetConfetti(color);
+  }
+
+  _playPetConfetti(color) {
+    const layer = this.el["pet-reveal-confetti"];
+    if (!layer) return;
+    layer.innerHTML = "";
+    const colors = ["#ffd24d", "#ff6ec7", "#5b9fff", "#7ddc8f", color || "#b478ff"];
+    const N = 26;
+    for (let i = 0; i < N; i++) {
+      const bit = document.createElement("span");
+      bit.className = "pr-confetti-bit";
+      bit.style.left = `${Math.random() * 100}%`;
+      bit.style.background = colors[i % colors.length];
+      layer.appendChild(bit);
+      if (bit.animate) {
+        const dx = (Math.random() - 0.5) * 90;
+        const rot = (Math.random() - 0.5) * 720;
+        bit.animate(
+          [
+            { transform: "translate(-50%, -16px) rotate(0deg)", opacity: 0 },
+            {
+              transform: `translate(calc(-50% + ${dx * 0.4}px), 50px) rotate(${rot * 0.4}deg)`,
+              opacity: 1,
+              offset: 0.2,
+            },
+            {
+              transform: `translate(calc(-50% + ${dx}px), 280px) rotate(${rot}deg)`,
+              opacity: 0,
+            },
+          ],
+          {
+            duration: 1100 + Math.random() * 700,
+            delay: Math.random() * 250,
+            easing: "cubic-bezier(.2,.6,.3,1)",
+            fill: "forwards",
+          }
+        );
+      }
+    }
+  }
+
+  _closePetReveal() {
+    if (this.el["pet-reveal"]) this.el["pet-reveal"].classList.add("hidden");
+    const layer = this.el["pet-reveal-confetti"];
+    if (layer) layer.innerHTML = "";
+  }
+
+  // "Equip & Play" from the reveal: route through the normal equip path so a
+  // mid-level switch still gets its restart confirmation.
+  _equipFromReveal() {
+    const pet = getPet(this._revealPetId);
+    this._closePetReveal();
+    if (pet) this._requestEquip(pet);
   }
 
   // Show a "Continue" entry on the menu when a campaign level is in progress.
@@ -1271,15 +1390,13 @@ class UIManager {
       }
       const pet = getPet(res.petId);
       Audio.coin();
-      this.toast(
-        res.premium && res.isNew
-          ? `💎 RARE! Premium pet ${pet.icon} ${pet.name}!`
-          : res.isNew
-            ? `New pet! ${pet.icon} ${pet.name}`
-            : `${pet.icon} ${pet.name} +XP (duplicate)`
-      );
       this._selectedPet = res.petId;
       this.buildPets();
+      if (res.isNew) {
+        this.showPetReveal(res);
+      } else {
+        this.toast(`${pet.icon} ${pet.name} +XP (duplicate)`);
+      }
     });
 
     const buyBtn = document.createElement("button");
@@ -1339,13 +1456,13 @@ class UIManager {
       if (res) {
         const pet = getPet(res.petId);
         Audio.coin();
-        this.toast(
-          res.isNew
-            ? `Legendary pull! ${pet.icon} ${pet.name}`
-            : `${pet.icon} ${pet.name} +XP (duplicate)`
-        );
         this._selectedPet = res.petId;
         this.buildPets();
+        if (res.isNew) {
+          this.showPetReveal(res);
+        } else {
+          this.toast(`${pet.icon} ${pet.name} +XP (duplicate)`);
+        }
       } else {
         legendBtn.disabled = false;
         this.toast("Purchase failed");
@@ -1378,9 +1495,9 @@ class UIManager {
           btn.disabled = true;
           const ok = this.cb.buyPremiumPet && (await this.cb.buyPremiumPet(pet.id));
           if (ok) {
-            this.toast(`${pet.icon} ${pet.name} unlocked!`);
             this._selectedPet = pet.id;
             this.buildPets();
+            this.showPetReveal({ petId: pet.id, isNew: true, premium: true });
           } else {
             btn.disabled = false;
             this.toast("Purchase failed");
@@ -1764,6 +1881,7 @@ class UIManager {
     if (this.el["loadout"]) this.el["loadout"].classList.add("hidden");
     if (this.el["chest"]) this.el["chest"].classList.add("hidden");
     if (this.el["pet-confirm"]) this.el["pet-confirm"].classList.add("hidden");
+    if (this.el["pet-reveal"]) this.el["pet-reveal"].classList.add("hidden");
   }
 
   showWin({ stars, score, coins = 0, rewardText, stats, showNext, showDouble }) {

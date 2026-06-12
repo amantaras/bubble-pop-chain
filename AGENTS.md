@@ -434,6 +434,17 @@ never re‑discovered the hard way.
   Crate), the catalog grid (`.pet-card`, locked/owned/equipped), and a detail
   pane (XP bar, equip, premium buy, cosmetics); a HUD badge (`#hud-pet`,
   `updatePetHud`) shows the equipped pet during play (hidden in the tutorial).
+  Winning a **brand-new** companion (crate open, Legendary Crate, or premium
+  store buy) fires a celebration modal (`#pet-reveal`, `ui.js`
+  `showPetReveal(res)`): "🎉 New Companion!" (louder "LEGENDARY" headline for
+  legendary/premium), a big animated pet emoji with a rarity-coloured glow + ray
+  burst + WAAPI confetti, the pet name + rarity badge + its **ability label**
+  (`pet.ability.label || pet.active.label`) + flavour `desc`, and an **Equip &
+  Play** CTA (routes through `_requestEquip`, so a mid-level swap still confirms
+  the restart) plus a dismiss button. **Duplicates skip the reveal** and just
+  toast +XP — the fanfare is reserved for genuinely new pets. The reveal's
+  animations live on non-clickable layers (confetti/glow/rays/icon) so the
+  buttons stay click-stable for Playwright.
   **Pet manager overlay** (`ui.js` `openPetOverlay`/`closePetOverlay`): `#pets`
   is a **solid-background overlay** (not a routed `.screen`) reached two ways —
   the menu **Pets** tile, or by **tapping the in-game `#hud-pet` badge** (now a
