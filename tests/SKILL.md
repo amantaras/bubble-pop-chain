@@ -86,8 +86,11 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   on (`firstFilledCell` locates the lone bubble, `forceRemove` clears one cell
   regardless of type incl. ice), the
   daily retention engine (modifiers, tiered goals/stars, weekly rewards,
-  streak-freeze rescue), and the interactive tutorial (step-table invariants,
-  deterministic teaching-board generation, and gated step advancement). `localStorage` is a real spec-compliant store
+  streak-freeze rescue), the interactive tutorial (step-table invariants,
+  deterministic teaching-board generation, and gated step advancement), and the
+  particle system (burst/sparkle spawn counts, update-driven expiry, and the
+  capped pool that trims the oldest particles so a pop storm can't grow the
+  per-frame draw cost without bound). `localStorage` is a real spec-compliant store
   (`tests/setup.js`), reset before each test.
 - **E2E tests** load the real page, click real DOM buttons, and dispatch real
   pointer taps on the `<canvas>`. They cover: menu/level-map/shop/themes
@@ -125,7 +128,10 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   arms its gather action, the diagonal pet blasts a streak, the pick pet (Talon)
   picks off the most isolated bubbles one by one, premium IAP grants ownership,
   HUD pet badge),
-  the daily retention flow (summary, streak reward), and the gated
+  the daily retention flow (summary, streak reward),
+  buying a power-up refreshing the HUD tool-slot count,
+  a performance guard (a heavy pop storm keeps the particle pool capped and it
+  still drains to empty afterwards), and the gated
   step-by-step tutorial (first-run auto-open, How to Play replay, skip, the
   practice board auto-refilling so the player never runs out of bubbles, and a
   full walkthrough that performs each real gesture to advance). Both a mobile

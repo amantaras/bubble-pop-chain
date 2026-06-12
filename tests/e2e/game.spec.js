@@ -2316,6 +2316,34 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
   });
 });
 
+test.describe("performance (bounded effect cost)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("the particle pool stays capped during a heavy pop storm", async ({
+    page,
+  }) => {
+    // Regression: particles used to accumulate without bound during rapid
+    // high-level combo/Fever chains, climbing into a superlinear draw-cost
+    // cliff that tanked the framerate ("slowdown after progressing").
+    const cap = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      g.startCampaign(20);
+      // Far more than any single clear would ever produce, all at once.
+      for (let i = 0; i < 200; i++)
+        g.particles.burst(200, 300, "#ff5b8d", 24, 1.4);
+      return g.particles.count;
+    });
+    expect(cap).toBeLessThanOrEqual(600);
+    // The pool still drains normally once the storm passes.
+    const drained = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      g.particles.update(2);
+      return g.particles.count;
+    });
+    expect(drained).toBe(0);
+  });
+});
+
 test.describe("pet companions (collection & buffs)", () => {
   test.beforeEach(({ page }) => openGame(page));
 

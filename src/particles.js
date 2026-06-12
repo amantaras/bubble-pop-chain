@@ -1,5 +1,13 @@
 // Lightweight particle system for pop bursts and sparkles.
 
+// Hard cap on live particles. Without it, rapid high-level combo/Fever chains
+// stack thousands of additively-blended ("lighter") particles before the old
+// ones expire, and per-frame draw cost climbs into a superlinear cliff that
+// tanks the framerate on mobile — the "slowdown after progressing". 600 still
+// comfortably holds a single big clear's burst while bounding worst-case cost;
+// when exceeded we drop the OLDEST particles (already fading) first.
+const MAX_PARTICLES = 600;
+
 export class ParticleSystem {
   constructor() {
     this.particles = [];
@@ -21,6 +29,7 @@ export class ParticleSystem {
         gravity: 520,
       });
     }
+    this._cap();
   }
 
   sparkle(x, y, color, count = 6) {
@@ -39,6 +48,14 @@ export class ParticleSystem {
         gravity: 0,
       });
     }
+    this._cap();
+  }
+
+  // Trim the oldest particles when the pool exceeds the cap so a burst storm
+  // can never grow the per-frame draw cost without bound.
+  _cap() {
+    const over = this.particles.length - MAX_PARTICLES;
+    if (over > 0) this.particles.splice(0, over);
   }
 
   update(dt) {

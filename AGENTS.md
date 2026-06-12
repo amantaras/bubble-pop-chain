@@ -253,6 +253,18 @@ never re‑discovered the hard way.
   **settings/assist toggle, not a gesture**, so it deliberately gets **no gated
   tutorial step** (consistent precedent — the tutorial teaches gestures &
   mechanics, not display/assist settings or meta displays).
+- **Performance — capped particle pool** (`particles.js` `MAX_PARTICLES = 600`,
+  `ParticleSystem._cap`): the canvas runs a single rAF loop (`Game.loop`) and
+  every effect system (`particles`, `floating`, `petAnim`, `finale`, `shake`)
+  self-expires its items, so there is **no per-frame leak**. The one
+  unbounded cost was the particle pool: rapid high-level **combo/Fever pop
+  storms** stacked thousands of additively-blended (`"lighter"`) particles
+  before the old ones faded, and per-frame `draw` cost climbed into a
+  **superlinear cliff** (~0.9ms at 1k → ~1.4ms at 2k on desktop, far worse on
+  mobile) — the "slowdown after progressing". `burst`/`sparkle` now call
+  `_cap()`, which trims the **oldest** (already-fading) particles once the pool
+  exceeds 600. A single big clear stays well under the cap (so the look is
+  unchanged); only runaway storms are bounded, holding worst-case draw cost flat.
 - **Per-level best score** (`storage.js` `levelScores`/`getLevelScore`/
   `recordLevelScore`, `main.js` `_finish`, `ui.js` `buildLevelMap`): each
   campaign level tracks a **personal best**. On a campaign win `_finish` calls
@@ -428,7 +440,7 @@ src/
   main.js           # Game orchestrator: canvas loop, state machine, sessions
   grid.js           # Board model: flood-fill, gravity, collapse, serialize/restore
   renderer.js       # Canvas drawing
-  particles.js      # Particle FX
+  particles.js      # Particle FX (capped pool — see Performance below)
   animations.js     # ScreenShake, FloatingText
   input.js          # Pointer input + vibrate() (guarded for iOS)
   audio.js          # WebAudio (unlocked on first pointerdown)
