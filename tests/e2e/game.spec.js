@@ -2418,6 +2418,76 @@ test.describe("pet companions (collection & buffs)", () => {
     expect(result.kind).toBe("diagonal");
   });
 
+  test("the pick pet (Talon) picks off the most isolated bubbles", async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      window.__bpc.Storage.grantPet("talon");
+      window.__bpc.game.equipPet("talon");
+    });
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    const active = await page.evaluate(() => window.__bpc.game.session.petActive);
+    expect(active).not.toBeNull();
+    expect(active.type).toBe("pick");
+
+    const result = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      // Paint a big single-colour blob, then drop two lone bubbles of other
+      // colours surrounded by it — those are the "most isolated" cells Talon
+      // should hunt (NORMAL === 0 in the type grid).
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          b.grid[c][r] = 0;
+          b.types[c][r] = 0;
+          const sp = b.spriteGrid[c][r];
+          if (sp) {
+            sp.color = 0;
+            sp.type = 0;
+          }
+        }
+      const lone = [
+        { c: 1, r: 1, col: 1 },
+        { c: 2, r: 2, col: 2 },
+      ];
+      for (const { c, r, col } of lone) {
+        b.grid[c][r] = col;
+        const sp = b.spriteGrid[c][r];
+        if (sp) sp.color = col;
+      }
+      const ranked = b.mostIsolatedCells(2);
+      const beforeNonZero = (() => {
+        let n = 0;
+        for (let c = 0; c < b.cols; c++)
+          for (let r = 0; r < b.rows; r++)
+            if (b.grid[c][r] !== -1 && b.grid[c][r] !== 0) n++;
+        return n;
+      })();
+      g._petPick(g.session.petActive);
+      const afterNonZero = (() => {
+        let n = 0;
+        for (let c = 0; c < b.cols; c++)
+          for (let r = 0; r < b.rows; r++)
+            if (b.grid[c][r] !== -1 && b.grid[c][r] !== 0) n++;
+        return n;
+      })();
+      return {
+        ranked,
+        beforeNonZero,
+        afterNonZero,
+        busy: g.petAnim.busy,
+        kind: g.petAnim.items[0] && g.petAnim.items[0].kind,
+      };
+    });
+    // The two lone bubbles were the top-ranked isolated cells …
+    expect(result.ranked).toHaveLength(2);
+    expect(result.beforeNonZero).toBe(2);
+    // … and Talon picked them off (after gravity, no off-colour bubbles remain).
+    expect(result.afterNonZero).toBe(0);
+    expect(result.busy).toBe(true);
+    expect(result.kind).toBe("pick");
+  });
+
   test("premium pet purchase via the mock provider grants ownership", async ({
     page,
   }) => {

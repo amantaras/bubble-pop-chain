@@ -58,6 +58,9 @@ export const RARITY_WEIGHTS = {
 //      gather   — pulls a whole colour's scattered bubbles together into one
 //                 connected blob, ready to pop ("bring colours closer")
 //      cleanse  — destroys the lone, isolated bubbles that are hardest to match
+//                 (all of them at once)
+//      pick     — hunts the MOST isolated bubbles (walled in by edges, gaps or
+//                 other colours) and picks them off one by one
 //      diagonal — blasts the longest diagonal streak of one colour off the
 //                 board (a line the orthogonal flood-fill can never clear)
 //      shooter  — (PREMIUM "Nova") an alien gunship that patrols the bottom of
@@ -67,8 +70,8 @@ export const RARITY_WEIGHTS = {
 //    declared as `active: { type, baseCooldown, minCooldown, baseCount,
 //    countPer, label }`.
 //
-// Active board helpers are intentionally FREE/earnable (Rover, Whiskers, Comet)
-// so the game is never pay-to-win on the *free* track. The one deliberate
+// Active board helpers are intentionally FREE/earnable (Rover, Whiskers, Comet,
+// Talon) so the game is never pay-to-win on the *free* track. The one deliberate
 // exception is the premium **Nova** gunship: a paid, spectacle-grade active pet
 // (an autonomous shooter) reserved for players who buy it — powerful, but it
 // only speeds up clears the player could achieve anyway.
@@ -105,6 +108,14 @@ export const PET_CATALOG = [
     active: {
       type: "diagonal", baseCooldown: 6, minCooldown: 3,
       label: "Pops a diagonal streak every few moves",
+    },
+  },
+  {
+    id: "talon", name: "Talon", icon: "🦅", rarity: "epic", premium: false,
+    desc: "A keen-eyed hawk that swoops on the most isolated bubbles and picks them off one by one.",
+    active: {
+      type: "pick", baseCooldown: 6, minCooldown: 3, baseCount: 2, countPer: 1,
+      label: "Picks off the most isolated bubbles every few moves",
     },
   },
   {

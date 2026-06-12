@@ -735,6 +735,52 @@ export class Board {
     return out;
   }
 
+  // Rank the MOST ISOLATED bubbles — NORMAL cells walled in on most sides by an
+  // edge, an empty cell, or a DIFFERENT colour (a same-colour or rainbow
+  // neighbour does NOT count as isolating). The harder a bubble is to ever
+  // match, the higher it scores; true singletons (group of 1, which tapping can
+  // never clear) always outrank merely-surrounded bubbles. Returns up to
+  // `count` such cells, most-isolated first. Used by the "pick" pet companion,
+  // which destroys them one by one.
+  mostIsolatedCells(count = 3) {
+    const scored = [];
+    const dirs = [
+      [-1, 0],
+      [1, 0],
+      [0, -1],
+      [0, 1],
+    ];
+    for (let c = 0; c < this.cols; c++)
+      for (let r = 0; r < this.rows; r++) {
+        const col = this.grid[c][r];
+        if (col === -1 || this.types[c][r] !== NORMAL) continue;
+        if (this.isRainbow(c, r)) continue;
+        let iso = 0;
+        for (const [dc, dr] of dirs) {
+          const nc = c + dc;
+          const nr = r + dr;
+          if (nc < 0 || nc >= this.cols || nr < 0 || nr >= this.rows) {
+            iso++; // an edge walls the bubble in
+            continue;
+          }
+          const o = this.grid[nc][nr];
+          if (o === -1) {
+            iso++; // an empty neighbour isolates
+          } else if (o !== col && this.types[nc][nr] !== RAINBOW) {
+            iso++; // a different (non-wildcard) colour isolates
+          }
+        }
+        const singleton = this.getGroupAt(c, r).length === 1;
+        // Only genuinely isolated bubbles qualify (walled in on 3+ sides, or a
+        // true singleton) — never break up a healthy cluster.
+        if (iso >= 3 || singleton) {
+          scored.push({ c, r, score: iso + (singleton ? 10 : 0) });
+        }
+      }
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, Math.max(0, count)).map(({ c, r }) => ({ c, r }));
+  }
+
   // Longest straight diagonal run (↘ or ↗) of same-colour NORMAL bubbles. The
   // orthogonal flood-fill that powers tapping can never clear a pure diagonal,
   // so the "diagonal" pet companion blasts the longest such streak. Returns the

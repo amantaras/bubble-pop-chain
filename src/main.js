@@ -1490,6 +1490,7 @@ class Game {
     if (act.type === "cleanse") this._petCleanse(act);
     else if (act.type === "gather") this._petGather(act);
     else if (act.type === "diagonal") this._petDiagonal(act);
+    else if (act.type === "pick") this._petPick(act);
   }
 
   // 🐱 Whiskers: pounce on lone, hard-to-match bubbles and clear them.
@@ -1582,6 +1583,57 @@ class Game {
     this._popCells(cells, points, cells.length, 1, 0.7);
     Audio.powerup();
     this.floating.spawn(anchor.x, anchor.y - 36, "Streak!", "#ffd35b", 26);
+    this.refreshHud();
+  }
+
+  // 🦅 Talon: hunt the MOST isolated bubbles and pick them off one by one.
+  // The bubbles are removed from the model immediately (so afterMove's win /
+  // deadlock checks stay correct), but the destruction is REVEALED one-by-one
+  // by a sequenced peck animation whose `onHit` callback fires each burst as
+  // the hawk reaches that bubble.
+  _petPick(act) {
+    const s = this.session;
+    const cells = s.board.mostIsolatedCells(Math.max(1, act.count));
+    if (!cells.length) return;
+    // Capture each bubble's pixel position + colour BEFORE removing it, so the
+    // sequenced peck FX can play over the original spots.
+    const pixels = cells.map((cell) => s.board.targetPixel(cell.c, cell.r));
+    const palette = this.theme.bubbles;
+    const hexes = cells.map((cell) => {
+      const ci = s.board.grid[cell.c][cell.r];
+      const idx = ((ci % palette.length) + palette.length) % palette.length;
+      return palette[idx] || "#ffd35b";
+    });
+    const raw = cells.length * 16;
+    const points = Math.round(
+      feverPoints(raw, s.feverActive) * s.petBuffs.scoreMult
+    );
+    s.score += points;
+    // Clear the model now (one settle for the whole pick).
+    for (const cell of cells) s.board.forceRemove(cell.c, cell.r);
+    s.board.settle();
+    if (s.stats) s.stats.cleared += cells.length;
+    const anchor = pixels.reduce(
+      (a, t) => ({ x: a.x + t.x / pixels.length, y: a.y + t.y / pixels.length }),
+      { x: 0, y: 0 }
+    );
+    this.petAnim.play({
+      kind: "pick",
+      icon: this._equippedPetIcon("🦅"),
+      anchor,
+      targets: pixels,
+      color: "#ffd35b",
+      onHit: (i) => {
+        const t = pixels[i];
+        if (!t) return;
+        this.particles.burst(t.x, t.y, hexes[i] || "#ffd35b", 12, 0.7);
+        this.particles.sparkle(t.x, t.y, "#ffffff", 6);
+        this.shake.add(0.12);
+        Audio.pop(1, 2);
+        vibrate(8);
+      },
+    });
+    this.floating.spawn(anchor.x, anchor.y - 36, "Pick!", "#ffd35b", 26);
     this.refreshHud();
   }
 

@@ -621,6 +621,29 @@ describe("grid / Board", () => {
       // every remaining bubble is a lone single (the rescue trigger).
       expect(b.isolatedCells().length).toBe(b.countRemaining());
     });
+
+    it("mostIsolatedCells ranks the most walled-in bubbles and skips healthy clusters", () => {
+      const b = new Board(5, 5, 4, 1);
+      setGridTyped(b, [
+        [0, 0, 0, 0, 0],
+        [0, 1, 0, 0, 0],
+        [0, 0, 2, 2, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+      ]);
+      // The lone 1 at (1,1) is walled in by a different colour on all 4 sides
+      // AND is a singleton, so it ranks highest.
+      expect(b.mostIsolatedCells(1)).toEqual([{ c: 1, r: 1 }]);
+      // Only genuinely isolated bubbles qualify — the big 0 blob is skipped, and
+      // the 2-pair (less isolated, not singletons) ranks below the lone 1.
+      expect(b.mostIsolatedCells(5)).toEqual([
+        { c: 1, r: 1 },
+        { c: 2, r: 2 },
+        { c: 2, r: 3 },
+      ]);
+      // The requested count is respected.
+      expect(b.mostIsolatedCells(2)).toHaveLength(2);
+    });
   });
 });
 

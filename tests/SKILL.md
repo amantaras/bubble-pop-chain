@@ -74,7 +74,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   crate rolls including the rare premium drop chance + the boosted Legendary
   Crate roll, premium-pet catalog filter, and the storage pet helpers —
   grant/equip/XP/crates/cosmetics) plus the grid helpers it relies on
-  (dominant colour, first-cell-of-colour, isolated-cell detection),
+  (dominant colour, first-cell-of-colour, isolated-cell detection, and
+  most-isolated-cell ranking for the Talon pick pet),
   special bubbles (rainbow wildcard + ice two-hit + lightning row/column
   strike) with type round-trip, the
   last-bubble finale animator (`BubbleFinale`: variant clamping to 0–4,
@@ -117,7 +118,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   Legendary Crate that grants a pet, buying a premium pet unlocks it, equipping
   refreshes the live
   session buffs, a startCharge pet pre-fills the power meter, an active pet
-  arms its gather action, premium IAP grants ownership, HUD pet badge),
+  arms its gather action, the diagonal pet blasts a streak, the pick pet (Talon)
+  picks off the most isolated bubbles one by one, premium IAP grants ownership,
+  HUD pet badge),
   the daily retention flow (summary, streak reward), and the gated
   step-by-step tutorial (first-run auto-open, How to Play replay, skip, the
   practice board auto-refilling so the player never runs out of bubbles, and a

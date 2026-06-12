@@ -81,6 +81,18 @@ describe("pets catalog", () => {
     expect(act.cooldown).toBeGreaterThan(0);
   });
 
+  it("provides a free pick (Talon) active pet whose count scales with level", () => {
+    const pick = PET_CATALOG.find((p) => p.active && p.active.type === "pick");
+    expect(pick).toBeTruthy();
+    expect(pick.premium).toBe(false);
+    const l1 = petActive(pick.id, 1);
+    const l5 = petActive(pick.id, MAX_PET_LEVEL);
+    expect(l1.type).toBe("pick");
+    expect(l1.count).toBe(2); // baseCount
+    expect(l5.count).toBeGreaterThan(l1.count); // picks off more as it levels up
+    expect(l5.cooldown).toBeLessThan(l1.cooldown); // and fires more often
+  });
+
   it("getPet / getCosmetic return defaults for unknown ids", () => {
     expect(getPet("nope")).toBeNull();
     expect(getCosmetic("nope")).toBe(COSMETICS[0]);

@@ -305,16 +305,22 @@ never re‑discovered the hard way.
   step**.
 - **Pet companions** (`pets.js`, pure; `storage.js` `pets`): collectible helper
   pets that support the player both **passively** and with **active board
-  powers**. `PET_CATALOG` holds 10 pets across four rarities
+  powers**. `PET_CATALOG` holds 11 pets across four rarities
   (`common`/`rare`/`epic`/`legendary`). **Passive pets** carry an `ability`
   (`scoreMult`/`coinMult`/`powerMult`/`feverMult`/`startCharge`) that scales per
   level (`petBuffs`/`abilityValue`). **Active pets** carry an `active` config and
   manipulate the board on a cooldown (`petActive`): **Rover 🐶** gathers the
   dominant colour into a blob (`grid.dominantColor`/`firstCellOfColor` →
-  `magnetGather`), **Whiskers 🐱** zaps isolated single bubbles
+  `magnetGather`), **Whiskers 🐱** zaps isolated single bubbles all at once
   (`grid.isolatedCells`), **Comet ☄️** blasts the longest same-colour **diagonal**
   streak off the board (`grid.diagonalRun` → `_petDiagonal`) — a line the
-  orthogonal flood-fill behind tapping can never clear on its own. One **premium**
+  orthogonal flood-fill behind tapping can never clear on its own — and
+  **Talon 🦅** (a `pick`) hunts the **most isolated** bubbles (walled in by edges,
+  gaps or other colours — `grid.mostIsolatedCells`) and **picks them off one by
+  one** (`_petPick`): the model clears synchronously (so `afterMove`'s win /
+  deadlock checks stay correct) while a sequenced peck animation reveals each
+  destruction in turn via an `onHit(i)` callback (its `count` scales 2→6 by
+  level). One **premium**
   active pet, **Nova 🛸** (a `shooter`), is an autonomous alien **gunship** that
   patrols the base of the board in real time (`AlienShip` in `animations.js`),
   bounces off the walls and auto-blasts the lowest bubble in its column(s) via
@@ -328,7 +334,7 @@ never re‑discovered the hard way.
   runs in `main.js` via
   `_equippedBuffs`/`_equippedActive` (folded into `popAt`/`chargedBlast`/
   `applyPowerup`/`_finish` scoring and the meters) and `_maybePetAction`/
-  `_petGather`/`_petCleanse`/`_petDiagonal` (ticked from `afterMove` on
+  `_petGather`/`_petCleanse`/`_petDiagonal`/`_petPick` (ticked from `afterMove` on
   `session.petTimer`).
   When an active pet fires, it plays an on-board **ability animation** (`PetAnim`
   in `animations.js`, ticked/drawn from the game loop via `game.petAnim`): the
@@ -336,7 +342,8 @@ never re‑discovered the hard way.
   and reels the colour together with a sparkle "leash" (`gather`), **Whiskers
   🐱** pounces and claw-slashes the lone bubbles (`cleanse`), **Comet ☄️**
   streaks in diagonally and fires a bright beam along the popped streak
-  (`diagonal`). The animation is
+  (`diagonal`), and **Talon 🦅** swoops down and pecks each isolated bubble in
+  sequence (`pick`, firing its `onHit` burst per peck). The animation is
   purely cosmetic; the board change happens immediately when triggered.
   Pets gain XP each level clear (`_awardPetXp`, `PET_XP_PER_LEVEL`, cap
   `MAX_PET_LEVEL`). **Not pay-to-win**: pets are won from **crates**
@@ -346,7 +353,7 @@ never re‑discovered the hard way.
   to XP (`DUP_XP`). The **premium** pets (Aurora 🌈 / Gizmo 🤖 are passive
   side-grades; **Nova 🛸** is the one premium *active* gunship — IAP `pet_*` via
   `monetization.purchase`). The strongest score booster (Draco, legendary) and
-  all three free active board helpers stay free/earnable. Premiums are bought
+  all four free active board helpers stay free/earnable. Premiums are bought
   directly in the **Pet Store**, or — very rarely (`PREMIUM_DROP_CHANCE` ≈ 0.8%)
   — surprise you out of an ordinary crate (`rollCrate`'s premium roll, which
   draws from `cratePremiumPets`). **Nova is flagged `storeOnly`** so it is

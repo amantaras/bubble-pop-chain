@@ -88,7 +88,7 @@ describe("PetAnim — pet ability animations", () => {
   });
 
   it("draw() does not throw across every phase for both abilities", () => {
-    for (const kind of ["gather", "cleanse"]) {
+    for (const kind of ["gather", "cleanse", "pick"]) {
       const pa = new PetAnim();
       pa.play({ kind, anchor: { x: 120, y: 120 }, targets: [{ x: 60, y: 60 }] });
       const ctx = mockCtx();
@@ -98,6 +98,25 @@ describe("PetAnim — pet ability animations", () => {
         expect(() => pa.draw(ctx)).not.toThrow();
       }
     }
+  });
+
+  it("pick fires onHit once per target, in sequence, across the act phase", () => {
+    const pa = new PetAnim();
+    const hits = [];
+    pa.play({
+      kind: "pick",
+      icon: "🦅",
+      targets: [{ x: 0, y: 0 }, { x: 50, y: 0 }, { x: 100, y: 0 }],
+      onHit: (i) => hits.push(i),
+    });
+    const it = pa.items[0];
+    expect(it.kind).toBe("pick");
+    // The act phase scales with the number of targets so each peck is visible.
+    expect(it.act).toBeGreaterThan(0.6);
+    // Tick the whole animation through in small steps.
+    for (let t = 0; t < 80; t++) pa.update(0.05);
+    expect(hits).toEqual([0, 1, 2]); // each target pecked exactly once, in order
+    expect(pa.busy).toBe(false);
   });
 
   it("can run multiple animations at once", () => {

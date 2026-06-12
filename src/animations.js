@@ -112,11 +112,14 @@ export class PetAnim {
   }
 
   // Trigger a pet ability animation.
-  //   opts.kind       — "gather" | "cleanse" | "diagonal"
+  //   opts.kind       — "gather" | "cleanse" | "pick" | "diagonal"
   //   opts.icon       — pet emoji to fly across the screen
   //   opts.anchor     — { x, y } focal point of the ability (pixels)
   //   opts.targets    — [{ x, y }, ...] affected bubble centres (pixels)
   //   opts.color      — accent colour for trails/sparkles
+  //   opts.onHit      — (pick) callback(i) fired as each target is pecked, in
+  //                     sequence, so the game can reveal the destruction FX
+  //                     one-by-one (the model is already cleared synchronously)
   //   opts.board      — (optional) live board, so the animation can track
   //                     bubbles that move/vanish while it plays
   //   opts.anchorCell — (optional) { c, r } grid anchor (used with board)
@@ -139,7 +142,12 @@ export class PetAnim {
         ? "cleanse"
         : opts.kind === "diagonal"
           ? "diagonal"
-          : "gather";
+          : opts.kind === "pick"
+            ? "pick"
+            : "gather";
+    // The pick (Talon) sequence hops target-to-target, so give it a longer act
+    // phase that scales with how many bubbles it picks off.
+    const act = kind === "pick" ? Math.max(0.7, targets.length * 0.34) : 0.6;
     this.items.push({
       kind,
       icon: opts.icon || "🐾",
@@ -148,14 +156,18 @@ export class PetAnim {
       cy,
       targets,
       // Live tracking is only meaningful for non-destructive moves (gather),
-      // where the affected bubbles stay on the board. Cleanse/diagonal pop
+      // where the affected bubbles stay on the board. Cleanse/pick/diagonal pop
       // their cells immediately, so they keep their frozen snapshot.
       board: kind === "gather" ? opts.board || null : null,
       anchorCell: opts.anchorCell || null,
       cells: Array.isArray(opts.cells) ? opts.cells : null,
+      // Pick fires a per-target callback in sequence as the hawk pecks each one.
+      onHit: kind === "pick" && typeof opts.onHit === "function" ? opts.onHit : null,
+      hit: [],
+      hitAt: [],
       life: 0,
       enter: 0.42,
-      act: 0.6,
+      act,
       exit: 0.4,
     });
   }
@@ -192,6 +204,23 @@ export class PetAnim {
     for (let i = this.items.length - 1; i >= 0; i--) {
       const it = this.items[i];
       it.life += dt;
+      // Pick: fire each target's hit callback in sequence as the hawk reaches
+      // it during the act phase (the bubble was already removed from the model;
+      // this just reveals the destruction FX one-by-one).
+      if (it.kind === "pick" && it.onHit && it.targets.length) {
+        const n = it.targets.length;
+        const inAct = it.life > it.enter && it.life <= it.enter + it.act;
+        const actP = inAct ? (it.life - it.enter) / it.act : it.life > it.enter ? 1 : 0;
+        if (it.life > it.enter) {
+          for (let k = 0; k < n; k++) {
+            if (!it.hit[k] && actP >= (k + 0.5) / n) {
+              it.hit[k] = true;
+              it.hitAt[k] = it.life;
+              it.onHit(k);
+            }
+          }
+        }
+      }
       if (it.life >= it.enter + it.act + it.exit) this.items.splice(i, 1);
     }
   }
@@ -208,9 +237,10 @@ export class PetAnim {
     const hoverX = it.cx;
     const hoverY = it.cy - 60;
     // Entry origin depends on ability: Rover dashes in from the left, Whiskers
-    // drops down from above, Comet streaks in from the top-left diagonal.
+    // and Talon drop down from above, Comet streaks in from the top-left
+    // diagonal.
     const origin =
-      it.kind === "cleanse"
+      it.kind === "cleanse" || it.kind === "pick"
         ? { x: it.cx, y: it.cy - 320 }
         : it.kind === "diagonal"
           ? { x: it.cx - 280, y: it.cy - 280 }
@@ -243,6 +273,19 @@ export class PetAnim {
         py = hoverY - Math.sin(actP * Math.PI) * 8;
         scale = 1.15;
         rot = -0.6 + Math.sin(actP * Math.PI * 2) * 0.25;
+      } else if (it.kind === "pick") {
+        // Hop: the hawk swoops above each target in turn and dips to peck it,
+        // springing back up before darting to the next one.
+        const n = it.targets.length || 1;
+        const segF = actP * n;
+        const seg = Math.min(n - 1, Math.floor(segF));
+        const within = segF - seg; // 0..1 progress over the current target
+        const cur = it.targets[seg] || { x: hoverX, y: hoverY + 60 };
+        px = cur.x;
+        const dip = Math.sin(Math.max(0, Math.min(1, within)) * Math.PI);
+        py = cur.y - 60 + dip * 56;
+        scale = 1.05 + dip * 0.1;
+        rot = -0.15 + Math.sin(within * Math.PI * 2) * 0.18;
       } else {
         // Tug: lean back and forth as it reels colours in, with a happy bob.
         py = hoverY - Math.abs(Math.sin(actP * Math.PI * 2)) * 10;
@@ -262,6 +305,7 @@ export class PetAnim {
     ctx.save();
     if (it.kind === "gather") this._drawGatherFx(ctx, it, actP);
     else if (it.kind === "diagonal") this._drawDiagonalFx(ctx, it, actP);
+    else if (it.kind === "pick") this._drawPickFx(ctx, it, actP);
     else this._drawCleanseFx(ctx, it, actP);
     ctx.restore();
 
@@ -329,6 +373,45 @@ export class PetAnim {
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(t.x, t.y, len * 1.2, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  // 🦅 Talon: a sharp beak peck at the current target plus an expanding flash
+  // ring on each bubble already picked off, so the destruction reads one-by-one.
+  _drawPickFx(ctx, it, actP) {
+    const n = it.targets.length || 1;
+    // Expanding rings on bubbles already pecked (timed from each hit).
+    for (let k = 0; k < it.targets.length; k++) {
+      if (it.hitAt[k] == null) continue;
+      const t = it.targets[k];
+      const age = Math.max(0, it.life - it.hitAt[k]);
+      const p = Math.min(1, age / 0.4);
+      const fade = 1 - p;
+      const rr = 6 + p * 24;
+      ctx.strokeStyle = withAlpha("#ffffff", 0.9 * fade);
+      ctx.lineWidth = 3 * fade + 1;
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, rr, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = withAlpha(it.color, 0.7 * fade);
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, rr * 0.6, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    // A bright beak-peck flash at the target currently under the hawk.
+    const seg = Math.min(n - 1, Math.floor(actP * n));
+    const cur = it.targets[seg];
+    if (cur) {
+      const within = actP * n - seg;
+      const flash = Math.max(0, Math.sin(within * Math.PI));
+      ctx.strokeStyle = withAlpha("#ffd35b", 0.9 * flash);
+      ctx.lineWidth = 3;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(cur.x, cur.y - 16 * flash);
+      ctx.lineTo(cur.x, cur.y);
       ctx.stroke();
     }
   }
