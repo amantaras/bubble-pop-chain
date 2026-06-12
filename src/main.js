@@ -74,8 +74,8 @@ import {
   LEGENDARY_CRATE,
   PET_CATALOG,
 } from "./pets.js";
-import { makeRng } from "./rng.js";
-
+import { calendarStatus, advanceCalendar } from "./calendar.js";
+import { makeRng, todayKey } from "./rng.js";
 const TOP_INSET = 168;
 const BOTTOM_INSET = 120;
 const COMBO_WINDOW = 1.6; // seconds before a combo resets
@@ -156,6 +156,7 @@ class Game {
       rescuePick: () => this._rescueWithPick(),
       rescueGiveUp: () => this._giveUpRescue(),
       claimAchievement: (id) => this.claimAchievement(id),
+      claimCalendar: () => this.claimCalendar(),
     });
 
     this.input = new Input(this.canvas, {
@@ -1134,6 +1135,37 @@ class Game {
       powerups,
       pet,
     };
+  }
+
+  // Claim today's login-calendar reward (idempotent per day). Returns a recap
+  // object for the UI, or null when nothing is claimable right now.
+  claimCalendar() {
+    const key = todayKey();
+    const state = Storage.get("loginCalendar");
+    const st = calendarStatus(state, key);
+    if (!st.claimable) return null;
+
+    const reward = st.reward || {};
+    const coins = reward.coins || 0;
+    if (coins > 0) Economy.addCoins(coins);
+    let powerup = null;
+    if (reward.powerup) {
+      Economy.addPowerup(reward.powerup, 1);
+      const info = POWERUP_INFO[reward.powerup] || {};
+      powerup = { id: reward.powerup, name: info.name || reward.powerup, icon: info.icon || "✨" };
+    }
+    let crate = 0;
+    if (reward.crate) {
+      Storage.addCrates(reward.crate);
+      crate = reward.crate;
+    }
+
+    Storage.set("loginCalendar", advanceCalendar(state, key));
+
+    UI.refreshCoins();
+    UI.refreshCalendarBadge();
+
+    return { index: st.index, coins, powerup, crate, day: st.day + 1 };
   }
 
   handleDoubleTap(px, py) {
@@ -2176,5 +2208,6 @@ if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) 
     UI,
     getLevel,
     pets: { petBuffs, petActive, levelForXp, rollCrate, rollLegendaryCrate, getPet },
+    calendar: { calendarStatus, advanceCalendar, todayKey },
   };
 }

@@ -180,6 +180,16 @@
           </span>
           <span class="tile-label">Pets</span>
         </button>
+        <button class="tile t-calendar" id="btn-calendar">
+          <span class="tile-ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
+              <rect x="4" y="9" width="16" height="11" rx="2" stroke="currentColor" stroke-width="1.9" />
+              <path d="M4 13h16M12 9V6.5M12 6.5c-1.2-2-3.5-1.6-3.5.1 0 1 .9 1.4 3.5 1.4M12 6.5c1.2-2 3.5-1.6 3.5.1 0 1-.9 1.4-3.5 1.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </span>
+          <span class="tile-label">Gifts</span>
+          <span class="tile-badge hidden" id="cal-badge" aria-hidden="true"></span>
+        </button>
       </div>
       <button class="btn btn-ghost menu-help" id="btn-tutorial">
         <span class="help-ic" aria-hidden="true">
@@ -249,6 +259,18 @@
         <div class="achv-count" id="achv-count">All collected</div>
       </div>
       <div class="achv-list" id="achv-list"></div>
+    </div>
+
+    <!-- Login calendar / daily gifts -->
+    <div id="calendar" class="overlay screen hidden">
+      <div class="screen-head">
+        <button class="icon-btn" id="cal-back" aria-label="Back">‹</button>
+        <h2>Daily Gifts</h2>
+        <div class="cal-status" id="cal-status"></div>
+      </div>
+      <p class="cal-intro">Come back every day for a reward. Day 7 holds the grand prize!</p>
+      <div class="cal-grid" id="cal-grid"></div>
+      <button class="btn btn-primary cal-claim" id="cal-claim">Claim today's gift</button>
     </div>
 
     <!-- Pets -->

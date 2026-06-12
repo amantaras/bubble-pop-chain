@@ -23,6 +23,12 @@ import {
   claimableCount,
 } from "./achievements.js";
 import {
+  CALENDAR_REWARDS,
+  CALENDAR_CYCLE,
+  calendarStatus,
+} from "./calendar.js";
+import { todayKey } from "./rng.js";
+import {
   PET_CATALOG,
   COSMETICS,
   getPet,
@@ -52,6 +58,8 @@ class UIManager {
       "level-grid", "shop-list", "theme-list",
       "achievements", "achv-list", "achv-count", "btn-achievements", "achv-back",
       "achv-badge",
+      "calendar", "cal-grid", "cal-status", "cal-claim", "cal-back",
+      "btn-calendar", "cal-badge",
       "chest", "chest-icon", "chest-title", "chest-sub", "chest-rewards", "chest-ok",
       "cb-toggle", "cb-toggle-state",
       "hints-toggle", "hints-toggle-state",
@@ -98,6 +106,7 @@ class UIManager {
     click("btn-shop", () => this.showScreen("shop"));
     click("btn-themes", () => this.showScreen("themes"));
     click("btn-achievements", () => this.showScreen("achievements"));
+    click("btn-calendar", () => this.showScreen("calendar"));
     click("btn-pets", () => this.openPetOverlay());
     click("btn-tutorial", () => this.cb.startTutorial && this.cb.startTutorial());
 
@@ -109,6 +118,8 @@ class UIManager {
     click("shop-back", () => this.closeShop());
     click("themes-back", () => this.showScreen("menu"));
     click("achv-back", () => this.showScreen("menu"));
+    click("cal-back", () => this.showScreen("menu"));
+    click("cal-claim", () => this._claimCalendar());
     click("pets-back", () => this.closePetOverlay());
     click("chest-ok", () => this.showScreen("achievements"));
     click("btn-back", () => this.cb.quitToMenu && this.cb.quitToMenu());
@@ -243,6 +254,7 @@ class UIManager {
       this.updateContinue();
       this.updateDailySummary();
       this.refreshAchievementsBadge();
+      this.refreshCalendarBadge();
     }
     if (name === "levelmap") this.buildLevelMap();
     if (name === "shop") this.buildShop();
@@ -252,6 +264,7 @@ class UIManager {
       this._refreshHintsToggle();
     }
     if (name === "achievements") this.buildAchievements();
+    if (name === "calendar") this.buildCalendar();
   }
 
   // Open the shop focused on a specific power-up, highlighting and scrolling to
@@ -799,6 +812,91 @@ class UIManager {
     const n = claimableCount(progress, claims);
     if (n > 0) {
       badge.textContent = n > 9 ? "9+" : String(n);
+      badge.classList.remove("hidden");
+    } else {
+      badge.classList.add("hidden");
+    }
+  }
+
+  // ---- Login calendar / daily gifts ------------------------------------
+  _calRewardLabel(reward) {
+    const bits = [];
+    if (reward.coins) bits.push(`${reward.coins} coins`);
+    if (reward.powerup) {
+      const info = POWERUP_INFO[reward.powerup] || {};
+      bits.push(`${info.icon || "✨"} ${info.name || reward.powerup}`);
+    }
+    if (reward.crate) bits.push(`📦 crate`);
+    return bits.join(" + ");
+  }
+
+  _calRewardIcon(reward) {
+    if (reward.crate) return "📦";
+    if (reward.powerup) {
+      const info = POWERUP_INFO[reward.powerup] || {};
+      return info.icon || "✨";
+    }
+    return "🪙";
+  }
+
+  buildCalendar() {
+    const grid = this.el["cal-grid"];
+    if (!grid) return;
+    const state = Storage.get("loginCalendar");
+    const st = calendarStatus(state, todayKey());
+    grid.innerHTML = "";
+
+    CALENDAR_REWARDS.forEach((reward, i) => {
+      const cell = document.createElement("div");
+      let cls = "cal-day";
+      // Within the current cycle, days before the next index are collected,
+      // the next index is today's (claimable), and the rest are upcoming.
+      if (i < st.index) cls += " collected";
+      else if (i === st.index && st.claimable) cls += " today";
+      else if (i === st.index && !st.claimable) cls += " done";
+      if (i === CALENDAR_CYCLE - 1) cls += " grand";
+      cell.className = cls;
+      cell.innerHTML =
+        `<span class="cal-daynum">Day ${i + 1}</span>` +
+        `<span class="cal-icon">${this._calRewardIcon(reward)}</span>` +
+        `<span class="cal-amt">${this._calRewardLabel(reward)}</span>`;
+      grid.appendChild(cell);
+    });
+
+    const status = this.el["cal-status"];
+    if (status) status.textContent = `Day ${(st.day % CALENDAR_CYCLE) + 1}/${CALENDAR_CYCLE}`;
+
+    const btn = this.el["cal-claim"];
+    if (btn) {
+      btn.disabled = !st.claimable;
+      btn.textContent = st.claimable ? "Claim today's gift" : "Come back tomorrow";
+    }
+    this.refreshCalendarBadge();
+  }
+
+  _claimCalendar() {
+    if (!this.cb.claimCalendar) return;
+    const reward = this.cb.claimCalendar();
+    if (!reward) {
+      this.buildCalendar();
+      return;
+    }
+    Audio.coin();
+    const bits = [];
+    if (reward.coins) bits.push(`+${reward.coins} coins`);
+    if (reward.powerup) bits.push(`${reward.powerup.icon} ${reward.powerup.name}`);
+    if (reward.crate) bits.push(`📦 crate`);
+    this.toast(`🎁 ${bits.join(" + ")}`);
+    this.buildCalendar();
+  }
+
+  // Show a badge on the menu's Gifts tile whenever today's reward is unclaimed.
+  refreshCalendarBadge() {
+    const badge = this.el["cal-badge"];
+    if (!badge) return;
+    const st = calendarStatus(Storage.get("loginCalendar"), todayKey());
+    if (st.claimable) {
+      badge.textContent = "!";
       badge.classList.remove("hidden");
     } else {
       badge.classList.add("hidden");

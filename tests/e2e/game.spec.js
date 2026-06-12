@@ -117,6 +117,7 @@ test.describe("menu & navigation (UI)", () => {
       "btn-themes",
       "btn-achievements",
       "btn-pets",
+      "btn-calendar",
       "btn-tutorial",
     ]) {
       await expect(page.locator(`#${id}`)).toBeVisible();
@@ -1120,6 +1121,68 @@ test.describe("achievements (tiered chests & rewards)", () => {
     );
     expect(st.claims).toEqual({});
     expect(st.progress.pops || 0).toBe(0);
+  });
+});
+
+test.describe("login calendar (daily gifts)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("Gifts screen opens from the menu and lists the 7-day cycle", async ({
+    page,
+  }) => {
+    await page.locator("#btn-calendar").click();
+    await expect(page.locator("#calendar")).toBeVisible();
+    expect(await page.locator("#cal-grid .cal-day").count()).toBe(7);
+    // Fresh save: day 1 is today's claimable reward.
+    await expect(page.locator(".cal-day.today")).toBeVisible();
+    await expect(page.locator("#cal-claim")).toBeEnabled();
+    await page.locator("#cal-back").click();
+    await expect(page.locator("#menu")).toBeVisible();
+  });
+
+  test("a fresh save shows the claimable badge on the menu Gifts tile", async ({
+    page,
+  }) => {
+    await expect(page.locator("#cal-badge")).toBeVisible();
+  });
+
+  test("claiming today's gift pays the reward and locks until tomorrow", async ({
+    page,
+  }) => {
+    await page.locator("#btn-calendar").click();
+    await expect(page.locator("#calendar")).toBeVisible();
+
+    const before = await page.evaluate(() => window.__bpc.Economy.coins);
+    await page.locator("#cal-claim").click();
+
+    const res = await page.evaluate(() => {
+      const cal = window.__bpc.calendar;
+      const state = window.__bpc.Storage.get("loginCalendar");
+      return {
+        coins: window.__bpc.Economy.coins,
+        day: state.day,
+        claimable: cal.calendarStatus(state, cal.todayKey()).claimable,
+      };
+    });
+    // Day 1 reward is 50 coins.
+    expect(res.coins).toBe(before + 50);
+    expect(res.day).toBe(1);
+    expect(res.claimable).toBe(false);
+    // The claim button is now disabled and the badge clears.
+    await expect(page.locator("#cal-claim")).toBeDisabled();
+    await page.locator("#cal-back").click();
+    await expect(page.locator("#cal-badge")).toBeHidden();
+  });
+
+  test("claiming twice in one day does not double-pay", async ({ page }) => {
+    const res = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const first = g.claimCalendar();
+      const second = g.claimCalendar();
+      return { first, second };
+    });
+    expect(res.first).not.toBeNull();
+    expect(res.second).toBeNull();
   });
 });
 

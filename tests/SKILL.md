@@ -59,6 +59,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   the idle move-hint scan (`findHint` returns the largest poppable group or
   `null` on a deadlock) and the per-level best-score store (`recordLevelScore`
   keeps the highest and flags a genuine new best),
+  the login calendar (`calendarStatus`/`advanceCalendar`: 7-day cycle, one claim
+  per day, reward index wraps after a full week),
   the pet companion system (catalog integrity + premium flags, XP/level curve,
   passive buff scaling, active-pet cooldown/strength/count scaling, seeded
   crate rolls including the rare premium drop chance + the boosted Legendary

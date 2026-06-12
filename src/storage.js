@@ -29,6 +29,8 @@ const DEFAULT_SAVE = {
   },
   firstRunDone: false,
   activeSession: null, // snapshot of an in-progress campaign level (resume)
+  // Rolling 7-day login reward cycle: { lastClaim: "YYYY-MM-DD"|null, day }.
+  loginCalendar: { lastClaim: null, day: 0 },
   milestonesCleared: [], // level ids whose one-time milestone reward was paid
   // Lifetime achievement state: `progress` accumulates the lifetime counters
   // the tiered categories test against, and `claims` maps a category id to the

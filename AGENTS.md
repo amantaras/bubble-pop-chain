@@ -123,6 +123,22 @@ never re‑discovered the hard way.
 - **Daily retention** (`daily.js`): rotating seeded modifier, three tiered
   goals → daily stars, a 7‑day reward cycle, and a streak‑freeze token that
   rescues one missed day.
+- **Login calendar / daily gifts** (`calendar.js`, pure; `storage.js`
+  `loginCalendar`): a rolling **7-day login reward cycle** that advances **once
+  per calendar day** the player claims. `CALENDAR_REWARDS` is the 7-day table
+  (escalating coins, two free power-ups, and a **day-7 grand prize** of big
+  coins + a pet crate). The module is pure/deterministic: `calendarStatus(state,
+  key)` returns `{ claimable, index, reward, day, claimedToday }` (the reward to
+  claim next is `day % CALENDAR_CYCLE`), and `advanceCalendar(state, key)`
+  produces the post-claim state (`{ lastClaim, day+1 }`). State lives in
+  `storage.js` `loginCalendar: { lastClaim, day }` (deep-merges into old saves).
+  `Game.claimCalendar()` (idempotent per `todayKey()`) grants the reward via
+  `Economy.addCoins`/`addPowerup` + `Storage.addCrates`, advances the state, and
+  refreshes the UI. The **Gifts screen** (`ui.js` `buildCalendar`, `#calendar`,
+  menu **Gifts** tile) renders the 7 day cells (collected / today / upcoming,
+  with the grand prize spanning the last row) and a Claim button; a menu tile
+  badge (`refreshCalendarBadge`, `#cal-badge`) shows when today's gift is
+  unclaimed. Like other meta/reward displays this gets **no tutorial step**.
 - **Falling events** (`events.js`, `main.js` `_updateEvents`/`_spawnEvent`,
   `ui.js` `spawnFallingEvent`): every ~12–20s a 🎁 **gift** or ⚠️ **problem**
   token drifts down the screen (`#events-layer`, `pointer-events:none` so it
@@ -325,6 +341,7 @@ src/
   rng.js            # mulberry32 seeded RNG, todayKey
   economy.js        # Coins + power-up inventory/prices
   daily.js          # Daily challenge + streak logic
+  calendar.js       # Login calendar / daily gifts (pure: 7-day reward cycle)
   events.js         # Falling gift/problem events (pure: delay/type/reward rolls)
   pets.js           # Pet companions (pure: catalog, buffs, active actions, crate rolls)
   monetization.js   # F2P abstraction (ads/IAP) — MOCK provider, pluggable  tutorial.js       # Gated step-by-step onboarding: TUTORIAL_STEPS + Tutorial class  ui.js             # All DOM UI: screens, level map, shop, themes, HUD, modals
