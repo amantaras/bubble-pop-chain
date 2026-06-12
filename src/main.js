@@ -171,7 +171,9 @@ class Game {
   }
 
   resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    // Render at the device's full pixel ratio (capped at 3) so bubbles stay
+    // pin-sharp on high-DPI/Retina screens instead of being upscaled and blurry.
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
     this.W = window.innerWidth;
     this.H = window.innerHeight;
     this.canvas.width = Math.floor(this.W * dpr);
