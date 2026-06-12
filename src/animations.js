@@ -118,8 +118,11 @@ export class PetAnim {
   //   opts.targets    — [{ x, y }, ...] affected bubble centres (pixels)
   //   opts.color      — accent colour for trails/sparkles
   //   opts.onHit      — (pick) callback(i) fired as each target is pecked, in
-  //                     sequence, so the game can reveal the destruction FX
-  //                     one-by-one (the model is already cleared synchronously)
+  //                     sequence, so the game can destroy each bubble exactly
+  //                     when the hawk's beak reaches it (the bubble is still on
+  //                     the board until then, so it never pecks an empty cell)
+  //   opts.onDone     — (pick) callback fired once when the flourish ends, so
+  //                     the game can settle gravity + re-evaluate the board
   //   opts.board      — (optional) live board, so the animation can track
   //                     bubbles that move/vanish while it plays
   //   opts.anchorCell — (optional) { c, r } grid anchor (used with board)
@@ -161,8 +164,11 @@ export class PetAnim {
       board: kind === "gather" ? opts.board || null : null,
       anchorCell: opts.anchorCell || null,
       cells: Array.isArray(opts.cells) ? opts.cells : null,
-      // Pick fires a per-target callback in sequence as the hawk pecks each one.
+      // Pick fires a per-target callback in sequence as the hawk pecks each one,
+      // then a single onDone once the whole flourish has finished.
       onHit: kind === "pick" && typeof opts.onHit === "function" ? opts.onHit : null,
+      onDone: kind === "pick" && typeof opts.onDone === "function" ? opts.onDone : null,
+      done: false,
       hit: [],
       hitAt: [],
       life: 0,
@@ -221,7 +227,24 @@ export class PetAnim {
           }
         }
       }
-      if (it.life >= it.enter + it.act + it.exit) this.items.splice(i, 1);
+      if (it.life >= it.enter + it.act + it.exit) {
+        // Make sure every queued peck has fired (so no target is skipped if the
+        // act phase elapsed in a single big frame), then resolve the board.
+        if (it.kind === "pick" && it.onHit && it.targets.length) {
+          for (let k = 0; k < it.targets.length; k++) {
+            if (!it.hit[k]) {
+              it.hit[k] = true;
+              it.hitAt[k] = it.life;
+              it.onHit(k);
+            }
+          }
+        }
+        if (it.kind === "pick" && it.onDone && !it.done) {
+          it.done = true;
+          it.onDone();
+        }
+        this.items.splice(i, 1);
+      }
     }
   }
 
@@ -234,14 +257,18 @@ export class PetAnim {
     // the player has cleared while the animation was still playing.
     if (it.board) this._syncLive(it);
     const L = it.life;
-    const hoverX = it.cx;
-    const hoverY = it.cy - 60;
+    // Talon should fly straight to the first bubble it'll peck (not the empty
+    // centroid between targets), so it always visibly heads to a real bubble.
+    const firstTarget =
+      it.kind === "pick" && it.targets.length ? it.targets[0] : null;
+    const hoverX = firstTarget ? firstTarget.x : it.cx;
+    const hoverY = (firstTarget ? firstTarget.y : it.cy) - 60;
     // Entry origin depends on ability: Rover dashes in from the left, Whiskers
     // and Talon drop down from above, Comet streaks in from the top-left
     // diagonal.
     const origin =
       it.kind === "cleanse" || it.kind === "pick"
-        ? { x: it.cx, y: it.cy - 320 }
+        ? { x: hoverX, y: hoverY - 260 }
         : it.kind === "diagonal"
           ? { x: it.cx - 280, y: it.cy - 280 }
           : { x: it.cx - 300, y: it.cy - 30 };
@@ -294,8 +321,14 @@ export class PetAnim {
       }
     } else {
       const p = Easing.inQuad((L - it.enter - it.act) / it.exit);
-      px = hoverX;
-      py = hoverY - p * 120;
+      // Talon lifts off from the LAST bubble it pecked (not back at the first),
+      // so the exit reads as a smooth climb away rather than a jump.
+      const lastTarget =
+        it.kind === "pick" && it.targets.length
+          ? it.targets[it.targets.length - 1]
+          : null;
+      px = lastTarget ? lastTarget.x : hoverX;
+      py = (lastTarget ? lastTarget.y - 60 : hoverY) - p * 120;
       scale = 1.1 - p * 0.6;
       alpha = 1 - p;
       actP = 1;

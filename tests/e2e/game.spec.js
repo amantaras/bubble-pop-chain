@@ -2986,7 +2986,9 @@ test.describe("pet companions (collection & buffs)", () => {
         return n;
       })();
       g._petPick(g.session.petActive);
-      const afterNonZero = (() => {
+      // Talon now destroys each bubble exactly when its beak reaches it, so the
+      // lone bubbles are still on the board the instant the flourish starts …
+      const duringNonZero = (() => {
         let n = 0;
         for (let c = 0; c < b.cols; c++)
           for (let r = 0; r < b.rows; r++)
@@ -2996,7 +2998,7 @@ test.describe("pet companions (collection & buffs)", () => {
       return {
         ranked,
         beforeNonZero,
-        afterNonZero,
+        duringNonZero,
         busy: g.petAnim.busy,
         kind: g.petAnim.items[0] && g.petAnim.items[0].kind,
       };
@@ -3004,10 +3006,23 @@ test.describe("pet companions (collection & buffs)", () => {
     // The two lone bubbles were the top-ranked isolated cells …
     expect(result.ranked).toHaveLength(2);
     expect(result.beforeNonZero).toBe(2);
-    // … and Talon picked them off (after gravity, no off-colour bubbles remain).
-    expect(result.afterNonZero).toBe(0);
+    // … they still exist while the hawk is mid-flourish (no instant teleport-pop) …
+    expect(result.duringNonZero).toBe(2);
     expect(result.busy).toBe(true);
     expect(result.kind).toBe("pick");
+    // … and once Talon has finished pecking, both off-colour bubbles are gone.
+    await page.waitForFunction(() => !window.__bpc.game.petAnim.busy, null, {
+      timeout: 8000,
+    });
+    const afterNonZero = await page.evaluate(() => {
+      const b = window.__bpc.game.session.board;
+      let n = 0;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++)
+          if (b.grid[c][r] !== -1 && b.grid[c][r] !== 0) n++;
+      return n;
+    });
+    expect(afterNonZero).toBe(0);
   });
 
   test("the Quake pet reshuffles a jammed board into fresh matches", async ({

@@ -343,6 +343,7 @@ class Game {
       petBuffs: buffs,
       petActive: active,
       petTimer: active ? active.cooldown : 0,
+      petPicking: false,
       shiftTokens: mode === "campaign" ? 0 : 5,
       stats: this._newStats(),
       bossCoreTotal,
@@ -453,6 +454,7 @@ class Game {
       petBuffs: this._equippedBuffs(),
       petActive: this._equippedActive(),
       petTimer: (this._equippedActive() || { cooldown: 0 }).cooldown,
+      petPicking: false,
       shiftTokens: 0,
       stats: snap.stats || this._newStats(),
       bossCoreTotal: snap.bossCoreTotal || board.frozenRemaining(),
@@ -1647,16 +1649,20 @@ class Game {
   }
 
   // 🦅 Talon: hunt the MOST isolated bubbles and pick them off one by one.
-  // The bubbles are removed from the model immediately (so afterMove's win /
-  // deadlock checks stay correct), but the destruction is REVEALED one-by-one
-  // by a sequenced peck animation whose `onHit` callback fires each burst as
-  // the hawk reaches that bubble.
+  // Each bubble stays on the board until the hawk's beak actually reaches it,
+  // then it's destroyed in that beat's `onHit` — so Talon never pecks an empty
+  // cell. Gravity settles and the board is re-evaluated once, in `onDone`, when
+  // the whole flourish ends (afterMove defers its checks via `session.petPicking`).
   _petPick(act) {
     const s = this.session;
     const cells = s.board.mostIsolatedCells(Math.max(1, act.count));
     if (!cells.length) return;
-    // Capture each bubble's pixel position + colour BEFORE removing it, so the
-    // sequenced peck FX can play over the original spots.
+    // Capture each target's resting pixel + colour up front. Crucially, the
+    // bubbles are NOT removed yet — the hawk destroys each one exactly when its
+    // beak reaches it (see onHit below), and gravity only settles once the whole
+    // flourish ends (onDone). This guarantees Talon always pecks a bubble that
+    // actually exists, instead of stabbing at an empty cell whose bubble was
+    // already cleared and dropped away.
     const pixels = cells.map((cell) => s.board.targetPixel(cell.c, cell.r));
     const palette = this.theme.bubbles;
     const hexes = cells.map((cell) => {
@@ -1669,10 +1675,9 @@ class Game {
       feverPoints(raw, s.feverActive) * s.petBuffs.scoreMult
     );
     s.score += points;
-    // Clear the model now (one settle for the whole pick).
-    for (const cell of cells) s.board.forceRemove(cell.c, cell.r);
-    s.board.settle();
-    if (s.stats) s.stats.cleared += cells.length;
+    // The pick now resolves the board itself when the animation finishes, so
+    // afterMove must defer win/deadlock checks until then (guarded by this flag).
+    s.petPicking = true;
     const anchor = pixels.reduce(
       (a, t) => ({ x: a.x + t.x / pixels.length, y: a.y + t.y / pixels.length }),
       { x: 0, y: 0 }
@@ -1684,13 +1689,28 @@ class Game {
       targets: pixels,
       color: "#ffd35b",
       onHit: (i) => {
+        const cell = cells[i];
         const t = pixels[i];
-        if (!t) return;
+        if (!cell || !t) return;
+        // Destroy the bubble right as the beak lands on it — but only if it's
+        // still there (it may have been popped by the player mid-flourish).
+        if (s.board && s.board.grid[cell.c][cell.r] !== -1) {
+          s.board.forceRemove(cell.c, cell.r);
+          if (s.stats) s.stats.cleared += 1;
+        }
         this.particles.burst(t.x, t.y, hexes[i] || "#ffd35b", 12, 0.7);
         this.particles.sparkle(t.x, t.y, "#ffffff", 6);
         this.shake.add(0.12);
         Audio.pop(1, 2);
         vibrate(8);
+      },
+      onDone: () => {
+        // All pecks have landed: drop everything into place, then let the board
+        // resolve normally (win / deadlock / next pet action).
+        if (s.board) s.board.settle();
+        s.petPicking = false;
+        this.refreshHud();
+        this.afterMove();
       },
     });
     this.floating.spawn(anchor.x, anchor.y - 36, "Pick!", "#ffd35b", 26);
@@ -1997,11 +2017,19 @@ class Game {
     if (!s || s.ended) return;
     // A last-bubble finale is mid-flight; it will resolve the board itself.
     if (s.finishing) return;
+    // Talon's pick is mid-flourish (bubbles are being pecked off one by one). It
+    // will settle gravity and call afterMove() again itself when it finishes, so
+    // skip win/deadlock checks — and don't let another pet action fire over it.
+    if (s.petPicking) return;
 
     // Active pet companions physically help on the board every few moves
     // (gathering a colour, or zapping isolated bubbles) before we evaluate the
     // board state — so their help counts toward the win/deadlock checks below.
     this._maybePetAction();
+
+    // _maybePetAction may have just launched Talon's pick (async). If so, defer
+    // the rest until its onDone re-runs afterMove on the settled board.
+    if (s.petPicking) return;
 
     // A single un-poppable bubble is left: rather than strand the player on a
     // jam (a lone bubble can never form a group of 2+), give it a celebratory

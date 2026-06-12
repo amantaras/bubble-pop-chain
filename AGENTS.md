@@ -394,10 +394,13 @@ never re‑discovered the hard way.
   orthogonal flood-fill behind tapping can never clear on its own — and
   **Talon 🦅** (a `pick`) hunts the **most isolated** bubbles (walled in by edges,
   gaps or other colours — `grid.mostIsolatedCells`) and **picks them off one by
-  one** (`_petPick`): the model clears synchronously (so `afterMove`'s win /
-  deadlock checks stay correct) while a sequenced peck animation reveals each
-  destruction in turn via an `onHit(i)` callback (its `count` scales 2→6 by
-  level). Four **elemental** active board pets round out the free roster:
+  one** (`_petPick`): each bubble stays on the board until the hawk's beak
+  actually reaches it, then it's destroyed in that beat's `onHit(i)` callback —
+  so Talon never stabs at an empty cell. Gravity settles and the board is
+  re-evaluated **once**, in the animation's `onDone`, which flips
+  `session.petPicking` off and re-runs `afterMove`; while the flourish is live
+  `afterMove` early-returns on `session.petPicking` (no premature win/deadlock
+  check, no overlapping pet action). Its `count` scales 2→6 by level. Four **elemental** active board pets round out the free roster:
   **Quake 🌍** (`quake`, rare) is a *match-maker* — a board-wide tremor that
   resettles every bubble so identical colours land together in big connected
   groups (`grid.quakeRegroup` → `_petQuake`; colours are conserved, it creates
@@ -432,8 +435,11 @@ never re‑discovered the hard way.
   🐱** pounces and claw-slashes the lone bubbles (`cleanse`), **Comet ☄️**
   streaks in diagonally and fires a bright beam along the popped streak
   (`diagonal`), and **Talon 🦅** swoops down and pecks each isolated bubble in
-  sequence (`pick`, firing its `onHit` burst per peck). The animation is
-  purely cosmetic; the board change happens immediately when triggered.
+  sequence (`pick`, destroying each bubble in its `onHit` as the beak lands and
+  settling/re-evaluating in `onDone`). The other pets' board change happens
+  immediately when triggered (the animation is cosmetic); Talon's pick is the
+  exception — it removes each bubble in step with the peck so nothing is pecked
+  after it has already vanished.
   Pets gain XP each level clear (`_awardPetXp`, `PET_XP_PER_LEVEL`, cap
   `MAX_PET_LEVEL`). **Not pay-to-win**: pets are won from **crates**
   (`rollCrate`, seeded; `buyCrate` for `CRATE_COST` coins, treasure milestones
