@@ -15,6 +15,29 @@ export function comboMultiplier(combo) {
   return Math.min(1 + combo * 0.5, 5);
 }
 
+// Escalating combo feedback. As consecutive pops climb, the on-screen combo
+// banner ramps through named tiers with progressively hotter styling. The
+// `min` is the combo count at which the tier kicks in; `className` keys the
+// banner's visual intensity (defined in styles.css). Ordered low -> high.
+export const COMBO_TIERS = [
+  { min: 2, label: "Nice", className: "ct-1" },
+  { min: 4, label: "Great", className: "ct-2" },
+  { min: 6, label: "Awesome", className: "ct-3" },
+  { min: 9, label: "Amazing", className: "ct-4" },
+  { min: 13, label: "Unstoppable", className: "ct-5" },
+];
+
+// Resolve the highest combo tier reached for a given combo count, or null when
+// the combo is below the first threshold (no banner). Returns a copy with the
+// 0-based `tier` index so callers can drive escalating effects.
+export function comboTier(combo) {
+  let found = null;
+  for (let i = 0; i < COMBO_TIERS.length; i++) {
+    if (combo >= COMBO_TIERS[i].min) found = { tier: i, ...COMBO_TIERS[i] };
+  }
+  return found;
+}
+
 // Clearing the whole board grants a big bonus proportional to moves left.
 export function clearBonus(movesLeft) {
   return 500 + movesLeft * 150;

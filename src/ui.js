@@ -1693,10 +1693,13 @@ class UIManager {
     document.querySelectorAll(".powerup-btn").forEach((b) => b.classList.remove("armed"));
   }
 
-  showCombo(text) {
+  showCombo(text, cls) {
     const b = this.el["combo-banner"];
     b.textContent = text;
-    b.classList.remove("hidden", "show");
+    // Reset to the base banner, then apply this tier's escalating intensity
+    // class (ct-1..ct-5) so higher combos read bigger/hotter.
+    b.className = "combo-banner";
+    if (cls) b.classList.add(cls);
     void b.offsetWidth; // reflow to restart animation
     b.classList.add("show");
   }

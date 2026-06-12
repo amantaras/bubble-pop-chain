@@ -1016,6 +1016,69 @@ test.describe("power-ups (UI arm + apply)", () => {
   });
 });
 
+test.describe("combo escalator (#5)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("the combo banner escalates its tier with the chain length", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(400);
+
+    // Pop a group with the combo one short of the top threshold (12) so the
+    // resolving pop lands at ×13 → the top "Unstoppable" tier (ct-5).
+    const popped = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const s = g.session;
+      s.combo = 12;
+      s.comboTimer = 99;
+      const b = s.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          if (b.grid[c][r] === -1 || b.types[c][r] !== 0) continue;
+          if (b.getGroupAt(c, r).length >= 2) {
+            g.popAt(c, r);
+            return true;
+          }
+        }
+      return false;
+    });
+    expect(popped).toBe(true);
+
+    const banner = page.locator("#combo-banner");
+    await expect(banner).toHaveClass(/ct-5/);
+    await expect(banner).toContainText("Unstoppable");
+    await expect(banner).toContainText("×13");
+  });
+
+  test("a small chain shows the entry tier", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(400);
+
+    const popped = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const s = g.session;
+      s.combo = 1; // resolving pop lands at ×2 → entry tier ct-1
+      s.comboTimer = 99;
+      const b = s.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          if (b.grid[c][r] === -1 || b.types[c][r] !== 0) continue;
+          if (b.getGroupAt(c, r).length >= 2) {
+            g.popAt(c, r);
+            return true;
+          }
+        }
+      return false;
+    });
+    expect(popped).toBe(true);
+
+    const banner = page.locator("#combo-banner");
+    await expect(banner).toHaveClass(/ct-1/);
+    await expect(banner).toContainText("Nice");
+  });
+});
+
 test.describe("fever mode (double points)", () => {
   test.beforeEach(({ page }) => openGame(page));
 

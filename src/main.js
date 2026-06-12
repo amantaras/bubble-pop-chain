@@ -22,6 +22,7 @@ import {
 import {
   groupScore,
   comboMultiplier,
+  comboTier,
   clearBonus,
   starsForScore,
   coinReward,
@@ -1750,7 +1751,8 @@ class Game {
     this.shake.add(Math.min(0.5, 0.08 + groupSize * 0.02) * shakePower);
 
     if (combo >= 2) {
-      UI.showCombo(`Combo ×${combo}!`);
+      const t = comboTier(combo);
+      if (t) UI.showCombo(`${t.label}! ×${combo}`, t.className);
     }
   }
 

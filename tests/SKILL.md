@@ -53,7 +53,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   daily-streak rules, theme unlock logic, storage persistence, the
   monetization cadence (forced interstitials gated until level 7), gesture
   swipe classification, the Power-meter charge curve + Charged-Blast AoE,
-  Fever-mode scoring (gauge gain + double-points), the achievements engine
+  Fever-mode scoring (gauge gain + double-points), the combo escalator
+  (`comboTier`/`COMBO_TIERS` mapping a combo count to its named tier +
+  `ct-1..ct-5` class), the achievements engine
   (lifetime progress merge, threshold unlocks, coin payouts, and
   `aggregateChestRewards` which merges many chests into one summary — summing
   coins, merging power-ups by id, and gathering pets + categories for Collect All),
@@ -102,7 +104,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   gestures (long-press Preview, double-tap Charged Blast, swipe row-shift),
   special-bubble spawning + reload persistence, lightning row/column discharge,
   no forced ads before level 7,
-  Fever mode (double points + gauge lighting up), the achievements flow
+  Fever mode (double points + gauge lighting up), the combo escalator
+  (the banner's tier class + label escalating with the chain length),
+  the achievements flow
   (badge unlock + coin reward, the Achievements screen, tutorial play excluded,
   and the Collect All button which batch-collects every ready chest in one tap
   and shows the aggregate reveal),

@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   groupScore,
   comboMultiplier,
+  comboTier,
+  COMBO_TIERS,
   clearBonus,
   starsForScore,
   coinReward,
@@ -31,6 +33,31 @@ describe("scoring", () => {
     expect(comboMultiplier(0)).toBe(1);
     expect(comboMultiplier(2)).toBe(2);
     expect(comboMultiplier(100)).toBe(5);
+  });
+
+  it("comboTier is null below the first threshold", () => {
+    expect(comboTier(0)).toBeNull();
+    expect(comboTier(1)).toBeNull();
+  });
+
+  it("comboTier escalates through the tiers at their thresholds", () => {
+    expect(comboTier(2).className).toBe("ct-1");
+    expect(comboTier(3).className).toBe("ct-1");
+    expect(comboTier(4).className).toBe("ct-2");
+    expect(comboTier(6).className).toBe("ct-3");
+    expect(comboTier(9).className).toBe("ct-4");
+    expect(comboTier(13).className).toBe("ct-5");
+    expect(comboTier(99).className).toBe("ct-5"); // stays at the top tier
+  });
+
+  it("comboTier returns ascending tiers with labels and a 0-based index", () => {
+    expect(comboTier(2).tier).toBe(0);
+    expect(comboTier(13).tier).toBe(COMBO_TIERS.length - 1);
+    expect(typeof comboTier(2).label).toBe("string");
+    // thresholds strictly increase so tiers can never overlap
+    for (let i = 1; i < COMBO_TIERS.length; i++) {
+      expect(COMBO_TIERS[i].min).toBeGreaterThan(COMBO_TIERS[i - 1].min);
+    }
   });
 
   it("clearBonus increases with moves left", () => {

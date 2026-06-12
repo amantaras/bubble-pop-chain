@@ -30,6 +30,15 @@ never re‑discovered the hard way.
   glows hot and drains over the duration (`Game.update`), then resets. Fever
   state (`fever`/`feverActive`/`feverTimer`) lives on the session; the tutorial
   demos it via `tutorialGrant("fever")` → `_startFever`.
+- **Combo escalator** (`scoring.js` `comboTier`/`COMBO_TIERS`, `ui.js`
+  `showCombo`): back-to-back pops build `session.combo`, and the on-screen combo
+  banner **escalates through named tiers** as the chain climbs — `comboTier(n)`
+  (pure) maps the combo count to the highest reached tier (Nice ×2, Great ×4,
+  Awesome ×6, Amazing ×9, Unstoppable ×13) and returns its `className`
+  (`ct-1..ct-5`). `UI.showCombo(text, cls)` swaps that class so higher combos
+  read bigger/hotter (ct-5 gets its own punchier `comboPopBig` animation). This
+  amplifies the existing combo loop (no new gesture) and reuses the tutorial's
+  **combo** step — **no extra tutorial step**.
 - **Power-ups** (`economy.js` `POWERUP_INFO`, armed from the HUD): **Bomb** (3×3),
   **Color Clear** (one colour), **Shuffle**, **Chain Bolt** (`grid.crossCells`,
   full row + column), **Pick** (single bubble), and the premium **Magnet**
