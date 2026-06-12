@@ -1,7 +1,7 @@
 // Game orchestrator: canvas loop, state machine, and all session logic.
 import { Board, RAINBOW, ICE, LIGHTNING } from "./grid.js";
 import { Renderer } from "./renderer.js";
-import { ParticleSystem } from "./particles.js";
+import { ParticleSystem, popStyleForGroup } from "./particles.js";
 import {
   ScreenShake,
   FloatingText,
@@ -360,6 +360,7 @@ class Game {
     this.paused = false;
     board.layout(this.W, this.H, TOP_INSET, this._bottomInset());
     this.particles.particles.length = 0;
+    this.particles.rings.length = 0;
     this.floating.items.length = 0;
     UI.hideScreens();
     UI.hideModals();
@@ -1730,25 +1731,49 @@ class Game {
     const s = this.session;
     const fx = s.board.removeCells(cells, this.theme);
     if (s.stats) s.stats.cleared += fx.length;
+    // Pick one of five escalating explosion styles by group size — the bigger
+    // the group, the more impactful the animation (more particles, then rings,
+    // a flash bloom and a sparkle shower at the top end).
+    const style = popStyleForGroup(groupSize);
+    this._lastPopStyle = style.style;
     let cx = 0,
       cy = 0;
+    let centreHex = "#ffffff";
     for (const f of fx) {
       const hex = this.theme.bubbles[f.colorIndex % this.theme.bubbles.length];
-      this.particles.burst(f.x, f.y, hex, 10 + Math.min(groupSize, 14), shakePower);
+      centreHex = hex;
+      this.particles.burst(f.x, f.y, hex, style.perCell, style.power * shakePower);
       cx += f.x;
       cy += f.y;
     }
     if (fx.length) {
       cx /= fx.length;
       cy /= fx.length;
+      // Expanding shockwave rings at the group's centre, escalating with style.
+      for (let i = 0; i < style.rings; i++) {
+        this.particles.ring(cx, cy, centreHex, {
+          maxRadius: 46 + groupSize * 6 + i * 28,
+          width: 5 - i,
+          life: 0.42 + i * 0.12,
+        });
+      }
+      // The biggest pops add a soft white flash bloom and a sparkle shower.
+      if (style.flash) {
+        this.particles.ring(cx, cy, "#ffffff", {
+          maxRadius: 38 + groupSize * 3,
+          life: 0.26,
+          fill: true,
+        });
+      }
+      if (style.sparkle) this.particles.sparkle(cx, cy, centreHex, style.sparkle);
       const big = groupSize >= 6;
       this.floating.spawn(cx, cy, `+${points}`, big ? "#ffd35b" : "#ffffff", big ? 32 : 26);
     }
     s.board.settle();
 
     Audio.pop(combo, groupSize);
-    vibrate(groupSize >= 5 ? 24 : 12);
-    this.shake.add(Math.min(0.5, 0.08 + groupSize * 0.02) * shakePower);
+    vibrate(groupSize >= 8 ? 30 : groupSize >= 5 ? 24 : 12);
+    this.shake.add(Math.min(0.6, 0.08 + groupSize * 0.02) * shakePower * (style.flash ? 1.3 : 1));
 
     if (combo >= 2) {
       const t = comboTier(combo);
@@ -2554,5 +2579,6 @@ if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) 
     pets: { petBuffs, petActive, levelForXp, rollCrate, rollLegendaryCrate, getPet },
     calendar: { calendarStatus, advanceCalendar, todayKey },
     season: { seasonStatus, addSeasonXp, claimTier, tierReward },
+    popStyle: popStyleForGroup,
   };
 }

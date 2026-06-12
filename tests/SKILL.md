@@ -92,7 +92,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   deterministic teaching-board generation, and gated step advancement), and the
   particle system (burst/sparkle spawn counts, update-driven expiry, and the
   capped pool that trims the oldest particles so a pop storm can't grow the
-  per-frame draw cost without bound). `localStorage` is a real spec-compliant store
+  per-frame draw cost without bound; plus `popStyleForGroup`'s five escalating
+  group-pop explosion styles and the expanding shockwave `ring` lifecycle/cap).
+  `localStorage` is a real spec-compliant store
   (`tests/setup.js`), reset before each test.
 - **E2E tests** load the real page, click real DOM buttons, and dispatch real
   pointer taps on the `<canvas>`. They cover: menu/level-map/shop/themes
@@ -108,6 +110,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   no forced ads before level 7,
   Fever mode (double points + gauge lighting up), the combo escalator
   (the banner's tier class + label escalating with the chain length),
+  the group-pop explosion styles (a popped group selects the style + shockwave
+  rings matching its size, and a forced big group fires the top "supernova"
+  tier with rings + flash),
   the achievements flow
   (badge unlock + coin reward, the Achievements screen, tutorial play excluded,
   and the Collect All button which batch-collects every ready chest in one tap

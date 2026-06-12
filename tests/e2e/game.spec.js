@@ -1119,6 +1119,90 @@ test.describe("hold-to-buy (auto-repeat purchase)", () => {
   });
 });
 
+test.describe("group-pop explosion animations (5 escalating styles)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("a popped group picks the style + shockwave rings matching its size", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(400);
+
+    const res = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const s = g.session;
+      s.combo = 0;
+      s.comboTimer = 0;
+      const b = s.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          if (b.grid[c][r] === -1 || b.types[c][r] !== 0) continue;
+          const grp = b.getGroupAt(c, r);
+          if (grp.length >= 2) {
+            const size = grp.length;
+            const expected = window.__bpc.popStyle(size);
+            g.particles.rings.length = 0; // isolate this pop's rings
+            g.popAt(c, r);
+            return {
+              size,
+              style: g._lastPopStyle,
+              expStyle: expected.style,
+              rings: g.particles.rings.length,
+              // rings[] holds the shockwave rings plus (for big pops) a flash bloom
+              expRings: expected.rings + (expected.flash ? 1 : 0),
+            };
+          }
+        }
+      return null;
+    });
+    expect(res).not.toBeNull();
+    // The chosen style matches the size→style table, and the emitted rings
+    // match that style (so the animation really does escalate with group size).
+    expect(res.style).toBe(res.expStyle);
+    expect(res.rings).toBe(res.expRings);
+  });
+
+  test("a large group fires the top 'supernova' style with rings + flash", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(400);
+
+    const res = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const s = g.session;
+      s.combo = 0;
+      s.comboTimer = 0;
+      const b = s.board;
+      // Paint the first two columns a single plain colour to guarantee a big
+      // (>=12) connected group, so the pop lands on the top explosion tier.
+      const cols = Math.min(2, b.cols);
+      for (let c = 0; c < cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          if (b.grid[c][r] !== -1) {
+            b.grid[c][r] = 0;
+            b.types[c][r] = 0;
+          }
+        }
+      let target = null;
+      for (let r = b.rows - 1; r >= 0; r--) {
+        if (b.grid[0][r] !== -1) {
+          target = { c: 0, r };
+          break;
+        }
+      }
+      const size = b.getGroupAt(target.c, target.r).length;
+      g.particles.rings.length = 0;
+      g.popAt(target.c, target.r);
+      return { size, style: g._lastPopStyle, rings: g.particles.rings.length };
+    });
+    expect(res.size).toBeGreaterThanOrEqual(12);
+    expect(res.style).toBe(4);
+    // Three escalating shockwave rings plus the white flash bloom.
+    expect(res.rings).toBe(4);
+  });
+});
+
 test.describe("combo escalator (#5)", () => {
   test.beforeEach(({ page }) => openGame(page));
 

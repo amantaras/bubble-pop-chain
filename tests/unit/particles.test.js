@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ParticleSystem } from "../../src/particles.js";
+import { ParticleSystem, popStyleForGroup } from "../../src/particles.js";
 
 describe("ParticleSystem", () => {
   it("burst and sparkle add the requested number of particles", () => {
@@ -41,5 +41,86 @@ describe("ParticleSystem", () => {
     expect(newest.every((p) => p.color === "#new")).toBe(true);
     // The oldest 50 markers were the ones evicted.
     expect(ps.particles.filter((p) => p.color === "#old").length).toBe(550);
+  });
+
+  it("ring() adds an expanding shockwave that update expires after its life", () => {
+    const ps = new ParticleSystem();
+    ps.ring(50, 50, "#0ff", { maxRadius: 80, life: 0.4 });
+    expect(ps.rings.length).toBe(1);
+    ps.update(0.2); // half-life: still alive
+    expect(ps.rings.length).toBe(1);
+    ps.update(0.3); // total 0.5s > 0.4s: expired
+    expect(ps.rings.length).toBe(0);
+  });
+
+  it("caps the live ring pool the same way as particles", () => {
+    const ps = new ParticleSystem();
+    for (let i = 0; i < 200; i++) ps.ring(0, 0, "#fff", { life: 5 });
+    expect(ps.rings.length).toBe(48);
+  });
+
+  it("draw() handles particles, hollow rings and fill flashes without throwing", () => {
+    const ps = new ParticleSystem();
+    ps.burst(10, 10, "#f00", 5, 1);
+    ps.ring(10, 10, "#0f0", { life: 1 });
+    ps.ring(10, 10, "#fff", { life: 1, fill: true });
+    const calls = [];
+    const ctx = new Proxy(
+      {},
+      {
+        get: (_t, prop) => {
+          if (prop === "save" || prop === "restore" || prop === "beginPath" || prop === "arc" || prop === "fill" || prop === "stroke") {
+            return () => calls.push(prop);
+          }
+          return undefined; // settable props (fillStyle, globalAlpha, …) read as undefined
+        },
+        set: () => true,
+      }
+    );
+    expect(() => ps.draw(ctx)).not.toThrow();
+    expect(calls).toContain("fill"); // particle + flash fill
+    expect(calls).toContain("stroke"); // hollow ring
+  });
+});
+
+describe("popStyleForGroup (5 escalating explosion styles)", () => {
+  it("maps group size to one of five distinct, escalating styles", () => {
+    expect(popStyleForGroup(2).style).toBe(0);
+    expect(popStyleForGroup(3).style).toBe(0);
+    expect(popStyleForGroup(4).style).toBe(1);
+    expect(popStyleForGroup(5).style).toBe(1);
+    expect(popStyleForGroup(6).style).toBe(2);
+    expect(popStyleForGroup(7).style).toBe(2);
+    expect(popStyleForGroup(8).style).toBe(3);
+    expect(popStyleForGroup(11).style).toBe(3);
+    expect(popStyleForGroup(12).style).toBe(4);
+    expect(popStyleForGroup(99).style).toBe(4);
+  });
+
+  it("never produces fewer than 5 reachable style indices", () => {
+    const seen = new Set();
+    for (let n = 1; n <= 40; n++) seen.add(popStyleForGroup(n).style);
+    expect([...seen].sort()).toEqual([0, 1, 2, 3, 4]);
+  });
+
+  it("makes bigger groups strictly more impactful (non-decreasing fields)", () => {
+    const sizes = [2, 4, 6, 8, 12];
+    const styles = sizes.map((n) => popStyleForGroup(n));
+    for (let i = 1; i < styles.length; i++) {
+      expect(styles[i].perCell).toBeGreaterThanOrEqual(styles[i - 1].perCell);
+      expect(styles[i].power).toBeGreaterThanOrEqual(styles[i - 1].power);
+      expect(styles[i].rings).toBeGreaterThanOrEqual(styles[i - 1].rings);
+    }
+    // Only the top tiers add a flash; only mid-tiers and up add sparkle.
+    expect(popStyleForGroup(2).flash).toBe(false);
+    expect(popStyleForGroup(2).rings).toBe(0);
+    expect(popStyleForGroup(12).flash).toBe(true);
+    expect(popStyleForGroup(12).rings).toBe(3);
+    expect(popStyleForGroup(12).sparkle).toBeGreaterThan(0);
+  });
+
+  it("each style carries a distinct human-readable name", () => {
+    const names = [2, 4, 6, 8, 12].map((n) => popStyleForGroup(n).name);
+    expect(new Set(names).size).toBe(5);
   });
 });

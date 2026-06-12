@@ -288,6 +288,23 @@ never re‑discovered the hard way.
   `_cap()`, which trims the **oldest** (already-fading) particles once the pool
   exceeds 600. A single big clear stays well under the cap (so the look is
   unchanged); only runaway storms are bounded, holding worst-case draw cost flat.
+- **Group-pop explosion styles** (`particles.js` `popStyleForGroup` +
+  `ParticleSystem.ring`, `main.js` `_popCells`): every group pop plays **one of
+  five escalating explosion animations** — the bigger the group, the more
+  impactful the effect. The pure `popStyleForGroup(size)` returns a style
+  descriptor `{ style: 0-4, name, perCell, power, rings, flash, sparkle }` keyed
+  by group size (2-3 `fizz` → 4-5 `pop` → 6-7 `burst` → 8-11 `blast` → 12+
+  `supernova`); higher tiers throw **more particles per cell**, then **expanding
+  shockwave rings** at the group centre, and at the top a **white flash bloom**
+  plus a **sparkle shower** (shake is also boosted on flash tiers). `_popCells`
+  picks the style by `groupSize`, bursts per cleared cell, then emits the
+  centroid rings/flash/sparkle. `ParticleSystem.ring(x,y,color,{maxRadius,width,
+  life,fill})` is an expanding additively-blended arc (`fill` = soft flash);
+  rings live in `this.rings`, self-expire in `update`, draw in `draw`, and are
+  bounded by `MAX_RINGS = 48` (same anti-storm cap as particles) and cleared on
+  session reset. `main.js` records `game._lastPopStyle` and exposes
+  `__bpc.popStyle = popStyleForGroup` for inspection/tests. Purely cosmetic
+  auto-mechanic → **no tutorial step** (consistent with the last-bubble finale).
 - **Per-level best score** (`storage.js` `levelScores`/`getLevelScore`/
   `recordLevelScore`, `main.js` `_finish`, `ui.js` `buildLevelMap`): each
   campaign level tracks a **personal best**. On a campaign win `_finish` calls
