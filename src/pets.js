@@ -63,6 +63,14 @@ export const RARITY_WEIGHTS = {
 //                 other colours) and picks them off one by one
 //      diagonal — blasts the longest diagonal streak of one colour off the
 //                 board (a line the orthogonal flood-fill can never clear)
+//      quake    — (🌍 Quake) a board-wide tremor that resettles every bubble so
+//                 identical colours land together in big matchable groups
+//      cyclone  — (🌪️ Cyclone) sorts each column by colour into tall, ready-to-
+//                 pop vertical runs
+//      magma    — (🌋 Magma) erupts under the fullest lane(s) and clears whole
+//                 vertical columns of bubbles
+//      tidal    — (🌊 Tidal) a flood that wipes every bubble of the board's
+//                 current dominant colour
 //      shooter  — (PREMIUM "Nova") an alien gunship that patrols the bottom of
 //                 the board in real time and auto-blasts the lowest bubbles.
 //                 Its firepower grows with the pet's level: faster cannons →
@@ -103,6 +111,14 @@ export const PET_CATALOG = [
     },
   },
   {
+    id: "quake", name: "Quake", icon: "🌍", rarity: "rare", premium: false,
+    desc: "A rumbling earth spirit whose tremor resettles the whole board, dropping matching colours together into fresh, ready-to-pop groups.",
+    active: {
+      type: "quake", baseCooldown: 6, minCooldown: 3,
+      label: "Reshuffles the board into fresh matches every few moves",
+    },
+  },
+  {
     id: "comet", name: "Comet", icon: "☄️", rarity: "epic", premium: false,
     desc: "A streaking comet that blasts a diagonal line of bubbles off the board — a row the flood-fill can never clear.",
     active: {
@@ -119,6 +135,22 @@ export const PET_CATALOG = [
     },
   },
   {
+    id: "cyclone", name: "Cyclone", icon: "🌪️", rarity: "epic", premium: false,
+    desc: "A whirling tornado that sorts each column by colour, stacking matching bubbles into tall, ready-to-pop vertical runs.",
+    active: {
+      type: "cyclone", baseCooldown: 6, minCooldown: 3,
+      label: "Sorts colours into vertical runs every few moves",
+    },
+  },
+  {
+    id: "magma", name: "Magma", icon: "🌋", rarity: "epic", premium: false,
+    desc: "A molten volcano that erupts beneath the busiest lane and clears whole vertical columns of bubbles.",
+    active: {
+      type: "magma", baseCooldown: 7, minCooldown: 4, baseCount: 1, countPer: 0.25,
+      label: "Erupts and clears a vertical lane every few moves",
+    },
+  },
+  {
     id: "blaze", name: "Blaze", icon: "🔥", rarity: "epic", premium: false,
     desc: "A fiery friend that whips your Fever gauge into shape.",
     ability: { key: "feverMult", per: 0.08, label: "Fever fills faster" },
@@ -127,6 +159,14 @@ export const PET_CATALOG = [
     id: "draco", name: "Draco", icon: "🐉", rarity: "legendary", premium: false,
     desc: "A rare dragon hatchling — the mightiest score booster you can win.",
     ability: { key: "scoreMult", per: 0.05, label: "Big score boost" },
+  },
+  {
+    id: "tidal", name: "Tidal", icon: "🌊", rarity: "legendary", premium: false,
+    desc: "A legendary tide spirit whose flood sweeps every bubble of the board's most common colour clean away in one mighty wave.",
+    active: {
+      type: "tidal", baseCooldown: 8, minCooldown: 5,
+      label: "Floods away the most common colour every few moves",
+    },
   },
   {
     id: "aurora", name: "Aurora", icon: "🌈", rarity: "legendary", premium: true,

@@ -1547,6 +1547,10 @@ class Game {
     else if (act.type === "gather") this._petGather(act);
     else if (act.type === "diagonal") this._petDiagonal(act);
     else if (act.type === "pick") this._petPick(act);
+    else if (act.type === "quake") this._petQuake(act);
+    else if (act.type === "cyclone") this._petCyclone(act);
+    else if (act.type === "magma") this._petMagma(act);
+    else if (act.type === "tidal") this._petTidal(act);
   }
 
   // 🐱 Whiskers: pounce on lone, hard-to-match bubbles and clear them.
@@ -1690,6 +1694,122 @@ class Game {
       },
     });
     this.floating.spawn(anchor.x, anchor.y - 36, "Pick!", "#ffd35b", 26);
+    this.refreshHud();
+  }
+
+  // 🌍 Quake: a board-wide tremor that resettles every bubble so identical
+  // colours land together in big connected groups — a fresh batch of matches
+  // for the player to pop (a "match-maker", not a destroyer).
+  _petQuake(act) {
+    const s = this.session;
+    const changed = s.board.quakeRegroup();
+    if (!changed.length) return;
+    const anchor = {
+      x: s.board.originX + s.board.boardW / 2,
+      y: s.board.originY + s.board.boardH / 2,
+    };
+    const targets = changed
+      .slice(0, 16)
+      .map((cell) => s.board.targetPixel(cell.c, cell.r));
+    this.petAnim.play({
+      kind: "cleanse",
+      icon: this._equippedPetIcon("🌍"),
+      anchor,
+      targets,
+      color: "#c9a16b",
+    });
+    this.shake.add(0.5);
+    Audio.powerup();
+    vibrate(24);
+    this.floating.spawn(anchor.x, anchor.y - 36, "Quake!", "#c9a16b", 28);
+    this.refreshHud();
+  }
+
+  // 🌪️ Cyclone: a targeted vortex that sorts each column by colour into tall,
+  // ready-to-pop vertical runs (another match-maker, not a destroyer).
+  _petCyclone(act) {
+    const s = this.session;
+    const changed = s.board.cycloneSort();
+    if (!changed.length) return;
+    const targets = changed
+      .slice(0, 16)
+      .map((cell) => s.board.targetPixel(cell.c, cell.r));
+    const anchor = targets.reduce(
+      (a, t) => ({ x: a.x + t.x / targets.length, y: a.y + t.y / targets.length }),
+      { x: 0, y: 0 }
+    );
+    this.petAnim.play({
+      kind: "gather",
+      icon: this._equippedPetIcon("🌪️"),
+      anchor,
+      targets,
+      color: "#8fe3ff",
+    });
+    Audio.powerup();
+    this.floating.spawn(anchor.x, anchor.y - 36, "Cyclone!", "#8fe3ff", 28);
+    this.refreshHud();
+  }
+
+  // 🌋 Magma: a volcanic eruption that clears the fullest vertical lane(s)
+  // outright. The number of lanes grows as the pet levels up.
+  _petMagma(act) {
+    const s = this.session;
+    const n = Math.max(1, Math.round(act.count || 1));
+    const cols = s.board.fullestColumns(n);
+    let cells = [];
+    for (const c of cols) cells = cells.concat(s.board.columnCells(c));
+    if (!cells.length) return;
+    const raw = cells.length * 15;
+    const points = Math.round(
+      feverPoints(raw, s.feverActive) * s.petBuffs.scoreMult
+    );
+    s.score += points;
+    const targets = cells.map((cell) => s.board.targetPixel(cell.c, cell.r));
+    const anchor = targets.reduce(
+      (a, t) => ({ x: a.x + t.x / targets.length, y: a.y + t.y / targets.length }),
+      { x: 0, y: 0 }
+    );
+    this.petAnim.play({
+      kind: "diagonal",
+      icon: this._equippedPetIcon("🌋"),
+      anchor,
+      targets,
+      color: "#ff7a3c",
+    });
+    this._popCells(cells, points, cells.length, 1, 1.1);
+    Audio.powerup();
+    this.floating.spawn(anchor.x, anchor.y - 36, "Magma!", "#ff7a3c", 28);
+    this.refreshHud();
+  }
+
+  // 🌊 Tidal: a flood that wipes every bubble of the board's dominant colour
+  // off in one mighty wave.
+  _petTidal(act) {
+    const s = this.session;
+    const color = s.board.dominantColor();
+    if (color === null || color === undefined) return;
+    const cells = s.board.cellsOfColor(color);
+    if (cells.length < 2) return;
+    const raw = cells.length * 15;
+    const points = Math.round(
+      feverPoints(raw, s.feverActive) * s.petBuffs.scoreMult
+    );
+    s.score += points;
+    const targets = cells.map((cell) => s.board.targetPixel(cell.c, cell.r));
+    const anchor = targets.reduce(
+      (a, t) => ({ x: a.x + t.x / targets.length, y: a.y + t.y / targets.length }),
+      { x: 0, y: 0 }
+    );
+    this.petAnim.play({
+      kind: "cleanse",
+      icon: this._equippedPetIcon("🌊"),
+      anchor,
+      targets,
+      color: "#3fb6ff",
+    });
+    this._popCells(cells, points, cells.length, 1, 1.2);
+    Audio.powerup();
+    this.floating.spawn(anchor.x, anchor.y - 36, "Tidal Wave!", "#3fb6ff", 30);
     this.refreshHud();
   }
 

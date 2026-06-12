@@ -644,6 +644,67 @@ describe("grid / Board", () => {
       // The requested count is respected.
       expect(b.mostIsolatedCells(2)).toHaveLength(2);
     });
+
+    it("columnCells lists a column's filled cells top→bottom (🌋 Magma)", () => {
+      const b = new Board(3, 3, 4, 1);
+      setGridTyped(b, [
+        [0, -1, 2],
+        [1, 1, 1],
+        [-1, -1, -1],
+      ]);
+      expect(b.columnCells(0)).toEqual([
+        { c: 0, r: 0 },
+        { c: 0, r: 2 },
+      ]);
+      expect(b.columnCells(1)).toEqual([
+        { c: 1, r: 0 },
+        { c: 1, r: 1 },
+        { c: 1, r: 2 },
+      ]);
+      expect(b.columnCells(2)).toEqual([]);
+      expect(b.columnCells(9)).toEqual([]); // out of range is safe
+    });
+
+    it("fullestColumns ranks the busiest lanes fullest-first (🌋 Magma)", () => {
+      const b = new Board(3, 3, 4, 1);
+      setGridTyped(b, [
+        [0, 1, 2], // col0: 3 bubbles
+        [0, -1, -1], // col1: 1 bubble
+        [0, 1, -1], // col2: 2 bubbles
+      ]);
+      expect(b.fullestColumns(1)).toEqual([0]);
+      expect(b.fullestColumns(2)).toEqual([0, 2]);
+      expect(b.fullestColumns(9)).toEqual([0, 2, 1]);
+    });
+
+    it("quakeRegroup conserves colours but clusters them into matches (🌍 Quake)", () => {
+      const b = new Board(3, 3, 4, 1);
+      setGridTyped(b, [
+        [0, 1, 2],
+        [1, 2, 0],
+        [2, 0, 1],
+      ]);
+      expect(b.hasMoves()).toBe(false); // a fully jammed checkerboard
+      const before = colourHistogram(b);
+      b.quakeRegroup();
+      // The colour multiset is unchanged — bubbles were rearranged, not added.
+      expect(colourHistogram(b)).toEqual(before);
+      // …but now there is at least one poppable group of 2+.
+      expect(b.hasMoves()).toBe(true);
+    });
+
+    it("cycloneSort orders each column by colour without moving bubbles between columns (🌪️ Cyclone)", () => {
+      const b = new Board(2, 3, 4, 1);
+      setGridTyped(b, [
+        [2, 0, 1], // col0 -> sorted 0,1,2
+        [3, 1, 3], // col1 -> sorted 1,3,3 (the 3s now touch = a match)
+      ]);
+      b.cycloneSort();
+      expect(b.grid[0]).toEqual([0, 1, 2]);
+      expect(b.grid[1]).toEqual([1, 3, 3]);
+      // Per-column colour multisets are preserved (nothing crosses columns).
+      expect(b.cellsOfColor(3).every((cell) => cell.c === 1)).toBe(true);
+    });
   });
 });
 

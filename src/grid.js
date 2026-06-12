@@ -988,6 +988,95 @@ export class Board {
     s.glideDur = MAGNET_GLIDE;
   }
 
+  // Filled cells in a single column (top→bottom). Used by the 🌋 Magma
+  // (Volcano) pet to clear whole vertical lanes.
+  columnCells(c) {
+    const out = [];
+    if (c < 0 || c >= this.cols) return out;
+    for (let r = 0; r < this.rows; r++)
+      if (this.grid[c][r] !== -1) out.push({ c, r });
+    return out;
+  }
+
+  // The `n` columns holding the most bubbles, fullest first (ties break
+  // left→right). Magma erupts under the busiest lanes for the biggest clear.
+  fullestColumns(n = 1) {
+    const counts = [];
+    for (let c = 0; c < this.cols; c++) {
+      let k = 0;
+      for (let r = 0; r < this.rows; r++) if (this.grid[c][r] !== -1) k++;
+      if (k > 0) counts.push({ c, k });
+    }
+    counts.sort((a, b) => b.k - a.k || a.c - b.c);
+    return counts.slice(0, Math.max(0, n)).map((x) => x.c);
+  }
+
+  // 🌍 Quake (Earthquake): a board-wide tremor that resettles every bubble so
+  // identical colours land together in big connected groups — a guaranteed
+  // batch of fresh matches for the player to pop. Colours are conserved (just
+  // rearranged over the existing filled NORMAL cells); ICE/RAINBOW/LIGHTNING
+  // bubbles are left untouched as fixed anchors. Pure & deterministic: it lays
+  // the sorted colours down column-major so each colour forms a contiguous
+  // band. Returns the cells whose colour changed.
+  quakeRegroup() {
+    const slots = [];
+    const colors = [];
+    for (let c = 0; c < this.cols; c++)
+      for (let r = 0; r < this.rows; r++) {
+        if (this.grid[c][r] === -1 || this.types[c][r] !== NORMAL) continue;
+        slots.push({ c, r });
+        colors.push(this.grid[c][r]);
+      }
+    if (slots.length < 2) return [];
+    slots.sort((a, b) => a.c - b.c || a.r - b.r);
+    colors.sort((a, b) => a - b);
+    const changed = [];
+    slots.forEach((p, i) => {
+      const nc = colors[i];
+      if (this.grid[p.c][p.r] !== nc) changed.push({ c: p.c, r: p.r });
+      this.grid[p.c][p.r] = nc;
+      const s = this.spriteGrid[p.c][p.r];
+      if (s) {
+        s.color = nc;
+        s.scale = 0.6;
+        s.state = "idle";
+      }
+    });
+    return changed;
+  }
+
+  // 🌪️ Cyclone (Tornado): a targeted vortex that sorts each column's bubbles by
+  // colour so identical colours stack into tall, ready-to-pop vertical runs.
+  // Bubbles stay in their own column (only their vertical order changes);
+  // ICE/RAINBOW/LIGHTNING cells are left in place as walls. Pure &
+  // deterministic. Returns the cells whose colour changed.
+  cycloneSort() {
+    const changed = [];
+    for (let c = 0; c < this.cols; c++) {
+      const rows = [];
+      const colors = [];
+      for (let r = 0; r < this.rows; r++) {
+        if (this.grid[c][r] === -1 || this.types[c][r] !== NORMAL) continue;
+        rows.push(r);
+        colors.push(this.grid[c][r]);
+      }
+      if (rows.length < 2) continue;
+      colors.sort((a, b) => a - b);
+      rows.forEach((r, i) => {
+        const nc = colors[i];
+        if (this.grid[c][r] !== nc) changed.push({ c, r });
+        this.grid[c][r] = nc;
+        const s = this.spriteGrid[c][r];
+        if (s) {
+          s.color = nc;
+          s.scale = 0.6;
+          s.state = "idle";
+        }
+      });
+    }
+    return changed;
+  }
+
   // Reshuffle colors of remaining bubbles until at least one move exists.
   shuffle() {
     const colors = [];

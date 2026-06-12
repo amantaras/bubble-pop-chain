@@ -3010,6 +3010,146 @@ test.describe("pet companions (collection & buffs)", () => {
     expect(result.kind).toBe("pick");
   });
 
+  test("the Quake pet reshuffles a jammed board into fresh matches", async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      window.__bpc.Storage.grantPet("quake");
+      window.__bpc.game.equipPet("quake");
+    });
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    const active = await page.evaluate(() => window.__bpc.game.session.petActive);
+    expect(active.type).toBe("quake");
+    const result = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      // Paint a fully jammed checkerboard (no two like colours adjacent).
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          const col = (c + r) % 2;
+          b.grid[c][r] = col;
+          b.types[c][r] = 0;
+          const sp = b.spriteGrid[c][r];
+          if (sp) {
+            sp.color = col;
+            sp.type = 0;
+          }
+        }
+      const before = b.hasMoves();
+      const beforeCount = b.countRemaining();
+      g._petQuake(g.session.petActive);
+      return {
+        before,
+        after: b.hasMoves(),
+        beforeCount,
+        afterCount: b.countRemaining(),
+        busy: g.petAnim.busy,
+      };
+    });
+    expect(result.before).toBe(false); // jammed
+    expect(result.after).toBe(true); // Quake created matches
+    expect(result.afterCount).toBe(result.beforeCount); // a reshuffle, not a clear
+    expect(result.busy).toBe(true);
+  });
+
+  test("the Cyclone pet sorts each column into vertical colour runs", async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      window.__bpc.Storage.grantPet("cyclone");
+      window.__bpc.game.equipPet("cyclone");
+    });
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    const active = await page.evaluate(() => window.__bpc.game.session.petActive);
+    expect(active.type).toBe("cyclone");
+    const result = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      const beforeCount = b.countRemaining();
+      g._petCyclone(g.session.petActive);
+      // After sorting, every column is non-decreasing by colour.
+      let sorted = true;
+      for (let c = 0; c < b.cols; c++) {
+        let prev = -1;
+        for (let r = 0; r < b.rows; r++) {
+          const v = b.grid[c][r];
+          if (v === -1) continue;
+          if (v < prev) sorted = false;
+          prev = v;
+        }
+      }
+      return {
+        sorted,
+        beforeCount,
+        afterCount: b.countRemaining(),
+        busy: g.petAnim.busy,
+      };
+    });
+    expect(result.sorted).toBe(true);
+    expect(result.afterCount).toBe(result.beforeCount); // a sort, not a clear
+    expect(result.busy).toBe(true);
+  });
+
+  test("the Magma pet erupts and clears a full vertical lane", async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      window.__bpc.Storage.grantPet("magma");
+      window.__bpc.game.equipPet("magma");
+    });
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    const active = await page.evaluate(() => window.__bpc.game.session.petActive);
+    expect(active.type).toBe("magma");
+    const result = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      const fullest = b.fullestColumns(1)[0];
+      const laneHeight = b.columnCells(fullest).length;
+      const beforeCount = b.countRemaining();
+      g._petMagma(g.session.petActive);
+      return {
+        laneHeight,
+        beforeCount,
+        afterCount: b.countRemaining(),
+        busy: g.petAnim.busy,
+      };
+    });
+    // At least one whole lane's worth of bubbles was removed.
+    expect(result.laneHeight).toBeGreaterThan(0);
+    expect(result.afterCount).toBeLessThanOrEqual(
+      result.beforeCount - result.laneHeight
+    );
+    expect(result.busy).toBe(true);
+  });
+
+  test("the Tidal pet floods away the whole dominant colour", async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      window.__bpc.Storage.grantPet("tidal");
+      window.__bpc.game.equipPet("tidal");
+    });
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    const active = await page.evaluate(() => window.__bpc.game.session.petActive);
+    expect(active.type).toBe("tidal");
+    const result = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      const color = b.dominantColor();
+      const dominantBefore = b.cellsOfColor(color).length;
+      g._petTidal(g.session.petActive);
+      return {
+        dominantBefore,
+        dominantAfter: b.cellsOfColor(color).length,
+        busy: g.petAnim.busy,
+      };
+    });
+    expect(result.dominantBefore).toBeGreaterThanOrEqual(2);
+    // Every bubble of that colour was swept away.
+    expect(result.dominantAfter).toBe(0);
+    expect(result.busy).toBe(true);
+  });
+
   test("premium pet purchase via the mock provider grants ownership", async ({
     page,
   }) => {

@@ -382,7 +382,7 @@ never re‑discovered the hard way.
   step**.
 - **Pet companions** (`pets.js`, pure; `storage.js` `pets`): collectible helper
   pets that support the player both **passively** and with **active board
-  powers**. `PET_CATALOG` holds 11 pets across four rarities
+  powers**. `PET_CATALOG` holds 15 pets across four rarities
   (`common`/`rare`/`epic`/`legendary`). **Passive pets** carry an `ability`
   (`scoreMult`/`coinMult`/`powerMult`/`feverMult`/`startCharge`) that scales per
   level (`petBuffs`/`abilityValue`). **Active pets** carry an `active` config and
@@ -397,7 +397,18 @@ never re‑discovered the hard way.
   one** (`_petPick`): the model clears synchronously (so `afterMove`'s win /
   deadlock checks stay correct) while a sequenced peck animation reveals each
   destruction in turn via an `onHit(i)` callback (its `count` scales 2→6 by
-  level). One **premium**
+  level). Four **elemental** active board pets round out the free roster:
+  **Quake 🌍** (`quake`, rare) is a *match-maker* — a board-wide tremor that
+  resettles every bubble so identical colours land together in big connected
+  groups (`grid.quakeRegroup` → `_petQuake`; colours are conserved, it creates
+  matches rather than clearing); **Cyclone 🌪️** (`cyclone`, epic) sorts each
+  column by colour into tall vertical runs (`grid.cycloneSort` → `_petCyclone`,
+  also non-destructive); **Magma 🌋** (`magma`, epic) erupts under the fullest
+  lane(s) and clears whole **vertical columns** (`grid.fullestColumns`/
+  `columnCells` → `_petMagma`; lanes cleared scale with level via the `active`
+  `count`); and **Tidal 🌊** (`tidal`, legendary) floods away **every bubble of
+  the dominant colour** in one wave (`grid.dominantColor`/`cellsOfColor` →
+  `_petTidal`). One **premium**
   active pet, **Nova 🛸** (a `shooter`), is an autonomous alien **gunship** that
   patrols the base of the board in real time (`AlienShip` in `animations.js`),
   bounces off the walls and auto-blasts the lowest bubble in its column(s) via
@@ -411,7 +422,8 @@ never re‑discovered the hard way.
   runs in `main.js` via
   `_equippedBuffs`/`_equippedActive` (folded into `popAt`/`chargedBlast`/
   `applyPowerup`/`_finish` scoring and the meters) and `_maybePetAction`/
-  `_petGather`/`_petCleanse`/`_petDiagonal`/`_petPick` (ticked from `afterMove` on
+  `_petGather`/`_petCleanse`/`_petDiagonal`/`_petPick`/`_petQuake`/`_petCyclone`/
+  `_petMagma`/`_petTidal` (ticked from `afterMove` on
   `session.petTimer`).
   When an active pet fires, it plays an on-board **ability animation** (`PetAnim`
   in `animations.js`, ticked/drawn from the game loop via `game.petAnim`): the

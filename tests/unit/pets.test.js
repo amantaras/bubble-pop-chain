@@ -98,6 +98,35 @@ describe("pets catalog", () => {
     expect(getCosmetic("nope")).toBe(COSMETICS[0]);
     expect(getCosmetic("default").id).toBe("default");
   });
+
+  it("ships the four elemental active pets, all free, with the right rarity", () => {
+    const want = [
+      { id: "quake", type: "quake", rarity: "rare" },
+      { id: "cyclone", type: "cyclone", rarity: "epic" },
+      { id: "magma", type: "magma", rarity: "epic" },
+      { id: "tidal", type: "tidal", rarity: "legendary" },
+    ];
+    for (const w of want) {
+      const pet = getPet(w.id);
+      expect(pet).toBeTruthy();
+      expect(pet.premium).toBe(false);
+      expect(pet.rarity).toBe(w.rarity);
+      expect(pet.active.type).toBe(w.type);
+      const act = petActive(w.id, 1);
+      expect(act.type).toBe(w.type);
+      expect(act.cooldown).toBeGreaterThan(0);
+    }
+  });
+
+  it("Magma clears more lanes as it levels up, on a longer cooldown", () => {
+    const l1 = petActive("magma", 1);
+    const l5 = petActive("magma", MAX_PET_LEVEL);
+    // baseCount 1, countPer 0.25 -> level 5 reaches 2 lanes when rounded.
+    expect(Math.round(l1.count)).toBe(1);
+    expect(Math.round(l5.count)).toBeGreaterThanOrEqual(2);
+    expect(l5.cooldown).toBeLessThanOrEqual(l1.cooldown);
+    expect(l5.cooldown).toBeGreaterThanOrEqual(4); // minCooldown floor
+  });
 });
 
 describe("pet leveling", () => {
