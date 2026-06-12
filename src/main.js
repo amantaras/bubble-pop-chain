@@ -2,7 +2,7 @@
 import { Board, RAINBOW, ICE } from "./grid.js";
 import { Renderer } from "./renderer.js";
 import { ParticleSystem } from "./particles.js";
-import { ScreenShake, FloatingText } from "./animations.js";
+import { ScreenShake, FloatingText, PetAnim } from "./animations.js";
 import { Input, vibrate } from "./input.js";
 import { Audio } from "./audio.js";
 import { Storage } from "./storage.js";
@@ -70,6 +70,7 @@ import {
   DUP_XP,
   CRATE_COST,
   LEGENDARY_CRATE,
+  PET_CATALOG,
 } from "./pets.js";
 import { makeRng } from "./rng.js";
 
@@ -90,6 +91,7 @@ class Game {
     this.particles = new ParticleSystem();
     this.floating = new FloatingText();
     this.shake = new ScreenShake();
+    this.petAnim = new PetAnim();
     this.theme = getTheme(Storage.get("currentTheme"));
     this.session = null;
     this.tutorial = null;
@@ -1102,9 +1104,22 @@ class Game {
       feverPoints(raw, s.feverActive) * s.petBuffs.scoreMult
     );
     s.score += points;
+    // Pet ability flourish over the cleared bubbles.
+    const targets = cells.map((cell) => s.board.targetPixel(cell.c, cell.r));
+    const anchor = targets.reduce(
+      (a, t) => ({ x: a.x + t.x / targets.length, y: a.y + t.y / targets.length }),
+      { x: 0, y: 0 }
+    );
+    this.petAnim.play({
+      kind: "cleanse",
+      icon: this._equippedPetIcon("🐱"),
+      anchor,
+      targets,
+      color: "#9be7ff",
+    });
     this._popCells(cells, points, cells.length, 1, 0.6);
     Audio.powerup();
-    this.floating.spawn(this.W / 2, this.H * 0.35, "🐱 Pounce!", "#9be7ff", 26);
+    this.floating.spawn(anchor.x, anchor.y - 36, "Pounce!", "#9be7ff", 26);
     this.refreshHud();
   }
 
@@ -1115,11 +1130,37 @@ class Game {
     if (color === null || color === undefined) return;
     const anchor = s.board.firstCellOfColor(color);
     if (!anchor) return;
+    // Snapshot the scattered cells of this colour BEFORE gathering so the
+    // animation can reel them toward the anchor.
+    const before = s.board.cellsOfColor
+      ? s.board.cellsOfColor(color)
+      : [];
     const res = s.board.magnetGather(anchor.c, anchor.r, color, act.strength);
     if (!res || res.gathered <= 1) return;
+    const anchorPx = s.board.targetPixel(anchor.c, anchor.r);
+    const targets = (before.length ? before : [anchor])
+      .map((cell) => s.board.targetPixel(cell.c, cell.r))
+      .slice(0, 14);
+    this.petAnim.play({
+      kind: "gather",
+      icon: this._equippedPetIcon("🐶"),
+      anchor: anchorPx,
+      targets,
+      color: "#ffd35b",
+    });
     Audio.powerup();
-    this.floating.spawn(this.W / 2, this.H * 0.35, "🐶 Fetch!", "#ffd35b", 26);
+    this.floating.spawn(anchorPx.x, anchorPx.y - 36, "Fetch!", "#ffd35b", 26);
     this.refreshHud();
+  }
+
+  // Icon of the currently equipped pet (falls back to a default emoji).
+  _equippedPetIcon(fallback) {
+    const eq = Storage.getEquippedPet && Storage.getEquippedPet();
+    if (eq && eq.id) {
+      const def = PET_CATALOG.find((p) => p.id === eq.id);
+      if (def && def.icon) return def.icon;
+    }
+    return fallback;
   }
 
   _popCells(cells, points, groupSize, combo, shakePower = 1) {
@@ -1474,6 +1515,7 @@ class Game {
     this.shake.update(dt);
     this.particles.update(dt);
     this.floating.update(dt);
+    this.petAnim.update(dt);
     if (this.session) {
       this.session.board.update(dt);
       if (this.session.combo > 0) {
@@ -1645,6 +1687,7 @@ class Game {
     }
     this.particles.draw(ctx);
     this.floating.draw(ctx);
+    this.petAnim.draw(ctx);
     ctx.restore();
   }
 

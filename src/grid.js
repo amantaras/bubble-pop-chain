@@ -495,6 +495,17 @@ export class Board {
     return null;
   }
 
+  // All NORMAL cells of a given colour (used by the gather pet animation to
+  // reel scattered bubbles toward the anchor).
+  cellsOfColor(color) {
+    const out = [];
+    for (let c = 0; c < this.cols; c++)
+      for (let r = 0; r < this.rows; r++)
+        if (this.grid[c][r] === color && this.types[c][r] === NORMAL)
+          out.push({ c, r });
+    return out;
+  }
+
   // Lone, "difficult" bubbles: NORMAL cells whose connected group is just
   // themselves (no same-colour neighbour and not bridged by a rainbow). These
   // are the hardest to clear, so the "cleanse" pet companion zaps them.

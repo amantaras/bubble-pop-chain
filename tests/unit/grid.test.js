@@ -385,6 +385,19 @@ describe("grid / Board", () => {
       expect(b.firstCellOfColor(9)).toBeNull();
     });
 
+    it("cellsOfColor returns every NORMAL cell of a colour", () => {
+      const b = new Board(2, 2, 4, 1);
+      setGridTyped(b, [
+        [1, 2],
+        [0, 1],
+      ]);
+      expect(b.cellsOfColor(1)).toEqual([
+        { c: 0, r: 0 },
+        { c: 1, r: 1 },
+      ]);
+      expect(b.cellsOfColor(9)).toEqual([]);
+    });
+
     it("isolatedCells finds lone bubbles with no same-colour neighbour", () => {
       const b = new Board(3, 3, 4, 1);
       setGridTyped(b, [

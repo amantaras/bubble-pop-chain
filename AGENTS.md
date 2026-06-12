@@ -112,6 +112,12 @@ never re‑discovered the hard way.
   `_equippedBuffs`/`_equippedActive` (folded into `popAt`/`chargedBlast`/
   `applyPowerup`/`_finish` scoring and the meters) and `_maybePetAction`/
   `_petGather`/`_petCleanse` (ticked from `afterMove` on `session.petTimer`).
+  When an active pet fires, it plays an on-board **ability animation** (`PetAnim`
+  in `animations.js`, ticked/drawn from the game loop via `game.petAnim`): the
+  equipped pet's emoji flies in and performs its move — **Rover 🐶** dashes in
+  and reels the colour together with a sparkle "leash" (`gather`), **Whiskers
+  🐱** pounces and claw-slashes the lone bubbles (`cleanse`). The animation is
+  purely cosmetic; the board change happens immediately when triggered.
   Pets gain XP each level clear (`_awardPetXp`, `PET_XP_PER_LEVEL`, cap
   `MAX_PET_LEVEL`). **Not pay-to-win**: pets are won from **crates**
   (`rollCrate`, seeded; `buyCrate` for `CRATE_COST` coins, treasure milestones
@@ -232,7 +238,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 185 unit tests + 134 E2E
+- **Current baseline (keep growing, never shrink)**: 195 unit tests + 136 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

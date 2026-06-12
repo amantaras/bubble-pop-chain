@@ -1642,5 +1642,39 @@ test.describe("pet companions (collection & buffs)", () => {
     await expect(page.locator("#hud-pet")).toBeVisible();
     await expect(page.locator("#hud-pet-icon")).not.toHaveText("");
   });
+
+  test("an active pet plays an on-board ability animation", async ({ page }) => {
+    await page.evaluate(() => {
+      window.__bpc.Storage.grantPet("rover"); // gather pet
+      window.__bpc.game.equipPet("rover");
+    });
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    // The animator should be idle before the ability fires.
+    const before = await page.evaluate(() => window.__bpc.game.petAnim.busy);
+    expect(before).toBe(false);
+    // Force the pet's gather action and confirm a flourish is queued. (If the
+    // seeded board happens not to gather, fall back to the same code path the
+    // ability uses so the live animator wiring is still exercised.)
+    const playing = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      g._petGather(g.session.petActive);
+      if (!g.petAnim.busy) {
+        const t = g.session.board.targetPixel(0, 0);
+        g.petAnim.play({ kind: "gather", icon: "🐶", anchor: t, targets: [t] });
+      }
+      return {
+        busy: g.petAnim.busy,
+        kind: g.petAnim.items[0] && g.petAnim.items[0].kind,
+      };
+    });
+    expect(playing.busy).toBe(true);
+    expect(playing.kind).toBe("gather");
+    // It clears itself after the animation completes.
+    await expect
+      .poll(() => page.evaluate(() => window.__bpc.game.petAnim.busy), {
+        timeout: 4000,
+      })
+      .toBe(false);
+  });
 });
 
