@@ -228,12 +228,22 @@ never re‑discovered the hard way.
   **Lightning** (`LIGHTNING`) = a charged coloured bubble — popping a group that
   contains one **discharges along its whole row + column**
   (`grid.lightningStrike` expands the cleared set via `crossCells`, deduped;
-  `popAt` scores the full strike and emits `_tut("lightning")`). Seeded spawn
-  rates ramp in by level (rainbow ≥6, ice ≥10, lightning ≥14 — see
-  `levels.js specialsForLevel`). Lightning draws a glowing pulsing bolt glyph
-  (`renderer.js`). All types are part of the save/resume snapshot. The tutorial
-  teaches Lightning with a gated step (`grant: "lightning"` →
-  `Game._placeTutorialLightning`).
+  `popAt` scores the full strike and emits `_tut("lightning")`); **Stone**
+  (`STONE`) = a **locked** bubble you can't tap (`getGroupAt` returns `[]` on it,
+  and it never joins a colour group), but any **orthogonally adjacent pop**
+  (tap, blast, AoE, or lightning) shatters it — `grid.removeCells` runs a second
+  pass over the cells it actually cleared, breaking neighbouring stones once
+  each (no chaining) and tagging the returned fx array with `fx.stonesBroken`;
+  `_popCells` reads that flag to emit `_tut("stone")`. `_gridHasMoves` excludes
+  stones as both move origin and same-colour neighbour so generation/deadlock
+  detection stay correct. Seeded spawn rates ramp in by level (rainbow ≥6,
+  ice ≥10, lightning ≥14, stone ≥18 — see `levels.js specialsForLevel`; bosses
+  force `specials.ice`/`specials.stone` to 0). Lightning draws a glowing pulsing
+  bolt glyph and Stone a grey padlock shell (`renderer.js`). All types are part
+  of the save/resume snapshot. The tutorial teaches both Lightning
+  (`grant: "lightning"` → `Game._placeTutorialLightning`) and Stone
+  (`grant: "stone"` → `Game._placeTutorialStone`, advancing on `_tut("stone")`)
+  with gated steps.
 - **Ads gating** (`monetization.js`): forced interstitials only from
   `adsStartLevel` (7) onward; rewarded ads always available.
 - **Coin economy** (`scoring.coinReward`, `economy.js`): level payout is

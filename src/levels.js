@@ -58,7 +58,10 @@ function specialsForLevel(n) {
   // Lightning bubbles ramp in from level 14 — a rarer, powerful treat that
   // clears a full row + column when its group pops.
   const lightning = n >= 14 ? Math.min(0.04, 0.012 + (n - 14) * 0.0012) : 0;
-  return { rainbow, ice, lightning };
+  // Stone bubbles ramp in from level 18 — locked obstacles you can't tap, only
+  // shatter by popping a neighbour. Kept sparse so boards stay solvable.
+  const stone = n >= 18 ? Math.min(0.06, 0.02 + (n - 18) * 0.002) : 0;
+  return { rainbow, ice, lightning, stone };
 }
 
 // Bonus objectives ----------------------------------------------------------
@@ -120,6 +123,7 @@ export function getLevel(id) {
     // Bosses use a hand-placed frozen core, so suppress random ice and grant
     // extra moves to keep the objective fair.
     specials.ice = 0;
+    specials.stone = 0;
     moveBudget = moves + boss.extraMoves;
   }
 

@@ -10,6 +10,8 @@ export const ICE = 1; // frozen — needs two hits (cracks, then clears)
 export const RAINBOW = 2; // wildcard — matches any adjacent colour
 export const ICE_CRACKED = 3; // ice after one hit — one more clears it
 export const LIGHTNING = 4; // charged — popping its group also clears row+col
+export const STONE = 5; // locked — can't be tapped; only an adjacent pop (or
+//                         AoE/lightning) shatters it. Never joins a colour group.
 
 // How long a magnet-pulled bubble takes to glide to its new cell (seconds).
 // Deliberately slower than the snappy gravity settle so the player can see the
@@ -62,6 +64,7 @@ export class Board {
     const iceRate = this.specials.ice || 0;
     const rainbowRate = this.specials.rainbow || 0;
     const lightningRate = this.specials.lightning || 0;
+    const stoneRate = this.specials.stone || 0;
     this.types = [];
     for (let c = 0; c < this.cols; c++) {
       this.types[c] = [];
@@ -75,6 +78,8 @@ export class Board {
         else if (roll < rainbowRate + iceRate) this.types[c][r] = ICE;
         else if (roll < rainbowRate + iceRate + lightningRate)
           this.types[c][r] = LIGHTNING;
+        else if (roll < rainbowRate + iceRate + lightningRate + stoneRate)
+          this.types[c][r] = STONE;
         else this.types[c][r] = NORMAL;
       }
     }
@@ -247,6 +252,10 @@ export class Board {
     return this.types[c] && this.types[c][r] === LIGHTNING;
   }
 
+  isStone(c, r) {
+    return this.types[c] && this.types[c][r] === STONE;
+  }
+
   // Expand a popped group: if it contains any LIGHTNING bubble, every lightning
   // cell discharges along its full row and column (via crossCells), and those
   // cells are merged into the cleared set (deduped). Returns the full cell list
@@ -273,6 +282,8 @@ export class Board {
   // they join a group of any colour and bridge same-coloured regions.
   getGroupAt(c, r) {
     if (this.grid[c][r] === -1) return [];
+    // Stone bubbles are locked: they never form or join a poppable group.
+    if (this.isStone(c, r)) return [];
 
     // Determine the group's colour. Tapping a rainbow adopts a neighbour's
     // colour so it still pops something meaningful.
@@ -283,6 +294,7 @@ export class Board {
 
     const matches = (cc, rr) =>
       this.grid[cc][rr] !== -1 &&
+      !this.isStone(cc, rr) &&
       (this.isRainbow(cc, rr) || (color !== null && this.grid[cc][rr] === color));
 
     const seen = new Set();
@@ -311,7 +323,7 @@ export class Board {
     ];
     for (const [cc, rr] of n) {
       if (cc < 0 || cc >= this.cols || rr < 0 || rr >= this.rows) continue;
-      if (this.grid[cc][rr] !== -1 && !this.isRainbow(cc, rr))
+      if (this.grid[cc][rr] !== -1 && !this.isRainbow(cc, rr) && !this.isStone(cc, rr))
         return this.grid[cc][rr];
     }
     return null;
@@ -329,22 +341,25 @@ export class Board {
     const cols = grid.length;
     const rows = grid[0].length;
     const isR = (c, r) => !!(types && types[c] && types[c][r] === RAINBOW);
+    const isS = (c, r) => !!(types && types[c] && types[c][r] === STONE);
     for (let c = 0; c < cols; c++) {
       for (let r = 0; r < rows; r++) {
         const v = grid[c][r];
         if (v === -1) continue;
-        // A rainbow next to any bubble is always a valid move.
+        // Stone bubbles are locked and can never be the origin of a move.
+        if (isS(c, r)) continue;
+        // A rainbow next to any (non-stone) bubble is always a valid move.
         if (isR(c, r)) {
           if (
-            (c + 1 < cols && grid[c + 1][r] !== -1) ||
-            (c - 1 >= 0 && grid[c - 1][r] !== -1) ||
-            (r + 1 < rows && grid[c][r + 1] !== -1) ||
-            (r - 1 >= 0 && grid[c][r - 1] !== -1)
+            (c + 1 < cols && grid[c + 1][r] !== -1 && !isS(c + 1, r)) ||
+            (c - 1 >= 0 && grid[c - 1][r] !== -1 && !isS(c - 1, r)) ||
+            (r + 1 < rows && grid[c][r + 1] !== -1 && !isS(c, r + 1)) ||
+            (r - 1 >= 0 && grid[c][r - 1] !== -1 && !isS(c, r - 1))
           )
             return true;
         }
-        if (c + 1 < cols && grid[c + 1][r] === v) return true;
-        if (r + 1 < rows && grid[c][r + 1] === v) return true;
+        if (c + 1 < cols && grid[c + 1][r] === v && !isS(c + 1, r)) return true;
+        if (r + 1 < rows && grid[c][r + 1] === v && !isS(c, r + 1)) return true;
         if (c + 1 < cols && isR(c + 1, r)) return true;
         if (r + 1 < rows && isR(c, r + 1)) return true;
       }
@@ -560,6 +575,7 @@ export class Board {
   // clear on the second, so they are not removed here while still frozen.
   removeCells(cells, theme) {
     const fx = [];
+    const removed = [];
     for (const { c, r } of cells) {
       const s = this.spriteGrid[c][r];
       const t = this.types[c][r];
@@ -580,7 +596,36 @@ export class Board {
       this.grid[c][r] = -1;
       this.types[c][r] = NORMAL;
       this.spriteGrid[c][r] = null;
+      removed.push({ c, r });
     }
+    // Locked STONE bubbles shatter from the shockwave of any adjacent pop. Only
+    // stones next to a cell that actually cleared this turn break, and each
+    // breaks at most once (no chain reaction through a wall of stone).
+    const seen = new Set();
+    for (const { c, r } of removed) {
+      for (const [cc, rr] of [
+        [c + 1, r],
+        [c - 1, r],
+        [c, r + 1],
+        [c, r - 1],
+      ]) {
+        if (cc < 0 || cc >= this.cols || rr < 0 || rr >= this.rows) continue;
+        if (this.types[cc][rr] !== STONE) continue;
+        const k = cc * this.rows + rr;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        const ss = this.spriteGrid[cc][rr];
+        if (ss) {
+          ss.state = "pop";
+          ss.t = 0;
+          fx.push({ x: ss.x, y: ss.y, colorIndex: ss.color });
+        }
+        this.grid[cc][rr] = -1;
+        this.types[cc][rr] = NORMAL;
+        this.spriteGrid[cc][rr] = null;
+      }
+    }
+    fx.stonesBroken = seen.size;
     return fx;
   }
 

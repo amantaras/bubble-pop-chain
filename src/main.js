@@ -1,5 +1,5 @@
 // Game orchestrator: canvas loop, state machine, and all session logic.
-import { Board, RAINBOW, ICE, LIGHTNING } from "./grid.js";
+import { Board, RAINBOW, ICE, LIGHTNING, STONE } from "./grid.js";
 import { Renderer } from "./renderer.js";
 import { ParticleSystem, popStyleForGroup } from "./particles.js";
 import {
@@ -874,6 +874,18 @@ class Game {
       decorateSpecials(types);
       this._placeTutorialLightning(types);
       b.restore(g, types);
+    } else if (kind === "stone") {
+      // Fresh practice board with a locked stone parked next to a guaranteed
+      // cluster, so popping that cluster always shatters it and advances.
+      const b = s.board;
+      const { colors: g, types } = buildTutorialBoard(
+        b.cols,
+        b.rows,
+        s.level.colors || 4
+      );
+      decorateSpecials(types);
+      this._placeTutorialStone(types);
+      b.restore(g, types);
     } else if (kind === "event") {
       this._spawnTutorialEvent();
     } else if (kind === "undo") {
@@ -893,6 +905,13 @@ class Game {
     if (types && types[0] && types[0][0] !== undefined) types[0][0] = LIGHTNING;
   }
 
+  // Lock a STONE bubble at (2,0) — orthogonally adjacent to the guaranteed
+  // top-left colour cluster — so popping that cluster always shatters it and
+  // advances the stone step. Keep the cluster itself stone-free.
+  _placeTutorialStone(types) {
+    if (types && types[2] && types[2][0] !== undefined) types[2][0] = STONE;
+  }
+
   // Rebuild the controlled practice board so the tutorial never runs out of
   // poppable clusters no matter how much the player pops/blasts.
   _refillTutorialBoard() {
@@ -908,6 +927,10 @@ class Game {
     // Keep a lightning bubble available while the lightning step is active.
     if (this.tutorial && this.tutorial.stepId === "lightning") {
       this._placeTutorialLightning(types);
+    }
+    // Keep a stone bubble available while the stone step is active.
+    if (this.tutorial && this.tutorial.stepId === "stone") {
+      this._placeTutorialStone(types);
     }
     b.restore(g, types);
     b.layout(this.W, this.H, TOP_INSET, this._bottomInset());
@@ -2116,6 +2139,9 @@ class Game {
     const s = this.session;
     const fx = s.board.removeCells(cells, this.theme);
     if (s.stats) s.stats.cleared += fx.length;
+    // A neighbouring pop shattered a locked stone bubble — let the tutorial's
+    // stone step advance, no matter which pop path triggered it.
+    if (fx.stonesBroken) this._tut("stone");
     // Pick one of five escalating explosion styles by group size — the bigger
     // the group, the more impactful the animation (more particles, then rings,
     // a flash bloom and a sparkle shower at the top end).

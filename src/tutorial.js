@@ -21,12 +21,12 @@ import { NORMAL, ICE, RAINBOW } from "./grid.js";
 //               otherwise → an ACTION TYPE that must be observed in-game:
 //                           "pop" | "combo" | "undo" | "preview" | "swipe"
 //                           | "blast" | "powerup" | "magnet" | "event"
-//                           | "lightning"
+//                           | "lightning" | "stone"
 //   cta     — button label for "button" steps
 //   hint    — short call-to-action shown for action steps
 //   grant   — optional setup applied when the step is entered
 //             ("power" | "fever" | "bomb" | "specials" | "magnet" | "event"
-//              | "lightning" | "undo")
+//              | "lightning" | "stone" | "undo")
 export const TUTORIAL_STEPS = [
   {
     id: "welcome",
@@ -126,6 +126,14 @@ export const TUTORIAL_STEPS = [
     advance: "lightning",
     hint: "⚡ Pop the cluster with the lightning bubble",
     grant: "lightning",
+  },
+  {
+    id: "stone",
+    title: "Stone Bubbles",
+    body: "🪨 Stone bubbles are locked — you can't tap them directly. Pop a cluster right next to one and the shockwave shatters it. Pop the cluster beside the stone now!",
+    advance: "stone",
+    hint: "🪨 Pop the cluster next to the stone",
+    grant: "stone",
   },
   {
     id: "pets",

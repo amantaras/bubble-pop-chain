@@ -1,6 +1,6 @@
 // Canvas renderer: animated background + glossy neon bubbles.
 
-import { RAINBOW, ICE, ICE_CRACKED, NORMAL, LIGHTNING } from "./grid.js";
+import { RAINBOW, ICE, ICE_CRACKED, NORMAL, LIGHTNING, STONE } from "./grid.js";
 
 // Distinct glyphs used by colourblind mode — one per colour index. There are
 // always at least as many symbols as a level has colours.
@@ -249,6 +249,46 @@ export class Renderer {
         ctx.lineTo(s.x + k * 0.02, s.y - k * 0.12);
         ctx.closePath();
         ctx.fill();
+        ctx.stroke();
+      }
+
+      // Stone overlay: a locked grey shell with a padlock mark, signalling a
+      // bubble that can't be tapped — only an adjacent pop (or AoE) frees it.
+      if (s.type === STONE) {
+        ctx.globalAlpha = s.alpha * 0.92;
+        ctx.shadowBlur = 0;
+        const sg = ctx.createRadialGradient(
+          s.x - rad * 0.3,
+          s.y - rad * 0.3,
+          rad * 0.1,
+          s.x,
+          s.y,
+          rad
+        );
+        sg.addColorStop(0, "rgba(150,156,168,0.97)");
+        sg.addColorStop(1, "rgba(78,84,96,0.97)");
+        ctx.fillStyle = sg;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, rad, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.lineWidth = Math.max(1.5, rad * 0.12);
+        ctx.strokeStyle = "rgba(40,44,52,0.85)";
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, rad * 0.9, 0, Math.PI * 2);
+        ctx.stroke();
+        // Padlock glyph.
+        ctx.globalAlpha = s.alpha;
+        ctx.fillStyle = "rgba(235,238,244,0.95)";
+        ctx.strokeStyle = "rgba(40,44,52,0.9)";
+        ctx.lineWidth = Math.max(1, rad * 0.1);
+        const bw = rad * 0.62;
+        const bh = rad * 0.5;
+        ctx.beginPath();
+        ctx.rect(s.x - bw / 2, s.y - bh * 0.1, bw, bh);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(s.x, s.y - bh * 0.1, bw * 0.34, Math.PI, 0);
         ctx.stroke();
       }
 

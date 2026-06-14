@@ -66,6 +66,23 @@ describe("levels", () => {
     expect(getLevel(40).specials.lightning).toBeLessThanOrEqual(0.04);
   });
 
+  it("stone bubbles ramp in from level 18 and not before", () => {
+    expect(getLevel(17).specials.stone || 0).toBe(0);
+    expect(getLevel(18).specials.stone).toBeGreaterThan(0);
+    // Rate climbs with level but stays capped (level 39 is a non-boss level).
+    expect(getLevel(39).specials.stone).toBeGreaterThanOrEqual(
+      getLevel(18).specials.stone
+    );
+    expect(getLevel(39).specials.stone).toBeLessThanOrEqual(0.06);
+  });
+
+  it("bosses suppress random stone bubbles (hand-placed frozen core only)", () => {
+    // Level 20 is a boss; its random stone rate is forced to 0.
+    const boss = getLevel(20);
+    expect(boss.boss).toBeTruthy();
+    expect(boss.specials.stone || 0).toBe(0);
+  });
+
   it("groups every level into a chapter and covers the whole campaign", () => {
     // Chapters tile the campaign contiguously with no gaps or overlaps.
     expect(CHAPTERS.length * CHAPTER_SIZE).toBeGreaterThanOrEqual(LEVEL_COUNT);

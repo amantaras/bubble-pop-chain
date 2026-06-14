@@ -93,7 +93,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   (dominant colour, first-cell-of-colour, isolated-cell detection, and
   most-isolated-cell ranking for the Talon pick pet),
   special bubbles (rainbow wildcard + ice two-hit + lightning row/column
-  strike) with type round-trip, the
+  strike + stone locked-bubble: never tappable, shattered only by an adjacent
+  pop, and excluded from `hasMoves`) with type round-trip, the
   last-bubble finale animator (`BubbleFinale`: variant clamping to 0–4,
   onExplode fires exactly once at the glow→blast boundary, onDone fires once at
   completion, cancel, and draw in both phases) plus the grid helpers it relies

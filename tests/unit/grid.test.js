@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Board, NORMAL, ICE, RAINBOW, ICE_CRACKED, LIGHTNING } from "../../src/grid.js";
+import { Board, NORMAL, ICE, RAINBOW, ICE_CRACKED, LIGHTNING, STONE } from "../../src/grid.js";
 
 // Helper: overwrite a board's logic grid and clear sprite coupling so we can
 // assert pure grid behaviour deterministically. (settle() guards null sprites.)
@@ -365,6 +365,70 @@ describe("grid / Board", () => {
     expect(b.countRemaining()).toBe(b.cols * b.rows);
     expect(b.hasMoves()).toBe(true);
     expect(b.sprites.length).toBe(b.cols * b.rows);
+  });
+
+  it("stone bubbles are locked: never part of a tapped group", () => {
+    const b = new Board(3, 3, 3, 1);
+    setGrid(b, [
+      [0, 0, 0],
+      [0, 0, 0],
+      [0, 0, 0],
+    ]);
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[1][1] = STONE;
+    // Tapping the stone itself yields no group → no pop.
+    expect(b.getGroupAt(1, 1)).toHaveLength(0);
+    expect(b.isStone(1, 1)).toBe(true);
+    // A same-colour flood-fill routes around the stone, excluding it.
+    const group = b.getGroupAt(0, 0);
+    const keys = new Set(group.map((p) => `${p.c},${p.r}`));
+    expect(keys.has("1,1")).toBe(false);
+    expect(group).toHaveLength(8); // all but the stone
+  });
+
+  it("popping next to a stone shatters it (single hit, no chaining)", () => {
+    const b = new Board(3, 3, 3, 1);
+    setGrid(b, [
+      [0, 0, -1],
+      [0, 1, 1],
+      [-1, 2, 3],
+    ]);
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[1][1] = STONE; // adjacent to (0,1),(1,0),(2,1),(1,2)
+    b.types[2][2] = STONE; // NOT adjacent to the popped group → must survive
+    // Pop the (0,0) cluster which includes (0,1), a neighbour of the stone.
+    const fx = b.removeCells(b.getGroupAt(0, 0), null);
+    expect(b.grid[1][1]).toBe(-1); // adjacent stone shattered
+    expect(b.types[1][1]).toBe(NORMAL);
+    expect(b.grid[2][2]).toBe(3); // far stone untouched
+    expect(b.types[2][2]).toBe(STONE);
+    expect(fx.stonesBroken).toBe(1);
+  });
+
+  it("an AoE that includes a stone clears it directly", () => {
+    const b = new Board(2, 2, 3, 1);
+    setGrid(b, [
+      [0, 1],
+      [2, 3],
+    ]);
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[0][0] = STONE;
+    // Passing the stone cell directly (as a bomb/cross would) removes it.
+    b.removeCells([{ c: 0, r: 0 }], null);
+    expect(b.grid[0][0]).toBe(-1);
+    expect(b.types[0][0]).toBe(NORMAL);
+  });
+
+  it("hasMoves ignores stones as both origin and neighbour match", () => {
+    const b = new Board(3, 1, 3, 1);
+    // Two same-colour bubbles separated only by stones of that same colour.
+    setGrid(b, [[0], [0], [0]]);
+    b.types = [[STONE], [NORMAL], [STONE]];
+    // The lone NORMAL bubble has only stone neighbours → no legal move.
+    expect(b.hasMoves()).toBe(false);
+    // Convert one stone back to a normal same-colour bubble → a move appears.
+    b.types[0][0] = NORMAL;
+    expect(b.hasMoves()).toBe(true);
   });
 
   it("layout / targetPixel / cellAtPixel round-trip", () => {

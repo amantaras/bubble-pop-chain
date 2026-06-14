@@ -491,6 +491,41 @@ test.describe("special bubbles (ice + rainbow)", () => {
     // The strike cleared the pair (2) plus the rest of the row + column.
     expect(res.removed).toBeGreaterThanOrEqual(res.before);
   });
+
+  test("tapping a stone does nothing; popping beside it shatters it", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(20));
+    await page.waitForTimeout(400);
+    const res = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      // Deterministic board: a colour-0 pair at column 0 (rows 0,1), a STONE at
+      // (1,0) adjacent to the pair, and colour-1 filler everywhere else.
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          b.grid[c][r] = c === 0 && (r === 0 || r === 1) ? 0 : 1;
+          b.types[c][r] = 0; // NORMAL
+        }
+      b.types[1][0] = 5; // STONE, adjacent to (0,0)
+      const isStone = () => b.types[1][0] === 5 && b.grid[1][0] !== -1;
+      const scoreBefore = g.session.score;
+      g.popAt(1, 0); // tap the stone directly — should be a no-op
+      const stoneAfterTap = isStone();
+      const scoreAfterTap = g.session.score;
+      g.popAt(0, 0); // pop the adjacent colour-0 pair → shatters the stone
+      b.settle();
+      const stoneAfterPop = isStone();
+      return {
+        stoneAfterTap,
+        scoreUnchanged: scoreAfterTap === scoreBefore,
+        stoneAfterPop,
+      };
+    });
+    expect(res.stoneAfterTap).toBe(true); // tap did not break the stone
+    expect(res.scoreUnchanged).toBe(true); // tap scored nothing
+    expect(res.stoneAfterPop).toBe(false); // adjacent pop shattered it
+  });
 });
 
 test.describe("daily retention engine", () => {
@@ -2902,9 +2937,33 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
             return;
           }
     });
+    await expect.poll(() => stepId(page)).toBe("stone");
+
+    // 8b) stone — popping a cluster next to the locked stone shatters it.
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      // Find the stone, then pop a poppable cluster orthogonally adjacent to it.
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          if (!b.isStone(c, r)) continue;
+          for (const [cc, rr] of [
+            [c + 1, r],
+            [c - 1, r],
+            [c, r + 1],
+            [c, r - 1],
+          ]) {
+            if (cc < 0 || cc >= b.cols || rr < 0 || rr >= b.rows) continue;
+            if (b.getGroupAt(cc, rr).length >= 2) {
+              g.popAt(cc, rr);
+              return;
+            }
+          }
+        }
+    });
     await expect.poll(() => stepId(page)).toBe("pets");
 
-    // 8b) pets (informational) — introduces the companion system.
+    // 8c) pets (informational) — introduces the companion system.
     await page.locator("#coach-next").click();
     expect(await stepId(page)).toBe("done");
 
