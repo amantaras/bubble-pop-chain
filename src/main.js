@@ -336,10 +336,23 @@ class Game {
       level.seed,
       level.specials
     );
-    // Boss levels seed a frozen core that must be shattered to win.
+    // Boss levels seed an archetype objective that must be met to win.
     let bossCoreTotal = 0;
+    let bossKind = null;
+    let bossTargetColor = -1;
     if (mode === "campaign" && level.milestone === "boss" && level.boss) {
-      bossCoreTotal = board.placeFrozenCore(level.boss.coreW, level.boss.coreH);
+      const cfg = level.boss;
+      bossKind = cfg.kind;
+      if (cfg.kind === "stone") {
+        bossCoreTotal = board.placeStoneVault(cfg.vaultW, cfg.vaultH);
+      } else if (cfg.kind === "color") {
+        const dc = board.dominantColor();
+        bossTargetColor = dc == null ? -1 : dc;
+        bossCoreTotal =
+          bossTargetColor >= 0 ? board.colorCells(bossTargetColor).length : 0;
+      } else {
+        bossCoreTotal = board.placeFrozenCore(cfg.coreW, cfg.coreH);
+      }
     }
     const buffs = this._equippedBuffs();
     const active = this._equippedActive();
@@ -370,6 +383,8 @@ class Game {
       shiftTokens: mode === "campaign" ? 0 : 5,
       stats: this._newStats(),
       bossCoreTotal,
+      bossKind,
+      bossTargetColor,
       objective: (mode === "campaign" && level.objective) || null,
       objectiveMet: false,
       usedPowerup: false,
@@ -420,6 +435,22 @@ class Game {
       s.score === 0
     ) {
       UI.toast(`🎯 Bonus: ${s.objective.label} (+${s.objective.bonus})`, 2600);
+    }
+    // Announce the boss archetype objective so the player knows the goal.
+    if (
+      s.mode === "campaign" &&
+      s.level.milestone === "boss" &&
+      s.level.boss &&
+      s.score === 0
+    ) {
+      const cfg = s.level.boss;
+      const how =
+        cfg.kind === "stone"
+          ? "Pop beside the locked stones to shatter the vault!"
+          : cfg.kind === "color"
+          ? "Clear every marked bubble off the board!"
+          : "Shatter the whole frozen core!";
+      UI.toast(`👹 ${cfg.label}: ${how}`, 3000);
     }
   }
 
@@ -488,6 +519,9 @@ class Game {
       shiftTokens: 0,
       stats: snap.stats || this._newStats(),
       bossCoreTotal: snap.bossCoreTotal || board.frozenRemaining(),
+      bossKind: snap.bossKind || (level.boss ? level.boss.kind : null),
+      bossTargetColor:
+        snap.bossTargetColor == null ? -1 : snap.bossTargetColor,
       objective: level.objective || null,
       objectiveMet: !!snap.objectiveMet,
       usedPowerup: !!snap.usedPowerup,
@@ -512,6 +546,8 @@ class Game {
       types: s.board.serializeTypes(),
       stats: s.stats,
       bossCoreTotal: s.bossCoreTotal || 0,
+      bossKind: s.bossKind || null,
+      bossTargetColor: s.bossTargetColor == null ? -1 : s.bossTargetColor,
       objectiveMet: !!s.objectiveMet,
       usedPowerup: !!s.usedPowerup,
     });
@@ -1087,6 +1123,20 @@ class Game {
   }
 
   // ---- HUD --------------------------------------------------------------
+  // Remaining count for the current boss archetype's objective (0 = defeated).
+  // Frozen → unbroken ice; Stone → locked stones; Colour → bubbles of the
+  // hunted colour. Non-boss levels report 0.
+  _bossObjectiveRemaining() {
+    const s = this.session;
+    if (!s || !s.level || s.level.milestone !== "boss") return 0;
+    if (s.bossKind === "stone") return s.board.stoneRemaining();
+    if (s.bossKind === "color")
+      return s.bossTargetColor >= 0
+        ? s.board.colorCells(s.bossTargetColor).length
+        : 0;
+    return s.board.frozenRemaining();
+  }
+
   refreshHud() {
     const s = this.session;
     if (!s) return;
@@ -1102,7 +1152,7 @@ class Game {
       const mtype = s.level.milestone;
       const badge = mtype === "boss" ? "👹 " : mtype === "treasure" ? "🎁 " : "";
       if (mtype === "boss") {
-        const remaining = s.board.frozenRemaining();
+        const remaining = this._bossObjectiveRemaining();
         const total = s.bossCoreTotal || remaining || 1;
         UI.updateHud({
           modeLabel: `${badge}Level ${s.level.id}`,
@@ -1110,7 +1160,7 @@ class Game {
           movesLabel: "Moves",
           moves: s.movesLeft,
           showTarget: true,
-          targetLabel: "Core",
+          targetLabel: (s.level.boss && s.level.boss.hudLabel) || "Core",
           target: remaining,
           progress: 1 - remaining / total,
         });
@@ -2315,8 +2365,8 @@ class Game {
 
     if (s.mode === "campaign") {
       if (s.level.milestone === "boss") {
-        // Boss objective: shatter the entire frozen core before moves run out.
-        if (s.board.frozenRemaining() === 0) {
+        // Boss objective: meet the archetype goal before moves run out.
+        if (this._bossObjectiveRemaining() === 0) {
           s.score += clearBonus(Math.max(0, s.movesLeft));
           this._scheduleEnd(true, "boss");
           return;
@@ -3029,7 +3079,9 @@ class Game {
         const closeness = Math.max(0, 1 - Math.abs(m.value - sweet) / MAGNET_HALF);
         aim = { color: m.color, intensity: closeness, time };
       }
-      this.renderer.drawBubbles(this.session.board, this.theme, aim);
+      const markColor =
+        this.session.bossKind === "color" ? this.session.bossTargetColor : -1;
+      this.renderer.drawBubbles(this.session.board, this.theme, aim, markColor);
       if (this.session.preview) {
         this.renderer.drawPreview(
           this.session.board,

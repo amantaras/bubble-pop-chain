@@ -79,6 +79,10 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   chapters of 8 with no gaps),
   the per-level bonus objectives (`objectiveForLevel`: deterministic combo/
   group/nopowerup challenges, skipped on early + milestone levels),
+  the milestone beats (`bossConfig` rotates the three boss archetypes
+  frozen→stone→color across lvl10/20/30/40 with the right
+  `kind`/`label`/`hudLabel`/`extraMoves`, the frozen core/stone vault fit their
+  boards, and `placeStoneVault`/`stoneRemaining` lock + count a centred vault),
   the login calendar (`calendarStatus`/`advanceCalendar`: 7-day cycle, one claim
   per day, reward index wraps after a full week),
   the season pass (`season.js`: tiersUnlocked thresholds, tierReward tracks,
@@ -124,6 +128,10 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   capped),
   special-bubble spawning + reload persistence, lightning row/column discharge,
   no forced ads before level 7,
+  the boss archetypes (a frozen-core boss shows the `Core` objective + unlocks a
+  theme on victory, a stone-vault boss shows `Stone` and is won by shattering
+  every locked stone, and a colour-purge boss shows `Left` and is won by clearing
+  every marked bubble of its target colour),
   Fever mode (double points + gauge lighting up), the combo escalator
   (the banner's tier class + label escalating with the chain length),
   the cascade chain bonus (sustaining a chain adds the exact escalating flat

@@ -62,19 +62,61 @@ export function bossReward(id) {
   };
 }
 
-// Frozen-core objective sizing for a boss level. The core is a centred block of
-// ice bubbles that must all be shattered before the moves run out. It grows with
-// the boss number, and boss levels are granted extra moves to stay fair.
+// Frozen-core objective sizing for a boss level. Bosses now come in three
+// archetypes that rotate by boss number so the challenge beats stay varied:
+//   • frozen 🧊 — shatter a centred block of ice bubbles (two hits each).
+//   • stone  🪨 — break a centred vault of locked stone bubbles (only an
+//                 adjacent pop frees each one).
+//   • color  🎨 — purge every bubble of one marked colour from the board.
+// Each archetype is granted extra moves to keep the objective fair. The
+// returned shape always carries `kind`, a human `label`, a short `hudLabel`,
+// and `extraMoves`; frozen/stone also carry their block sizing.
+export const BOSS_ARCHETYPES = ["frozen", "stone", "color"];
+
 export function bossConfig(id) {
   if (milestoneType(id) !== "boss") return null;
   const idx = bossIndex(id);
+  const kind = BOSS_ARCHETYPES[(idx - 1) % BOSS_ARCHETYPES.length];
+
+  if (kind === "stone") {
+    // A thin (2-row) vault keeps every stone reachable: each one always borders
+    // a non-stone cell so an adjacent pop can break it.
+    const vaultW = 2 + Math.floor((idx - 1) / BOSS_ARCHETYPES.length);
+    const vaultH = 2;
+    return {
+      idx,
+      kind,
+      vaultW,
+      vaultH,
+      objectiveCount: vaultW * vaultH,
+      label: "Stone Vault",
+      hudLabel: "Stone",
+      extraMoves: 10 + idx * 2,
+    };
+  }
+
+  if (kind === "color") {
+    return {
+      idx,
+      kind,
+      label: "Colour Purge",
+      hudLabel: "Left",
+      extraMoves: 8 + idx * 2,
+    };
+  }
+
+  // Default: the classic frozen core, growing with the boss number.
   const coreW = 1 + idx; // 2, 3, 4, 5
   const coreH = 2 + Math.floor((idx - 1) / 2); // 2, 2, 3, 3
   return {
     idx,
+    kind: "frozen",
     coreW,
     coreH,
     coreCount: coreW * coreH, // 4, 6, 12, 15
+    objectiveCount: coreW * coreH,
+    label: "Frozen Core",
+    hudLabel: "Core",
     extraMoves: 6 + idx * 2, // 8, 10, 12, 14
   };
 }

@@ -807,6 +807,84 @@ test.describe("milestone events (every 5 levels)", () => {
     expect(save.milestonesCleared).toContain(10);
     expect(save.ownedThemes).toContain("sunset");
   });
+
+  test("a stone-vault boss is won by shattering every locked stone", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(20));
+    await page.waitForTimeout(600);
+    // Boss 2 rotates to the stone archetype.
+    await expect(page.locator("#hud-target-label")).toHaveText("Stone");
+    const kind = await page.evaluate(() => window.__bpc.game.session.bossKind);
+    expect(kind).toBe("stone");
+    const stones = await page.evaluate(() =>
+      window.__bpc.game.session.board.stoneRemaining()
+    );
+    expect(stones).toBeGreaterThan(0);
+
+    // Clear the entire vault (STONE = 5) and let the move logic resolve the win.
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          if (b.types[c][r] === 5) {
+            b.grid[c][r] = -1;
+            b.types[c][r] = 0;
+            b.spriteGrid[c][r] = null;
+          }
+        }
+      g.afterMove();
+    });
+
+    await expect(page.locator("#win")).toBeVisible();
+    const save = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem("bpc_save_v1"))
+    );
+    expect(save.milestonesCleared).toContain(20);
+  });
+
+  test("a colour-purge boss is won by clearing every marked bubble", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(30));
+    await page.waitForTimeout(600);
+    // Boss 3 rotates to the colour-purge archetype.
+    await expect(page.locator("#hud-target-label")).toHaveText("Left");
+    const target = await page.evaluate(
+      () => window.__bpc.game.session.bossTargetColor
+    );
+    expect(target).toBeGreaterThanOrEqual(0);
+    const left = await page.evaluate(
+      () =>
+        window.__bpc.game.session.board.colorCells(
+          window.__bpc.game.session.bossTargetColor
+        ).length
+    );
+    expect(left).toBeGreaterThan(0);
+
+    // Remove every bubble of the hunted colour, then resolve the win.
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      const tc = g.session.bossTargetColor;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          if (b.grid[c][r] === tc) {
+            b.grid[c][r] = -1;
+            b.types[c][r] = 0;
+            b.spriteGrid[c][r] = null;
+          }
+        }
+      g.afterMove();
+    });
+
+    await expect(page.locator("#win")).toBeVisible();
+    const save = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem("bpc_save_v1"))
+    );
+    expect(save.milestonesCleared).toContain(30);
+  });
 });
 
 test.describe("endless & daily modes", () => {

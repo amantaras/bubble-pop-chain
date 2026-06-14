@@ -73,9 +73,41 @@ describe("milestones", () => {
     for (const id of [10, 20, 30, 40]) {
       const lvl = getLevel(id);
       const cfg = bossConfig(id);
-      expect(cfg.coreW).toBeLessThanOrEqual(lvl.cols);
-      expect(cfg.coreH).toBeLessThanOrEqual(lvl.rows);
+      if (cfg.kind === "frozen") {
+        expect(cfg.coreW).toBeLessThanOrEqual(lvl.cols);
+        expect(cfg.coreH).toBeLessThanOrEqual(lvl.rows);
+      } else if (cfg.kind === "stone") {
+        expect(cfg.vaultW).toBeLessThanOrEqual(lvl.cols);
+        expect(cfg.vaultH).toBeLessThanOrEqual(lvl.rows);
+      }
     }
+  });
+
+  it("boss archetypes rotate frozen → stone → color across the four bosses", () => {
+    const f = bossConfig(10);
+    expect(f.kind).toBe("frozen");
+    expect(f.label).toBe("Frozen Core");
+    expect(f.hudLabel).toBe("Core");
+
+    const s = bossConfig(20);
+    expect(s.kind).toBe("stone");
+    expect(s.label).toBe("Stone Vault");
+    expect(s.hudLabel).toBe("Stone");
+    expect(s.objectiveCount).toBe(s.vaultW * s.vaultH);
+    // A 2-row vault keeps every stone reachable by an adjacent pop.
+    expect(s.vaultH).toBe(2);
+
+    const c = bossConfig(30);
+    expect(c.kind).toBe("color");
+    expect(c.label).toBe("Colour Purge");
+    expect(c.hudLabel).toBe("Left");
+    // The colour boss has no fixed block — its target is chosen at runtime.
+    expect(c.coreW).toBeUndefined();
+
+    expect(bossConfig(40).kind).toBe("frozen");
+
+    // Every archetype grants extra moves to keep the objective fair.
+    for (const cfg of [f, s, c]) expect(cfg.extraMoves).toBeGreaterThan(0);
   });
 });
 

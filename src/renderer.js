@@ -86,7 +86,10 @@ export class Renderer {
   // `aim` (optional) describes an in-progress magnet: { color, intensity, time }.
   // Plain bubbles of that colour jitter — harder as the gauge nears green —
   // as if straining to pull together before the gather fires.
-  drawBubbles(board, theme, aim) {
+  // `markColor` (optional, -1 = none) tags every plain bubble of that colour
+  // with a small target pip — used by the "Colour Purge" boss so the player
+  // can see exactly which bubbles must be cleared.
+  drawBubbles(board, theme, aim, markColor = -1) {
     const ctx = this.ctx;
     // Fill more of the cell so bubbles read as crisp, defined orbs instead of
     // small blobs floating in a haze of glow.
@@ -289,6 +292,25 @@ export class Renderer {
         ctx.stroke();
         ctx.beginPath();
         ctx.arc(s.x, s.y - bh * 0.1, bw * 0.34, Math.PI, 0);
+        ctx.stroke();
+      }
+
+      // Boss "Colour Purge" marker: a crisp target pip on every plain bubble of
+      // the hunted colour so the objective is unambiguous.
+      if (markColor >= 0 && s.type === NORMAL && s.color === markColor) {
+        ctx.globalAlpha = s.alpha;
+        ctx.shadowBlur = 0;
+        const pr = rad * 0.3;
+        ctx.fillStyle = "rgba(255,255,255,0.95)";
+        ctx.strokeStyle = "rgba(20,20,30,0.85)";
+        ctx.lineWidth = Math.max(1, rad * 0.08);
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, pr, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, pr * 0.45, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(20,20,30,0.85)";
         ctx.stroke();
       }
 

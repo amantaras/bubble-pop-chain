@@ -536,6 +536,35 @@ export class Board {
     return n;
   }
 
+  // Count the locked stone bubbles still on the board (used by the boss "stone
+  // vault" objective).
+  stoneRemaining() {
+    let n = 0;
+    for (let c = 0; c < this.cols; c++)
+      for (let r = 0; r < this.rows; r++)
+        if (this.types[c][r] === STONE) n++;
+    return n;
+  }
+
+  // Lock a centred block of bubbles into stone for a boss objective. Returns the
+  // number of cells actually locked. Empty cells are skipped.
+  placeStoneVault(vaultW, vaultH) {
+    const c0 = Math.floor((this.cols - vaultW) / 2);
+    const r0 = Math.floor((this.rows - vaultH) / 2);
+    let n = 0;
+    for (let c = c0; c < c0 + vaultW; c++) {
+      for (let r = r0; r < r0 + vaultH; r++) {
+        if (c < 0 || c >= this.cols || r < 0 || r >= this.rows) continue;
+        if (this.grid[c][r] === -1) continue;
+        this.types[c][r] = STONE;
+        const sp = this.spriteGrid[c][r];
+        if (sp) sp.type = STONE;
+        n++;
+      }
+    }
+    return n;
+  }
+
   // ---- Mutations --------------------------------------------------------
   // Shift an entire row horizontally with wrap-around (2048-style).
   // `dir` is "left" or "right". Returns true if the row had any bubbles.

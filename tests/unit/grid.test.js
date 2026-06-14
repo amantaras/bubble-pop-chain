@@ -431,6 +431,20 @@ describe("grid / Board", () => {
     expect(b.hasMoves()).toBe(true);
   });
 
+  it("placeStoneVault locks a centred block and stoneRemaining counts them", () => {
+    const b = new Board(6, 6, 4, 1);
+    expect(b.stoneRemaining()).toBe(0);
+    const n = b.placeStoneVault(2, 2);
+    expect(n).toBe(4);
+    expect(b.stoneRemaining()).toBe(4);
+    // The vault is centred: cols (6-2)/2 = 2, rows (6-2)/2 = 2.
+    for (let c = 2; c < 4; c++)
+      for (let r = 2; r < 4; r++) expect(b.types[c][r]).toBe(STONE);
+    // Sprites are tagged so the renderer draws the locked shell.
+    const sp = b.spriteGrid[2][2];
+    if (sp) expect(sp.type).toBe(STONE);
+  });
+
   it("layout / targetPixel / cellAtPixel round-trip", () => {
     const b = new Board(6, 8, 3, 5);
     b.layout(400, 800, 100, 80);
