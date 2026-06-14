@@ -1562,6 +1562,56 @@ test.describe("weekly tournament (#11)", () => {
   });
 });
 
+test.describe("time attack (Tier 1 — A)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("starting Time Attack runs a timed, refilling high-score board", async ({
+    page,
+  }) => {
+    const res = await page.evaluate(() => {
+      window.__bpc.game.startTimeAttack();
+      const s = window.__bpc.game.session;
+      return {
+        mode: s.mode,
+        timeLeft: s.timeLeft,
+        full: s.board.countRemaining(),
+        cap: s.board.cols * s.board.rows,
+        seconds: window.__bpc.timeattack.seconds,
+      };
+    });
+    expect(res.mode).toBe("timeattack");
+    expect(res.seconds).toBe(60);
+    expect(res.timeLeft).toBeLessThanOrEqual(60);
+    expect(res.timeLeft).toBeGreaterThan(50);
+    expect(res.full).toBe(res.cap); // board starts full
+    // The HUD shows a countdown in seconds, not a move count.
+    await expect(page.locator("#hud-moves-label")).toHaveText("Time");
+    await expect(page.locator("#hud-moves")).toContainText("s");
+  });
+
+  test("the clock running out ends the run and banks a personal best", async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      window.__bpc.game.startTimeAttack();
+      // Score some points, then fast-forward the clock to the final tick.
+      const s = window.__bpc.game.session;
+      s.score = 1234;
+      s.timeLeft = 0.05;
+    });
+    // The update loop drains the last sliver and schedules the finish.
+    await expect(page.locator("#win")).toBeVisible({ timeout: 4000 });
+    await expect(page.locator("#win-reward")).toContainText("Best");
+
+    await page.locator("#win-menu").click();
+    await expect(page.locator("#menu")).toBeVisible();
+    const best = await page.evaluate(
+      () => JSON.parse(localStorage.getItem("bpc_save_v1")).highScoreTimeAttack
+    );
+    expect(best).toBeGreaterThanOrEqual(1234);
+  });
+});
+
 test.describe("fever mode (double points)", () => {
   test.beforeEach(({ page }) => openGame(page));
 

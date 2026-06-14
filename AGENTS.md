@@ -85,6 +85,20 @@ never re‑discovered the hard way.
   on the win modal. Menu **Cup** tile (`#btn-tournament`) + `#tournament-summary`
   (modifier, best, days-left). No leaderboard, **no tutorial step** (meta mode).
   (Exposed for tests via `__bpc.tournament`.)
+- **Time Attack** (`main.js` `startTimeAttack`/`update` countdown/`_finish`,
+  `grid.js` `refill`): a **60-second** (`TIME_ATTACK_SECONDS`) score-rush on an
+  endlessly-refilling board — the clock is the only limit. Mode `timeattack`
+  runs through the generic `_newSession` (`session.timeLeft` seeded to 60); the
+  `update` loop drains `timeLeft` each frame and calls
+  `_scheduleEnd(true,"timeattack")` at zero. There is **no move limit and the
+  board never ends play**: a deadlock in `afterMove` calls `board.refill()`
+  (regenerates a full, solvable board, dropping fresh bubbles in) instead of
+  failing. The HUD shows a live `Time` countdown (`Math.ceil(timeLeft)+"s"`) in
+  the moves slot with a draining progress bar. `_finish` banks the run's score
+  as `Storage.highScoreTimeAttack` (personal best, "🏆 New Best!" on improve),
+  awards coins (`floor(score/150)·coinMult`) + 30 season XP, and shows a "Time's
+  Up!" win modal. Menu **Rush** tile (`#btn-timeattack`). High-score meta mode —
+  **no tutorial step**. (Exposed for tests via `__bpc.timeattack`.)
 - **Power-ups** (`economy.js` `POWERUP_INFO`, armed from the HUD): **Bomb** (3×3),
   **Color Clear** (one colour), **Shuffle**, **Chain Bolt** (`grid.crossCells`,
   full row + column), **Pick** (single bubble), and the premium **Magnet**

@@ -352,6 +352,21 @@ describe("grid / Board", () => {
     expect(b.hasMoves()).toBe(true);
   });
 
+  it("refill regenerates a full, solvable board (Time Attack)", () => {
+    const b = new Board(8, 11, 5, 444);
+    b.layout(400, 800, 100, 80);
+    // Empty most of the board to simulate a near-deadlocked Time Attack state.
+    for (let c = 0; c < b.cols; c++)
+      for (let r = 0; r < b.rows; r++) b.grid[c][r] = -1;
+    b._buildSprites();
+    expect(b.countRemaining()).toBe(0);
+    b.refill();
+    // The board is full again and guaranteed to have at least one move.
+    expect(b.countRemaining()).toBe(b.cols * b.rows);
+    expect(b.hasMoves()).toBe(true);
+    expect(b.sprites.length).toBe(b.cols * b.rows);
+  });
+
   it("layout / targetPixel / cellAtPixel round-trip", () => {
     const b = new Board(6, 8, 3, 5);
     b.layout(400, 800, 100, 80);

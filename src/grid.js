@@ -1111,6 +1111,14 @@ export class Board {
     });
   }
 
+  // Regenerate a full board of fresh bubbles (used by Time Attack to keep play
+  // going when the board would otherwise deadlock). Reuses the seeded generator
+  // so it still guarantees at least one available move, then drops the new
+  // bubbles in from the top via the standard sprite positioning.
+  refill() {
+    this._generate();
+  }
+
   // ---- Animation update -------------------------------------------------
   update(dt) {
     const smooth = 1 - Math.exp(-dt * 13);

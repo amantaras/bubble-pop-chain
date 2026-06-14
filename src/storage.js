@@ -8,6 +8,7 @@ const DEFAULT_SAVE = {
   stars: {}, // { [levelId]: 0..3 }
   levelScores: {}, // { [levelId]: best score } — per-level personal best
   highScoreEndless: 0,
+  highScoreTimeAttack: 0,
   coins: 0,
   ownedThemes: ["aurora"],
   currentTheme: "aurora",

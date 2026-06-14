@@ -307,6 +307,9 @@ body {
   background: linear-gradient(135deg, #ffd35b, #ff8a3c);
   color: #2a1c00;
 }
+.tile.t-timeattack .tile-ic {
+  background: linear-gradient(135deg, #5bd1ff, #5b8bff);
+}
 .tile.t-shop .tile-ic {
   background: linear-gradient(135deg, #ffce5b, #ff9f43);
   color: #2a1c00;

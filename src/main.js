@@ -122,6 +122,10 @@ const TUTORIAL_TOOL_STOCK = 10;
 // (it is NOT persisted across reloads — a resumed level starts fresh).
 const UNDO_BUDGET = 3;
 
+// Time Attack: a fast score-rush mode where the board refills endlessly and the
+// only limit is the clock. Players chase a personal best within the window.
+const TIME_ATTACK_SECONDS = 60;
+
 class Game {
   constructor() {
     this.canvas = document.getElementById("game-canvas");
@@ -157,6 +161,7 @@ class Game {
       startEndless: () => this.startEndless(),
       startDaily: () => this.startDaily(),
       startTournament: () => this.startTournament(),
+      startTimeAttack: () => this.startTimeAttack(),
       quitToMenu: () => this.quitToMenu(),
       resumeCampaign: () => this.resumeCampaign(),
       armPowerup: (type, btn) => this.armPowerup(type, btn),
@@ -370,6 +375,8 @@ class Game {
       usedPowerup: false,
       undoStack: [],
       undosLeft: UNDO_BUDGET,
+      // Time Attack countdown (seconds). Unused by other modes.
+      timeLeft: mode === "timeattack" ? TIME_ATTACK_SECONDS : 0,
     };
     this._enterSession();
     if (mode === "campaign") this._persistSession();
@@ -530,6 +537,24 @@ class Game {
     };
     this._newSession("endless", lvl);
     this.session.movesLeft = 9999;
+  }
+
+  startTimeAttack() {
+    // A 60-second score rush on an endlessly-refilling board. No move limit —
+    // the clock is the only constraint. Chase your personal best.
+    const lvl = {
+      cols: 8,
+      rows: 11,
+      colors: 5,
+      moves: 9999,
+      target: 0,
+      id: "timeattack",
+      specials: { rainbow: 0.06, ice: 0.05 },
+    };
+    this._newSession("timeattack", lvl);
+    this.session.movesLeft = 9999;
+    this.session.timeLeft = TIME_ATTACK_SECONDS;
+    UI.toast(`Time Attack — ${TIME_ATTACK_SECONDS}s on the clock!`);
   }
 
   startDaily() {
@@ -1095,6 +1120,15 @@ class Game {
         moves: Storage.get("highScoreEndless"),
         showTarget: false,
         progress: 1 - s.board.countRemaining() / (s.board.cols * s.board.rows),
+      });
+    } else if (s.mode === "timeattack") {
+      UI.updateHud({
+        modeLabel: "Time Attack",
+        score: s.score,
+        movesLabel: "Time",
+        moves: Math.ceil(s.timeLeft) + "s",
+        showTarget: false,
+        progress: Math.max(0, s.timeLeft / TIME_ATTACK_SECONDS),
       });
     } else {
       UI.updateHud({
@@ -2283,6 +2317,13 @@ class Game {
       if (deadlock) this._scheduleEnd(true, "daily");
     } else if (s.mode === "tournament") {
       if (deadlock) this._scheduleEnd(true, "tournament");
+    } else if (s.mode === "timeattack") {
+      // The clock — not the board — ends Time Attack, so keep play flowing: a
+      // deadlocked board refills with fresh bubbles instead of ending the run.
+      if (deadlock && !s.ended) {
+        s.board.refill();
+        UI.toast("Board refilled — keep popping!");
+      }
     }
 
     // Save the in-progress campaign so it can be resumed later.
@@ -2634,6 +2675,34 @@ class Game {
         showNext: false,
         showDouble: !Monetization.isAdsRemoved(),
       });
+    } else if (s.mode === "timeattack") {
+      const prevBest = Storage.get("highScoreTimeAttack");
+      const isNewBest = s.score > prevBest;
+      if (isNewBest) Storage.set("highScoreTimeAttack", s.score);
+      const coins = Math.round(Math.floor(s.score / 150) * s.petBuffs.coinMult);
+      s.coinsEarned = coins;
+      Economy.addCoins(coins);
+      this._awardSeasonXp(30);
+      Audio.win();
+      UI.setWinTitle("Time's Up!");
+      const stars = s.score >= 6000 ? 3 : s.score >= 3000 ? 2 : 1;
+      const bits = [
+        isNewBest && prevBest > 0 ? "🏆 New Best!" : `Best ${Math.max(prevBest, s.score)}`,
+      ];
+      const petBit = this._awardPetXp();
+      if (petBit) bits.push(petBit);
+      const moves = s.stats
+        ? s.stats.pops + s.stats.swipes + s.stats.blasts + s.stats.powerups
+        : 0;
+      UI.showWin({
+        stars,
+        score: s.score,
+        coins,
+        stats: this._winStats(s, moves),
+        rewardText: bits.join("  •  "),
+        showNext: false,
+        showDouble: !Monetization.isAdsRemoved(),
+      });
     }
     UI.refreshCoins();
   }
@@ -2660,6 +2729,7 @@ class Game {
     if (!s) return this.quitToMenu();
     if (s.mode === "campaign") this.startCampaign(s.level.id);
     else if (s.mode === "endless") this.startEndless();
+    else if (s.mode === "timeattack") this.startTimeAttack();
     else if (s.mode === "tournament") this.startTournament();
     else this.startDaily();
   }
@@ -2726,6 +2796,15 @@ class Game {
     this.finale.update(dt);
     if (this.session && !this.paused) {
       this.session.board.update(dt);
+      // Time Attack: drain the clock; when it hits zero the run ends (the score
+      // banked so far is the result).
+      if (this.session.mode === "timeattack" && !this.session.ended) {
+        this.session.timeLeft = Math.max(0, this.session.timeLeft - dt);
+        this.refreshHud();
+        if (this.session.timeLeft <= 0) {
+          this._scheduleEnd(true, "timeattack");
+        }
+      }
       if (this.session.combo > 0) {
         this.session.comboTimer -= dt;
         if (this.session.comboTimer <= 0) this.session.combo = 0;
@@ -2971,6 +3050,7 @@ if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) 
     popStyle: popStyleForGroup,
     cascade: { cascadeBonus, cascadeTier },
     tournament: { getTournamentLevel, getTournamentGoals, tournamentRank, getTournamentBest },
+    timeattack: { seconds: TIME_ATTACK_SECONDS },
     Audio,
   };
 }

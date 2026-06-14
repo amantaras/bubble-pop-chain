@@ -103,6 +103,7 @@ class UIManager {
       "isolated", "iso-msg", "iso-pick", "iso-giveup",
       "btn-daily",
       "btn-tournament", "tournament-summary",
+      "btn-timeattack",
       "btn-sound",
       "btn-tutorial", "tutorial", "coach-progress", "coach-title",
       "coach-body", "coach-hint", "coach-next", "coach-skip",
@@ -127,6 +128,7 @@ class UIManager {
     click("btn-endless", () => this.cb.startEndless && this.cb.startEndless());
     click("btn-daily", () => this.cb.startDaily && this.cb.startDaily());
     click("btn-tournament", () => this.cb.startTournament && this.cb.startTournament());
+    click("btn-timeattack", () => this.cb.startTimeAttack && this.cb.startTimeAttack());
     click("btn-shop", () => this.showScreen("shop"));
     click("btn-themes", () => this.showScreen("themes"));
     click("btn-achievements", () => this.showScreen("achievements"));

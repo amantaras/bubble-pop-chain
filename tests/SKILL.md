@@ -65,6 +65,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   one seeded board shared across the week, deterministic modifier pick, the
   four-tier rank ladder, and `recordTournament` keeping the highest weekly best
   with a clean rollover/reset when a new week starts),
+  Time Attack board refills (`grid.refill` regenerates a full, solvable board
+  so the timed mode never deadlocks) + its `highScoreTimeAttack` storage default,
   the achievements engine
   (lifetime progress merge, threshold unlocks, coin payouts, and
   `aggregateChestRewards` which merges many chests into one summary — summing
@@ -131,6 +133,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   the weekly tournament (starting it builds the week's seeded board with goals
   and a 9999-move high-score session; finishing a run records the weekly best,
   shows the earned rank, and surfaces the best on the menu summary),
+  Time Attack (starting it runs a 60s, full, refilling board with a Time
+  countdown HUD; the clock running out ends the run and banks a personal best),
   the group-pop explosion styles (a popped group selects the style + shockwave
   rings matching its size, and a forced big group fires the top "supernova"
   tier with rings + flash),

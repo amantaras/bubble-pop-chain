@@ -15,6 +15,12 @@ describe("storage", () => {
     expect(Storage.get("adsRemoved")).toBe(false);
   });
 
+  it("time attack high score defaults to 0 and round-trips", () => {
+    expect(Storage.get("highScoreTimeAttack")).toBe(0);
+    Storage.set("highScoreTimeAttack", 4200);
+    expect(Storage.get("highScoreTimeAttack")).toBe(4200);
+  });
+
   it("starter pack is unowned by default and round-trips", () => {
     expect(Storage.get("starterPack")).toBe(false);
     Storage.set("starterPack", true);
@@ -82,6 +88,7 @@ describe("storage", () => {
       "maxUnlockedLevel",
       "stars",
       "highScoreEndless",
+      "highScoreTimeAttack",
       "coins",
       "ownedThemes",
       "currentTheme",
