@@ -84,6 +84,7 @@ class UIManager {
       "hud-mode-label", "hud-score", "hud-target", "hud-target-wrap", "hud-target-label",
       "hud-moves", "hud-moves-label", "hud-progress-fill",
       "hud-objective", "hud-objective-text",
+      "btn-undo", "hud-undo-count",
       "power-meter", "power-fill", "power-label",
       "fever-meter", "fever-fill", "fever-label",
       "powerups", "pu-slot-0", "pu-slot-1", "pu-slot-2",
@@ -143,6 +144,9 @@ class UIManager {
     click("pets-back", () => this.closePetOverlay());
     click("chest-ok", () => this.showScreen("achievements"));
     click("btn-back", () => this.cb.quitToMenu && this.cb.quitToMenu());
+
+    // Undo last move (HUD). Disabled state is reflected by `updateUndo`.
+    click("btn-undo", () => this.cb.undoMove && this.cb.undoMove());
 
     // In-game pet badge doubles as a shortcut to the companion manager.
     click("hud-pet", () => this.openPetOverlay());
@@ -1756,6 +1760,20 @@ class UIManager {
   // ---- HUD --------------------------------------------------------------
   showHud(show) {
     this.el["hud"].classList.toggle("hidden", !show);
+    if (!show) this.updateUndo(0, false);
+  }
+
+  // Reflect the Undo control: `count` is the remaining budget, `enabled`
+  // whether a move can be taken back right now. Hidden once the budget is gone.
+  updateUndo(count, enabled) {
+    const btn = this.el["btn-undo"];
+    if (!btn) return;
+    const show = (count || 0) > 0;
+    btn.classList.toggle("hidden", !show);
+    btn.classList.toggle("disabled", !enabled);
+    btn.disabled = !enabled;
+    const num = this.el["hud-undo-count"];
+    if (num) num.textContent = count || 0;
   }
 
   updateHud(s) {

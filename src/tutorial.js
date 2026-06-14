@@ -19,13 +19,14 @@ import { NORMAL, ICE, RAINBOW } from "./grid.js";
 //   advance — how the step is cleared:
 //               "button"  → player taps the CTA (informational step)
 //               otherwise → an ACTION TYPE that must be observed in-game:
-//                           "pop" | "combo" | "preview" | "swipe" | "blast"
-//                           | "powerup" | "magnet" | "event" | "lightning"
+//                           "pop" | "combo" | "undo" | "preview" | "swipe"
+//                           | "blast" | "powerup" | "magnet" | "event"
+//                           | "lightning"
 //   cta     — button label for "button" steps
 //   hint    — short call-to-action shown for action steps
 //   grant   — optional setup applied when the step is entered
 //             ("power" | "fever" | "bomb" | "specials" | "magnet" | "event"
-//              | "lightning")
+//              | "lightning" | "undo")
 export const TUTORIAL_STEPS = [
   {
     id: "welcome",
@@ -47,6 +48,14 @@ export const TUTORIAL_STEPS = [
     body: "Pop again right away — back-to-back pops build a combo multiplier for far bigger scores.",
     advance: "combo",
     hint: "⚡ Pop two clusters quickly",
+  },
+  {
+    id: "undo",
+    title: "Undo a Move",
+    body: "Made a mistake? Tap the ↶ Undo button up top to take back your last move. You get a few undos each level — a handy safety net. Try it now!",
+    advance: "undo",
+    hint: "↶ Tap the Undo button",
+    grant: "undo",
   },
   {
     id: "fever",

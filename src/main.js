@@ -107,6 +107,11 @@ const MAGNET_HALF = 0.3;
 // experiment freely with each tool. The player's real, larger stashes are
 // never reduced (we top up to at least this many) and are restored afterwards.
 const TUTORIAL_TOOL_STOCK = 10;
+// "Undo last move" budget: how many times a player may take back a move per
+// level, and how deep the rewind history goes. Limited so it's a safety net,
+// not a way to brute-force a level. Undo state is per-session and ephemeral
+// (it is NOT persisted across reloads — a resumed level starts fresh).
+const UNDO_BUDGET = 3;
 
 class Game {
   constructor() {
@@ -152,6 +157,7 @@ class Game {
       startTutorial: () => this.startTutorial(),
       tutorialNext: () => this.tutorial && this.tutorial.next(),
       tutorialSkip: () => this.tutorial && this.tutorial.skip(),
+      undoMove: () => this.undoMove(),
       onThemeChange: (t) => {
         this.theme = t;
       },
@@ -350,6 +356,8 @@ class Game {
       objective: (mode === "campaign" && level.objective) || null,
       objectiveMet: false,
       usedPowerup: false,
+      undoStack: [],
+      undosLeft: UNDO_BUDGET,
     };
     this._enterSession();
     if (mode === "campaign") this._persistSession();
@@ -461,6 +469,8 @@ class Game {
       objective: level.objective || null,
       objectiveMet: !!snap.objectiveMet,
       usedPowerup: !!snap.usedPowerup,
+      undoStack: [],
+      undosLeft: UNDO_BUDGET,
     };
     this._enterSession();
   }
@@ -567,7 +577,10 @@ class Game {
       petBuffs: neutralBuffs(),
       petActive: null,
       petTimer: 0,
+      petPicking: false,
       shiftTokens: 99,
+      undoStack: [],
+      undosLeft: UNDO_BUDGET,
     };
     this._enterSession();
     this.tutorial = new Tutorial({
@@ -809,6 +822,13 @@ class Game {
       b.restore(g, types);
     } else if (kind === "event") {
       this._spawnTutorialEvent();
+    } else if (kind === "undo") {
+      // Guarantee there is a move to take back so the player can try Undo, and
+      // refill the undo budget for the demo.
+      s.undosLeft = UNDO_BUDGET;
+      if (!Array.isArray(s.undoStack) || s.undoStack.length === 0) {
+        this._pushUndo();
+      }
     }
     // "bomb": tutorial bypasses the economy (see armPowerup/applyPowerup).
   }
@@ -895,10 +915,107 @@ class Game {
     if (s && s.mode === "campaign") s.usedPowerup = true;
   }
 
+  // ---- Undo last move ---------------------------------------------------
+  // Snapshot the move-reversible session state BEFORE a committed move so the
+  // player can take it back. `refund` optionally records a consumable to give
+  // back on undo ({ powerup: type }). The stack is capped at UNDO_BUDGET to
+  // bound memory; the oldest snapshot is dropped when it overflows.
+  _pushUndo(refund = null) {
+    const s = this.session;
+    if (!s || s.ended) return;
+    if (!Array.isArray(s.undoStack)) s.undoStack = [];
+    if ((s.undosLeft || 0) <= 0) return; // no budget — don't bother recording
+    s.undoStack.push({
+      grid: s.board.serialize(),
+      types: s.board.serializeTypes(),
+      score: s.score,
+      movesLeft: s.movesLeft,
+      combo: s.combo,
+      comboTimer: s.comboTimer,
+      power: s.power,
+      fever: s.fever,
+      feverActive: s.feverActive,
+      feverTimer: s.feverTimer,
+      shiftTokens: s.shiftTokens,
+      petTimer: s.petTimer,
+      objectiveMet: s.objectiveMet,
+      usedPowerup: s.usedPowerup,
+      stats: s.stats ? { ...s.stats } : null,
+      refund: refund || null,
+    });
+    if (s.undoStack.length > UNDO_BUDGET) s.undoStack.shift();
+  }
+
+  // Can the player undo right now? Needs an active, idle (non-animating)
+  // session, a remaining budget, and at least one recorded snapshot.
+  canUndo() {
+    const s = this.session;
+    if (!s || s.ended) return false;
+    if (s.finishing || s.petPicking) return false; // mid-animation
+    if (s.magnet && s.magnet.aiming) return false; // mid magnet aim
+    if ((s.undosLeft || 0) <= 0) return false;
+    return Array.isArray(s.undoStack) && s.undoStack.length > 0;
+  }
+
+  // Take back the most recent move: restore the board and all move-reversible
+  // state, refund any consumable that move spent, and consume one undo charge.
+  // Returns true if a move was undone.
+  undoMove() {
+    const s = this.session;
+    if (!this.canUndo()) {
+      if (s && !s.ended) UI.toast("Nothing to undo");
+      return false;
+    }
+    const snap = s.undoStack.pop();
+    s.board.restore(snap.grid, snap.types);
+    s.board.layout(this.W, this.H, TOP_INSET, this._bottomInset());
+    s.score = snap.score;
+    s.movesLeft = snap.movesLeft;
+    s.combo = snap.combo;
+    s.comboTimer = snap.comboTimer;
+    s.power = snap.power;
+    s.fever = snap.fever;
+    s.feverActive = snap.feverActive;
+    s.feverTimer = snap.feverTimer;
+    s.shiftTokens = snap.shiftTokens;
+    s.petTimer = snap.petTimer;
+    s.objectiveMet = snap.objectiveMet;
+    s.usedPowerup = snap.usedPowerup;
+    if (snap.stats) s.stats = { ...snap.stats };
+    // Refund any tool the undone move consumed.
+    if (snap.refund && snap.refund.powerup) {
+      Economy.addPowerup(snap.refund.powerup, 1);
+    }
+    // Cancel any transient in-progress state.
+    s.preview = null;
+    s.armed = null;
+    s.magnet = null;
+    s.hint = null;
+    s.idleTime = 0;
+    s.undosLeft = Math.max(0, (s.undosLeft || 0) - 1);
+
+    UI.clearArmedPowerups();
+    UI.hideMagnetGauge();
+    UI.updatePowerups();
+    UI.updatePower(s.power, s.power >= 1);
+    UI.updateFever(s.fever, !!s.feverActive);
+    this.refreshHud();
+    if (s.mode === "campaign") this._persistSession();
+    Audio.click();
+    vibrate(12);
+    UI.toast(`↶ Undo (${s.undosLeft} left)`);
+    this._noteActivity();
+    this._tut("undo");
+    return true;
+  }
+
   // ---- HUD --------------------------------------------------------------
   refreshHud() {
     const s = this.session;
     if (!s) return;
+    // Undo control: show the remaining budget; enabled only when a move can be
+    // taken back right now.
+    UI.updateUndo(s.undosLeft || 0, this.canUndo());
     // Bonus objective chip (campaign non-boss levels only).
     UI.updateObjective(
       s.mode === "campaign" && s.level.milestone !== "boss" ? s.objective : null,
@@ -1012,7 +1129,13 @@ class Game {
       return;
     }
 
-    if (!s.board.shiftRow(r, dir)) return; // empty row — nothing to shift
+    // Record an undo snapshot before the shift mutates the board; discard it if
+    // the row turns out to be empty (no real move happened).
+    this._pushUndo();
+    if (!s.board.shiftRow(r, dir)) {
+      if (Array.isArray(s.undoStack)) s.undoStack.pop();
+      return; // empty row — nothing to shift
+    }
 
     s.preview = null;
     s.board.settle();
@@ -1080,6 +1203,9 @@ class Game {
       vibrate(8);
       return;
     }
+
+    // Record an undo snapshot before this move mutates the board.
+    this._pushUndo();
 
     // Lightning bubbles in the group discharge along their row + column,
     // expanding the cleared set. Score reflects everything cleared.
@@ -1398,6 +1524,8 @@ class Game {
     s.preview = null;
     const cells = s.board.blastArea(c, r);
     if (!cells.length) return;
+    // Record an undo snapshot (the spent charge is restored from the snapshot).
+    this._pushUndo();
     s.power = 0;
     UI.updatePower(0, false);
     const points = Math.round(
@@ -1425,6 +1553,8 @@ class Game {
 
     // Tutorial mode bypasses the economy so it never spends real inventory.
     if (s.mode !== "tutorial" && !Economy.usePowerup(type)) return;
+    // Record an undo snapshot, refunding the spent tool on undo.
+    this._pushUndo(s.mode === "tutorial" ? null : { powerup: type });
     this._markPowerupUsed();
     const points = Math.round(
       feverPoints(groupScore(Math.max(2, cells.length)), s.feverActive) *
@@ -1521,6 +1651,9 @@ class Game {
     UI.hideMagnetGauge();
     UI.updatePowerups();
 
+    // Record an undo snapshot before the gather relocates bubbles; refund the
+    // magnet charge on undo.
+    this._pushUndo(s.mode === "tutorial" ? null : { powerup: "magnet" });
     const res = s.board.magnetGather(anchor.c, anchor.r, color, strength);
     this._markPowerupUsed();
     Audio.powerup();
@@ -1962,6 +2095,7 @@ class Game {
     if (type === "shuffle") {
       if (!inTutorial) Economy.usePowerup(type);
       this._markPowerupUsed();
+      this._pushUndo(inTutorial ? null : { powerup: "shuffle" });
       s.board.shuffle();
       Audio.powerup();
       UI.updatePowerups();

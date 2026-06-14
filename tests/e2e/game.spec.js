@@ -175,6 +175,122 @@ test.describe("core gameplay (real input)", () => {
   });
 });
 
+test.describe("undo last move (real input)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("the Undo button restores the board, score and moves", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await page.waitForTimeout(700);
+
+    // Snapshot the pre-move state.
+    const before = await page.evaluate(() => {
+      const s = window.__bpc.game.session;
+      return {
+        score: s.score,
+        moves: s.movesLeft,
+        remaining: s.board.countRemaining(),
+        undos: s.undosLeft,
+      };
+    });
+
+    // The Undo button is visible (budget available) but disabled (nothing yet).
+    await expect(page.locator("#btn-undo")).toBeVisible();
+    expect(
+      await page.evaluate(() => document.getElementById("btn-undo").disabled)
+    ).toBe(true);
+
+    // Make a real move.
+    const cell = await findGroupCell(page);
+    expect(cell).not.toBeNull();
+    await tapCell(page, cell.c, cell.r);
+    await page.waitForTimeout(300);
+
+    const moved = await page.evaluate(() => {
+      const s = window.__bpc.game.session;
+      return { score: s.score, moves: s.movesLeft, remaining: s.board.countRemaining() };
+    });
+    expect(moved.score).toBeGreaterThan(before.score);
+    expect(moved.moves).toBe(before.moves - 1);
+
+    // Undo is now enabled; tap it.
+    await expect(page.locator("#btn-undo")).toBeEnabled();
+    await page.locator("#btn-undo").click();
+    await page.waitForTimeout(150);
+
+    const after = await page.evaluate(() => {
+      const s = window.__bpc.game.session;
+      return {
+        score: s.score,
+        moves: s.movesLeft,
+        remaining: s.board.countRemaining(),
+        undos: s.undosLeft,
+      };
+    });
+    expect(after.score).toBe(before.score);
+    expect(after.moves).toBe(before.moves);
+    expect(after.remaining).toBe(before.remaining);
+    expect(after.undos).toBe(before.undos - 1); // one charge spent
+  });
+
+  test("a spent power-up is refunded on undo", async ({ page }) => {
+    await page.evaluate(() => {
+      window.__bpc.Economy.addPowerup("bomb", 3);
+      window.__bpc.game.startCampaign(1);
+    });
+    await page.waitForTimeout(700);
+
+    const beforeBombs = await page.evaluate(() =>
+      window.__bpc.Economy.getPowerup("bomb")
+    );
+
+    // Arm and use the bomb on a real bubble.
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      g.armPowerup("bomb", document.querySelector('[data-pu="bomb"]'));
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++)
+          if (b.grid[c][r] !== -1) {
+            const p = b.targetPixel(c, r);
+            g.handleTap(p.x, p.y);
+            return;
+          }
+    });
+    await page.waitForTimeout(200);
+    expect(
+      await page.evaluate(() => window.__bpc.Economy.getPowerup("bomb"))
+    ).toBe(beforeBombs - 1);
+
+    // Undo refunds the bomb.
+    await page.locator("#btn-undo").click();
+    await page.waitForTimeout(150);
+    expect(
+      await page.evaluate(() => window.__bpc.Economy.getPowerup("bomb"))
+    ).toBe(beforeBombs);
+  });
+
+  test("the undo budget is limited", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await page.waitForTimeout(700);
+    const budget = await page.evaluate(() => window.__bpc.game.session.undosLeft);
+    expect(budget).toBeGreaterThan(0);
+
+    // Spend every undo charge: pop, then undo, repeatedly.
+    for (let i = 0; i < budget; i++) {
+      const cell = await findGroupCell(page);
+      if (!cell) break;
+      await tapCell(page, cell.c, cell.r);
+      await page.waitForTimeout(150);
+      await page.locator("#btn-undo").click();
+      await page.waitForTimeout(120);
+    }
+
+    // Budget exhausted → the control is hidden and no further undo is possible.
+    expect(await page.evaluate(() => window.__bpc.game.session.undosLeft)).toBe(0);
+    await expect(page.locator("#btn-undo")).toBeHidden();
+  });
+});
+
 test.describe("gestures: long-press preview (real input)", () => {
   test.beforeEach(({ page }) => openGame(page));
 
@@ -2428,6 +2544,11 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
       const z = pick();
       g.popAt(z.c, z.r);
     });
+    await expect.poll(() => stepId(page)).toBe("undo");
+
+    // 3a) undo — tapping the ↶ Undo button takes back the last move.
+    await expect(page.locator("#btn-undo")).toBeVisible();
+    await page.locator("#btn-undo").click();
     await expect.poll(() => stepId(page)).toBe("fever");
 
     // 3b) fever (informational) — the grant fires Fever; advance on the button.

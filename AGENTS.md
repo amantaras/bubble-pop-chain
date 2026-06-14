@@ -127,6 +127,32 @@ never re‑discovered the hard way.
   to + glows the matching `.shop-item[data-pu]`). `shop-back` routes through
   `UI.closeShop`, which resumes the paused level when the shop was opened
   mid-game (`_shopOverGame`) instead of dropping to the menu.
+- **Undo last move** (`main.js` `UNDO_BUDGET`/`_pushUndo`/`canUndo`/`undoMove`,
+  `ui.js` `updateUndo`, `#btn-undo`): a per-level safety net that lets the
+  player take back their last committed move. Each session starts with
+  `UNDO_BUDGET = 3` undos (`undosLeft`) and a bounded `undoStack` (capped at
+  `UNDO_BUDGET`, oldest shifted out). Both live on the session and are
+  **ephemeral** — they are deliberately **not** part of `_persistSession`, so a
+  resumed level starts fresh with a full budget. `_pushUndo(refund)` snapshots
+  the full board + scoring state (`board.serialize()`/`serializeTypes()`,
+  `score`, `movesLeft`, `combo`/`comboTimer`, `power`, `fever`/`feverActive`/
+  `feverTimer`, `shiftTokens`, `petTimer`, `objectiveMet`, `usedPowerup`, a copy
+  of `stats`, and an optional `refund`) **before** every committed move — wired
+  into `popAt`, `handleSwipe` (snapshot discarded if the row shift is a no-op),
+  `chargedBlast`, `applyPowerup`, `lockMagnet`, and the shuffle branch of
+  `armPowerup`. `undoMove()` (no-op + "Nothing to undo" toast when `canUndo()`
+  is false — i.e. no session, ended, finishing, magnet aiming, pet picking,
+  empty stack, or `undosLeft <= 0`) pops the snapshot, restores the board and
+  every scalar/stat, **refunds** a consumed power-up/magnet/shuffle charge
+  (`snap.refund.powerup` → `Economy.addPowerup(type, 1)`; refunds are `null` in
+  the tutorial so practice stock is untouched), clears any preview/armed/magnet/
+  hint state, decrements `undosLeft`, refreshes the HUD, re-persists the session
+  (campaign), and toasts `↶ Undo (N left)`. The HUD shows a `#btn-undo` button
+  (top-right, hidden when no undos remain, disabled when `canUndo()` is false —
+  `UI.updateUndo(count, enabled)`, refreshed from `refreshHud`). The tutorial
+  teaches it with a gated **undo** step (after **combo**) whose `grant: "undo"`
+  ensures a snapshot exists, and the game emits `_tut("undo")` on a successful
+  undo.
 - **Hold-to-buy** (`ui.js` `_attachHoldRepeat`/`_buyHoldMs`): power-up buy
   buttons buy once on a tap and **keep buying while held** at a configurable
   rate — `settings.buyRepeatMs` (default **500ms = 2/sec**; override at runtime

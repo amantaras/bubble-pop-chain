@@ -18,7 +18,7 @@ describe("tutorial step definitions", () => {
 
   it("covers every core feature exactly once", () => {
     const actions = TUTORIAL_STEPS.map((s) => s.advance);
-    for (const a of ["pop", "combo", "preview", "swipe", "blast", "powerup", "magnet", "event", "lightning"]) {
+    for (const a of ["pop", "combo", "undo", "preview", "swipe", "blast", "powerup", "magnet", "event", "lightning"]) {
       expect(actions).toContain(a);
     }
   });
@@ -35,6 +35,17 @@ describe("tutorial step definitions", () => {
     expect(fever).toBeTruthy();
     expect(fever.advance).toBe("button");
     expect(fever.grant).toBe("fever");
+  });
+
+  it("includes a gated undo step that grants an undoable move", () => {
+    const undo = TUTORIAL_STEPS.find((s) => s.id === "undo");
+    expect(undo).toBeTruthy();
+    expect(undo.advance).toBe("undo");
+    expect(undo.grant).toBe("undo");
+    expect(undo.hint).toBeTruthy();
+    // It sits right after the combo step so a real move exists to take back.
+    const idx = TUTORIAL_STEPS.indexOf(undo);
+    expect(TUTORIAL_STEPS[idx - 1].id).toBe("combo");
   });
 
   it("includes a gated lightning step that grants a lightning board", () => {
@@ -128,11 +139,15 @@ describe("Tutorial controller gating", () => {
   it("applies a step's grant when it is entered", () => {
     const { tut, game } = makeTutorial();
     tut.start();
-    // Walk to the blast step, which grants a full power meter. The Fever step
-    // (button-advance) sits between combo and preview and grants "fever".
+    // Walk to the blast step, which grants a full power meter. The undo step
+    // (gated on "undo") and the Fever step (button-advance) sit between combo
+    // and preview, granting "undo" and "fever" respectively.
     tut.next(); // welcome -> tap
     tut.onAction("pop"); // tap -> combo
-    tut.onAction("combo"); // combo -> fever
+    tut.onAction("combo"); // combo -> undo
+    expect(tut.stepId).toBe("undo");
+    expect(game.tutorialGrant).toHaveBeenCalledWith("undo");
+    tut.onAction("undo"); // undo -> fever
     expect(tut.stepId).toBe("fever");
     expect(game.tutorialGrant).toHaveBeenCalledWith("fever");
     tut.next(); // fever -> preview

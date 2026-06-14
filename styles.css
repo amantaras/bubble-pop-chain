@@ -404,7 +404,8 @@ body {
 }
 #hud .icon-btn,
 #hud .powerup-btn,
-#hud .coins-pill {
+#hud .coins-pill,
+#hud .hud-undo {
   pointer-events: auto;
 }
 .hud-top {
@@ -478,6 +479,50 @@ body {
   color: var(--bg);
   background: linear-gradient(90deg, #5be3ff, #7c5cff);
   border-color: transparent;
+}
+/* Undo last move: a limited safety-net control in the HUD. */
+.hud-undo {
+  position: absolute;
+  top: 60px;
+  right: 12px;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+  background: rgba(124, 92, 255, 0.18);
+  border: 1px solid rgba(124, 92, 255, 0.5);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease, opacity 0.15s ease, background 0.15s ease;
+}
+.hud-undo:active {
+  transform: scale(0.94);
+}
+.hud-undo .hud-undo-glyph {
+  font-size: 16px;
+  line-height: 1;
+}
+.hud-undo .hud-undo-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--bg);
+  background: linear-gradient(90deg, #5be3ff, #7c5cff);
+}
+.hud-undo.disabled {
+  opacity: 0.4;
+  pointer-events: none;
 }
 .power-meter {
   position: relative;
