@@ -46,6 +46,13 @@ import {
   getFreezeTokens,
 } from "./daily.js";
 import {
+  getTournamentLevel,
+  getTournamentGoals,
+  tournamentRank,
+  recordTournament,
+  getTournamentBest,
+} from "./tournament.js";
+import {
   Tutorial,
   buildTutorialBoard,
   decorateSpecials,
@@ -149,6 +156,7 @@ class Game {
       startLevel: (id) => this.startCampaign(id),
       startEndless: () => this.startEndless(),
       startDaily: () => this.startDaily(),
+      startTournament: () => this.startTournament(),
       quitToMenu: () => this.quitToMenu(),
       resumeCampaign: () => this.resumeCampaign(),
       armPowerup: (type, btn) => this.armPowerup(type, btn),
@@ -540,6 +548,19 @@ class Game {
     const mod = lvl.modifier;
     if (mod) {
       UI.toast(`Today: ${mod.label} — ${mod.desc}`);
+    }
+  }
+
+  startTournament() {
+    // The weekly tournament is a replayable high-score chase on one seeded
+    // board that lasts the whole ISO week — beat your own best to climb ranks.
+    const lvl = getTournamentLevel();
+    this._newSession("tournament", lvl);
+    this.session.movesLeft = 9999;
+    this.session.goals = getTournamentGoals(lvl);
+    const mod = lvl.modifier;
+    if (mod) {
+      UI.toast(`This week: ${mod.label} — ${mod.desc}`);
     }
   }
 
@@ -2260,6 +2281,8 @@ class Game {
       }
     } else if (s.mode === "daily") {
       if (deadlock) this._scheduleEnd(true, "daily");
+    } else if (s.mode === "tournament") {
+      if (deadlock) this._scheduleEnd(true, "tournament");
     }
 
     // Save the in-progress campaign so it can be resumed later.
@@ -2586,6 +2609,31 @@ class Game {
         showNext: false,
         showDouble: !Monetization.isAdsRemoved(),
       });
+    } else if (s.mode === "tournament") {
+      const goals = s.goals || getTournamentGoals(s.level);
+      const rank = tournamentRank(goals, s.score);
+      const info = recordTournament(s.score);
+      const coins = Math.round(Math.floor(s.score / 150) * s.petBuffs.coinMult);
+      s.coinsEarned = coins;
+      Economy.addCoins(coins);
+      this._awardSeasonXp(40);
+      Audio.win();
+      UI.setWinTitle(info.isNewBest ? "New Weekly Best!" : "Tournament Run");
+      const bits = [`${rank.icon} ${rank.label}`, `Best ${info.best}`];
+      const petBit = this._awardPetXp();
+      if (petBit) bits.push(petBit);
+      const moves = s.stats
+        ? s.stats.pops + s.stats.swipes + s.stats.blasts + s.stats.powerups
+        : 0;
+      UI.showWin({
+        stars: rank.tier === 0 ? 1 : Math.min(3, rank.tier),
+        score: s.score,
+        coins,
+        stats: this._winStats(s, moves),
+        rewardText: bits.join("  •  "),
+        showNext: false,
+        showDouble: !Monetization.isAdsRemoved(),
+      });
     }
     UI.refreshCoins();
   }
@@ -2612,6 +2660,7 @@ class Game {
     if (!s) return this.quitToMenu();
     if (s.mode === "campaign") this.startCampaign(s.level.id);
     else if (s.mode === "endless") this.startEndless();
+    else if (s.mode === "tournament") this.startTournament();
     else this.startDaily();
   }
 
@@ -2921,6 +2970,7 @@ if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) 
     season: { seasonStatus, addSeasonXp, claimTier, tierReward },
     popStyle: popStyleForGroup,
     cascade: { cascadeBonus, cascadeTier },
+    tournament: { getTournamentLevel, getTournamentGoals, tournamentRank, getTournamentBest },
     Audio,
   };
 }

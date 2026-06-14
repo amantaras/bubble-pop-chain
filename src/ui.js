@@ -18,6 +18,11 @@ import {
   alreadyPlayedToday,
 } from "./daily.js";
 import {
+  getTournamentBest,
+  getTournamentModifier,
+  tournamentDaysLeft,
+} from "./tournament.js";
+import {
   ACHIEVEMENT_CATEGORIES,
   categoryStatus,
   claimableCount,
@@ -97,6 +102,7 @@ class UIManager {
       "lose-score", "lose-revive", "lose-retry", "lose-menu",
       "isolated", "iso-msg", "iso-pick", "iso-giveup",
       "btn-daily",
+      "btn-tournament", "tournament-summary",
       "btn-sound",
       "btn-tutorial", "tutorial", "coach-progress", "coach-title",
       "coach-body", "coach-hint", "coach-next", "coach-skip",
@@ -120,6 +126,7 @@ class UIManager {
     click("btn-play", () => this.showScreen("levelmap"));
     click("btn-endless", () => this.cb.startEndless && this.cb.startEndless());
     click("btn-daily", () => this.cb.startDaily && this.cb.startDaily());
+    click("btn-tournament", () => this.cb.startTournament && this.cb.startTournament());
     click("btn-shop", () => this.showScreen("shop"));
     click("btn-themes", () => this.showScreen("themes"));
     click("btn-achievements", () => this.showScreen("achievements"));
@@ -281,6 +288,7 @@ class UIManager {
     if (name === "menu") {
       this.updateContinue();
       this.updateDailySummary();
+      this.updateTournamentSummary();
       this.refreshAchievementsBadge();
       this.refreshCalendarBadge();
       this.refreshSeasonBadge();
@@ -557,6 +565,18 @@ class UIManager {
       tile.classList.toggle("locked", done);
       tile.setAttribute("aria-disabled", done ? "true" : "false");
     }
+  }
+
+  updateTournamentSummary() {
+    const el = this.el["tournament-summary"];
+    if (!el) return;
+    const mod = getTournamentModifier();
+    const best = getTournamentBest();
+    const days = tournamentDaysLeft();
+    const parts = [`<span class="ds-mod">🏆 ${mod.label}</span>`];
+    if (best > 0) parts.push(`<span class="ds-streak">Best ${best}</span>`);
+    parts.push(`<span class="ds-freeze">${days}d left</span>`);
+    el.innerHTML = parts.join("");
   }
 
   refreshCoins() {

@@ -61,6 +61,10 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   per-theme background music profiles (`MUSIC_PROFILES`/`musicProfile` — each
   theme resolves to its own well-formed procedural track with distinct scales,
   and unknown ids fall back to the aurora track),
+  the weekly tournament (`tournament.js` — `weekKey` ISO-week formatting,
+  one seeded board shared across the week, deterministic modifier pick, the
+  four-tier rank ladder, and `recordTournament` keeping the highest weekly best
+  with a clean rollover/reset when a new week starts),
   the achievements engine
   (lifetime progress merge, threshold unlocks, coin payouts, and
   `aggregateChestRewards` which merges many chests into one summary — summing
@@ -124,6 +128,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   per-theme background music (entering a level starts the current theme's
   procedural track and quitting stops it; muting silences it without stopping
   the sequence),
+  the weekly tournament (starting it builds the week's seeded board with goals
+  and a 9999-move high-score session; finishing a run records the weekly best,
+  shows the earned rank, and surfaces the best on the menu summary),
   the group-pop explosion styles (a popped group selects the style + shockwave
   rings matching its size, and a forced big group fires the top "supernova"
   tier with rings + flash),

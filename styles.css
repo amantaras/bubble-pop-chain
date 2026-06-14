@@ -303,6 +303,10 @@ body {
 .tile.t-daily .tile-ic {
   background: linear-gradient(135deg, #34d399, #10b981);
 }
+.tile.t-tournament .tile-ic {
+  background: linear-gradient(135deg, #ffd35b, #ff8a3c);
+  color: #2a1c00;
+}
 .tile.t-shop .tile-ic {
   background: linear-gradient(135deg, #ffce5b, #ff9f43);
   color: #2a1c00;

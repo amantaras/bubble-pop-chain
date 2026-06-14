@@ -32,6 +32,23 @@ export function todayKey(date = new Date()) {
   return `${y}-${m}-${d}`;
 }
 
+// Stable ISO-8601 week key (e.g. "2024-W07") for the local week. Used by the
+// weekly tournament so the whole week shares one seeded board. ISO weeks start
+// on Monday and belong to the year that owns their Thursday.
+export function weekKey(date = new Date()) {
+  // Work on a date-only copy so the time of day never shifts the week.
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const day = (d.getDay() + 6) % 7; // 0=Mon … 6=Sun
+  d.setDate(d.getDate() - day + 3); // hop to this week's Thursday
+  const isoYear = d.getFullYear();
+  // Thursday of ISO week 1 is the Thursday in the week of Jan 4th.
+  const wk1 = new Date(isoYear, 0, 4);
+  const wk1Day = (wk1.getDay() + 6) % 7;
+  wk1.setDate(wk1.getDate() - wk1Day + 3);
+  const week = 1 + Math.round((d - wk1) / (7 * 86400000));
+  return `${isoYear}-W${String(week).padStart(2, "0")}`;
+}
+
 export function randInt(rng, min, max) {
   return min + Math.floor(rng() * (max - min + 1));
 }

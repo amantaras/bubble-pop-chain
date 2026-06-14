@@ -1516,6 +1516,52 @@ test.describe("per-theme background music (#25)", () => {
   });
 });
 
+test.describe("weekly tournament (#11)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("starting the tournament builds the week's seeded board", async ({ page }) => {
+    const res = await page.evaluate(() => {
+      window.__bpc.game.startTournament();
+      const s = window.__bpc.game.session;
+      const lvl = window.__bpc.tournament.getTournamentLevel();
+      return {
+        mode: s.mode,
+        seed: s.level.seed,
+        weekSeed: lvl.seed,
+        movesLeft: s.movesLeft,
+        hasGoals: !!(s.goals && s.goals.silver),
+      };
+    });
+    expect(res.mode).toBe("tournament");
+    expect(res.seed).toBe(res.weekSeed);
+    expect(res.movesLeft).toBe(9999);
+    expect(res.hasGoals).toBe(true);
+  });
+
+  test("finishing a tournament run records the weekly best and shows a rank", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startTournament());
+    await page.waitForTimeout(400);
+    await autoPlay(page);
+    await expect(page.locator("#win")).toBeVisible();
+    // The reward line shows the earned rank (e.g. "🥉 Bronze").
+    await expect(page.locator("#win-reward")).toContainText("Best");
+
+    await page.locator("#win-menu").click();
+    await expect(page.locator("#menu")).toBeVisible();
+
+    const t = await page.evaluate(
+      () => JSON.parse(localStorage.getItem("bpc_save_v1")).tournament
+    );
+    expect(t.plays).toBeGreaterThanOrEqual(1);
+    expect(t.best).toBeGreaterThan(0);
+    expect(t.weekKey).not.toBeNull();
+    // The menu summary surfaces this week's best.
+    await expect(page.locator("#tournament-summary")).toContainText("Best");
+  });
+});
+
 test.describe("fever mode (double points)", () => {
   test.beforeEach(({ page }) => openGame(page));
 

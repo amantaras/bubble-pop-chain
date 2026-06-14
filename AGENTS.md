@@ -69,6 +69,22 @@ never re‑discovered the hard way.
   track live when a session is active; `quitToMenu` and `finishTutorial` call
   `stopMusic`. Meta audio feature — **no tutorial step**. (Exposed for tests via
   `__bpc.Audio`.)
+- **Weekly tournament** (`tournament.js` pure + `main.js` `startTournament`/
+  `_finish`, `rng.js` `weekKey`): a replayable high-score chase on **one seeded
+  board per ISO week** (`getTournamentLevel` keyed off `weekKey()`), with a
+  deterministic weekly **modifier** (`TOURNAMENT_MODIFIERS`) and a local-only
+  **rank ladder** (`TOURNAMENT_RANKS`: Bronze→Diamond) earned against four
+  ascending score goals (`getTournamentGoals` → `tournamentRank`). Unlike the
+  daily (once/day), it can be replayed all week to beat your own weekly best,
+  tracked in `Storage` key `tournament` `{weekKey,best,plays}` via
+  `recordTournament` (rolls over / resets when a new week starts;
+  `getTournamentBest` ignores a stale week). Mode `tournament` runs through the
+  generic `_newSession` with `movesLeft = 9999`, ends on board deadlock
+  (`afterMove` → `_scheduleEnd(true,"tournament")`), and `_finish` awards coins
+  (`floor(score/150)·coinMult`) + 40 season XP and shows the rank + weekly best
+  on the win modal. Menu **Cup** tile (`#btn-tournament`) + `#tournament-summary`
+  (modifier, best, days-left). No leaderboard, **no tutorial step** (meta mode).
+  (Exposed for tests via `__bpc.tournament`.)
 - **Power-ups** (`economy.js` `POWERUP_INFO`, armed from the HUD): **Bomb** (3×3),
   **Color Clear** (one colour), **Shuffle**, **Chain Bolt** (`grid.crossCells`,
   full row + column), **Pick** (single bubble), and the premium **Magnet**
