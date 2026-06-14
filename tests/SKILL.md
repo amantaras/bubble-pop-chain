@@ -58,6 +58,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   `ct-1..ct-5` class), the cascade chain bonus (`cascadeBonus`/`cascadeTier`/
   `CASCADE_TIERS` — a flat escalating per-chain-link bonus that pays nothing
   below `CASCADE_MIN`, steps up by `CASCADE_STEP` and caps at `CASCADE_CAP`),
+  per-theme background music profiles (`MUSIC_PROFILES`/`musicProfile` — each
+  theme resolves to its own well-formed procedural track with distinct scales,
+  and unknown ids fall back to the aurora track),
   the achievements engine
   (lifetime progress merge, threshold unlocks, coin payouts, and
   `aggregateChestRewards` which merges many chests into one summary — summing
@@ -118,6 +121,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   (the banner's tier class + label escalating with the chain length),
   the cascade chain bonus (sustaining a chain adds the exact escalating flat
   bonus to the pop's score; the opening pop of a chain pays none),
+  per-theme background music (entering a level starts the current theme's
+  procedural track and quitting stops it; muting silences it without stopping
+  the sequence),
   the group-pop explosion styles (a popped group selects the style + shockwave
   rings matching its size, and a forced big group fires the top "supernova"
   tier with rings + flash),

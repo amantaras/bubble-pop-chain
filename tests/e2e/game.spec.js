@@ -1474,6 +1474,48 @@ test.describe("cascade chain bonus (#8)", () => {
   });
 });
 
+test.describe("per-theme background music (#25)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("entering a level starts the current theme's track; quitting stops it", async ({
+    page,
+  }) => {
+    const started = await page.evaluate(() => {
+      window.__bpc.game.startCampaign(2);
+      return {
+        state: window.__bpc.Audio.musicState(),
+        theme: window.__bpc.game.theme.id,
+      };
+    });
+    expect(started.state.playing).toBe(true);
+    expect(started.state.theme).toBe(started.theme);
+
+    const stopped = await page.evaluate(() => {
+      window.__bpc.game.quitToMenu();
+      return window.__bpc.Audio.musicState();
+    });
+    expect(stopped.playing).toBe(false);
+  });
+
+  test("muting silences the track without stopping it", async ({ page }) => {
+    const res = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const A = window.__bpc.Audio;
+      g.startCampaign(2);
+      A.setMuted(false);
+      const before = A.musicState().playing;
+      A.setMuted(true);
+      const afterPlaying = A.musicState().playing; // still scheduled, just silent
+      const masterMuted = A.muted;
+      A.setMuted(false); // restore
+      return { before, afterPlaying, masterMuted };
+    });
+    expect(res.before).toBe(true);
+    expect(res.afterPlaying).toBe(true);
+    expect(res.masterMuted).toBe(true);
+  });
+});
+
 test.describe("fever mode (double points)", () => {
   test.beforeEach(({ page }) => openGame(page));
 

@@ -162,6 +162,8 @@ class Game {
       undoMove: () => this.undoMove(),
       onThemeChange: (t) => {
         this.theme = t;
+        // Swap the backing track live when the theme changes mid-session.
+        if (this.session) Audio.startMusic(t.id);
       },
       onColorblindChange: (on) => {
         this.renderer.colorblind = !!on;
@@ -391,6 +393,9 @@ class Game {
     this._syncAlienShip();
     this.input.setEnabled(true);
     this.refreshHud();
+    // Kick off the current theme's background track (no-op if already playing
+    // this theme, so it keeps flowing across level restarts).
+    Audio.startMusic(this.theme.id);
     // Announce the bonus objective at the start of a fresh campaign level.
     const s = this.session;
     if (
@@ -601,6 +606,7 @@ class Game {
     Storage.set("firstRunDone", true);
     this.session = null;
     this.input.setEnabled(false);
+    Audio.stopMusic();
     UI.showScreen("menu");
   }
 
@@ -2657,6 +2663,7 @@ class Game {
     this.input.setEnabled(false);
     UI.clearFallingEvents();
     this.alienShip.stop();
+    Audio.stopMusic();
     this.activeEvent = false;
     UI.showScreen("menu");
   }
@@ -2914,5 +2921,6 @@ if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) 
     season: { seasonStatus, addSeasonXp, claimTier, tierReward },
     popStyle: popStyleForGroup,
     cascade: { cascadeBonus, cascadeTier },
+    Audio,
   };
 }

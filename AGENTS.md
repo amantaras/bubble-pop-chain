@@ -54,6 +54,21 @@ never re‑discovered the hard way.
   combo banner so the two reward layers read differently. `session.stats.
   bestCascade` tracks the longest chain. Auto mechanic, no new gesture — **no
   tutorial step**. (Exposed for tests via `__bpc.cascade`.)
+- **Per-theme background music** (`audio.js` `MUSIC_PROFILES`/`musicProfile`/
+  `startMusic`/`stopMusic`/`musicState`, `main.js` lifecycle): every visual
+  theme has its own **fully procedural** backing track (no audio files — same
+  Web Audio approach as the SFX). `musicProfile(themeId)` (pure) maps a theme to
+  a profile (melodic `scale`, `bass` figure, `tempo`, oscillator `wave`/
+  `bassWave`, gentle per-voice gains), falling back to the **aurora** track for
+  unknown ids. The engine plays a single quiet voice — a melody that wanders the
+  scale over a four-beat bass pulse (`_musicStep` on a `setInterval`) — routed
+  through a dedicated `_musicGain` sub-bus under the master gain, so muting
+  (master gain → 0) silences it **without stopping** the sequence. `_enterSession`
+  calls `Audio.startMusic(this.theme.id)` (a no-op when the same theme is already
+  playing, so the groove survives level restarts); `onThemeChange` swaps the
+  track live when a session is active; `quitToMenu` and `finishTutorial` call
+  `stopMusic`. Meta audio feature — **no tutorial step**. (Exposed for tests via
+  `__bpc.Audio`.)
 - **Power-ups** (`economy.js` `POWERUP_INFO`, armed from the HUD): **Bomb** (3×3),
   **Color Clear** (one colour), **Shuffle**, **Chain Bolt** (`grid.crossCells`,
   full row + column), **Pick** (single bubble), and the premium **Magnet**
