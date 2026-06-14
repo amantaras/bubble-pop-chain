@@ -1382,6 +1382,98 @@ test.describe("combo escalator (#5)", () => {
   });
 });
 
+test.describe("cascade chain bonus (#8)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("sustaining a chain adds an escalating flat cascade bonus", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(400);
+
+    const res = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const s = g.session;
+      s.combo = 3; // the resolving pop is the 4th link in the chain
+      s.comboTimer = 99;
+      s.feverActive = false;
+      s.fever = 0;
+      const b = s.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          if (b.grid[c][r] === -1 || b.types[c][r] !== 0) continue;
+          const grp = b.getGroupAt(c, r);
+          if (grp.length >= 2 && !grp.some((p) => b.isLightning(p.c, p.r))) {
+            const size = grp.length;
+            const comboBefore = s.combo;
+            const before = s.score;
+            g.popAt(c, r);
+            return {
+              size,
+              comboBefore,
+              delta: s.score - before,
+              scoreMult: s.petBuffs.scoreMult,
+            };
+          }
+        }
+      return null;
+    });
+    expect(res).not.toBeNull();
+
+    // Recompute the exact award the way main.js does: combo-multiplied group
+    // score PLUS the flat cascade bonus for this chain link, no Fever active.
+    const expected = await page.evaluate((r) => {
+      const cs = window.__bpc.cascade;
+      const groupScore = (n) => (n < 2 ? 0 : 5 * n * (n - 1));
+      const comboMult = (combo) => Math.min(1 + combo * 0.5, 5);
+      const comboPoints = Math.round(groupScore(r.size) * comboMult(r.comboBefore));
+      const cascade = cs.cascadeBonus(r.comboBefore + 1);
+      return {
+        total: Math.round((comboPoints + cascade) * r.scoreMult),
+        cascade,
+      };
+    }, res);
+
+    expect(expected.cascade).toBeGreaterThan(0); // chain of 4 must pay a cascade
+    expect(res.delta).toBe(expected.total);
+  });
+
+  test("the opening pop of a chain pays no cascade", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(400);
+
+    const res = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const s = g.session;
+      s.combo = 0; // first pop → chain length 1 → no cascade
+      s.comboTimer = 0;
+      s.feverActive = false;
+      s.fever = 0;
+      const b = s.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          if (b.grid[c][r] === -1 || b.types[c][r] !== 0) continue;
+          const grp = b.getGroupAt(c, r);
+          if (grp.length >= 2 && !grp.some((p) => b.isLightning(p.c, p.r))) {
+            const size = grp.length;
+            const before = s.score;
+            g.popAt(c, r);
+            return {
+              size,
+              delta: s.score - before,
+              scoreMult: s.petBuffs.scoreMult,
+            };
+          }
+        }
+      return null;
+    });
+    expect(res).not.toBeNull();
+    // Combo 0, no cascade, no Fever → exactly the base group score (×1).
+    const base = res.size < 2 ? 0 : 5 * res.size * (res.size - 1);
+    expect(res.delta).toBe(Math.round(base * res.scoreMult));
+  });
+});
+
 test.describe("fever mode (double points)", () => {
   test.beforeEach(({ page }) => openGame(page));
 

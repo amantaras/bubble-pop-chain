@@ -38,6 +38,42 @@ export function comboTier(combo) {
   return found;
 }
 
+// ---- Cascade / chain-reaction bonus ----------------------------------
+// Keeping a chain alive (popping again before the combo window closes) triggers
+// a cascade: each successive pop pays a FLAT, escalating bonus on top of the
+// multiplicative combo score. Where the combo multiplier rewards *big* groups,
+// the cascade bonus rewards *sustaining the chain* — so stringing together many
+// small pops is worthwhile too. `chain` is the number of pops in the current
+// unbroken chain (1 = the opening pop, which never pays a cascade). Capped so
+// it stays a spice rather than the whole meal.
+export const CASCADE_MIN = 2; // chain length at which a cascade first pays out
+export const CASCADE_STEP = 30; // flat points added per chain step past the first
+export const CASCADE_CAP = 360; // max cascade bonus from a single pop
+
+export function cascadeBonus(chain) {
+  if (chain < CASCADE_MIN) return 0;
+  return Math.min(CASCADE_CAP, CASCADE_STEP * (chain - 1));
+}
+
+// Named cascade tiers for the escalating chain-reaction callout. `min` is the
+// chain length at which the tier kicks in. Ordered low -> high.
+export const CASCADE_TIERS = [
+  { min: 2, label: "Cascade" },
+  { min: 4, label: "Chain Reaction" },
+  { min: 6, label: "Avalanche" },
+  { min: 9, label: "Meltdown" },
+];
+
+// Resolve the highest cascade tier reached for a given chain length, or null
+// when the chain is below the first threshold.
+export function cascadeTier(chain) {
+  let found = null;
+  for (let i = 0; i < CASCADE_TIERS.length; i++) {
+    if (chain >= CASCADE_TIERS[i].min) found = { tier: i, ...CASCADE_TIERS[i] };
+  }
+  return found;
+}
+
 // Clearing the whole board grants a big bonus proportional to moves left.
 export function clearBonus(movesLeft) {
   return 500 + movesLeft * 150;

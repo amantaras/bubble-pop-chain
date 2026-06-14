@@ -23,6 +23,8 @@ import {
   groupScore,
   comboMultiplier,
   comboTier,
+  cascadeBonus,
+  cascadeTier,
   clearBonus,
   starsForScore,
   coinReward,
@@ -1216,8 +1218,13 @@ class Game {
     const base = groupScore(cells.length);
     const mult = comboMultiplier(s.combo);
     const comboPoints = Math.round(base * mult);
+    // Cascade / chain-reaction bonus: a flat, escalating reward for keeping the
+    // chain alive (popping again before the combo window closes). `s.combo` is
+    // still the PRE-pop count here, so this pop's chain length is combo + 1.
+    const chainLen = s.combo + 1;
+    const cascade = cascadeBonus(chainLen);
     const points = Math.round(
-      feverPoints(comboPoints, s.feverActive) * s.petBuffs.scoreMult
+      feverPoints(comboPoints + cascade, s.feverActive) * s.petBuffs.scoreMult
     );
     s.score += points;
     s.combo += 1;
@@ -1234,6 +1241,22 @@ class Game {
       Audio.powerup();
     }
     this._popCells(cells, points, cells.length, s.combo, struck ? 1.3 : 1);
+
+    // Cascade callout: a distinct, escalating chain-reaction flourish above the
+    // pop when the chain pays a cascade bonus (separate from the centre combo
+    // banner so the two read as different rewards).
+    if (cascade > 0) {
+      const p = s.board.targetPixel(c, r);
+      const ct = cascadeTier(chainLen);
+      this.floating.spawn(
+        p.x,
+        p.y - 52,
+        `🔗 ${ct ? ct.label : "Cascade"} +${cascade}`,
+        "#7ef0d0",
+        ct && ct.tier >= 2 ? 30 : 26
+      );
+      if (s.stats) s.stats.bestCascade = Math.max(s.stats.bestCascade || 0, chainLen);
+    }
 
     if (s.stats) {
       s.stats.pops += 1;
@@ -2890,5 +2913,6 @@ if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) 
     calendar: { calendarStatus, advanceCalendar, todayKey },
     season: { seasonStatus, addSeasonXp, claimTier, tierReward },
     popStyle: popStyleForGroup,
+    cascade: { cascadeBonus, cascadeTier },
   };
 }

@@ -39,6 +39,21 @@ never re‑discovered the hard way.
   read bigger/hotter (ct-5 gets its own punchier `comboPopBig` animation). This
   amplifies the existing combo loop (no new gesture) and reuses the tutorial's
   **combo** step — **no extra tutorial step**.
+- **Cascade chain bonus** (`scoring.js` `cascadeBonus`/`cascadeTier`/
+  `CASCADE_TIERS`, `main.js` `popAt`): sustaining a chain (popping again before
+  the combo window closes) pays a **flat, escalating bonus on top of** the
+  multiplicative combo score. Where the combo multiplier rewards *big* groups,
+  the cascade rewards *keeping the chain alive*, so stringing together many
+  small pops is worthwhile too. `cascadeBonus(chain)` (pure) is `0` until the
+  chain reaches `CASCADE_MIN` (2), then adds `CASCADE_STEP` (30) per extra link,
+  capped at `CASCADE_CAP` (360); `chain` is `session.combo + 1` (the count
+  before this pop is folded into `points` alongside the combo points, so it also
+  benefits from Fever and pet score buffs). A distinct **chain-reaction callout**
+  floats above the pop — `🔗 <tier> +<bonus>` keyed to `cascadeTier(chain)`
+  (Cascade / Chain Reaction / Avalanche / Meltdown) — separate from the centre
+  combo banner so the two reward layers read differently. `session.stats.
+  bestCascade` tracks the longest chain. Auto mechanic, no new gesture — **no
+  tutorial step**. (Exposed for tests via `__bpc.cascade`.)
 - **Power-ups** (`economy.js` `POWERUP_INFO`, armed from the HUD): **Bomb** (3×3),
   **Color Clear** (one colour), **Shuffle**, **Chain Bolt** (`grid.crossCells`,
   full row + column), **Pick** (single bubble), and the premium **Magnet**

@@ -4,6 +4,12 @@ import {
   comboMultiplier,
   comboTier,
   COMBO_TIERS,
+  cascadeBonus,
+  cascadeTier,
+  CASCADE_TIERS,
+  CASCADE_MIN,
+  CASCADE_STEP,
+  CASCADE_CAP,
   clearBonus,
   starsForScore,
   coinReward,
@@ -57,6 +63,39 @@ describe("scoring", () => {
     // thresholds strictly increase so tiers can never overlap
     for (let i = 1; i < COMBO_TIERS.length; i++) {
       expect(COMBO_TIERS[i].min).toBeGreaterThan(COMBO_TIERS[i - 1].min);
+    }
+  });
+
+  it("cascadeBonus pays nothing until the chain reaches CASCADE_MIN", () => {
+    expect(cascadeBonus(0)).toBe(0);
+    expect(cascadeBonus(1)).toBe(0);
+    expect(cascadeBonus(CASCADE_MIN - 1)).toBe(0);
+    expect(cascadeBonus(CASCADE_MIN)).toBeGreaterThan(0);
+  });
+
+  it("cascadeBonus escalates by a flat step per chain link, then caps", () => {
+    expect(cascadeBonus(2)).toBe(CASCADE_STEP);
+    expect(cascadeBonus(3)).toBe(CASCADE_STEP * 2);
+    expect(cascadeBonus(4)).toBe(CASCADE_STEP * 3);
+    // monotonic non-decreasing
+    for (let n = 2; n < 40; n++) {
+      expect(cascadeBonus(n + 1)).toBeGreaterThanOrEqual(cascadeBonus(n));
+    }
+    // never exceeds the cap
+    expect(cascadeBonus(1000)).toBe(CASCADE_CAP);
+  });
+
+  it("cascadeTier is null below the first threshold then escalates", () => {
+    expect(cascadeTier(1)).toBeNull();
+    expect(cascadeTier(2).tier).toBe(0);
+    expect(cascadeTier(CASCADE_TIERS[CASCADE_TIERS.length - 1].min).tier).toBe(
+      CASCADE_TIERS.length - 1
+    );
+    expect(cascadeTier(999).tier).toBe(CASCADE_TIERS.length - 1);
+    expect(typeof cascadeTier(2).label).toBe("string");
+    // thresholds strictly increase so tiers can never overlap
+    for (let i = 1; i < CASCADE_TIERS.length; i++) {
+      expect(CASCADE_TIERS[i].min).toBeGreaterThan(CASCADE_TIERS[i - 1].min);
     }
   });
 

@@ -55,7 +55,10 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   swipe classification, the Power-meter charge curve + Charged-Blast AoE,
   Fever-mode scoring (gauge gain + double-points), the combo escalator
   (`comboTier`/`COMBO_TIERS` mapping a combo count to its named tier +
-  `ct-1..ct-5` class), the achievements engine
+  `ct-1..ct-5` class), the cascade chain bonus (`cascadeBonus`/`cascadeTier`/
+  `CASCADE_TIERS` — a flat escalating per-chain-link bonus that pays nothing
+  below `CASCADE_MIN`, steps up by `CASCADE_STEP` and caps at `CASCADE_CAP`),
+  the achievements engine
   (lifetime progress merge, threshold unlocks, coin payouts, and
   `aggregateChestRewards` which merges many chests into one summary — summing
   coins, merging power-ups by id, and gathering pets + categories for Collect All),
@@ -113,6 +116,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   no forced ads before level 7,
   Fever mode (double points + gauge lighting up), the combo escalator
   (the banner's tier class + label escalating with the chain length),
+  the cascade chain bonus (sustaining a chain adds the exact escalating flat
+  bonus to the pop's score; the opening pop of a chain pays none),
   the group-pop explosion styles (a popped group selects the style + shockwave
   rings matching its size, and a forced big group fires the top "supernova"
   tier with rings + flash),
