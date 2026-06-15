@@ -1,5 +1,5 @@
 // Game orchestrator: canvas loop, state machine, and all session logic.
-import { Board, RAINBOW, ICE, LIGHTNING, STONE, BOMB, MULTIPLIER } from "./grid.js";
+import { Board, RAINBOW, ICE, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN } from "./grid.js";
 import { Renderer } from "./renderer.js";
 import { ParticleSystem, popStyleForGroup } from "./particles.js";
 import {
@@ -125,6 +125,10 @@ const UNDO_BUDGET = 3;
 // Time Attack: a fast score-rush mode where the board refills endlessly and the
 // only limit is the clock. Players chase a personal best within the window.
 const TIME_ATTACK_SECONDS = 60;
+
+// Coins dropped per treasure "coin" bubble cleared in a pop (outside the
+// tutorial, which never touches the real economy).
+const COIN_BUBBLE_VALUE = 12;
 
 class Game {
   constructor() {
@@ -946,6 +950,18 @@ class Game {
       decorateSpecials(types);
       this._placeTutorialMultiplier(types);
       b.restore(g, types);
+    } else if (kind === "coinbubble") {
+      // Fresh practice board with a treasure COIN bubble parked inside a
+      // guaranteed cluster, so popping it always drops coins and advances.
+      const b = s.board;
+      const { colors: g, types } = buildTutorialBoard(
+        b.cols,
+        b.rows,
+        s.level.colors || 4
+      );
+      decorateSpecials(types);
+      this._placeTutorialCoin(types);
+      b.restore(g, types);
     } else if (kind === "event") {
       this._spawnTutorialEvent();
     } else if (kind === "undo") {
@@ -986,6 +1002,13 @@ class Game {
     if (types && types[0] && types[0][0] !== undefined) types[0][0] = MULTIPLIER;
   }
 
+  // Drop a treasure COIN bubble into a corner 2×2 block of the practice board
+  // (a guaranteed same-colour cluster), so the coin step can always be cleared
+  // and drops coins.
+  _placeTutorialCoin(types) {
+    if (types && types[0] && types[0][0] !== undefined) types[0][0] = COIN;
+  }
+
   // Rebuild the controlled practice board so the tutorial never runs out of
   // poppable clusters no matter how much the player pops/blasts.
   _refillTutorialBoard() {
@@ -1013,6 +1036,10 @@ class Game {
     // Keep a multiplier bubble available while the multiplier step is active.
     if (this.tutorial && this.tutorial.stepId === "multiplier") {
       this._placeTutorialMultiplier(types);
+    }
+    // Keep a coin bubble available while the coin step is active.
+    if (this.tutorial && this.tutorial.stepId === "coinbubble") {
+      this._placeTutorialCoin(types);
     }
     b.restore(g, types);
     b.layout(this.W, this.H, TOP_INSET, this._bottomInset());
@@ -1441,6 +1468,19 @@ class Game {
       this.floating.spawn(p.x, p.y - 28, `✨ ×${scoreMult}!`, "#ffd35b", 32);
       Audio.powerup();
     }
+    // Treasure "coin" bubbles in the cleared set drop bonus coins straight into
+    // the wallet (the tutorial never touches the real economy).
+    const coinCount = cells.filter((p) => s.board.isCoin(p.c, p.r)).length;
+    if (coinCount > 0) {
+      const coinsDropped = coinCount * COIN_BUBBLE_VALUE;
+      if (s.mode !== "tutorial") {
+        Economy.addCoins(coinsDropped);
+        if (s.stats) s.stats.coinBubbles = (s.stats.coinBubbles || 0) + coinCount;
+      }
+      const p = s.board.targetPixel(c, r);
+      this.floating.spawn(p.x, p.y - 28, `🪙 +${coinsDropped}`, "#ffe08a", 30);
+      Audio.powerup();
+    }
     this._popCells(cells, finalPoints, cells.length, s.combo, struck ? 1.3 : 1);
 
     // Cascade callout: a distinct, escalating chain-reaction flourish above the
@@ -1474,6 +1514,7 @@ class Game {
     if (struckBolt) this._tut("lightning");
     if (struckBomb) this._tut("bombbubble");
     if (multCount > 0) this._tut("multiplier");
+    if (coinCount > 0) this._tut("coinbubble");
     if (s.combo >= 2) this._tut("combo");
     // Bonus objective progress: a big combo or a single large group.
     this._trackObjective({ combo: s.combo, group: group.length });

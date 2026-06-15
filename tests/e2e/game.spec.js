@@ -609,6 +609,31 @@ test.describe("special bubbles (ice + rainbow)", () => {
     expect(res.goldCleared).toBe(res.plainCleared);
     expect(res.goldGain).toBeGreaterThan(res.plainGain);
   });
+
+  test("a coin bubble drops bonus coins into the wallet when popped", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(8));
+    await page.waitForTimeout(500);
+    const res = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const Economy = window.__bpc.Economy;
+      const b = g.session.board;
+      // Build an isolated colour-0 pair and make one a treasure COIN bubble.
+      const cc = 2;
+      const cr = Math.floor(b.rows / 2);
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          b.grid[c][r] = c === cc && (r === cr || r === cr + 1) ? 0 : 1;
+          b.types[c][r] = 0; // NORMAL
+        }
+      b.types[cc][cr] = 8; // COIN
+      const coinsBefore = Economy.coins;
+      g.popAt(cc, cr); // pop the coin pair → coins drop into the wallet
+      return { gained: Economy.coins - coinsBefore };
+    });
+    expect(res.gained).toBeGreaterThan(0);
+  });
 });
 
 test.describe("daily retention engine", () => {
@@ -3177,9 +3202,23 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
             return;
           }
     });
+    await expect.poll(() => stepId(page)).toBe("coinbubble");
+
+    // 8e) coin — popping a cluster that contains the treasure bubble drops
+    // coins and advances the step.
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++)
+          if (b.isCoin(c, r) && b.getGroupAt(c, r).length >= 2) {
+            g.popAt(c, r);
+            return;
+          }
+    });
     await expect.poll(() => stepId(page)).toBe("pets");
 
-    // 8e) pets (informational) — introduces the companion system.
+    // 8f) pets (informational) — introduces the companion system.
     await page.locator("#coach-next").click();
     expect(await stepId(page)).toBe("done");
 

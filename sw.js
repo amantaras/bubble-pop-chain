@@ -1,4 +1,4 @@
-const CACHE = "bubble-pop-chain-v42";
+const CACHE = "bubble-pop-chain-v43";
 const ASSETS = [
   "./",
   "./index.html",

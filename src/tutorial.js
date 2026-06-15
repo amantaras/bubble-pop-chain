@@ -22,12 +22,13 @@ import { NORMAL, ICE, RAINBOW } from "./grid.js";
 //                           "pop" | "combo" | "undo" | "preview" | "swipe"
 //                           | "blast" | "powerup" | "magnet" | "event"
 //                           | "lightning" | "stone" | "bombbubble"
-//                           | "multiplier"
+//                           | "multiplier" | "coinbubble"
 //   cta     — button label for "button" steps
 //   hint    — short call-to-action shown for action steps
 //   grant   — optional setup applied when the step is entered
 //             ("power" | "fever" | "bomb" | "specials" | "magnet" | "event"
-//              | "lightning" | "stone" | "bombbubble" | "multiplier" | "undo")
+//              | "lightning" | "stone" | "bombbubble" | "multiplier"
+//              | "coinbubble" | "undo")
 export const TUTORIAL_STEPS = [
   {
     id: "welcome",
@@ -151,6 +152,14 @@ export const TUTORIAL_STEPS = [
     advance: "multiplier",
     hint: "✨ Pop the cluster with the gold bubble",
     grant: "multiplier",
+  },
+  {
+    id: "coinbubble",
+    title: "Coin Bubbles",
+    body: "🪙 Coin bubbles are treasure! Pop a cluster that includes one and it drops bonus coins straight into your wallet. Pop the coin cluster now!",
+    advance: "coinbubble",
+    hint: "🪙 Pop the cluster with the coin bubble",
+    grant: "coinbubble",
   },
   {
     id: "pets",

@@ -138,7 +138,10 @@ function specialsForLevel(n) {
   // Gold multiplier bubbles ramp in from level 12 — a rewarding treat that
   // multiplies the score of the pop that clears them. Kept sparse.
   const multiplier = n >= 12 ? Math.min(0.04, 0.012 + (n - 12) * 0.0012) : 0;
-  return { rainbow, ice, lightning, stone, bomb, multiplier };
+  // Treasure coin bubbles ramp in from level 8 — a friendly early reward that
+  // drops bonus coins when popped. Kept sparse so they stay a treat.
+  const coin = n >= 8 ? Math.min(0.035, 0.012 + (n - 8) * 0.001) : 0;
+  return { rainbow, ice, lightning, stone, bomb, multiplier, coin };
 }
 
 // Bonus objectives ----------------------------------------------------------

@@ -18,6 +18,8 @@ export const BOMB = 6; // explosive — popping its group also detonates a 3×3
 export const MULTIPLIER = 7; // gold — popping its group multiplies that pop's
 //                              score (×2 per multiplier, stacking, capped). A
 //                              normal coloured bubble for matching; no AoE.
+export const COIN = 8; // treasure — popping its group drops bonus coins. A
+//                        normal coloured bubble for matching; no AoE.
 
 // How long a magnet-pulled bubble takes to glide to its new cell (seconds).
 // Deliberately slower than the snappy gravity settle so the player can see the
@@ -73,6 +75,7 @@ export class Board {
     const stoneRate = this.specials.stone || 0;
     const bombRate = this.specials.bomb || 0;
     const multRate = this.specials.multiplier || 0;
+    const coinRate = this.specials.coin || 0;
     this.types = [];
     for (let c = 0; c < this.cols; c++) {
       this.types[c] = [];
@@ -98,6 +101,17 @@ export class Board {
           rainbowRate + iceRate + lightningRate + stoneRate + bombRate + multRate
         )
           this.types[c][r] = MULTIPLIER;
+        else if (
+          roll <
+          rainbowRate +
+            iceRate +
+            lightningRate +
+            stoneRate +
+            bombRate +
+            multRate +
+            coinRate
+        )
+          this.types[c][r] = COIN;
         else this.types[c][r] = NORMAL;
       }
     }
@@ -280,6 +294,10 @@ export class Board {
 
   isMultiplier(c, r) {
     return this.types[c] && this.types[c][r] === MULTIPLIER;
+  }
+
+  isCoin(c, r) {
+    return this.types[c] && this.types[c][r] === COIN;
   }
 
   // Expand a popped group: if it contains any LIGHTNING bubble, every lightning

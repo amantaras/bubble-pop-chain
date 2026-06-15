@@ -1,6 +1,6 @@
 // Canvas renderer: animated background + glossy neon bubbles.
 
-import { RAINBOW, ICE, ICE_CRACKED, NORMAL, LIGHTNING, STONE, BOMB, MULTIPLIER } from "./grid.js";
+import { RAINBOW, ICE, ICE_CRACKED, NORMAL, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN } from "./grid.js";
 
 // Distinct glyphs used by colourblind mode — one per colour index. There are
 // always at least as many symbols as a level has colours.
@@ -362,6 +362,40 @@ export class Renderer {
         ctx.textBaseline = "middle";
         ctx.fillText("×2", s.x, s.y + rad * 0.04);
         ctx.shadowBlur = 0;
+      }
+
+      if (s.type === COIN) {
+        ctx.globalAlpha = s.alpha;
+        const pulse = 0.6 + 0.4 * Math.abs(Math.sin(performance.now() / 220));
+        // Shiny gold coin disc with a glow.
+        ctx.shadowColor = "rgba(255,200,50,0.95)";
+        ctx.shadowBlur = rad * 0.6 * pulse;
+        const cg = ctx.createRadialGradient(
+          s.x - rad * 0.25,
+          s.y - rad * 0.25,
+          rad * 0.08,
+          s.x,
+          s.y,
+          rad * 0.62
+        );
+        cg.addColorStop(0, "rgba(255,236,150,0.98)");
+        cg.addColorStop(1, "rgba(212,158,40,0.98)");
+        ctx.fillStyle = cg;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, rad * 0.6, 0, Math.PI * 2);
+        ctx.fill();
+        // Inner rim + currency glyph.
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = "rgba(255,248,200,0.85)";
+        ctx.lineWidth = Math.max(1, rad * 0.07);
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, rad * 0.44, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = "rgba(150,100,20,0.9)";
+        ctx.font = `700 ${Math.round(rad * 0.7)}px system-ui, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("$", s.x, s.y + rad * 0.04);
       }
 
       // Boss "Colour Purge" marker: a crisp target pip on every plain bubble of
