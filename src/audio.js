@@ -145,6 +145,26 @@ class AudioEngine {
     this._tone(440, 0.22, "triangle", 0.18, 880);
   }
 
+  // Entering Fever: a hot, rising three-note fanfare distinct from the generic
+  // power-up blip, so the "double points!" moment reads instantly by ear.
+  fever() {
+    this._ensure();
+    const notes = [330, 494, 740];
+    notes.forEach((n, i) =>
+      setTimeout(() => this._tone(n, 0.22, "sawtooth", 0.26, n * 1.5), i * 70)
+    );
+    this._tone(165, 0.5, "triangle", 0.18, 247);
+  }
+
+  // Charged Blast detonation: a punchy descending boom, beefier and lower than
+  // a normal pop so the screen-clearing AoE feels weighty.
+  blast() {
+    this._ensure();
+    this._tone(180, 0.3, "square", 0.3, 60);
+    this._tone(420, 0.16, "sawtooth", 0.2, 120);
+    this._tone(90, 0.4, "sine", 0.22, 40);
+  }
+
   click() {
     this._ensure();
     this._tone(520, 0.05, "square", 0.12);

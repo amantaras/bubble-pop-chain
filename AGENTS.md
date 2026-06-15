@@ -21,7 +21,10 @@ never re‑discovered the hard way.
   the Power meter is full, **swipe left/right** = shift a whole row (2048‑style,
   costs 1 move in campaign or a shift token in endless/daily).
 - **Power meter**: fills from points + combos (`scoring.powerGain`); a full
-  meter enables a double‑tap Charged Blast (`grid.blastArea`, diamond AoE).
+  meter enables a double‑tap Charged Blast (`grid.blastArea`, diamond AoE). The
+  blast has its own punchy descending **`Audio.blast()`** SFX (and Fever entry
+  its own rising **`Audio.fever()`** fanfare) — distinct from the generic
+  `Audio.powerup()` blip so each moment reads by ear.
 - **Fever mode** (`scoring.js` `feverGain`/`feverPoints`/`FEVER_DURATION`): a
   second HUD bar under the charge meter. Quick chains fill the Fever gauge
   (`feverGain` scales with combo); when it tops out the player enters **Fever**
@@ -282,7 +285,17 @@ never re‑discovered the hard way.
   with gated steps. (The bomb **bubble** uses the `bombbubble` step/grant/action
   id to avoid colliding with the bomb **power-up** step's `grant: "bomb"`.)
 - **Ads gating** (`monetization.js`): forced interstitials only from
-  `adsStartLevel` (7) onward; rewarded ads always available.
+  `adsStartLevel` (7) onward; rewarded ads always available. The manager owns
+  all **policy** (cadence, new-player grace, the ads-removed gate, and
+  persisting the `adsRemoved` flag after any successful `remove_ads` purchase),
+  and the actual ad/IAP surface is **pluggable**: ship a real SDK by injecting a
+  provider via `Monetization.setProvider(p)` (revert with `clearProvider()`/
+  `setProvider(null)`). A provider may implement `showRewardedAd(label)`,
+  `showInterstitial()`, and/or `purchase(productId)`; any method it omits falls
+  back to the built-in mock (`_providerCan` gates per-method), so a platform can
+  override just the surfaces it supports. Swapping providers can never change
+  *when* ads show or *whether* the ads-removed flag is recorded — that contract
+  stays in the manager.
 - **Coin economy** (`scoring.coinReward`, `economy.js`): level payout is
   `floor(score/100) + stars*20`, tuned so a ~2-star player affords a cheap
   power-up (100–150) every 2–3 levels without ads. The shop's **Free Coins**
@@ -793,7 +806,7 @@ src/
   particles.js      # Particle FX (capped pool — see Performance below)
   animations.js     # ScreenShake, FloatingText
   input.js          # Pointer input + vibrate() (guarded for iOS)
-  audio.js          # WebAudio (unlocked on first pointerdown)
+  audio.js          # WebAudio (unlocked on first pointerdown); pop/powerup/fever/blast/click/win/lose/coin SFX + per-theme music
   storage.js        # Storage singleton over localStorage (bpc_save_v1)
   themes.js         # Theme catalog + unlock logic + applyThemeCss
   levels.js         # LEVEL_COUNT=9999 (endless), getLevel(id) generative + DIFFICULTY_CAP, world/proc chapters
@@ -867,7 +880,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 419 unit tests + 330 E2E
+- **Current baseline (keep growing, never shrink)**: 438 unit tests + 330 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

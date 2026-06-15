@@ -9,6 +9,7 @@ describe("monetization (real code paths, mock provider)", () => {
     // Reset in-memory cadence counters between tests.
     Monetization.levelWinCount = 0;
     Monetization._lastInterstitial = 0;
+    Monetization.clearProvider();
   });
 
   it("rewarded ad resolves true (reward granted)", async () => {
@@ -69,3 +70,120 @@ describe("monetization (real code paths, mock provider)", () => {
     expect(await Monetization.maybeShowInterstitial(7)).toBe(true); // 3 -> show
   });
 });
+
+describe("monetization provider seam (real ad/IAP SDK injection)", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    Storage.reset();
+    Monetization.levelWinCount = 0;
+    Monetization._lastInterstitial = 0;
+    Monetization.clearProvider();
+  });
+
+  it("setProvider/clearProvider toggle the active provider", () => {
+    expect(Monetization.provider).toBe(null);
+    const p = { purchase: () => ({ ok: true }) };
+    Monetization.setProvider(p);
+    expect(Monetization.provider).toBe(p);
+    Monetization.clearProvider();
+    expect(Monetization.provider).toBe(null);
+    // setProvider(null) is equivalent to clearing.
+    Monetization.setProvider(p);
+    Monetization.setProvider(null);
+    expect(Monetization.provider).toBe(null);
+  });
+
+  it("rewarded ads delegate to the provider's result", async () => {
+    Monetization.setProvider({ showRewardedAd: async () => false });
+    await expect(Monetization.showRewardedAd("coins")).resolves.toBe(false);
+    Monetization.setProvider({ showRewardedAd: async () => true });
+    await expect(Monetization.showRewardedAd("coins")).resolves.toBe(true);
+  });
+
+  it("rewarded ad passes the reward label to the provider", async () => {
+    let seen = null;
+    Monetization.setProvider({
+      showRewardedAd: async (label) => {
+        seen = label;
+        return true;
+      },
+    });
+    await Monetization.showRewardedAd("100 coins");
+    expect(seen).toBe("100 coins");
+  });
+
+  it("interstitial delegates the ad surface to the provider but keeps cadence policy", async () => {
+    let shown = 0;
+    Monetization.setProvider({ showInterstitial: async () => shown++ });
+    // Cadence policy still lives in the manager: 2 skipped, 3rd shows.
+    expect(await Monetization.maybeShowInterstitial(9)).toBe(false);
+    expect(await Monetization.maybeShowInterstitial(9)).toBe(false);
+    expect(await Monetization.maybeShowInterstitial(9)).toBe(true);
+    expect(shown).toBe(1); // provider surface invoked exactly once
+  });
+
+  it("provider interstitial still respects the new-player grace and ads-removed gate", async () => {
+    let shown = 0;
+    Monetization.setProvider({ showInterstitial: async () => shown++ });
+    // Before adsStartLevel: never shows, counter never advances.
+    for (let i = 0; i < 6; i++) {
+      expect(await Monetization.maybeShowInterstitial(2)).toBe(false);
+    }
+    expect(shown).toBe(0);
+    expect(Monetization.levelWinCount).toBe(0);
+    // Ads removed: suppressed even with a provider installed.
+    Storage.set("adsRemoved", true);
+    for (let i = 0; i < 6; i++) {
+      expect(await Monetization.maybeShowInterstitial(9)).toBe(false);
+    }
+    expect(shown).toBe(0);
+  });
+
+  it("purchase delegates the transaction to the provider", async () => {
+    let seen = null;
+    Monetization.setProvider({
+      purchase: async (id) => {
+        seen = id;
+        return { ok: true, receipt: "abc" };
+      },
+    });
+    const res = await Monetization.purchase("starter_pack");
+    expect(seen).toBe("starter_pack");
+    expect(res.ok).toBe(true);
+    expect(res.receipt).toBe("abc");
+  });
+
+  it("a failed provider purchase does not record the ads-removed flag", async () => {
+    Monetization.setProvider({ purchase: async () => ({ ok: false }) });
+    const res = await Monetization.purchase("remove_ads");
+    expect(res.ok).toBe(false);
+    expect(Monetization.isAdsRemoved()).toBe(false);
+  });
+
+  it("the ads-removed side-effect is owned by the manager across any provider", async () => {
+    // Provider succeeds but does NOT touch storage; manager must persist it.
+    Monetization.setProvider({ purchase: async () => ({ ok: true }) });
+    expect(Monetization.isAdsRemoved()).toBe(false);
+    const res = await Monetization.purchase("remove_ads");
+    expect(res.ok).toBe(true);
+    expect(Monetization.isAdsRemoved()).toBe(true);
+  });
+
+  it("falls back to the mock for any method the provider omits", async () => {
+    // Provider only does purchases; rewarded ads fall back to the mock (true).
+    Monetization.setProvider({ purchase: async () => ({ ok: true }) });
+    await expect(Monetization.showRewardedAd("x")).resolves.toBe(true);
+    // And the mock purchase logic is bypassed entirely when provider handles it:
+    // an unknown product the mock would reject is accepted by the provider.
+    const res = await Monetization.purchase("totally_unknown");
+    expect(res.ok).toBe(true);
+  });
+
+  it("with no provider, mock purchase rules still apply", async () => {
+    expect((await Monetization.purchase("season_premium")).ok).toBe(true);
+    expect((await Monetization.purchase("pet_aurora")).ok).toBe(true);
+    expect((await Monetization.purchase("crate_legendary")).ok).toBe(true);
+    expect((await Monetization.purchase("nope")).ok).toBe(false);
+  });
+});
+

@@ -61,6 +61,10 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   per-theme background music profiles (`MUSIC_PROFILES`/`musicProfile` — each
   theme resolves to its own well-formed procedural track with distinct scales,
   and unknown ids fall back to the aurora track),
+  the procedural SFX engine (every effect — `pop`/`powerup`/`fever`/`blast`/
+  `click`/`win`/`lose`/`coin` — is callable and a safe no-op without an
+  AudioContext, and Fever/Charged-Blast have their own distinct signatures
+  rather than reusing the power-up blip),
   the weekly tournament (`tournament.js` — `weekKey` ISO-week formatting,
   one seeded board shared across the week, deterministic modifier pick, the
   four-tier rank ladder, and `recordTournament` keeping the highest weekly best
@@ -248,7 +252,11 @@ state — it never substitutes game logic.
 
 > Note: the in-game ad/IAP provider (`src/monetization.js`) is itself an
 > intentional mock *feature stub* awaiting a real ad SDK. Tests exercise that
-> real shipped code path; they do not add additional mocking on top.
+> real shipped code path; they do not add additional mocking on top. The mock
+> is **pluggable** — `Monetization.setProvider(p)` injects a real SDK and the
+> unit tests cover both the mock fallback and the delegation/policy contract
+> (cadence, new-player grace, ads-removed gate, and the manager-owned
+> remove-ads side-effect surviving any provider).
 
 ## CI/CD — test before production (required)
 

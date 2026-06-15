@@ -1692,7 +1692,7 @@ class Game {
     s.feverTimer = FEVER_DURATION;
     s.fever = 1;
     UI.updateFever(1, true);
-    Audio.powerup();
+    Audio.fever();
     UI.toast("🔥 FEVER! Double points!");
     this.floating.spawn(this.W / 2, this.H * 0.4, "FEVER ×2!", "#ff5b8a", 34);
     this._tut("fever");
@@ -1982,7 +1982,7 @@ class Game {
     s.score += points;
     this._popCells(cells, points, cells.length, 1, 1.1);
     if (s.stats) s.stats.blasts += 1;
-    Audio.powerup();
+    Audio.blast();
     this.floating.spawn(this.W / 2, this.H / 2, "CHARGED BLAST!", "#ff6ec7", 30);
     this.refreshHud();
     this._tut("blast");

@@ -1,6 +1,37 @@
 import { describe, it, expect } from "vitest";
-import { MUSIC_PROFILES, musicProfile } from "../../src/audio.js";
+import { Audio, MUSIC_PROFILES, musicProfile } from "../../src/audio.js";
 import { THEMES } from "../../src/themes.js";
+
+// The Web Audio API is unavailable under jsdom, so the engine's `_ensure`
+// guard makes every SFX a safe no-op. These tests pin that the procedural
+// effect methods exist and never throw when audio cannot initialise — the
+// same path iOS uses before the first user gesture unlocks audio.
+describe("procedural SFX (jsdom-safe no-ops)", () => {
+  const methods = [
+    "pop",
+    "powerup",
+    "fever",
+    "blast",
+    "click",
+    "win",
+    "lose",
+    "coin",
+  ];
+
+  for (const m of methods) {
+    it(`Audio.${m} is callable and does not throw without an AudioContext`, () => {
+      expect(typeof Audio[m]).toBe("function");
+      expect(() => Audio[m]()).not.toThrow();
+    });
+  }
+
+  it("Fever and Charged Blast have their own signatures (not the power-up blip)", () => {
+    // The juice pass gave these moments distinct procedural sounds.
+    expect(Audio.fever).not.toBe(Audio.powerup);
+    expect(Audio.blast).not.toBe(Audio.powerup);
+    expect(Audio.fever).not.toBe(Audio.blast);
+  });
+});
 
 describe("background music profiles", () => {
   it("musicProfile resolves each defined theme to its own profile", () => {
