@@ -18,7 +18,7 @@ describe("tutorial step definitions", () => {
 
   it("covers every core feature exactly once", () => {
     const actions = TUTORIAL_STEPS.map((s) => s.advance);
-    for (const a of ["pop", "combo", "undo", "preview", "swipe", "blast", "powerup", "magnet", "event", "lightning", "stone", "bombbubble"]) {
+    for (const a of ["pop", "combo", "undo", "preview", "swipe", "blast", "powerup", "magnet", "event", "lightning", "stone", "bombbubble", "multiplier"]) {
       expect(actions).toContain(a);
     }
   });
@@ -64,6 +64,17 @@ describe("tutorial step definitions", () => {
     // It sits right after the stone step (the special-bubbles run).
     const idx = TUTORIAL_STEPS.indexOf(bomb);
     expect(TUTORIAL_STEPS[idx - 1].id).toBe("stone");
+  });
+
+  it("includes a gated multiplier step that grants a gold board", () => {
+    const gold = TUTORIAL_STEPS.find((s) => s.id === "multiplier");
+    expect(gold).toBeTruthy();
+    expect(gold.advance).toBe("multiplier");
+    expect(gold.grant).toBe("multiplier");
+    expect(gold.hint).toBeTruthy();
+    // It sits right after the bomb-bubble step (the special-bubbles run).
+    const idx = TUTORIAL_STEPS.indexOf(gold);
+    expect(TUTORIAL_STEPS[idx - 1].id).toBe("bombbubble");
   });
 
   it("includes an informational pets step before the finish", () => {

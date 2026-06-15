@@ -1,6 +1,6 @@
 // Canvas renderer: animated background + glossy neon bubbles.
 
-import { RAINBOW, ICE, ICE_CRACKED, NORMAL, LIGHTNING, STONE, BOMB } from "./grid.js";
+import { RAINBOW, ICE, ICE_CRACKED, NORMAL, LIGHTNING, STONE, BOMB, MULTIPLIER } from "./grid.js";
 
 // Distinct glyphs used by colourblind mode — one per colour index. There are
 // always at least as many symbols as a level has colours.
@@ -341,6 +341,27 @@ export class Renderer {
         ctx.beginPath();
         ctx.arc(s.x + rad * 0.42, s.y - rad * 0.78, rad * 0.13 * spark, 0, Math.PI * 2);
         ctx.fill();
+      }
+
+      if (s.type === MULTIPLIER) {
+        ctx.globalAlpha = s.alpha;
+        const pulse = 0.6 + 0.4 * Math.abs(Math.sin(performance.now() / 240));
+        // Golden glowing ring around the bubble.
+        ctx.shadowColor = "rgba(255,210,70,0.95)";
+        ctx.shadowBlur = rad * 0.7 * pulse;
+        ctx.strokeStyle = "rgba(255,214,90,0.95)";
+        ctx.lineWidth = Math.max(1.6, rad * 0.14);
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, rad * 0.7, 0, Math.PI * 2);
+        ctx.stroke();
+        // Bold “×2” glyph in the centre.
+        ctx.shadowBlur = rad * 0.4 * pulse;
+        ctx.fillStyle = "rgba(255,236,160,0.98)";
+        ctx.font = `700 ${Math.round(rad * 0.92)}px system-ui, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("×2", s.x, s.y + rad * 0.04);
+        ctx.shadowBlur = 0;
       }
 
       // Boss "Colour Purge" marker: a crisp target pip on every plain bubble of

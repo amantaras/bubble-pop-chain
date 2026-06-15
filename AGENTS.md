@@ -732,7 +732,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 355 unit tests + 292 E2E
+- **Current baseline (keep growing, never shrink)**: 359 unit tests + 294 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests
@@ -876,7 +876,8 @@ How the tutorial is wired (touch every layer that applies):
      button label). Use for informational steps.
    - `advance: "<action>"` → a **gated** step that only advances when the game
      emits that action. Current actions: `pop`, `combo`, `preview`, `swipe`,
-     `blast`, `powerup`, `magnet`, `event`, `lightning`, `stone`, `bombbubble`.
+     `blast`, `powerup`, `magnet`, `event`, `lightning`, `stone`, `bombbubble`,
+     `multiplier`.
      `hint` is the nudge
      text shown while
      waiting. (The `fever` step is informational — `advance: "button"` — with a

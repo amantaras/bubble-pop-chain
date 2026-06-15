@@ -567,6 +567,48 @@ test.describe("special bubbles (ice + rainbow)", () => {
     expect(res.neighboursBefore).toBeGreaterThan(0);
     expect(res.cleared).toBeGreaterThan(2);
   });
+
+  test("a multiplier bubble boosts the pop's score without expanding it", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(12));
+    await page.waitForTimeout(500);
+    const res = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      // Build an isolated colour-0 pair (rest colour 1) and make one a gold
+      // MULTIPLIER bubble. Popping it should score ×2 the plain pair.
+      const mc = 2;
+      const mr = Math.floor(b.rows / 2);
+      const lay = () => {
+        for (let c = 0; c < b.cols; c++)
+          for (let r = 0; r < b.rows; r++) {
+            b.grid[c][r] = c === mc && (r === mr || r === mr + 1) ? 0 : 1;
+            b.types[c][r] = 0; // NORMAL
+          }
+      };
+      // 1) Plain pair → baseline score gain.
+      lay();
+      const beforePlain = g.session.score;
+      const clearedBefore = g.session.stats.cleared;
+      g.popAt(mc, mr);
+      const plainGain = g.session.score - beforePlain;
+      const plainCleared = g.session.stats.cleared - clearedBefore;
+      // 2) Same pair but gold → multiplied score, same cells cleared.
+      g.session.combo = 0; // reset combo so the comparison is apples-to-apples
+      lay();
+      b.types[mc][mr] = 7; // MULTIPLIER
+      const beforeGold = g.session.score;
+      const clearedBefore2 = g.session.stats.cleared;
+      g.popAt(mc, mr);
+      const goldGain = g.session.score - beforeGold;
+      const goldCleared = g.session.stats.cleared - clearedBefore2;
+      return { plainGain, plainCleared, goldGain, goldCleared };
+    });
+    // Same number of bubbles cleared (no AoE), but a strictly bigger score.
+    expect(res.goldCleared).toBe(res.plainCleared);
+    expect(res.goldGain).toBeGreaterThan(res.plainGain);
+  });
 });
 
 test.describe("daily retention engine", () => {
@@ -3121,9 +3163,23 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
             return;
           }
     });
+    await expect.poll(() => stepId(page)).toBe("multiplier");
+
+    // 8d) multiplier — popping a cluster that contains the gold bubble boosts
+    // the score and advances the step.
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++)
+          if (b.isMultiplier(c, r) && b.getGroupAt(c, r).length >= 2) {
+            g.popAt(c, r);
+            return;
+          }
+    });
     await expect.poll(() => stepId(page)).toBe("pets");
 
-    // 8d) pets (informational) — introduces the companion system.
+    // 8e) pets (informational) — introduces the companion system.
     await page.locator("#coach-next").click();
     expect(await stepId(page)).toBe("done");
 

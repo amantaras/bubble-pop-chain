@@ -100,7 +100,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   (dominant colour, first-cell-of-colour, isolated-cell detection, and
   most-isolated-cell ranking for the Talon pick pet),
   special bubbles (rainbow wildcard + ice two-hit + lightning row/column
-  strike + bomb 3×3 detonation + stone locked-bubble: never tappable, shattered
+  strike + bomb 3×3 detonation + multiplier gold-score-boost + stone
+  locked-bubble: never tappable, shattered
   only by an adjacent pop, and excluded from `hasMoves`) with type round-trip, the
   last-bubble finale animator (`BubbleFinale`: variant clamping to 0–4,
   onExplode fires exactly once at the glow→blast boundary, onDone fires once at
@@ -130,7 +131,7 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   consumed power-up is refunded on undo, and the per-level undo budget is
   capped),
   special-bubble spawning + reload persistence, lightning row/column discharge,
-  bomb-bubble 3×3 detonation on pop,
+  bomb-bubble 3×3 detonation on pop, multiplier gold-bubble score boost,
   no forced ads before level 7,
   the boss archetypes (a frozen-core boss shows the `Core` objective + unlocks a
   theme on victory, a stone-vault boss shows `Stone` and is won by shattering

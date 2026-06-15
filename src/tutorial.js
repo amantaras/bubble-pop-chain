@@ -22,11 +22,12 @@ import { NORMAL, ICE, RAINBOW } from "./grid.js";
 //                           "pop" | "combo" | "undo" | "preview" | "swipe"
 //                           | "blast" | "powerup" | "magnet" | "event"
 //                           | "lightning" | "stone" | "bombbubble"
+//                           | "multiplier"
 //   cta     — button label for "button" steps
 //   hint    — short call-to-action shown for action steps
 //   grant   — optional setup applied when the step is entered
 //             ("power" | "fever" | "bomb" | "specials" | "magnet" | "event"
-//              | "lightning" | "stone" | "bombbubble" | "undo")
+//              | "lightning" | "stone" | "bombbubble" | "multiplier" | "undo")
 export const TUTORIAL_STEPS = [
   {
     id: "welcome",
@@ -142,6 +143,14 @@ export const TUTORIAL_STEPS = [
     advance: "bombbubble",
     hint: "💣 Pop the cluster with the bomb bubble",
     grant: "bombbubble",
+  },
+  {
+    id: "multiplier",
+    title: "Multiplier Bubbles",
+    body: "✨ Gold multiplier bubbles are pure treasure! Pop a cluster that includes one and that pop's score is multiplied — stack a few for a huge payout. Pop the gold cluster now!",
+    advance: "multiplier",
+    hint: "✨ Pop the cluster with the gold bubble",
+    grant: "multiplier",
   },
   {
     id: "pets",

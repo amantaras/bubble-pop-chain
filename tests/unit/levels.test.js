@@ -105,6 +105,16 @@ describe("levels", () => {
     expect(getLevel(39).specials.bomb).toBeLessThanOrEqual(0.03);
   });
 
+  it("multiplier bubbles ramp in from level 12 and not before", () => {
+    expect(getLevel(11).specials.multiplier || 0).toBe(0);
+    expect(getLevel(12).specials.multiplier).toBeGreaterThan(0);
+    // Rate climbs with level but stays sparse (capped at 0.04).
+    expect(getLevel(39).specials.multiplier).toBeGreaterThanOrEqual(
+      getLevel(12).specials.multiplier
+    );
+    expect(getLevel(39).specials.multiplier).toBeLessThanOrEqual(0.04);
+  });
+
   it("bosses suppress random stone bubbles (hand-placed frozen core only)", () => {
     // Level 20 is a boss; its random stone rate is forced to 0.
     const boss = getLevel(20);

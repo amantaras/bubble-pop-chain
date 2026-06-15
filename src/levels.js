@@ -135,7 +135,10 @@ function specialsForLevel(n) {
   // Bomb bubbles ramp in from level 16 — a rare, powerful treat that detonates
   // a 3×3 area when its group pops. Kept very sparse so it stays a surprise.
   const bomb = n >= 16 ? Math.min(0.03, 0.01 + (n - 16) * 0.001) : 0;
-  return { rainbow, ice, lightning, stone, bomb };
+  // Gold multiplier bubbles ramp in from level 12 — a rewarding treat that
+  // multiplies the score of the pop that clears them. Kept sparse.
+  const multiplier = n >= 12 ? Math.min(0.04, 0.012 + (n - 12) * 0.0012) : 0;
+  return { rainbow, ice, lightning, stone, bomb, multiplier };
 }
 
 // Bonus objectives ----------------------------------------------------------

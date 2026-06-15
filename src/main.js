@@ -1,5 +1,5 @@
 // Game orchestrator: canvas loop, state machine, and all session logic.
-import { Board, RAINBOW, ICE, LIGHTNING, STONE, BOMB } from "./grid.js";
+import { Board, RAINBOW, ICE, LIGHTNING, STONE, BOMB, MULTIPLIER } from "./grid.js";
 import { Renderer } from "./renderer.js";
 import { ParticleSystem, popStyleForGroup } from "./particles.js";
 import {
@@ -934,6 +934,18 @@ class Game {
       decorateSpecials(types);
       this._placeTutorialBomb(types);
       b.restore(g, types);
+    } else if (kind === "multiplier") {
+      // Fresh practice board with a gold MULTIPLIER bubble parked inside a
+      // guaranteed cluster, so popping it always boosts the score and advances.
+      const b = s.board;
+      const { colors: g, types } = buildTutorialBoard(
+        b.cols,
+        b.rows,
+        s.level.colors || 4
+      );
+      decorateSpecials(types);
+      this._placeTutorialMultiplier(types);
+      b.restore(g, types);
     } else if (kind === "event") {
       this._spawnTutorialEvent();
     } else if (kind === "undo") {
@@ -967,6 +979,13 @@ class Game {
     if (types && types[0] && types[0][0] !== undefined) types[0][0] = BOMB;
   }
 
+  // Drop a gold MULTIPLIER bubble into a corner 2×2 block of the practice board
+  // (a guaranteed same-colour cluster), so the multiplier step can always be
+  // cleared and boosts the pop's score.
+  _placeTutorialMultiplier(types) {
+    if (types && types[0] && types[0][0] !== undefined) types[0][0] = MULTIPLIER;
+  }
+
   // Rebuild the controlled practice board so the tutorial never runs out of
   // poppable clusters no matter how much the player pops/blasts.
   _refillTutorialBoard() {
@@ -990,6 +1009,10 @@ class Game {
     // Keep a bomb bubble available while the bomb-bubble step is active.
     if (this.tutorial && this.tutorial.stepId === "bombbubble") {
       this._placeTutorialBomb(types);
+    }
+    // Keep a multiplier bubble available while the multiplier step is active.
+    if (this.tutorial && this.tutorial.stepId === "multiplier") {
+      this._placeTutorialMultiplier(types);
     }
     b.restore(g, types);
     b.layout(this.W, this.H, TOP_INSET, this._bottomInset());
@@ -1388,7 +1411,13 @@ class Game {
     const points = Math.round(
       feverPoints(comboPoints + cascade, s.feverActive) * s.petBuffs.scoreMult
     );
-    s.score += points;
+    // Gold “multiplier” bubbles in the popped group multiply THIS pop's score
+    // (×2 each, stacking, capped at ×8). They don't expand the cleared set and
+    // don't feed Power/Fever — it's a pure score reward.
+    const multCount = group.filter((p) => s.board.isMultiplier(p.c, p.r)).length;
+    const scoreMult = multCount > 0 ? Math.min(8, Math.pow(2, multCount)) : 1;
+    const finalPoints = points * scoreMult;
+    s.score += finalPoints;
     s.combo += 1;
     s.comboTimer = COMBO_WINDOW;
 
@@ -1407,7 +1436,12 @@ class Game {
       this.floating.spawn(p.x, p.y - 28, "💥 BOOM!", "#ffb066", 30);
       Audio.powerup();
     }
-    this._popCells(cells, points, cells.length, s.combo, struck ? 1.3 : 1);
+    if (multCount > 0) {
+      const p = s.board.targetPixel(c, r);
+      this.floating.spawn(p.x, p.y - 28, `✨ ×${scoreMult}!`, "#ffd35b", 32);
+      Audio.powerup();
+    }
+    this._popCells(cells, finalPoints, cells.length, s.combo, struck ? 1.3 : 1);
 
     // Cascade callout: a distinct, escalating chain-reaction flourish above the
     // pop when the chain pays a cascade bonus (separate from the centre combo
@@ -1439,6 +1473,7 @@ class Game {
     this._tut("pop");
     if (struckBolt) this._tut("lightning");
     if (struckBomb) this._tut("bombbubble");
+    if (multCount > 0) this._tut("multiplier");
     if (s.combo >= 2) this._tut("combo");
     // Bonus objective progress: a big combo or a single large group.
     this._trackObjective({ combo: s.combo, group: group.length });

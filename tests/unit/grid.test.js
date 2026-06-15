@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Board, NORMAL, ICE, RAINBOW, ICE_CRACKED, LIGHTNING, STONE, BOMB } from "../../src/grid.js";
+import { Board, NORMAL, ICE, RAINBOW, ICE_CRACKED, LIGHTNING, STONE, BOMB, MULTIPLIER } from "../../src/grid.js";
 
 // Helper: overwrite a board's logic grid and clear sprite coupling so we can
 // assert pure grid behaviour deterministically. (settle() guards null sprites.)
@@ -266,6 +266,32 @@ describe("grid / Board", () => {
       for (let r = 0; r < b.rows; r++)
         if (b.types[c][r] === BOMB) bombs++;
     expect(bombs).toBeGreaterThan(0);
+  });
+
+  it("a multiplier spawn rate sprinkles gold bubbles deterministically", () => {
+    const b = new Board(8, 8, 4, 11, { rainbow: 0, ice: 0, multiplier: 0.5 });
+    let golds = 0;
+    for (let c = 0; c < b.cols; c++)
+      for (let r = 0; r < b.rows; r++) {
+        if (b.types[c][r] === MULTIPLIER) golds++;
+      }
+    expect(golds).toBeGreaterThan(0);
+    // isMultiplier query agrees with the raw type for a known gold cell.
+    let found = null;
+    for (let c = 0; c < b.cols && !found; c++)
+      for (let r = 0; r < b.rows && !found; r++)
+        if (b.types[c][r] === MULTIPLIER) found = { c, r };
+    expect(b.isMultiplier(found.c, found.r)).toBe(true);
+  });
+
+  it("a multiplier bubble joins same-colour groups like a normal bubble", () => {
+    const b = new Board(3, 1, 2, 1);
+    setGrid(b, [[0], [0], [1]]);
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[1][0] = MULTIPLIER; // middle cell of the colour-0 pair is gold
+    // The gold bubble still matches its colour-0 neighbour.
+    expect(b.getGroupAt(0, 0).length).toBe(2);
+    expect(b.isMultiplier(1, 0)).toBe(true);
   });
 
   it("magnetGather pulls a whole colour into one connected blob at full strength", () => {
