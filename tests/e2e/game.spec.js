@@ -51,7 +51,7 @@ async function autoPlay(page) {
       // productive shift exists and the player can afford it, perform it;
       // otherwise the board is genuinely deadlocked and afterMove ends the run.
       const canShift =
-        g.session.mode === "campaign"
+        g.session.mode === "campaign" || g.session.mode === "puzzle"
           ? g.session.movesLeft > 0
           : g.session.shiftTokens > 0;
       let swiped = false;
@@ -73,6 +73,60 @@ async function autoPlay(page) {
       }
       if (!swiped) break;
       await new Promise((res) => setTimeout(res, 18));
+      guard++;
+    }
+  });
+}
+
+// Solve a puzzle board by greedy pop + productive shift, but — unlike autoPlay
+// — never bail early: when no immediate move is found, keep waiting and
+// re-scanning. A genuinely jammed puzzle board ends itself (the engine sweeps
+// the un-poppable stragglers into a win), so we simply spin until the session
+// ends rather than breaking the moment the board looks stuck mid-animation.
+async function solvePuzzle(page) {
+  await page.evaluate(async () => {
+    const g = window.__bpc.game;
+    let guard = 0;
+    while (g.session && !g.session.ended && guard < 600) {
+      const b = g.session.board;
+      let best = null;
+      const seen = new Set();
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          const k = c + "," + r;
+          if (b.grid[c][r] === -1 || seen.has(k)) continue;
+          const grp = b.getGroupAt(c, r);
+          grp.forEach((p) => seen.add(p.c + "," + p.r));
+          if (grp.length >= 2 && (!best || grp.length > best.length))
+            best = { c, r, len: grp.length };
+        }
+      if (best) {
+        g.popAt(best.c, best.r);
+        await new Promise((res) => setTimeout(res, 24));
+        guard++;
+        continue;
+      }
+      if (g.session.movesLeft > 0) {
+        for (let r = 0; r < b.rows; r++) {
+          let done = false;
+          for (const dir of ["right", "left"]) {
+            const grid = b.grid.map((col) => col.slice());
+            const types = b.types.map((col) => col.slice());
+            b._simShiftRow(grid, types, r, dir);
+            b._simSettle(grid, types);
+            if (b._gridHasMoves(grid, types)) {
+              const y = b.targetPixel(0, r).y;
+              g.handleSwipe(dir, b.originX + b.boardW / 2, y);
+              done = true;
+              break;
+            }
+          }
+          if (done) break;
+        }
+      }
+      // Whether or not a move was made, wait and loop again: a jammed board is
+      // resolved asynchronously by the engine, which flips session.ended.
+      await new Promise((res) => setTimeout(res, 24));
       guard++;
     }
   });
@@ -121,6 +175,7 @@ test.describe("menu & navigation (UI)", () => {
       "btn-season",
       "btn-quests",
       "btn-stats",
+      "btn-puzzle",
       "btn-tutorial",
     ]) {
       await expect(page.locator(`#${id}`)).toBeVisible();
@@ -4390,6 +4445,77 @@ test.describe("piggy bank (Tier 1)", () => {
     expect(after.bank).toBe(0);
     // The card re-renders to a locked state.
     await expect(page.locator("#shop-piggy-crack")).toBeDisabled();
+  });
+});
+
+test.describe("puzzle mode (Tier 2)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("the Puzzles screen lists the ladder with only the first unlocked", async ({
+    page,
+  }) => {
+    await page.locator("#btn-puzzle").click();
+    await expect(page.locator("#puzzle")).toBeVisible();
+    const count = await page.evaluate(() => window.__bpc.puzzle.PUZZLE_COUNT);
+    await expect(page.locator("#puzzle-list .puzzle-cell")).toHaveCount(count);
+    // A fresh save unlocks puzzle 1 only; the rest show a padlock.
+    await expect(page.locator("#puzzle-list .puzzle-cell").first()).not.toHaveClass(
+      /locked/
+    );
+    await expect(page.locator("#puzzle-list .puzzle-cell").nth(1)).toHaveClass(
+      /locked/
+    );
+  });
+
+  test("solving a puzzle records stars and unlocks the next one", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startPuzzle(0));
+    await page.waitForTimeout(400);
+    // The HUD shows the puzzle goal (clear the board within the move budget).
+    await expect(page.locator("#hud-mode-label")).toContainText("Puzzle 1");
+    await solvePuzzle(page);
+    // The clear-the-board win lands a short delay after the last pop settles.
+    await expect(page.locator("#win")).toBeVisible();
+    await expect(page.locator("#win-stars .star.on")).not.toHaveCount(0);
+    const state = await page.evaluate(() => ({
+      stars: window.__bpc.Storage.getPuzzleStars(0),
+      unlocked: window.__bpc.puzzle.isPuzzleUnlocked(
+        1,
+        window.__bpc.Storage.getPuzzleStarsMap()
+      ),
+    }));
+    expect(state.stars).toBeGreaterThanOrEqual(1);
+    expect(state.unlocked).toBe(true);
+  });
+
+  test("running out of moves without clearing the board fails the puzzle", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startPuzzle(0));
+    await page.waitForTimeout(400);
+    // Squeeze the budget down to a single move, then spend it without clearing
+    // the (still mostly full) board — that must end the attempt as a loss.
+    const popped = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      g.session.movesLeft = 1;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          if (b.grid[c][r] === -1) continue;
+          if (b.getGroupAt(c, r).length >= 2) {
+            g.popAt(c, r);
+            return true;
+          }
+        }
+      return false;
+    });
+    expect(popped).toBe(true);
+    await expect(page.locator("#lose")).toBeVisible();
+    // Puzzles never offer a revive (the fixed move budget is the whole point).
+    await expect(page.locator("#lose-revive")).toBeHidden();
+    // The board wasn't cleared, so no stars were banked.
+    expect(await page.evaluate(() => window.__bpc.Storage.getPuzzleStars(0))).toBe(0);
   });
 });
 

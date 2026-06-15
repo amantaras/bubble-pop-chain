@@ -41,6 +41,9 @@ const DEFAULT_SAVE = {
   // Piggy Bank: coins passively banked as you finish levels (capped). They stay
   // locked until the one-time "crack open" purchase pays out the whole vault.
   piggyBank: 0,
+  // Puzzle Mode: best star rating earned per puzzle index ({ [index]: 0..3 }).
+  // A puzzle unlocks the next one once it has been solved (≥1 star).
+  puzzle: { stars: {} },
   firstRunDone: false,
   activeSession: null, // snapshot of an in-progress campaign level (resume)
   // Rolling 7-day login reward cycle: { lastClaim: "YYYY-MM-DD"|null, day }.
@@ -175,6 +178,34 @@ class StorageManager {
       this.save();
     }
     return { best: Math.max(prev, score), isNewBest };
+  }
+
+  // ---- Puzzle Mode progress --------------------------------------------
+  // Best star rating earned on a puzzle (0 if never solved).
+  getPuzzleStars(index) {
+    const p = this.data.puzzle;
+    return (p && p.stars && p.stars[index]) || 0;
+  }
+
+  // The full puzzle index→best-stars map (used for unlock checks + progress).
+  getPuzzleStarsMap() {
+    return (this.data.puzzle && this.data.puzzle.stars) || {};
+  }
+
+  // Record a solved puzzle, keeping only the best star rating. Returns
+  // `{ best, isNewBest, firstSolve }` — `firstSolve` is true the first time the
+  // puzzle is solved at all, `isNewBest` when this run beat a prior star count.
+  recordPuzzleResult(index, stars) {
+    if (!this.data.puzzle) this.data.puzzle = { stars: {} };
+    if (!this.data.puzzle.stars) this.data.puzzle.stars = {};
+    const prev = this.data.puzzle.stars[index] || 0;
+    const firstSolve = prev === 0;
+    const isNewBest = stars > prev;
+    if (stars > prev) {
+      this.data.puzzle.stars[index] = stars;
+      this.save();
+    }
+    return { best: Math.max(prev, stars), isNewBest, firstSolve };
   }
 
   // Has the one-time reward for this milestone level already been paid?

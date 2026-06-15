@@ -106,6 +106,12 @@ import {
   PIGGY_CRACK_PRODUCT,
 } from "./piggy.js";
 import {
+  getPuzzle,
+  puzzleStars,
+  isPuzzleUnlocked,
+  PUZZLE_COUNT,
+} from "./puzzle.js";
+import {
   seasonStatus,
   addSeasonXp,
   claimTier,
@@ -177,6 +183,7 @@ class Game {
       startDaily: () => this.startDaily(),
       startTournament: () => this.startTournament(),
       startTimeAttack: () => this.startTimeAttack(),
+      startPuzzle: (i) => this.startPuzzle(i),
       quitToMenu: () => this.quitToMenu(),
       resumeCampaign: () => this.resumeCampaign(),
       armPowerup: (type, btn) => this.armPowerup(type, btn),
@@ -397,7 +404,7 @@ class Game {
       petActive: active,
       petTimer: active ? active.cooldown : 0,
       petPicking: false,
-      shiftTokens: mode === "campaign" ? 0 : 5,
+      shiftTokens: mode === "campaign" || mode === "puzzle" ? 0 : 5,
       stats: this._newStats(),
       bossCoreTotal,
       bossKind,
@@ -640,6 +647,19 @@ class Game {
     if (mod) {
       UI.toast(`This week: ${mod.label} — ${mod.desc}`);
     }
+  }
+
+  startPuzzle(index) {
+    // Puzzle Mode: clear the entire board within a fixed move budget. Refuse to
+    // start a puzzle that hasn't been unlocked yet (solve the prior one first).
+    if (!isPuzzleUnlocked(index, Storage.getPuzzleStarsMap())) {
+      UI.toast("🔒 Solve the previous puzzle to unlock this one");
+      return;
+    }
+    const lvl = getPuzzle(index);
+    this._newSession("puzzle", lvl);
+    this.session.movesLeft = lvl.moves;
+    UI.toast(`🧩 Puzzle ${lvl.puzzleIndex + 1} — clear the board in ${lvl.moves} moves!`);
   }
 
   // ---- Interactive tutorial --------------------------------------------
@@ -1336,6 +1356,19 @@ class Game {
         showTarget: false,
         progress: Math.max(0, s.timeLeft / TIME_ATTACK_SECONDS),
       });
+    } else if (s.mode === "puzzle") {
+      const left = s.board.countRemaining();
+      const total = s.board.cols * s.board.rows;
+      UI.updateHud({
+        modeLabel: `🧩 Puzzle ${s.level.puzzleIndex + 1}`,
+        score: s.score,
+        movesLabel: "Moves",
+        moves: s.movesLeft,
+        showTarget: true,
+        targetLabel: "Left",
+        target: left,
+        progress: total > 0 ? 1 - left / total : 0,
+      });
     } else {
       UI.updateHud({
         modeLabel: "Daily",
@@ -1390,8 +1423,8 @@ class Game {
     const r = s.board.rowAtPixel(y0);
     if (r === null) return;
 
-    // A shift is a move: campaign spends a move, endless/daily spend a token.
-    if (s.mode === "campaign") {
+    // A shift is a move: campaign/puzzle spend a move, endless/daily spend a token.
+    if (s.mode === "campaign" || s.mode === "puzzle") {
       if (s.movesLeft <= 0) return;
     } else if (s.shiftTokens <= 0) {
       UI.toast("No shifts left");
@@ -1408,7 +1441,7 @@ class Game {
 
     s.preview = null;
     s.board.settle();
-    if (s.mode === "campaign") s.movesLeft -= 1;
+    if (s.mode === "campaign" || s.mode === "puzzle") s.movesLeft -= 1;
     else s.shiftTokens -= 1;
     if (s.stats) s.stats.swipes += 1;
 
@@ -1589,7 +1622,7 @@ class Game {
       group: group.length,
       specials: specialsPopped,
     });
-    if (s.mode === "campaign") s.movesLeft -= 1;
+    if (s.mode === "campaign" || s.mode === "puzzle") s.movesLeft -= 1;
     this.refreshHud();
     this._tut("pop");
     if (struckBolt) this._tut("lightning");
@@ -2591,6 +2624,12 @@ class Game {
         this.refreshHud();
         return;
       }
+      // Puzzle Mode: clearing the whole board within the move budget is the win.
+      if (s.mode === "puzzle") {
+        s.score += clearBonus(Math.max(0, s.movesLeft));
+        this._scheduleEnd(true, "puzzle");
+        return;
+      }
       // Campaign / daily: clearing the board wins with a bonus.
       s.score += clearBonus(Math.max(0, s.movesLeft));
       this._scheduleEnd(true, "cleared");
@@ -2636,6 +2675,17 @@ class Game {
       if (deadlock) this._scheduleEnd(true, "daily");
     } else if (s.mode === "tournament") {
       if (deadlock) this._scheduleEnd(true, "tournament");
+    } else if (s.mode === "puzzle") {
+      // A puzzle is solved by clearing the board (handled above). Running out
+      // of moves before that fails the attempt. If the board instead jams on
+      // bubbles that can never be popped or shifted into a match (a genuine
+      // deadlock with moves to spare), the player has done all they can — sweep
+      // the un-poppable stragglers in a finale and award the clear.
+      if (s.movesLeft <= 0) {
+        this._scheduleEnd(false, "puzzlefail");
+      } else if (deadlock) {
+        this._finishPuzzleStragglers();
+      }
     } else if (s.mode === "timeattack") {
       // The clock — not the board — ends Time Attack, so keep play flowing: a
       // deadlocked board refills with fresh bubbles instead of ending the run.
@@ -2671,7 +2721,9 @@ class Game {
     const s = this.session;
     if (s.board.hasMoves()) return false;
     const canShift =
-      s.mode === "campaign" ? s.movesLeft > 0 : s.shiftTokens > 0;
+      s.mode === "campaign" || s.mode === "puzzle"
+        ? s.movesLeft > 0
+        : s.shiftTokens > 0;
     if (canShift && s.board.hasShiftMove()) return false;
     return true;
   }
@@ -2747,6 +2799,40 @@ class Game {
     s.rescuing = false;
     UI.hideIsolatedHelp();
     this.afterMove(); // re-evaluate: rescue is declined, so the level ends
+  }
+
+  // ---- Puzzle straggler sweep ------------------------------------------
+  // When a puzzle board deadlocks on un-poppable bubbles (no group to pop and
+  // no shift that creates one) but moves remain, the player has cleared
+  // everything that *can* be cleared. Burst the remaining stragglers in one
+  // celebratory sweep and resolve the level as a solved puzzle.
+  _finishPuzzleStragglers() {
+    const s = this.session;
+    if (!s || s.finishing || s.ended) return;
+    s.finishing = true;
+    this.input.setEnabled(false);
+    this.alienShip.stop();
+    const palette = this.theme.bubbles;
+    for (let c = 0; c < s.board.cols; c++) {
+      for (let r = 0; r < s.board.rows; r++) {
+        if (s.board.grid[c][r] === -1) continue;
+        const px = s.board.targetPixel(c, r);
+        const ci = s.board.grid[c][r];
+        const hex =
+          palette[((ci % palette.length) + palette.length) % palette.length] ||
+          "#ffffff";
+        this.particles.burst(px.x, px.y, hex, 14, 1.2);
+        s.board.forceRemove(c, r);
+      }
+    }
+    s.board.settle();
+    Audio.pop(4, 8);
+    this.shake.add(0.5);
+    vibrate(30);
+    this.floating.spawn(this.W / 2, this.H / 2, "BOARD CLEAR!", "#ffd35b", 30);
+    s.finishing = false;
+    s.score += clearBonus(Math.max(0, s.movesLeft));
+    this._scheduleEnd(true, "puzzle");
   }
 
   // ---- Last-bubble finale ----------------------------------------------
@@ -3040,6 +3126,50 @@ class Game {
         showNext: false,
         showDouble: !Monetization.isAdsRemoved(),
       });
+    } else if (s.mode === "puzzle") {
+      const idx = s.level.puzzleIndex;
+      if (won) {
+        const stars = puzzleStars(s.movesLeft, s.level.moves);
+        const res = Storage.recordPuzzleResult(idx, stars);
+        const coins = Math.round(
+          (Math.floor(s.score / 200) + stars * 25) * s.petBuffs.coinMult
+        );
+        s.coinsEarned = coins;
+        Economy.addCoins(coins);
+        this._awardSeasonXp(20 + stars * 10);
+        Audio.win();
+        UI.setWinTitle("Puzzle Solved!");
+        const bits = [];
+        if (res.firstSolve && idx + 1 < PUZZLE_COUNT) {
+          bits.push(`🔓 Puzzle ${idx + 2} unlocked`);
+        } else if (res.isNewBest) {
+          bits.push("🏆 New best!");
+        }
+        const petBit = this._awardPetXp();
+        if (petBit) bits.push(petBit);
+        const moves = s.stats
+          ? s.stats.pops + s.stats.swipes + s.stats.blasts + s.stats.powerups
+          : 0;
+        UI.showWin({
+          stars,
+          score: s.score,
+          coins,
+          stats: this._winStats(s, moves),
+          rewardText: bits.join("  •  "),
+          // Advance straight into the next puzzle if it now exists.
+          showNext: idx + 1 < PUZZLE_COUNT,
+          showDouble: !Monetization.isAdsRemoved(),
+        });
+      } else {
+        Audio.lose();
+        // No revive: a puzzle is defined by its fixed move budget, so the only
+        // way forward is to retry the same board from scratch.
+        UI.showLose({
+          score: s.score,
+          showRevive: false,
+          title: s.movesLeft <= 0 ? "Out of Moves" : "Stuck!",
+        });
+      }
     }
     UI.refreshCoins();
   }
@@ -3059,6 +3189,7 @@ class Game {
   nextLevel() {
     const s = this.session;
     if (s && s.mode === "campaign") this.startCampaign(s.level.id + 1);
+    else if (s && s.mode === "puzzle") this.startPuzzle(s.level.puzzleIndex + 1);
   }
 
   retryLevel() {
@@ -3068,6 +3199,7 @@ class Game {
     else if (s.mode === "endless") this.startEndless();
     else if (s.mode === "timeattack") this.startTimeAttack();
     else if (s.mode === "tournament") this.startTournament();
+    else if (s.mode === "puzzle") this.startPuzzle(s.level.puzzleIndex);
     else this.startDaily();
   }
 
@@ -3388,6 +3520,7 @@ if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) 
     season: { seasonStatus, addSeasonXp, claimTier, tierReward },
     quests: { ensureQuests, applyQuestProgress, claimQuest, questsClaimable, todayKey, weekKey },
     piggy: { piggyDeposit, canCrackPiggy },
+    puzzle: { getPuzzle, puzzleStars, isPuzzleUnlocked, PUZZLE_COUNT },
     popStyle: popStyleForGroup,
     cascade: { cascadeBonus, cascadeTier },
     tournament: { getTournamentLevel, getTournamentGoals, tournamentRank, getTournamentBest },

@@ -101,6 +101,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   shape),
   the piggy bank (`piggy.js`: piggyEarn floor/zero-guard, piggyDeposit cap +
   added, canCrackPiggy threshold, piggyFillPct 0..1 clamp),
+  puzzle mode (`puzzle.js`: ladder integrity, getPuzzle shape/clamp, puzzleStars
+  thresholds + 1..3 bounds, isPuzzleUnlocked gating, puzzlesSolved count),
   the pet companion system (catalog integrity + premium flags, XP/level curve,
   passive buff scaling, active-pet cooldown/strength/count scaling, seeded
   crate rolls including the rare premium drop chance + the boosted Legendary
@@ -190,6 +192,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   the piggy bank (shop shows the Piggy card locked when empty, finishing a level
   banks coins into the vault, and cracking pays the whole balance into the wallet
   then re-locks),
+  puzzle mode (the Puzzles screen lists the 12-rung ladder with only the first
+  unlocked, solving puzzle 1 records ≥1 star + unlocks the next, and running out
+  of moves without clearing the board fails the attempt with no revive),
   the last-bubble finale (leaving exactly one bubble triggers the glow+explode
   finale with a random style 0–4, suspends input, and clears the board to win
   the level),

@@ -585,7 +585,29 @@ never re‑discovered the hard way.
   emptied into the wallet only by a one-time **purchase** (`piggy_crack`, via
   `Monetization.purchase`) — `crackPiggy()` grants the whole balance with
   `Economy.addCoins` and resets `piggyBank` to `0`. As a monetization/meta
-  feature it never affects win/star outcomes and gets **no tutorial step**.- **Pet companions** (`pets.js`, pure; `storage.js` `pets`): collectible helper
+  feature it never affects win/star outcomes and gets **no tutorial step**.
+- **Puzzle Mode** (`puzzle.js`, pure; `storage.js` `puzzle.stars`; `main.js`
+  `startPuzzle`/`_finishPuzzleStragglers`; `ui.js` `buildPuzzles`/`refreshPuzzleBadge`):
+  a fixed ladder of hand-tuned "clear the whole board within N moves" boards.
+  `PUZZLES` defines 12 configs (`cols`/`rows`/`colors`/`seed`/`moves`/`specials`),
+  `getPuzzle(i)` clamps + shapes a level object (`mode === "puzzle"`),
+  `puzzleStars(movesLeft, total)` rates 1–3 stars by the fraction of the budget
+  left (`PUZZLE_STAR_RATIOS`), `isPuzzleUnlocked(i, starsMap)` gates each rung on
+  ≥1 star of the previous, and `puzzlesSolved(starsMap)` counts cleared rungs.
+  Puzzle shares campaign's move economy: `shiftTokens = 0` and **both** taps and
+  swipes spend `movesLeft` (the `handleSwipe` guard and the two move-decrement
+  lines all treat `puzzle` like `campaign`); `_isDeadlocked` likewise counts
+  `movesLeft` as shift fuel for puzzle. Clearing the board wins; running out of
+  moves first **loses**; a genuine jam with moves to spare (no pop, no productive
+  shift) triggers `_finishPuzzleStragglers`, which bursts the un-poppable leftovers
+  in a sweep and awards the clear — so every board is always completable.
+  `_finish` records stars via `Storage.recordPuzzleResult`, pays
+  `floor(score/200) + stars*25` coins (×coinMult) + season XP, and surfaces a
+  "Puzzle Solved!" recap (`🔓 Puzzle N unlocked` on first solve, `🏆 New best!` on
+  an improved star count). New module → added to `sw.js` ASSETS + cache bump.
+  Gestures are already tutorialised, so Puzzle gets **no tutorial step** (a start
+  toast states the goal).
+- **Pet companions** (`pets.js`, pure; `storage.js` `pets`): collectible helper
   pets that support the player both **passively** and with **active board
   powers**. `PET_CATALOG` holds 15 pets across four rarities
   (`common`/`rare`/`epic`/`legendary`). **Passive pets** carry an `ability`
@@ -745,6 +767,7 @@ src/
   quests.js         # Daily & weekly quests (pure: rotating goals + claimable rewards)
   stats.js          # Stats / Profile dashboard (pure: read-only progress aggregation)
   piggy.js          # Piggy Bank (pure: passive coin vault + crack-open purchase)
+  puzzle.js         # Puzzle Mode ladder (pure: clear-the-board-in-N-moves + star ratings)
   events.js         # Falling gift/problem events (pure: delay/type/reward rolls)
   pets.js           # Pet companions (pure: catalog, buffs, active actions, crate rolls)
   monetization.js   # F2P abstraction (ads/IAP) — MOCK provider, pluggable  tutorial.js       # Gated step-by-step onboarding: TUTORIAL_STEPS + Tutorial class  ui.js             # All DOM UI: screens, level map, shop, themes, HUD, modals
@@ -805,7 +828,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 396 unit tests + 316 E2E
+- **Current baseline (keep growing, never shrink)**: 404 unit tests + 322 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

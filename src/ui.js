@@ -55,6 +55,13 @@ import {
   PIGGY_CRACK_PRICE,
 } from "./piggy.js";
 import {
+  PUZZLES,
+  PUZZLE_COUNT,
+  getPuzzle,
+  isPuzzleUnlocked,
+  puzzlesSolved,
+} from "./puzzle.js";
+import {
   PET_CATALOG,
   COSMETICS,
   getPet,
@@ -91,6 +98,7 @@ class UIManager {
       "btn-calendar", "cal-badge",
       "quests", "quests-list", "quests-back", "btn-quests", "quests-badge",
       "stats", "stats-profile", "stats-lifetime", "stats-back", "btn-stats",
+      "puzzle", "puzzle-list", "puzzle-back", "btn-puzzle", "puzzle-badge",
       "season", "season-track", "season-coins", "season-back", "season-buy",
       "season-xp-label", "season-xp-fill", "btn-season", "season-badge",
       "chest", "chest-icon", "chest-title", "chest-sub", "chest-rewards", "chest-ok",
@@ -152,6 +160,7 @@ class UIManager {
     click("btn-calendar", () => this.showScreen("calendar"));
     click("btn-quests", () => this.showScreen("quests"));
     click("btn-stats", () => this.showScreen("stats"));
+    click("btn-puzzle", () => this.showScreen("puzzle"));
     click("btn-season", () => this.showScreen("season"));
     click("btn-pets", () => this.openPetOverlay());
     click("btn-tutorial", () => this.cb.startTutorial && this.cb.startTutorial());
@@ -168,6 +177,7 @@ class UIManager {
     click("cal-back", () => this.showScreen("menu"));
     click("quests-back", () => this.showScreen("menu"));
     click("stats-back", () => this.showScreen("menu"));
+    click("puzzle-back", () => this.showScreen("menu"));
     click("cal-claim", () => this._claimCalendar());
     click("season-back", () => this.showScreen("menu"));
     click("season-buy", () => this._buySeasonPremium());
@@ -297,7 +307,7 @@ class UIManager {
 
   // ---- Screen switching -------------------------------------------------
   hideScreens() {
-    ["menu", "levelmap", "shop", "themes", "achievements", "calendar", "quests", "stats", "season", "pets"].forEach((s) =>
+    ["menu", "levelmap", "shop", "themes", "achievements", "calendar", "quests", "stats", "puzzle", "season", "pets"].forEach((s) =>
       this.el[s].classList.add("hidden")
     );
   }
@@ -316,6 +326,7 @@ class UIManager {
       this.refreshCalendarBadge();
       this.refreshQuestsBadge();
       this.refreshSeasonBadge();
+      this.refreshPuzzleBadge();
     }
     if (name === "levelmap") this.buildLevelMap();
     if (name === "shop") this.buildShop();
@@ -328,6 +339,7 @@ class UIManager {
     if (name === "calendar") this.buildCalendar();
     if (name === "quests") this.buildQuests();
     if (name === "stats") this.buildStats();
+    if (name === "puzzle") this.buildPuzzles();
     if (name === "season") this.buildSeason();
   }
 
@@ -1528,6 +1540,57 @@ class UIManager {
         `<span class="stat-label">${row.label}</span>`;
       grid.appendChild(cell);
     });
+  }
+
+  // ---- Puzzle Mode ------------------------------------------------------
+  // Render the puzzle ladder: a numbered grid of fixed challenges. Each cell
+  // shows its board size and best star rating; locked puzzles (the next one
+  // isn't reached until the prior is solved) show a padlock.
+  buildPuzzles() {
+    const grid = this.el["puzzle-list"];
+    if (!grid) return;
+    grid.innerHTML = "";
+    const starsMap = Storage.getPuzzleStarsMap();
+    for (let i = 0; i < PUZZLE_COUNT; i++) {
+      const def = PUZZLES[i];
+      const unlocked = isPuzzleUnlocked(i, starsMap);
+      const stars = starsMap[i] || 0;
+      const cell = document.createElement("div");
+      cell.className = "puzzle-cell";
+      if (!unlocked) cell.classList.add("locked");
+      if (stars >= 1) cell.classList.add("solved");
+      const starStr = "★".repeat(stars) + "☆".repeat(3 - stars);
+      cell.innerHTML = unlocked
+        ? `<span class="pz-num">${i + 1}</span>` +
+          `<span class="pz-size">${def.cols}×${def.rows}</span>` +
+          `<span class="pz-stars">${starStr}</span>` +
+          `<span class="pz-moves">${def.moves} moves</span>`
+        : `<span class="pz-lock">🔒</span><span class="pz-num">${i + 1}</span>`;
+      if (unlocked) {
+        cell.addEventListener("click", () => {
+          Audio.click();
+          this.cb.startPuzzle && this.cb.startPuzzle(i);
+        });
+      }
+      grid.appendChild(cell);
+    }
+  }
+
+  // Menu badge: how many unlocked puzzles are still waiting to be solved.
+  refreshPuzzleBadge() {
+    const badge = this.el["puzzle-badge"];
+    if (!badge) return;
+    const starsMap = Storage.getPuzzleStarsMap();
+    let n = 0;
+    for (let i = 0; i < PUZZLE_COUNT; i++) {
+      if (isPuzzleUnlocked(i, starsMap) && (starsMap[i] || 0) === 0) n++;
+    }
+    if (n > 0) {
+      badge.textContent = String(n);
+      badge.classList.remove("hidden");
+    } else {
+      badge.classList.add("hidden");
+    }
   }
 
   // ---- Season Pass ------------------------------------------------------

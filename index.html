@@ -236,6 +236,15 @@
           </span>
           <span class="tile-label">Stats</span>
         </button>
+        <button class="tile t-puzzle" id="btn-puzzle">
+          <span class="tile-ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
+              <path d="M10 4h4v2.2a1.6 1.6 0 003.2 0V4H20a1 1 0 011 1v2.8h-2.2a1.6 1.6 0 000 3.2H21v4h-2.2a1.6 1.6 0 000 3.2H21V20a1 1 0 01-1 1h-4v-2.2a1.6 1.6 0 00-3.2 0V21H5a1 1 0 01-1-1v-4h2.2a1.6 1.6 0 000-3.2H4V9.8h2.2A1.6 1.6 0 006.2 6.6H4V5a1 1 0 011-1z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" />
+            </svg>
+          </span>
+          <span class="tile-label">Puzzles</span>
+          <span class="tile-badge hidden" id="puzzle-badge" aria-hidden="true"></span>
+        </button>
         <button class="tile t-season" id="btn-season">
           <span class="tile-ic" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
@@ -354,6 +363,16 @@
       <div class="stats-grid" id="stats-profile"></div>
       <h3 class="stats-section">Lifetime Totals</h3>
       <div class="stats-grid" id="stats-lifetime"></div>
+    </div>
+
+    <!-- Puzzle Mode -->
+    <div id="puzzle" class="overlay screen hidden">
+      <div class="screen-head">
+        <button class="icon-btn" id="puzzle-back" aria-label="Back">‹</button>
+        <h2>Puzzles</h2>
+      </div>
+      <p class="puzzle-intro">Clear the whole board within the move limit. Solve a puzzle to unlock the next — finish with moves to spare for more stars.</p>
+      <div class="puzzle-grid" id="puzzle-list"></div>
     </div>
 
     <!-- Season Pass -->
