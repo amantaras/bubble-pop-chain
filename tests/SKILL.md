@@ -178,7 +178,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   reduced-motion mode (the Themes `#rm-toggle` zeroes `shake.motionScale`, thins
   `particles.motionScale`, adds the `reduced-motion` body class, persists, and is
   re-applied on reload) plus the core ARIA metadata (canvas `role="img"`+label,
-  toast `aria-live` status region, win/lose dialogs),
+  toast `aria-live` status region, win/lose dialogs) and the menu-footer hit-test
+  guard (the informational top-right `.menu-foot` computes `pointer-events:none`
+  so it can never intercept clicks on the centred menu buttons),
   the idle move-hint assist (a hint surfaces after idling, any input clears it,
   and the Themes toggle disables/suppresses it), per-level best score (a clear
   records a best shown on the level map, beating a prior best celebrates a

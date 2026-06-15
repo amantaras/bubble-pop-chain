@@ -389,6 +389,10 @@ body {
   flex-direction: column;
   align-items: flex-end;
   gap: 8px;
+  /* Purely informational (coins + daily/tournament summaries). Pinned top-right,
+     it can visually overlap the centred menu buttons when the week's modifier
+     adds an extra summary row, so it must never intercept their clicks. */
+  pointer-events: none;
 }
 
 .daily-summary {

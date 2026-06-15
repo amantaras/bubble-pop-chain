@@ -2498,6 +2498,23 @@ test.describe("accessibility attributes", () => {
     await expect(page.locator("#win")).toHaveAttribute("aria-modal", "true");
     await expect(page.locator("#lose")).toHaveAttribute("role", "dialog");
   });
+
+  test("the informational menu footer never intercepts button clicks", async ({
+    page,
+  }) => {
+    // The absolutely-positioned top-right .menu-foot (coins + daily/tournament
+    // summaries) can visually overlap the centred menu buttons when the week's
+    // modifier adds an extra summary row. It is purely informational, so it and
+    // every descendant must be transparent to pointer events — otherwise it
+    // intercepts clicks on #btn-continue (the CI "Deep Freeze" week regression).
+    const pe = await page.evaluate(() => {
+      const foot = document.querySelector(".menu-foot");
+      const all = [foot, ...foot.querySelectorAll("*")];
+      return all.map((el) => getComputedStyle(el).pointerEvents);
+    });
+    expect(pe.length).toBeGreaterThan(0);
+    expect(pe.every((v) => v === "none")).toBe(true);
+  });
 });
 
 
