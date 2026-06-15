@@ -96,6 +96,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   ensureQuests reroll on day/week change, applyQuestProgress count+max+cap +
   newlyComplete, claimQuest claimable/idempotent, questsClaimable count,
   immutability),
+  the stats/profile dashboard (`stats.js`: formatStat grouping + clamping,
+  lifetimeStats from achievement progress, profileStats defaults, buildStats
+  shape),
   the pet companion system (catalog integrity + premium flags, XP/level curve,
   passive buff scaling, active-pet cooldown/strength/count scaling, seeded
   crate rolls including the rare premium drop chance + the boosted Legendary
@@ -179,6 +182,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   the daily & weekly quests (Quests screen lists 3 daily + 1 weekly goal,
   gameplay pops feed progress, completing one makes its reward claimable, and the
   menu badge counts claimable rewards),
+  the stats/profile dashboard (Stats screen renders a Profile section + Lifetime
+  Totals section of 8 cells each, lifetime totals reflect persisted progress,
+  and the profile shows the live coin balance),
   the last-bubble finale (leaving exactly one bubble triggers the glow+explode
   finale with a random style 0–4, suspends input, and clears the board to win
   the level),

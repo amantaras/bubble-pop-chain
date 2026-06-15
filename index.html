@@ -228,6 +228,14 @@
           <span class="tile-label">Quests</span>
           <span class="tile-badge hidden" id="quests-badge" aria-hidden="true"></span>
         </button>
+        <button class="tile t-stats" id="btn-stats">
+          <span class="tile-ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
+              <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </span>
+          <span class="tile-label">Stats</span>
+        </button>
         <button class="tile t-season" id="btn-season">
           <span class="tile-ic" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
@@ -334,6 +342,18 @@
       </div>
       <p class="quests-intro">Complete goals to earn coins, power-ups and crates. Daily quests reset every day; the weekly quest resets each week.</p>
       <div class="quests-list" id="quests-list"></div>
+    </div>
+
+    <!-- Stats / Profile dashboard -->
+    <div id="stats" class="overlay screen hidden">
+      <div class="screen-head">
+        <button class="icon-btn" id="stats-back" aria-label="Back">‹</button>
+        <h2>Your Stats</h2>
+      </div>
+      <h3 class="stats-section">Profile</h3>
+      <div class="stats-grid" id="stats-profile"></div>
+      <h3 class="stats-section">Lifetime Totals</h3>
+      <div class="stats-grid" id="stats-lifetime"></div>
     </div>
 
     <!-- Season Pass -->

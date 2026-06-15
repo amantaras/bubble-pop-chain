@@ -46,6 +46,7 @@ import {
   isQuestClaimable,
   questsClaimable,
 } from "./quests.js";
+import { buildStats as buildStatsData, formatStat } from "./stats.js";
 import {
   PET_CATALOG,
   COSMETICS,
@@ -82,6 +83,7 @@ class UIManager {
       "calendar", "cal-grid", "cal-status", "cal-claim", "cal-back",
       "btn-calendar", "cal-badge",
       "quests", "quests-list", "quests-back", "btn-quests", "quests-badge",
+      "stats", "stats-profile", "stats-lifetime", "stats-back", "btn-stats",
       "season", "season-track", "season-coins", "season-back", "season-buy",
       "season-xp-label", "season-xp-fill", "btn-season", "season-badge",
       "chest", "chest-icon", "chest-title", "chest-sub", "chest-rewards", "chest-ok",
@@ -142,6 +144,7 @@ class UIManager {
     click("btn-achievements", () => this.showScreen("achievements"));
     click("btn-calendar", () => this.showScreen("calendar"));
     click("btn-quests", () => this.showScreen("quests"));
+    click("btn-stats", () => this.showScreen("stats"));
     click("btn-season", () => this.showScreen("season"));
     click("btn-pets", () => this.openPetOverlay());
     click("btn-tutorial", () => this.cb.startTutorial && this.cb.startTutorial());
@@ -157,6 +160,7 @@ class UIManager {
     click("achv-collect-all", () => this._claimAllAchievements());
     click("cal-back", () => this.showScreen("menu"));
     click("quests-back", () => this.showScreen("menu"));
+    click("stats-back", () => this.showScreen("menu"));
     click("cal-claim", () => this._claimCalendar());
     click("season-back", () => this.showScreen("menu"));
     click("season-buy", () => this._buySeasonPremium());
@@ -286,7 +290,7 @@ class UIManager {
 
   // ---- Screen switching -------------------------------------------------
   hideScreens() {
-    ["menu", "levelmap", "shop", "themes", "achievements", "calendar", "quests", "season", "pets"].forEach((s) =>
+    ["menu", "levelmap", "shop", "themes", "achievements", "calendar", "quests", "stats", "season", "pets"].forEach((s) =>
       this.el[s].classList.add("hidden")
     );
   }
@@ -316,6 +320,7 @@ class UIManager {
     if (name === "achievements") this.buildAchievements();
     if (name === "calendar") this.buildCalendar();
     if (name === "quests") this.buildQuests();
+    if (name === "stats") this.buildStats();
     if (name === "season") this.buildSeason();
   }
 
@@ -1433,6 +1438,39 @@ class UIManager {
     } else {
       badge.classList.add("hidden");
     }
+  }
+
+  // ---- Stats / Profile dashboard ----------------------------------------
+  // Render the read-only profile + lifetime totals. All data is sourced from
+  // the save via the pure `stats.js` aggregator, so this is purely a view.
+  buildStats() {
+    const save = {
+      achievements: Storage.get("achievements"),
+      pets: Storage.get("pets"),
+      ownedThemes: Storage.get("ownedThemes"),
+      maxUnlockedLevel: Storage.get("maxUnlockedLevel"),
+      coins: Economy.coins,
+      highScoreEndless: Storage.get("highScoreEndless"),
+      highScoreTimeAttack: Storage.get("highScoreTimeAttack"),
+      daily: Storage.get("daily"),
+    };
+    const data = buildStatsData(save);
+    this._fillStatGrid(this.el["stats-profile"], data.profile);
+    this._fillStatGrid(this.el["stats-lifetime"], data.lifetime);
+  }
+
+  _fillStatGrid(grid, rows) {
+    if (!grid) return;
+    grid.innerHTML = "";
+    rows.forEach((row) => {
+      const cell = document.createElement("div");
+      cell.className = "stat-cell";
+      cell.innerHTML =
+        `<span class="stat-ic" aria-hidden="true">${row.icon}</span>` +
+        `<span class="stat-val">${formatStat(row.value)}</span>` +
+        `<span class="stat-label">${row.label}</span>`;
+      grid.appendChild(cell);
+    });
   }
 
   // ---- Season Pass ------------------------------------------------------

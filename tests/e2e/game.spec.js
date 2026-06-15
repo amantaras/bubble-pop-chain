@@ -120,6 +120,7 @@ test.describe("menu & navigation (UI)", () => {
       "btn-calendar",
       "btn-season",
       "btn-quests",
+      "btn-stats",
       "btn-tutorial",
     ]) {
       await expect(page.locator(`#${id}`)).toBeVisible();
@@ -4293,6 +4294,47 @@ test.describe("daily & weekly quests (Tier 1)", () => {
     }));
     expect(after.coins).toBe(before + 60);
     expect(after.claimed).toBe(true);
+  });
+});
+
+test.describe("stats / profile dashboard (Tier 1)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("the Stats screen opens from the menu and Back returns", async ({
+    page,
+  }) => {
+    await page.locator("#btn-stats").click();
+    await expect(page.locator("#stats")).toBeVisible();
+    // Two sections: profile (8 cells) + lifetime totals (8 cells).
+    await expect(page.locator("#stats-profile .stat-cell")).toHaveCount(8);
+    await expect(page.locator("#stats-lifetime .stat-cell")).toHaveCount(8);
+    await page.locator("#stats-back").click();
+    await expect(page.locator("#menu")).toBeVisible();
+  });
+
+  test("lifetime totals reflect persisted progress", async ({ page }) => {
+    await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      const st = S.getAchievementState();
+      st.progress.pops = 1234;
+      S.setAchievementState(st);
+    });
+    await page.locator("#btn-stats").click();
+    // The 👆 Bubbles-popped cell shows the formatted lifetime pop count.
+    await expect(
+      page.locator("#stats-lifetime .stat-cell").first()
+    ).toContainText("1,234");
+  });
+
+  test("the profile section shows the current coin balance", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.Economy.addCoins(500));
+    const coins = await page.evaluate(() => window.__bpc.Economy.coins);
+    await page.locator("#btn-stats").click();
+    await expect(page.locator("#stats-profile")).toContainText(
+      coins.toLocaleString("en-US")
+    );
   });
 });
 
