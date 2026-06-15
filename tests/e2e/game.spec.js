@@ -4338,4 +4338,59 @@ test.describe("stats / profile dashboard (Tier 1)", () => {
   });
 });
 
+test.describe("piggy bank (Tier 1)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("the shop shows the Piggy Bank card, locked when empty", async ({
+    page,
+  }) => {
+    await page.locator("#btn-shop").click();
+    await expect(page.locator(".shop-piggy")).toBeVisible();
+    // A fresh save has an empty piggy, so cracking is locked.
+    const crack = page.locator("#shop-piggy-crack");
+    await expect(crack).toBeDisabled();
+    await expect(crack).toHaveText("Locked");
+  });
+
+  test("finishing a level banks coins into the piggy", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.Storage.set("piggyBank", 0));
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(200);
+    // Guarantee a healthy score so the deposit clears the crack threshold.
+    await page.evaluate(() => {
+      window.__bpc.game.session.score = 4000;
+    });
+    await autoPlay(page);
+    // _finish (and the piggy deposit) runs a short delay after the board ends.
+    await page.waitForFunction(
+      () => (window.__bpc.Storage.get("piggyBank") || 0) > 0,
+      { timeout: 5000 }
+    );
+    const bank = await page.evaluate(() => window.__bpc.Storage.get("piggyBank"));
+    expect(bank).toBeGreaterThanOrEqual(100);
+  });
+
+  test("cracking the piggy pays the whole vault into the wallet", async ({
+    page,
+  }) => {
+    const before = await page.evaluate(() => {
+      window.__bpc.Storage.set("piggyBank", 500);
+      return window.__bpc.Economy.coins;
+    });
+    await page.locator("#btn-shop").click();
+    const crack = page.locator("#shop-piggy-crack");
+    await expect(crack).toBeEnabled();
+    await crack.click();
+    // The vault empties and the coins land in the wallet.
+    const after = await page.evaluate(() => ({
+      coins: window.__bpc.Economy.coins,
+      bank: window.__bpc.Storage.get("piggyBank"),
+    }));
+    expect(after.coins).toBe(before + 500);
+    expect(after.bank).toBe(0);
+    // The card re-renders to a locked state.
+    await expect(page.locator("#shop-piggy-crack")).toBeDisabled();
+  });
+});
+
 

@@ -80,6 +80,11 @@ class MonetizationManager {
     if (productId === "season_premium") {
       return { ok: true };
     }
+    // Cracking the Piggy Bank open. Paying out the banked coins is the caller's
+    // job; here we just confirm the (mock) purchase succeeded.
+    if (productId === "piggy_crack") {
+      return { ok: true };
+    }
     // Premium pet companions (productId "pet_<id>") and the premium Legendary
     // Crate ("crate_legendary"). Granting the item itself is the caller's job;
     // here we just confirm the (mock) purchase succeeded.

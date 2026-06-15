@@ -575,8 +575,17 @@ never re‑discovered the hard way.
   plain save object to display-ready rows (`{ key, icon, label, value }`) and
   `formatStat(n)` adds locale-independent thousands separators. It reuses data
   already tracked elsewhere (it never writes), so it adds no new save fields and,
-  as a meta display, gets **no tutorial step**.
-- **Pet companions** (`pets.js`, pure; `storage.js` `pets`): collectible helper
+  as a meta display, gets **no tutorial step**.- **Piggy Bank** (`piggy.js`, pure; `storage.js` `piggyBank`; `main.js`
+  `_depositPiggy`/`crackPiggy`; `ui.js` `_buildPiggyItem`): a passive coin vault
+  that fills a little every time a board ends. `piggyEarn(score)` banks
+  `floor(score / PIGGY_RATE)` coins on **every** `_finish` (all modes, skipped
+  during the tutorial), `piggyDeposit(balance, score)` adds them while clamping to
+  `PIGGY_CAP`, `canCrackPiggy(balance)` gates cracking on a `PIGGY_MIN_CRACK`
+  minimum, and `piggyFillPct(balance)` drives the shop progress bar. The vault is
+  emptied into the wallet only by a one-time **purchase** (`piggy_crack`, via
+  `Monetization.purchase`) — `crackPiggy()` grants the whole balance with
+  `Economy.addCoins` and resets `piggyBank` to `0`. As a monetization/meta
+  feature it never affects win/star outcomes and gets **no tutorial step**.- **Pet companions** (`pets.js`, pure; `storage.js` `pets`): collectible helper
   pets that support the player both **passively** and with **active board
   powers**. `PET_CATALOG` holds 15 pets across four rarities
   (`common`/`rare`/`epic`/`legendary`). **Passive pets** carry an `ability`
@@ -735,6 +744,7 @@ src/
   season.js         # Season Pass / Battle Pass (pure: 10-tier free+premium track)
   quests.js         # Daily & weekly quests (pure: rotating goals + claimable rewards)
   stats.js          # Stats / Profile dashboard (pure: read-only progress aggregation)
+  piggy.js          # Piggy Bank (pure: passive coin vault + crack-open purchase)
   events.js         # Falling gift/problem events (pure: delay/type/reward rolls)
   pets.js           # Pet companions (pure: catalog, buffs, active actions, crate rolls)
   monetization.js   # F2P abstraction (ads/IAP) — MOCK provider, pluggable  tutorial.js       # Gated step-by-step onboarding: TUTORIAL_STEPS + Tutorial class  ui.js             # All DOM UI: screens, level map, shop, themes, HUD, modals
@@ -795,7 +805,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 388 unit tests + 310 E2E
+- **Current baseline (keep growing, never shrink)**: 396 unit tests + 316 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

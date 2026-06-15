@@ -101,6 +101,11 @@ import {
   questsClaimable,
 } from "./quests.js";
 import {
+  piggyDeposit,
+  canCrackPiggy,
+  PIGGY_CRACK_PRODUCT,
+} from "./piggy.js";
+import {
   seasonStatus,
   addSeasonXp,
   claimTier,
@@ -214,6 +219,7 @@ class Game {
       claimSeasonTier: (index, track) => this.claimSeasonTier(index, track),
       buySeasonPremium: () => this.buySeasonPremium(),
       buyStarterPack: () => this.buyStarterPack(),
+      crackPiggy: () => this.crackPiggy(),
     });
 
     this.input = new Input(this.canvas, {
@@ -857,6 +863,30 @@ class Game {
     if (STARTER_PACK.crates) Storage.addCrates(STARTER_PACK.crates);
     Storage.set("starterPack", true);
     return { ok: true, pack: STARTER_PACK };
+  }
+
+  // Drip a finished level's earnings into the Piggy Bank (capped). Tutorial
+  // play never banks. The coins stay locked until the player cracks the piggy.
+  _depositPiggy(score) {
+    const s = this.session;
+    if (s && s.mode === "tutorial") return;
+    if (this.tutorial && this.tutorial.active) return;
+    const balance = Storage.get("piggyBank") || 0;
+    const { balance: next, added } = piggyDeposit(balance, score);
+    if (added > 0) Storage.set("piggyBank", next);
+  }
+
+  // Crack the Piggy Bank open: a one-time (mock) purchase that pays the entire
+  // banked balance into the coin wallet and empties the vault. Returns a result
+  // the shop UI can toast — `{ ok, amount }` on success, or a locked/failed flag.
+  async crackPiggy() {
+    const balance = Storage.get("piggyBank") || 0;
+    if (!canCrackPiggy(balance)) return { ok: false, locked: true, balance };
+    const res = await Monetization.purchase(PIGGY_CRACK_PRODUCT);
+    if (!res || !res.ok) return { ok: false };
+    Economy.addCoins(balance);
+    Storage.set("piggyBank", 0);
+    return { ok: true, amount: balance };
   }
 
   // Buy a cosmetic tint for a pet with coins. Returns true on success.
@@ -2818,6 +2848,9 @@ class Game {
     const s = this.session;
     this._clearActiveSession();
 
+    // The Piggy Bank banks a slice of every finished level's score (capped).
+    this._depositPiggy(s.score);
+
     if (s.mode === "campaign") {
       if (won) {
         const stars = Math.max(1, starsForScore(s.level, s.score));
@@ -3354,6 +3387,7 @@ if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) 
     calendar: { calendarStatus, advanceCalendar, todayKey },
     season: { seasonStatus, addSeasonXp, claimTier, tierReward },
     quests: { ensureQuests, applyQuestProgress, claimQuest, questsClaimable, todayKey, weekKey },
+    piggy: { piggyDeposit, canCrackPiggy },
     popStyle: popStyleForGroup,
     cascade: { cascadeBonus, cascadeTier },
     tournament: { getTournamentLevel, getTournamentGoals, tournamentRank, getTournamentBest },

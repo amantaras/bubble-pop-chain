@@ -48,6 +48,13 @@ import {
 } from "./quests.js";
 import { buildStats as buildStatsData, formatStat } from "./stats.js";
 import {
+  canCrackPiggy,
+  piggyFillPct,
+  PIGGY_CAP,
+  PIGGY_MIN_CRACK,
+  PIGGY_CRACK_PRICE,
+} from "./piggy.js";
+import {
   PET_CATALOG,
   COSMETICS,
   getPet,
@@ -751,12 +758,62 @@ class UIManager {
     list.appendChild(item);
   }
 
+  // The Piggy Bank shop card: shows the banked balance + fill bar, and a
+  // "Crack open" button that pays out the whole vault via a one-time purchase.
+  _buildPiggyItem(list) {
+    const balance = Storage.get("piggyBank") || 0;
+    const pct = Math.round(piggyFillPct(balance) * 100);
+    const canCrack = canCrackPiggy(balance);
+    const item = document.createElement("div");
+    item.className = "shop-item shop-piggy";
+    item.dataset.pack = "piggy";
+    item.innerHTML = `
+      <span class="si-icon">🐷</span>
+      <div class="si-body">
+        <div class="si-title">Piggy Bank</div>
+        <div class="si-desc">🪙 <span class="piggy-balance">${formatStat(
+          balance
+        )}</span> / ${formatStat(PIGGY_CAP)} banked from play</div>
+        <div class="piggy-bar"><div class="piggy-bar-fill" style="width:${pct}%"></div></div>
+        <div class="si-desc piggy-hint">${
+          canCrack
+            ? "Crack it open to collect every coin!"
+            : `Keep playing — crack at ${formatStat(PIGGY_MIN_CRACK)} coins`
+        }</div>
+      </div>`;
+    const buy = document.createElement("button");
+    buy.id = "shop-piggy-crack";
+    buy.className = "buy-btn" + (canCrack ? "" : " owned");
+    buy.textContent = canCrack ? `Crack ${PIGGY_CRACK_PRICE}` : "Locked";
+    buy.disabled = !canCrack;
+    if (canCrack) {
+      buy.addEventListener("click", async () => {
+        if (!this.cb.crackPiggy) return;
+        buy.disabled = true;
+        const res = await this.cb.crackPiggy();
+        if (res && res.ok) {
+          Audio.coin();
+          this.toast(`🐷 Piggy cracked — +🪙 ${formatStat(res.amount)}!`);
+          this.refreshCoins();
+          this.buildShop();
+        } else {
+          buy.disabled = false;
+          this.toast("Purchase failed");
+        }
+      });
+    }
+    item.appendChild(buy);
+    list.appendChild(item);
+  }
+
   buildShop() {
     const list = this.el["shop-list"];
     list.innerHTML = "";
 
     // One-time Starter Pack — a prominent value bundle at the very top.
     this._buildStarterPackItem(list);
+    // Piggy Bank — coins banked passively from play, unlocked by cracking it.
+    this._buildPiggyItem(list);
     // Power-ups
     Object.entries(POWERUP_INFO).forEach(([type, info]) => {
       const owned = Economy.getPowerup(type);

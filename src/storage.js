@@ -38,6 +38,9 @@ const DEFAULT_SAVE = {
   // the active quest tracking entries ({id, progress, claimed}); they reset
   // when `dayKey`/`weekKey` roll over (see quests.js `ensureQuests`).
   quests: { dayKey: null, weekKey: null, daily: [], weekly: [] },
+  // Piggy Bank: coins passively banked as you finish levels (capped). They stay
+  // locked until the one-time "crack open" purchase pays out the whole vault.
+  piggyBank: 0,
   firstRunDone: false,
   activeSession: null, // snapshot of an in-progress campaign level (resume)
   // Rolling 7-day login reward cycle: { lastClaim: "YYYY-MM-DD"|null, day }.

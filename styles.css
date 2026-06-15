@@ -1776,6 +1776,28 @@ body {
   color: #1a1030;
 }
 
+/* Piggy Bank shop card ----------------------------------------------------- */
+.shop-piggy {
+  border: 1.5px solid #ff8ac0;
+  background: linear-gradient(135deg, rgba(255, 138, 192, 0.14), transparent 70%);
+}
+.piggy-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  margin: 6px 0 2px;
+}
+.piggy-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ff8ac0, #ffb35b);
+  transition: width 0.3s ease;
+}
+.piggy-hint {
+  opacity: 0.85;
+}
+
 /* New-companion celebration ------------------------------------------------ */
 .pet-reveal-card {
   --pr-color: #ffc850;
