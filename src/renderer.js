@@ -6,25 +6,50 @@ import { RAINBOW, ICE, ICE_CRACKED, NORMAL, LIGHTNING, STONE, BOMB, MULTIPLIER, 
 // always at least as many symbols as a level has colours.
 export const CB_SYMBOLS = ["●", "▲", "■", "◆", "★", "✚", "▼", "⬢"];
 
-function hexToRgb(hex) {
+// The colour helpers below are pure functions of (hex, factor) and are called
+// several times per bubble, every frame, from `drawBubbles`. The set of inputs
+// is tiny and finite — a theme's palette (≈6–8 colours) crossed with the
+// handful of literal factor constants used in the draw code — so memoizing
+// them removes thousands of redundant hex-parses + string allocations per
+// second on a busy board without changing a single output. The caches are
+// therefore naturally bounded by that finite key space.
+const _rgbCache = new Map();
+const _shadeCache = new Map();
+const _lightenCache = new Map();
+
+export function hexToRgb(hex) {
+  let v = _rgbCache.get(hex);
+  if (v !== undefined) return v;
   const h = hex.replace("#", "");
-  return {
+  v = {
     r: parseInt(h.substring(0, 2), 16),
     g: parseInt(h.substring(2, 4), 16),
     b: parseInt(h.substring(4, 6), 16),
   };
+  _rgbCache.set(hex, v);
+  return v;
 }
 
-function shade(hex, factor) {
+export function shade(hex, factor) {
+  const key = hex + "|" + factor;
+  let v = _shadeCache.get(key);
+  if (v !== undefined) return v;
   const { r, g, b } = hexToRgb(hex);
   const f = factor < 0 ? 0 : factor;
-  return `rgb(${Math.round(r * f)}, ${Math.round(g * f)}, ${Math.round(b * f)})`;
+  v = `rgb(${Math.round(r * f)}, ${Math.round(g * f)}, ${Math.round(b * f)})`;
+  _shadeCache.set(key, v);
+  return v;
 }
 
-function lighten(hex, amt) {
+export function lighten(hex, amt) {
+  const key = hex + "|" + amt;
+  let v = _lightenCache.get(key);
+  if (v !== undefined) return v;
   const { r, g, b } = hexToRgb(hex);
-  const l = (v) => Math.round(v + (255 - v) * amt);
-  return `rgb(${l(r)}, ${l(g)}, ${l(b)})`;
+  const l = (val) => Math.round(val + (255 - val) * amt);
+  v = `rgb(${l(r)}, ${l(g)}, ${l(b)})`;
+  _lightenCache.set(key, v);
+  return v;
 }
 
 export class Renderer {
@@ -527,4 +552,3 @@ export class Renderer {
   }
 }
 
-export { hexToRgb };

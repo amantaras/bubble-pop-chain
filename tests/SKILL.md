@@ -72,6 +72,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   `aggregateChestRewards` which merges many chests into one summary — summing
   coins, merging power-ups by id, and gathering pets + categories for Collect All),
   the colourblind symbol set (distinct glyph per colour, enough for every level),
+  the memoized bubble colour helpers (`renderer.js` `hexToRgb`/`shade`/`lighten`
+  — outputs pinned byte-for-byte so the per-frame render cache can't drift the
+  on-screen colours, and `hexToRgb` proven to return a stable cached reference),
   the reduced-motion accessibility flags (`ScreenShake.motionScale` gates added
   trauma at the `add()` chokepoint — 0 disables shake entirely; `ParticleSystem.
   motionScale` scales `burst`/`sparkle` counts down and skips shockwave `ring`s

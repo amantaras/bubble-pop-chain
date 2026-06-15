@@ -460,6 +460,21 @@ never re‑discovered the hard way.
   `_cap()`, which trims the **oldest** (already-fading) particles once the pool
   exceeds 600. A single big clear stays well under the cap (so the look is
   unchanged); only runaway storms are bounded, holding worst-case draw cost flat.
+- **Performance — memoized bubble colour helpers** (`renderer.js` `hexToRgb`/
+  `shade`/`lighten`): `drawBubbles` runs every frame and computes several derived
+  colour strings **per bubble** (body-gradient stops, rim + highlight shades —
+  `lighten(hex,0.65)`, `shade(hex,0.7)`, `shade(hex,0.42)`, `lighten(hex,0.5)`).
+  Each call previously re-parsed the hex and allocated a fresh `rgb(...)` string,
+  so a busy 56-bubble board churned **thousands of hex-parses + string
+  allocations per second** (≈4 calls × bubbles × 60fps). These three helpers are
+  **pure** over a tiny finite key space — a theme's palette (~6–8 colours)
+  crossed with the handful of literal factor constants used in the draw code —
+  so they are now **memoized** (`Map` caches keyed by `hex` / `hex|factor`),
+  collapsing the per-frame colour work to cache hits (~0.01ms/frame in a
+  micro-benchmark over the real palettes). Outputs are **byte-identical** (unit
+  tests pin the exact `rgb(...)` strings and prove the cache returns stable
+  results), and `hexToRgb`/`shade`/`lighten` are exported so the memoization is
+  unit-testable. Behaviour-preserving render optimization → **no tutorial step**.
 - **Group-pop explosion styles** (`particles.js` `popStyleForGroup` +
   `ParticleSystem.ring`, `main.js` `_popCells`): every group pop plays **one of
   five escalating explosion animations** — the bigger the group, the more
@@ -852,7 +867,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 413 unit tests + 330 E2E
+- **Current baseline (keep growing, never shrink)**: 419 unit tests + 330 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests
