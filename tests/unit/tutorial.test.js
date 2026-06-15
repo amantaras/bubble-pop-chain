@@ -18,7 +18,7 @@ describe("tutorial step definitions", () => {
 
   it("covers every core feature exactly once", () => {
     const actions = TUTORIAL_STEPS.map((s) => s.advance);
-    for (const a of ["pop", "combo", "undo", "preview", "swipe", "blast", "powerup", "magnet", "event", "lightning"]) {
+    for (const a of ["pop", "combo", "undo", "preview", "swipe", "blast", "powerup", "magnet", "event", "lightning", "stone", "bombbubble"]) {
       expect(actions).toContain(a);
     }
   });
@@ -53,6 +53,17 @@ describe("tutorial step definitions", () => {
     expect(bolt).toBeTruthy();
     expect(bolt.advance).toBe("lightning");
     expect(bolt.grant).toBe("lightning");
+  });
+
+  it("includes a gated bomb-bubble step that grants a bomb board", () => {
+    const bomb = TUTORIAL_STEPS.find((s) => s.id === "bombbubble");
+    expect(bomb).toBeTruthy();
+    expect(bomb.advance).toBe("bombbubble");
+    expect(bomb.grant).toBe("bombbubble");
+    expect(bomb.hint).toBeTruthy();
+    // It sits right after the stone step (the special-bubbles run).
+    const idx = TUTORIAL_STEPS.indexOf(bomb);
+    expect(TUTORIAL_STEPS[idx - 1].id).toBe("stone");
   });
 
   it("includes an informational pets step before the finish", () => {

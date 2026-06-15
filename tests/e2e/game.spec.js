@@ -526,6 +526,47 @@ test.describe("special bubbles (ice + rainbow)", () => {
     expect(res.scoreUnchanged).toBe(true); // tap scored nothing
     expect(res.stoneAfterPop).toBe(false); // adjacent pop shattered it
   });
+
+  test("a bomb bubble's pop detonates a 3x3 area around it", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(16));
+    await page.waitForTimeout(500);
+    const res = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      // Deterministic board: a same-colour pair where one is a BOMB bubble, all
+      // surrounded by a different colour so only the 3x3 blast clears them.
+      const bc = 2;
+      const br = Math.floor(b.rows / 2);
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          b.grid[c][r] = c === bc && (r === br || r === br + 1) ? 0 : 1;
+          b.types[c][r] = 0; // NORMAL
+        }
+      b.types[bc][br] = 6; // BOMB
+      // Count colour-1 neighbours inside the bomb's 3x3 before popping.
+      const around = () => {
+        let n = 0;
+        for (let dc = -1; dc <= 1; dc++)
+          for (let dr = -1; dr <= 1; dr++) {
+            const cc = bc + dc;
+            const rr = br + dr;
+            if (cc < 0 || cc >= b.cols || rr < 0 || rr >= b.rows) continue;
+            if (b.grid[cc][rr] === 1) n++;
+          }
+        return n;
+      };
+      const neighboursBefore = around();
+      g.popAt(bc, br); // pop the bomb pair → detonate the 3x3 blast
+      b.settle();
+      return { neighboursBefore, cleared: g.session.stats.cleared };
+    });
+    // The blast cleared the pair (2) plus the surrounding 3x3 neighbours, so
+    // more than just the two-bubble group was removed.
+    expect(res.neighboursBefore).toBeGreaterThan(0);
+    expect(res.cleared).toBeGreaterThan(2);
+  });
 });
 
 test.describe("daily retention engine", () => {
@@ -3066,9 +3107,23 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
           }
         }
     });
+    await expect.poll(() => stepId(page)).toBe("bombbubble");
+
+    // 8c) bomb bubble — popping a cluster that contains the bomb detonates a
+    // 3×3 blast and advances the step.
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++)
+          if (b.isBomb(c, r) && b.getGroupAt(c, r).length >= 2) {
+            g.popAt(c, r);
+            return;
+          }
+    });
     await expect.poll(() => stepId(page)).toBe("pets");
 
-    // 8c) pets (informational) — introduces the companion system.
+    // 8d) pets (informational) — introduces the companion system.
     await page.locator("#coach-next").click();
     expect(await stepId(page)).toBe("done");
 

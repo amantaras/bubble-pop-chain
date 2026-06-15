@@ -1,5 +1,5 @@
 // Game orchestrator: canvas loop, state machine, and all session logic.
-import { Board, RAINBOW, ICE, LIGHTNING, STONE } from "./grid.js";
+import { Board, RAINBOW, ICE, LIGHTNING, STONE, BOMB } from "./grid.js";
 import { Renderer } from "./renderer.js";
 import { ParticleSystem, popStyleForGroup } from "./particles.js";
 import {
@@ -922,6 +922,18 @@ class Game {
       decorateSpecials(types);
       this._placeTutorialStone(types);
       b.restore(g, types);
+    } else if (kind === "bombbubble") {
+      // Fresh practice board with a BOMB bubble parked inside a guaranteed
+      // cluster, so popping it always detonates the 3×3 blast and advances.
+      const b = s.board;
+      const { colors: g, types } = buildTutorialBoard(
+        b.cols,
+        b.rows,
+        s.level.colors || 4
+      );
+      decorateSpecials(types);
+      this._placeTutorialBomb(types);
+      b.restore(g, types);
     } else if (kind === "event") {
       this._spawnTutorialEvent();
     } else if (kind === "undo") {
@@ -948,6 +960,13 @@ class Game {
     if (types && types[2] && types[2][0] !== undefined) types[2][0] = STONE;
   }
 
+  // Drop a BOMB bubble into a corner 2×2 block of the practice board (a
+  // guaranteed same-colour cluster), so the bomb-bubble step can always be
+  // cleared and triggers the 3×3 detonation.
+  _placeTutorialBomb(types) {
+    if (types && types[0] && types[0][0] !== undefined) types[0][0] = BOMB;
+  }
+
   // Rebuild the controlled practice board so the tutorial never runs out of
   // poppable clusters no matter how much the player pops/blasts.
   _refillTutorialBoard() {
@@ -967,6 +986,10 @@ class Game {
     // Keep a stone bubble available while the stone step is active.
     if (this.tutorial && this.tutorial.stepId === "stone") {
       this._placeTutorialStone(types);
+    }
+    // Keep a bomb bubble available while the bomb-bubble step is active.
+    if (this.tutorial && this.tutorial.stepId === "bombbubble") {
+      this._placeTutorialBomb(types);
     }
     b.restore(g, types);
     b.layout(this.W, this.H, TOP_INSET, this._bottomInset());
@@ -1343,10 +1366,15 @@ class Game {
     // Record an undo snapshot before this move mutates the board.
     this._pushUndo();
 
-    // Lightning bubbles in the group discharge along their row + column,
-    // expanding the cleared set. Score reflects everything cleared.
-    const struck = group.some((p) => s.board.isLightning(p.c, p.r));
-    const cells = struck ? s.board.lightningStrike(group) : group;
+    // Lightning bubbles discharge along their row + column; Bomb bubbles
+    // detonate a 3×3 area. Either expands the cleared set; score reflects
+    // everything cleared.
+    const struckBolt = group.some((p) => s.board.isLightning(p.c, p.r));
+    const struckBomb = group.some((p) => s.board.isBomb(p.c, p.r));
+    let cells = group;
+    if (struckBolt) cells = s.board.lightningStrike(cells);
+    if (struckBomb) cells = s.board.bombStrike(cells);
+    const struck = struckBolt || struckBomb;
 
     // Score with combo multiplier.
     const base = groupScore(cells.length);
@@ -1369,9 +1397,14 @@ class Game {
     // Build the Fever gauge — quick chains fill it and trigger double points.
     this._addFever(feverGain(s.combo) * s.petBuffs.feverMult);
 
-    if (struck) {
+    if (struckBolt) {
       const p = s.board.targetPixel(c, r);
       this.floating.spawn(p.x, p.y - 28, "⚡ ZAP!", "#9fe8ff", 30);
+      Audio.powerup();
+    }
+    if (struckBomb) {
+      const p = s.board.targetPixel(c, r);
+      this.floating.spawn(p.x, p.y - 28, "💥 BOOM!", "#ffb066", 30);
       Audio.powerup();
     }
     this._popCells(cells, points, cells.length, s.combo, struck ? 1.3 : 1);
@@ -1404,7 +1437,8 @@ class Game {
     if (s.mode === "campaign") s.movesLeft -= 1;
     this.refreshHud();
     this._tut("pop");
-    if (struck) this._tut("lightning");
+    if (struckBolt) this._tut("lightning");
+    if (struckBomb) this._tut("bombbubble");
     if (s.combo >= 2) this._tut("combo");
     // Bonus objective progress: a big combo or a single large group.
     this._trackObjective({ combo: s.combo, group: group.length });

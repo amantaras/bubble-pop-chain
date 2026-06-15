@@ -132,7 +132,10 @@ function specialsForLevel(n) {
   // Stone bubbles ramp in from level 18 — locked obstacles you can't tap, only
   // shatter by popping a neighbour. Kept sparse so boards stay solvable.
   const stone = n >= 18 ? Math.min(0.06, 0.02 + (n - 18) * 0.002) : 0;
-  return { rainbow, ice, lightning, stone };
+  // Bomb bubbles ramp in from level 16 — a rare, powerful treat that detonates
+  // a 3×3 area when its group pops. Kept very sparse so it stays a surprise.
+  const bomb = n >= 16 ? Math.min(0.03, 0.01 + (n - 16) * 0.001) : 0;
+  return { rainbow, ice, lightning, stone, bomb };
 }
 
 // Bonus objectives ----------------------------------------------------------

@@ -1,6 +1,6 @@
 // Canvas renderer: animated background + glossy neon bubbles.
 
-import { RAINBOW, ICE, ICE_CRACKED, NORMAL, LIGHTNING, STONE } from "./grid.js";
+import { RAINBOW, ICE, ICE_CRACKED, NORMAL, LIGHTNING, STONE, BOMB } from "./grid.js";
 
 // Distinct glyphs used by colourblind mode — one per colour index. There are
 // always at least as many symbols as a level has colours.
@@ -293,6 +293,54 @@ export class Renderer {
         ctx.beginPath();
         ctx.arc(s.x, s.y - bh * 0.1, bw * 0.34, Math.PI, 0);
         ctx.stroke();
+      }
+
+      // Bomb overlay: a dark explosive shell with a lit fuse spark, marking a
+      // bubble whose group also detonates a 3×3 blast when popped.
+      if (s.type === BOMB) {
+        ctx.globalAlpha = s.alpha;
+        ctx.shadowColor = "rgba(255,150,60,0.9)";
+        ctx.shadowBlur = rad * 0.6;
+        // Round dark body.
+        const bg = ctx.createRadialGradient(
+          s.x - rad * 0.3,
+          s.y - rad * 0.2,
+          rad * 0.1,
+          s.x,
+          s.y,
+          rad * 0.92
+        );
+        bg.addColorStop(0, "rgba(80,84,92,0.98)");
+        bg.addColorStop(1, "rgba(24,26,32,0.98)");
+        ctx.fillStyle = bg;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y + rad * 0.08, rad * 0.66, 0, Math.PI * 2);
+        ctx.fill();
+        // Highlight glint.
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "rgba(235,238,244,0.5)";
+        ctx.beginPath();
+        ctx.arc(s.x - rad * 0.22, s.y - rad * 0.12, rad * 0.14, 0, Math.PI * 2);
+        ctx.fill();
+        // Fuse cap + lit spark.
+        ctx.strokeStyle = "rgba(210,170,90,0.95)";
+        ctx.lineWidth = Math.max(1.5, rad * 0.12);
+        ctx.beginPath();
+        ctx.moveTo(s.x + rad * 0.28, s.y - rad * 0.42);
+        ctx.quadraticCurveTo(
+          s.x + rad * 0.6,
+          s.y - rad * 0.6,
+          s.x + rad * 0.42,
+          s.y - rad * 0.74
+        );
+        ctx.stroke();
+        const spark = 0.6 + 0.4 * Math.abs(Math.sin(performance.now() / 140));
+        ctx.shadowColor = "rgba(255,210,90,0.95)";
+        ctx.shadowBlur = rad * 0.7 * spark;
+        ctx.fillStyle = "rgba(255,224,120,0.98)";
+        ctx.beginPath();
+        ctx.arc(s.x + rad * 0.42, s.y - rad * 0.78, rad * 0.13 * spark, 0, Math.PI * 2);
+        ctx.fill();
       }
 
       // Boss "Colour Purge" marker: a crisp target pip on every plain bubble of

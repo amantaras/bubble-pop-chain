@@ -234,16 +234,25 @@ never re‑discovered the hard way.
   (tap, blast, AoE, or lightning) shatters it — `grid.removeCells` runs a second
   pass over the cells it actually cleared, breaking neighbouring stones once
   each (no chaining) and tagging the returned fx array with `fx.stonesBroken`;
-  `_popCells` reads that flag to emit `_tut("stone")`. `_gridHasMoves` excludes
-  stones as both move origin and same-colour neighbour so generation/deadlock
-  detection stay correct. Seeded spawn rates ramp in by level (rainbow ≥6,
-  ice ≥10, lightning ≥14, stone ≥18 — see `levels.js specialsForLevel`; bosses
-  force `specials.ice`/`specials.stone` to 0). Lightning draws a glowing pulsing
-  bolt glyph and Stone a grey padlock shell (`renderer.js`). All types are part
-  of the save/resume snapshot. The tutorial teaches both Lightning
-  (`grant: "lightning"` → `Game._placeTutorialLightning`) and Stone
-  (`grant: "stone"` → `Game._placeTutorialStone`, advancing on `_tut("stone")`)
-  with gated steps.
+  `_popCells` reads that flag to emit `_tut("stone")`. **Bomb** (`BOMB`) = an
+  explosive coloured bubble — popping a group that contains one **detonates a
+  3×3 area** around each bomb cell (`grid.bombStrike` expands the cleared set via
+  the existing `bombArea` 3×3 square, deduped; `popAt` scores the full blast,
+  shows a `💥 BOOM!` flourish and emits `_tut("bombbubble")`). Like lightning,
+  bombs are ordinary colour bubbles that join groups normally. `_gridHasMoves`
+  excludes stones as both move origin and same-colour neighbour so
+  generation/deadlock detection stay correct. Seeded spawn rates ramp in by level
+  (rainbow ≥6, ice ≥10, lightning ≥14, bomb ≥16, stone ≥18 — see
+  `levels.js specialsForLevel`; bosses force `specials.ice`/`specials.stone` to 0,
+  but allow lightning/bomb). Lightning draws a glowing pulsing bolt glyph, Stone
+  a grey padlock shell, and Bomb a dark fused shell with a pulsing lit spark
+  (`renderer.js`). All types are part of the save/resume snapshot. The tutorial
+  teaches Lightning (`grant: "lightning"` → `Game._placeTutorialLightning`),
+  Stone (`grant: "stone"` → `Game._placeTutorialStone`, advancing on
+  `_tut("stone")`) and Bomb (`grant: "bombbubble"` →
+  `Game._placeTutorialBomb`, advancing on `_tut("bombbubble")`) with gated steps.
+  (The bomb **bubble** uses the `bombbubble` step/grant/action id to avoid
+  colliding with the bomb **power-up** step's `grant: "bomb"`.)
 - **Ads gating** (`monetization.js`): forced interstitials only from
   `adsStartLevel` (7) onward; rewarded ads always available.
 - **Coin economy** (`scoring.coinReward`, `economy.js`): level payout is
@@ -723,7 +732,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 349 unit tests + 290 E2E
+- **Current baseline (keep growing, never shrink)**: 355 unit tests + 292 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests
@@ -867,7 +876,8 @@ How the tutorial is wired (touch every layer that applies):
      button label). Use for informational steps.
    - `advance: "<action>"` → a **gated** step that only advances when the game
      emits that action. Current actions: `pop`, `combo`, `preview`, `swipe`,
-     `blast`, `powerup`, `magnet`, `event`, `lightning`. `hint` is the nudge
+     `blast`, `powerup`, `magnet`, `event`, `lightning`, `stone`, `bombbubble`.
+     `hint` is the nudge
      text shown while
      waiting. (The `fever` step is informational — `advance: "button"` — with a
      `grant: "fever"` that fires Fever as a live demo.)

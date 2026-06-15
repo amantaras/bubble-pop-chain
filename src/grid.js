@@ -12,6 +12,9 @@ export const ICE_CRACKED = 3; // ice after one hit — one more clears it
 export const LIGHTNING = 4; // charged — popping its group also clears row+col
 export const STONE = 5; // locked — can't be tapped; only an adjacent pop (or
 //                         AoE/lightning) shatters it. Never joins a colour group.
+export const BOMB = 6; // explosive — popping its group also detonates a 3×3
+//                        area around each bomb. A normal coloured bubble for
+//                        matching purposes (like LIGHTNING), it just adds AoE.
 
 // How long a magnet-pulled bubble takes to glide to its new cell (seconds).
 // Deliberately slower than the snappy gravity settle so the player can see the
@@ -65,6 +68,7 @@ export class Board {
     const rainbowRate = this.specials.rainbow || 0;
     const lightningRate = this.specials.lightning || 0;
     const stoneRate = this.specials.stone || 0;
+    const bombRate = this.specials.bomb || 0;
     this.types = [];
     for (let c = 0; c < this.cols; c++) {
       this.types[c] = [];
@@ -80,6 +84,11 @@ export class Board {
           this.types[c][r] = LIGHTNING;
         else if (roll < rainbowRate + iceRate + lightningRate + stoneRate)
           this.types[c][r] = STONE;
+        else if (
+          roll <
+          rainbowRate + iceRate + lightningRate + stoneRate + bombRate
+        )
+          this.types[c][r] = BOMB;
         else this.types[c][r] = NORMAL;
       }
     }
@@ -256,6 +265,10 @@ export class Board {
     return this.types[c] && this.types[c][r] === STONE;
   }
 
+  isBomb(c, r) {
+    return this.types[c] && this.types[c][r] === BOMB;
+  }
+
   // Expand a popped group: if it contains any LIGHTNING bubble, every lightning
   // cell discharges along its full row and column (via crossCells), and those
   // cells are merged into the cleared set (deduped). Returns the full cell list
@@ -274,6 +287,28 @@ export class Board {
     group.forEach(add);
     for (const p of group) {
       if (this.isLightning(p.c, p.r)) this.crossCells(p.c, p.r).forEach(add);
+    }
+    return out;
+  }
+
+  // Expand a popped group: if it contains any BOMB bubble, every bomb cell
+  // detonates a 3×3 area (via bombArea), and those cells are merged into the
+  // cleared set (deduped). Returns the full cell list to remove. When the group
+  // has no bomb, the group is returned as-is.
+  bombStrike(group) {
+    const hasBomb = group.some((p) => this.isBomb(p.c, p.r));
+    if (!hasBomb) return group;
+    const seen = new Set();
+    const out = [];
+    const add = (cell) => {
+      const k = cell.c * this.rows + cell.r;
+      if (seen.has(k)) return;
+      seen.add(k);
+      out.push({ c: cell.c, r: cell.r });
+    };
+    group.forEach(add);
+    for (const p of group) {
+      if (this.isBomb(p.c, p.r)) this.bombArea(p.c, p.r).forEach(add);
     }
     return out;
   }

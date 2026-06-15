@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Board, NORMAL, ICE, RAINBOW, ICE_CRACKED, LIGHTNING, STONE } from "../../src/grid.js";
+import { Board, NORMAL, ICE, RAINBOW, ICE_CRACKED, LIGHTNING, STONE, BOMB } from "../../src/grid.js";
 
 // Helper: overwrite a board's logic grid and clear sprite coupling so we can
 // assert pure grid behaviour deterministically. (settle() guards null sprites.)
@@ -205,6 +205,67 @@ describe("grid / Board", () => {
       for (let r = 0; r < b.rows; r++)
         if (b.types[c][r] === LIGHTNING) bolts++;
     expect(bolts).toBeGreaterThan(0);
+  });
+
+  it("bombStrike returns the group unchanged when it has no bomb", () => {
+    const b = new Board(3, 3, 3, 1);
+    setGrid(b, [
+      [0, 1, 2],
+      [0, 1, 2],
+      [0, 1, 2],
+    ]);
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    const group = [
+      { c: 0, r: 0 },
+      { c: 0, r: 1 },
+    ];
+    expect(b.bombStrike(group)).toHaveLength(2);
+  });
+
+  it("bombStrike adds the bomb's full 3x3 area (deduped)", () => {
+    const b = new Board(3, 3, 3, 1);
+    setGrid(b, [
+      [0, 1, 2],
+      [0, 1, 2],
+      [0, 1, 2],
+    ]);
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[1][1] = BOMB;
+    expect(b.isBomb(1, 1)).toBe(true);
+    // A bomb at the centre detonates the full 3x3 = all 9 cells.
+    const cells = b.bombStrike([
+      { c: 1, r: 1 },
+      { c: 1, r: 0 },
+    ]);
+    const keys = new Set(cells.map((p) => `${p.c},${p.r}`));
+    expect(keys.size).toBe(cells.length); // no dupes
+    expect(cells.length).toBe(9);
+  });
+
+  it("a corner bomb clips its blast to the board", () => {
+    const b = new Board(3, 3, 3, 1);
+    setGrid(b, [
+      [0, 1, 2],
+      [0, 1, 2],
+      [0, 1, 2],
+    ]);
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[0][0] = BOMB;
+    const cells = b.bombStrike([
+      { c: 0, r: 0 },
+      { c: 0, r: 1 },
+    ]);
+    // Corner 3x3 clips to 4 cells.
+    expect(cells.length).toBe(4);
+  });
+
+  it("a bomb spawn rate sprinkles bomb bubbles deterministically", () => {
+    const b = new Board(8, 8, 4, 9, { rainbow: 0, ice: 0, bomb: 0.5 });
+    let bombs = 0;
+    for (let c = 0; c < b.cols; c++)
+      for (let r = 0; r < b.rows; r++)
+        if (b.types[c][r] === BOMB) bombs++;
+    expect(bombs).toBeGreaterThan(0);
   });
 
   it("magnetGather pulls a whole colour into one connected blob at full strength", () => {
