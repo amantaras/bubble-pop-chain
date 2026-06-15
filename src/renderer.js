@@ -1,6 +1,6 @@
 // Canvas renderer: animated background + glossy neon bubbles.
 
-import { RAINBOW, ICE, ICE_CRACKED, NORMAL, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN } from "./grid.js";
+import { RAINBOW, ICE, ICE_CRACKED, NORMAL, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN, VINE } from "./grid.js";
 
 // Distinct glyphs used by colourblind mode — one per colour index. There are
 // always at least as many symbols as a level has colours.
@@ -396,6 +396,40 @@ export class Renderer {
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText("$", s.x, s.y + rad * 0.04);
+      }
+
+      if (s.type === VINE) {
+        ctx.globalAlpha = s.alpha;
+        const pulse = 0.55 + 0.45 * Math.abs(Math.sin(performance.now() / 300));
+        // Creeping green tendrils wrapping the bubble.
+        ctx.shadowColor = "rgba(60,200,90,0.9)";
+        ctx.shadowBlur = rad * 0.5 * pulse;
+        ctx.strokeStyle = "rgba(70,210,100,0.95)";
+        ctx.lineWidth = Math.max(1.6, rad * 0.16);
+        ctx.lineCap = "round";
+        // A pair of curling vine strokes across the bubble.
+        for (let i = 0; i < 2; i++) {
+          const dir = i === 0 ? 1 : -1;
+          ctx.beginPath();
+          ctx.moveTo(s.x - rad * 0.55 * dir, s.y - rad * 0.5);
+          ctx.quadraticCurveTo(
+            s.x + rad * 0.2 * dir,
+            s.y,
+            s.x - rad * 0.5 * dir,
+            s.y + rad * 0.55
+          );
+          ctx.stroke();
+        }
+        // A couple of leaf dots so it reads as a vine, not a scribble.
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "rgba(120,235,140,0.95)";
+        const leaf = (lx, ly) => {
+          ctx.beginPath();
+          ctx.arc(lx, ly, rad * 0.14, 0, Math.PI * 2);
+          ctx.fill();
+        };
+        leaf(s.x + rad * 0.32, s.y - rad * 0.34);
+        leaf(s.x - rad * 0.34, s.y + rad * 0.3);
       }
 
       // Boss "Colour Purge" marker: a crisp target pip on every plain bubble of

@@ -124,11 +124,20 @@ describe("levels", () => {
     expect(getLevel(39).specials.coin).toBeLessThanOrEqual(0.035);
   });
 
+  it("vine bubbles ramp in from level 20 and not before", () => {
+    expect(getLevel(19).specials.vine || 0).toBe(0);
+    // Level 21 is not a boss, so its vine rate is live once past the ramp.
+    expect(getLevel(21).specials.vine).toBeGreaterThan(0);
+    expect(getLevel(39).specials.vine).toBeLessThanOrEqual(0.02);
+  });
+
   it("bosses suppress random stone bubbles (hand-placed frozen core only)", () => {
     // Level 20 is a boss; its random stone rate is forced to 0.
     const boss = getLevel(20);
     expect(boss.boss).toBeTruthy();
     expect(boss.specials.stone || 0).toBe(0);
+    // Vines are a creeping threat, also suppressed on bosses.
+    expect(boss.specials.vine || 0).toBe(0);
   });
 
   it("resolves a well-formed chapter for every level, authored or procedural", () => {

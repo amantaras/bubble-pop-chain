@@ -141,7 +141,11 @@ function specialsForLevel(n) {
   // Treasure coin bubbles ramp in from level 8 — a friendly early reward that
   // drops bonus coins when popped. Kept sparse so they stay a treat.
   const coin = n >= 8 ? Math.min(0.035, 0.012 + (n - 8) * 0.001) : 0;
-  return { rainbow, ice, lightning, stone, bomb, multiplier, coin };
+  // Vine bubbles ramp in from level 20 — a creeping threat that spreads to an
+  // adjacent bubble every move until its cluster is popped. Kept very sparse so
+  // the board stays solvable and the tension reads as a puzzle, not a flood.
+  const vine = n >= 20 ? Math.min(0.02, 0.006 + (n - 20) * 0.0006) : 0;
+  return { rainbow, ice, lightning, stone, bomb, multiplier, coin, vine };
 }
 
 // Bonus objectives ----------------------------------------------------------
@@ -211,6 +215,7 @@ export function getLevel(id) {
     // extra moves to keep the objective fair.
     specials.ice = 0;
     specials.stone = 0;
+    specials.vine = 0;
     moveBudget = moves + boss.extraMoves;
   }
 

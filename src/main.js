@@ -1,5 +1,5 @@
 // Game orchestrator: canvas loop, state machine, and all session logic.
-import { Board, RAINBOW, ICE, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN } from "./grid.js";
+import { Board, RAINBOW, ICE, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN, VINE } from "./grid.js";
 import { Renderer } from "./renderer.js";
 import { ParticleSystem, popStyleForGroup } from "./particles.js";
 import {
@@ -962,6 +962,18 @@ class Game {
       decorateSpecials(types);
       this._placeTutorialCoin(types);
       b.restore(g, types);
+    } else if (kind === "vine") {
+      // Fresh practice board with a creeping VINE bubble parked inside a
+      // guaranteed cluster, so popping it always clears the threat and advances.
+      const b = s.board;
+      const { colors: g, types } = buildTutorialBoard(
+        b.cols,
+        b.rows,
+        s.level.colors || 4
+      );
+      decorateSpecials(types);
+      this._placeTutorialVine(types);
+      b.restore(g, types);
     } else if (kind === "event") {
       this._spawnTutorialEvent();
     } else if (kind === "undo") {
@@ -1009,6 +1021,13 @@ class Game {
     if (types && types[0] && types[0][0] !== undefined) types[0][0] = COIN;
   }
 
+  // Drop a creeping VINE bubble into a corner 2×2 block of the practice board
+  // (a guaranteed same-colour cluster), so the vine step can always be cleared
+  // by popping that cluster.
+  _placeTutorialVine(types) {
+    if (types && types[0] && types[0][0] !== undefined) types[0][0] = VINE;
+  }
+
   // Rebuild the controlled practice board so the tutorial never runs out of
   // poppable clusters no matter how much the player pops/blasts.
   _refillTutorialBoard() {
@@ -1040,6 +1059,10 @@ class Game {
     // Keep a coin bubble available while the coin step is active.
     if (this.tutorial && this.tutorial.stepId === "coinbubble") {
       this._placeTutorialCoin(types);
+    }
+    // Keep a vine bubble available while the vine step is active.
+    if (this.tutorial && this.tutorial.stepId === "vine") {
+      this._placeTutorialVine(types);
     }
     b.restore(g, types);
     b.layout(this.W, this.H, TOP_INSET, this._bottomInset());
@@ -1471,6 +1494,9 @@ class Game {
     // Treasure "coin" bubbles in the cleared set drop bonus coins straight into
     // the wallet (the tutorial never touches the real economy).
     const coinCount = cells.filter((p) => s.board.isCoin(p.c, p.r)).length;
+    // Whether the cleared set included a creeping vine bubble (captured before
+    // _popCells/_tut may rebuild the board, so the flag stays accurate).
+    const vinePopped = cells.some((p) => s.board.isVine(p.c, p.r));
     if (coinCount > 0) {
       const coinsDropped = coinCount * COIN_BUBBLE_VALUE;
       if (s.mode !== "tutorial") {
@@ -1515,6 +1541,7 @@ class Game {
     if (struckBomb) this._tut("bombbubble");
     if (multCount > 0) this._tut("multiplier");
     if (coinCount > 0) this._tut("coinbubble");
+    if (vinePopped) this._tut("vine");
     if (s.combo >= 2) this._tut("combo");
     // Bonus objective progress: a big combo or a single large group.
     this._trackObjective({ combo: s.combo, group: group.length });
@@ -2435,6 +2462,12 @@ class Game {
     // the rest until its onDone re-runs afterMove on the settled board.
     if (s.petPicking) return;
 
+    // Vine threat: any vine bubbles left on the board creep into one adjacent
+    // ordinary bubble on every resolved move. The player stops the spread by
+    // popping the vine cluster. (Tutorial returned above; a finale or pet
+    // flourish is skipped via the guards above so it never double-spreads.)
+    this._spreadVines();
+
     // A single un-poppable bubble is left: rather than strand the player on a
     // jam (a lone bubble can never form a group of 2+), give it a celebratory
     // glow-and-explode finale — one of several random styles — that clears the
@@ -2514,6 +2547,19 @@ class Game {
 
     // Save the in-progress campaign so it can be resumed later.
     this._persistSession();
+  }
+
+  // Creep the vine threat by one cell per resolved move. Plays only on a live
+  // gameplay board (never the tutorial sandbox, which returns earlier). A small
+  // cue marks the new growth so the player notices the threat expanding.
+  _spreadVines() {
+    const s = this.session;
+    if (!s || s.ended || s.mode === "tutorial") return;
+    if (!s.board || typeof s.board.spreadVines !== "function") return;
+    const sprouted = s.board.spreadVines();
+    if (!sprouted) return;
+    const p = s.board.targetPixel(sprouted.c, sprouted.r);
+    this.floating.spawn(p.x, p.y - 24, "🌿", "#7ff0a0", 18);
   }
 
   // ---- Lone-bubble rescue (isolated single bubbles) ---------------------

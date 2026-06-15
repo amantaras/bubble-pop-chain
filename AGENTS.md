@@ -239,20 +239,48 @@ never re‑discovered the hard way.
   3×3 area** around each bomb cell (`grid.bombStrike` expands the cleared set via
   the existing `bombArea` 3×3 square, deduped; `popAt` scores the full blast,
   shows a `💥 BOOM!` flourish and emits `_tut("bombbubble")`). Like lightning,
-  bombs are ordinary colour bubbles that join groups normally. `_gridHasMoves`
+  bombs are ordinary colour bubbles that join groups normally. **Multiplier**
+  (`MULTIPLIER`, the gold bubble) = popping a group that contains one
+  **multiplies that pop's score** by `min(8, 2^N)` for `N` gold bubbles in the
+  set (computed inline in `popAt` → `scoreMult`/`finalPoints`); no AoE, no
+  power/Fever feed — a pure score reward with a `✨ ×N!` flourish and
+  `_tut("multiplier")`. **Coin** (`COIN`, the treasure bubble) = popping a group
+  that contains one **drops bonus coins** straight into the wallet
+  (`COIN_BUBBLE_VALUE = 12` per coin bubble cleared, counted across the full
+  cleared set so AoE that hits a coin also pays out; `Economy.addCoins`,
+  **skipped in the tutorial** which never touches the real economy), with a
+  `🪙 +N` flourish and `_tut("coinbubble")`. **Vine** (`VINE`, the creeping
+  threat) = a green coloured bubble that **spreads to one orthogonally-adjacent
+  ordinary bubble on every resolved move** until its cluster is popped
+  (`grid.spreadVines` sprouts exactly one new vine per call into a `NORMAL`
+  neighbour, deterministic via the board rng so growth stays bounded and the
+  board solvable; `vineCount()`/`isVine()` query it; `main._spreadVines` is
+  called once per move from `afterMove` — after the pet/finale guards so it never
+  double-spreads, and never in the tutorial sandbox — dropping a small `🌿` cue
+  at the new cell). Vines pop like any coloured bubble (they join groups); popping
+  a group that contains one emits `_tut("vine")` (captured before `_popCells` so
+  a grant-driven board rebuild can't misfire it). `_gridHasMoves`
   excludes stones as both move origin and same-colour neighbour so
-  generation/deadlock detection stay correct. Seeded spawn rates ramp in by level
-  (rainbow ≥6, ice ≥10, lightning ≥14, bomb ≥16, stone ≥18 — see
-  `levels.js specialsForLevel`; bosses force `specials.ice`/`specials.stone` to 0,
-  but allow lightning/bomb). Lightning draws a glowing pulsing bolt glyph, Stone
-  a grey padlock shell, and Bomb a dark fused shell with a pulsing lit spark
-  (`renderer.js`). All types are part of the save/resume snapshot. The tutorial
+  generation/deadlock detection stay correct (the coloured specials —
+  lightning/bomb/multiplier/coin/vine — need no exclusion). Seeded spawn rates
+  ramp in by level (rainbow ≥6, coin ≥8, ice ≥10, multiplier ≥12, lightning ≥14,
+  bomb ≥16, stone ≥18, vine ≥20 — see `levels.js specialsForLevel`; bosses force
+  `specials.ice`/`specials.stone`/`specials.vine` to 0, but allow
+  lightning/bomb/multiplier/coin). Lightning draws a glowing pulsing bolt glyph,
+  Stone a grey padlock shell, Bomb a dark fused shell with a pulsing lit spark,
+  Multiplier a pulsing gold ring with a "×2" glyph, Coin a shiny gold disc with a
+  "$" glyph, and Vine curling green tendrils + leaf dots (`renderer.js`). All
+  types are part of the save/resume snapshot. The tutorial
   teaches Lightning (`grant: "lightning"` → `Game._placeTutorialLightning`),
   Stone (`grant: "stone"` → `Game._placeTutorialStone`, advancing on
-  `_tut("stone")`) and Bomb (`grant: "bombbubble"` →
-  `Game._placeTutorialBomb`, advancing on `_tut("bombbubble")`) with gated steps.
-  (The bomb **bubble** uses the `bombbubble` step/grant/action id to avoid
-  colliding with the bomb **power-up** step's `grant: "bomb"`.)
+  `_tut("stone")`), Bomb (`grant: "bombbubble"` →
+  `Game._placeTutorialBomb`, advancing on `_tut("bombbubble")`), Multiplier
+  (`grant: "multiplier"` → `Game._placeTutorialMultiplier`, advancing on
+  `_tut("multiplier")`), Coin (`grant: "coinbubble"` →
+  `Game._placeTutorialCoin`, advancing on `_tut("coinbubble")`) and Vine
+  (`grant: "vine"` → `Game._placeTutorialVine`, advancing on `_tut("vine")`)
+  with gated steps. (The bomb **bubble** uses the `bombbubble` step/grant/action
+  id to avoid colliding with the bomb **power-up** step's `grant: "bomb"`.)
 - **Ads gating** (`monetization.js`): forced interstitials only from
   `adsStartLevel` (7) onward; rewarded ads always available.
 - **Coin economy** (`scoring.coinReward`, `economy.js`): level payout is
@@ -732,7 +760,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 363 unit tests + 296 E2E
+- **Current baseline (keep growing, never shrink)**: 369 unit tests + 298 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests
@@ -877,7 +905,7 @@ How the tutorial is wired (touch every layer that applies):
    - `advance: "<action>"` → a **gated** step that only advances when the game
      emits that action. Current actions: `pop`, `combo`, `preview`, `swipe`,
      `blast`, `powerup`, `magnet`, `event`, `lightning`, `stone`, `bombbubble`,
-     `multiplier`, `coinbubble`.
+     `multiplier`, `coinbubble`, `vine`.
      `hint` is the nudge
      text shown while
      waiting. (The `fever` step is informational — `advance: "button"` — with a

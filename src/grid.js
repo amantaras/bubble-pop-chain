@@ -20,6 +20,9 @@ export const MULTIPLIER = 7; // gold — popping its group multiplies that pop's
 //                              normal coloured bubble for matching; no AoE.
 export const COIN = 8; // treasure — popping its group drops bonus coins. A
 //                        normal coloured bubble for matching; no AoE.
+export const VINE = 9; // creeping threat — every resolved move it spreads into
+//                        an adjacent ordinary bubble. Pop its cluster to clear
+//                        it. A normal coloured bubble for matching; no AoE.
 
 // How long a magnet-pulled bubble takes to glide to its new cell (seconds).
 // Deliberately slower than the snappy gravity settle so the player can see the
@@ -76,6 +79,7 @@ export class Board {
     const bombRate = this.specials.bomb || 0;
     const multRate = this.specials.multiplier || 0;
     const coinRate = this.specials.coin || 0;
+    const vineRate = this.specials.vine || 0;
     this.types = [];
     for (let c = 0; c < this.cols; c++) {
       this.types[c] = [];
@@ -112,6 +116,18 @@ export class Board {
             coinRate
         )
           this.types[c][r] = COIN;
+        else if (
+          roll <
+          rainbowRate +
+            iceRate +
+            lightningRate +
+            stoneRate +
+            bombRate +
+            multRate +
+            coinRate +
+            vineRate
+        )
+          this.types[c][r] = VINE;
         else this.types[c][r] = NORMAL;
       }
     }
@@ -298,6 +314,50 @@ export class Board {
 
   isCoin(c, r) {
     return this.types[c] && this.types[c][r] === COIN;
+  }
+
+  isVine(c, r) {
+    return this.types[c] && this.types[c][r] === VINE;
+  }
+
+  // How many vine (creeping threat) bubbles are currently on the board.
+  vineCount() {
+    let n = 0;
+    for (let c = 0; c < this.cols; c++)
+      for (let r = 0; r < this.rows; r++) if (this.isVine(c, r)) n++;
+    return n;
+  }
+
+  // Vine threat: sprout ONE new vine from an existing vine into an
+  // orthogonally-adjacent ordinary bubble. Deterministic via the board rng so
+  // replays stay reproducible. Growth is capped at one cell per call so the
+  // board always stays solvable — the player stops the creep by popping the
+  // vine cluster. The new vine keeps the colour already in that cell, so it
+  // still matches its neighbours like any coloured bubble. Returns the {c, r}
+  // of the new vine, or null if nothing could spread (no vines, or no room).
+  spreadVines() {
+    const candidates = [];
+    for (let c = 0; c < this.cols; c++) {
+      for (let r = 0; r < this.rows; r++) {
+        if (!this.isVine(c, r)) continue;
+        const neigh = [
+          [c + 1, r],
+          [c - 1, r],
+          [c, r + 1],
+          [c, r - 1],
+        ];
+        for (const [cc, rr] of neigh) {
+          if (cc < 0 || rr < 0 || cc >= this.cols || rr >= this.rows) continue;
+          if (this.grid[cc][rr] === -1) continue; // empty cell
+          if (this.types[cc][rr] !== NORMAL) continue; // only plain bubbles
+          candidates.push([cc, rr]);
+        }
+      }
+    }
+    if (candidates.length === 0) return null;
+    const pick = candidates[Math.floor(this.rng() * candidates.length)];
+    this.types[pick[0]][pick[1]] = VINE;
+    return { c: pick[0], r: pick[1] };
   }
 
   // Expand a popped group: if it contains any LIGHTNING bubble, every lightning

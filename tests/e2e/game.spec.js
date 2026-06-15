@@ -634,6 +634,47 @@ test.describe("special bubbles (ice + rainbow)", () => {
     });
     expect(res.gained).toBeGreaterThan(0);
   });
+
+  test("a vine bubble creeps to a neighbour each move and clears when popped", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(21));
+    await page.waitForTimeout(500);
+    const res = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      // Paint the whole board colour 1 (NORMAL) so the vine has plenty of room
+      // to creep, then carve an isolated colour-0 pair at the top of column 0
+      // to give the player a harmless move that triggers the spread.
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          b.grid[c][r] = 1;
+          b.types[c][r] = 0; // NORMAL
+        }
+      b.grid[0][0] = 0;
+      b.grid[0][1] = 0;
+      // Park a single vine in the middle, surrounded by colour-1 bubbles.
+      const vc = Math.floor(b.cols / 2);
+      const vr = Math.floor(b.rows / 2);
+      b.types[vc][vr] = 9; // VINE
+      const before = b.vineCount();
+      g.popAt(0, 0); // a move elsewhere → the vine creeps one cell
+      const afterSpread = g.session.board.vineCount();
+      // Now pop the vine's (colour-1) cluster: every vine is cleared.
+      const b2 = g.session.board;
+      let popped = false;
+      for (let c = 0; c < b2.cols && !popped; c++)
+        for (let r = 0; r < b2.rows && !popped; r++)
+          if (b2.isVine(c, r) && b2.getGroupAt(c, r).length >= 2) {
+            g.popAt(c, r);
+            popped = true;
+          }
+      return { before, afterSpread, afterPop: g.session.board.vineCount() };
+    });
+    expect(res.before).toBe(1);
+    expect(res.afterSpread).toBe(2); // the vine crept into one neighbour
+    expect(res.afterPop).toBe(0); // popping the cluster cleared every vine
+  });
 });
 
 test.describe("daily retention engine", () => {
@@ -3216,9 +3257,23 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
             return;
           }
     });
+    await expect.poll(() => stepId(page)).toBe("vine");
+
+    // 8f) vine — popping a cluster that contains the creeping vine bubble
+    // clears the threat and advances the step.
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++)
+          if (b.isVine(c, r) && b.getGroupAt(c, r).length >= 2) {
+            g.popAt(c, r);
+            return;
+          }
+    });
     await expect.poll(() => stepId(page)).toBe("pets");
 
-    // 8f) pets (informational) — introduces the companion system.
+    // 8g) pets (informational) — introduces the companion system.
     await page.locator("#coach-next").click();
     expect(await stepId(page)).toBe("done");
 

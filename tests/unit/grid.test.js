@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Board, NORMAL, ICE, RAINBOW, ICE_CRACKED, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN } from "../../src/grid.js";
+import { Board, NORMAL, ICE, RAINBOW, ICE_CRACKED, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN, VINE } from "../../src/grid.js";
 
 // Helper: overwrite a board's logic grid and clear sprite coupling so we can
 // assert pure grid behaviour deterministically. (settle() guards null sprites.)
@@ -315,6 +315,62 @@ describe("grid / Board", () => {
     b.types[1][0] = COIN; // middle cell of the colour-0 pair is a coin
     expect(b.getGroupAt(0, 0).length).toBe(2);
     expect(b.isCoin(1, 0)).toBe(true);
+  });
+
+  it("a vine spawn rate sprinkles creeping bubbles deterministically", () => {
+    const b = new Board(8, 8, 4, 17, { rainbow: 0, ice: 0, vine: 0.5 });
+    expect(b.vineCount()).toBeGreaterThan(0);
+    let found = null;
+    for (let c = 0; c < b.cols && !found; c++)
+      for (let r = 0; r < b.rows && !found; r++)
+        if (b.types[c][r] === VINE) found = { c, r };
+    expect(b.isVine(found.c, found.r)).toBe(true);
+  });
+
+  it("a vine bubble joins same-colour groups like a normal bubble", () => {
+    const b = new Board(3, 1, 2, 1);
+    setGrid(b, [[0], [0], [1]]);
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[1][0] = VINE; // middle cell of the colour-0 pair is a vine
+    expect(b.getGroupAt(0, 0).length).toBe(2);
+    expect(b.isVine(1, 0)).toBe(true);
+  });
+
+  it("spreadVines creeps exactly one new vine into an adjacent ordinary cell", () => {
+    const b = new Board(3, 3, 2, 1);
+    b.grid = [
+      [0, 0, 0],
+      [0, 0, 0],
+      [0, 0, 0],
+    ];
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[1][1] = VINE; // a single vine in the centre
+    const before = b.vineCount();
+    const sprouted = b.spreadVines();
+    expect(sprouted).not.toBeNull();
+    expect(b.vineCount()).toBe(before + 1); // exactly one new vine
+    expect(b.isVine(sprouted.c, sprouted.r)).toBe(true);
+    // The new vine is orthogonally adjacent to the original.
+    const dist = Math.abs(sprouted.c - 1) + Math.abs(sprouted.r - 1);
+    expect(dist).toBe(1);
+  });
+
+  it("spreadVines returns null when there is no room or no vines", () => {
+    // No vines at all.
+    const empty = new Board(2, 2, 2, 1);
+    empty.types = empty.grid.map((col) => col.map(() => NORMAL));
+    expect(empty.spreadVines()).toBeNull();
+    // A vine fully surrounded by non-NORMAL bubbles cannot spread.
+    const boxed = new Board(3, 3, 2, 1);
+    boxed.grid = [
+      [0, 0, 0],
+      [0, 0, 0],
+      [0, 0, 0],
+    ];
+    boxed.types = boxed.grid.map((col) => col.map(() => STONE));
+    boxed.types[1][1] = VINE; // surrounded by stone (not NORMAL)
+    expect(boxed.spreadVines()).toBeNull();
+    expect(boxed.vineCount()).toBe(1);
   });
 
   it("magnetGather pulls a whole colour into one connected blob at full strength", () => {
