@@ -217,6 +217,17 @@
           <span class="tile-label">Gifts</span>
           <span class="tile-badge hidden" id="cal-badge" aria-hidden="true"></span>
         </button>
+        <button class="tile t-quests" id="btn-quests">
+          <span class="tile-ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
+              <path d="M6 4h9l3 3v13a1 1 0 01-1 1H6a1 1 0 01-1-1V5a1 1 0 011-1z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+              <path d="M14 4v4h4" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+              <path d="M8.5 13.5l2 2 4-4.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </span>
+          <span class="tile-label">Quests</span>
+          <span class="tile-badge hidden" id="quests-badge" aria-hidden="true"></span>
+        </button>
         <button class="tile t-season" id="btn-season">
           <span class="tile-ic" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
@@ -313,6 +324,16 @@
       <p class="cal-intro">Come back every day for a reward. Day 7 holds the grand prize!</p>
       <div class="cal-grid" id="cal-grid"></div>
       <button class="btn btn-primary cal-claim" id="cal-claim">Claim today's gift</button>
+    </div>
+
+    <!-- Daily & Weekly Quests -->
+    <div id="quests" class="overlay screen hidden">
+      <div class="screen-head">
+        <button class="icon-btn" id="quests-back" aria-label="Back">‹</button>
+        <h2>Quests</h2>
+      </div>
+      <p class="quests-intro">Complete goals to earn coins, power-ups and crates. Daily quests reset every day; the weekly quest resets each week.</p>
+      <div class="quests-list" id="quests-list"></div>
     </div>
 
     <!-- Season Pass -->

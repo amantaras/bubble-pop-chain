@@ -38,7 +38,14 @@ import {
   seasonStatus,
   tierReward,
 } from "./season.js";
-import { todayKey } from "./rng.js";
+import { todayKey, weekKey } from "./rng.js";
+import {
+  ensureQuests,
+  questDef,
+  isQuestComplete,
+  isQuestClaimable,
+  questsClaimable,
+} from "./quests.js";
 import {
   PET_CATALOG,
   COSMETICS,
@@ -74,6 +81,7 @@ class UIManager {
       "achv-badge", "achv-collect-all",
       "calendar", "cal-grid", "cal-status", "cal-claim", "cal-back",
       "btn-calendar", "cal-badge",
+      "quests", "quests-list", "quests-back", "btn-quests", "quests-badge",
       "season", "season-track", "season-coins", "season-back", "season-buy",
       "season-xp-label", "season-xp-fill", "btn-season", "season-badge",
       "chest", "chest-icon", "chest-title", "chest-sub", "chest-rewards", "chest-ok",
@@ -133,6 +141,7 @@ class UIManager {
     click("btn-themes", () => this.showScreen("themes"));
     click("btn-achievements", () => this.showScreen("achievements"));
     click("btn-calendar", () => this.showScreen("calendar"));
+    click("btn-quests", () => this.showScreen("quests"));
     click("btn-season", () => this.showScreen("season"));
     click("btn-pets", () => this.openPetOverlay());
     click("btn-tutorial", () => this.cb.startTutorial && this.cb.startTutorial());
@@ -147,6 +156,7 @@ class UIManager {
     click("achv-back", () => this.showScreen("menu"));
     click("achv-collect-all", () => this._claimAllAchievements());
     click("cal-back", () => this.showScreen("menu"));
+    click("quests-back", () => this.showScreen("menu"));
     click("cal-claim", () => this._claimCalendar());
     click("season-back", () => this.showScreen("menu"));
     click("season-buy", () => this._buySeasonPremium());
@@ -276,7 +286,7 @@ class UIManager {
 
   // ---- Screen switching -------------------------------------------------
   hideScreens() {
-    ["menu", "levelmap", "shop", "themes", "achievements", "calendar", "season", "pets"].forEach((s) =>
+    ["menu", "levelmap", "shop", "themes", "achievements", "calendar", "quests", "season", "pets"].forEach((s) =>
       this.el[s].classList.add("hidden")
     );
   }
@@ -293,6 +303,7 @@ class UIManager {
       this.updateTournamentSummary();
       this.refreshAchievementsBadge();
       this.refreshCalendarBadge();
+      this.refreshQuestsBadge();
       this.refreshSeasonBadge();
     }
     if (name === "levelmap") this.buildLevelMap();
@@ -304,6 +315,7 @@ class UIManager {
     }
     if (name === "achievements") this.buildAchievements();
     if (name === "calendar") this.buildCalendar();
+    if (name === "quests") this.buildQuests();
     if (name === "season") this.buildSeason();
   }
 
@@ -1319,6 +1331,104 @@ class UIManager {
     const st = calendarStatus(Storage.get("loginCalendar"), todayKey());
     if (st.claimable) {
       badge.textContent = "!";
+      badge.classList.remove("hidden");
+    } else {
+      badge.classList.add("hidden");
+    }
+  }
+
+  // ---- Daily & Weekly Quests --------------------------------------------
+  buildQuests() {
+    const list = this.el["quests-list"];
+    if (!list) return;
+    // Refresh the active quests for today/this week, then persist so the menu
+    // badge and the screen agree even on the first open of a new day/week.
+    const state = ensureQuests(Storage.get("quests"), todayKey(), weekKey());
+    Storage.set("quests", state);
+    list.innerHTML = "";
+
+    const section = (title, sub, entries, scope) => {
+      const head = document.createElement("div");
+      head.className = "quests-head";
+      head.innerHTML = `<span class="quests-head-title">${title}</span><span class="quests-head-sub">${sub}</span>`;
+      list.appendChild(head);
+      entries.forEach((entry, i) => {
+        const def = questDef(entry.id);
+        if (!def) return;
+        const complete = isQuestComplete(entry);
+        const claimable = isQuestClaimable(entry);
+        const pct = Math.max(0, Math.min(1, entry.progress / def.goal));
+        const row = document.createElement("div");
+        row.className =
+          "quest" + (claimable ? " claimable" : entry.claimed ? " claimed" : "");
+        row.innerHTML =
+          `<div class="quest-info">` +
+          `<span class="quest-label">${def.label}</span>` +
+          `<span class="quest-reward">${this._questRewardLabel(def.reward)}</span>` +
+          `<div class="quest-bar"><div class="quest-bar-fill" style="width:${Math.round(
+            pct * 100
+          )}%"></div></div>` +
+          `<span class="quest-progress">${Math.min(
+            entry.progress,
+            def.goal
+          )}/${def.goal}</span>` +
+          `</div>`;
+        const btn = document.createElement("button");
+        btn.className = "quest-claim";
+        if (entry.claimed) {
+          btn.textContent = "Claimed ✓";
+          btn.disabled = true;
+        } else if (claimable) {
+          btn.textContent = "Claim";
+          btn.disabled = false;
+          btn.addEventListener("click", () => this._claimQuest(scope, i));
+        } else {
+          btn.textContent = complete ? "Claim" : "In progress";
+          btn.disabled = true;
+        }
+        row.appendChild(btn);
+        list.appendChild(row);
+      });
+    };
+
+    section("Daily Quests", "Reset every day", state.daily, "daily");
+    section("Weekly Quest", "Resets every week", state.weekly, "weekly");
+    this.refreshQuestsBadge();
+  }
+
+  _questRewardLabel(reward) {
+    if (!reward) return "";
+    const bits = [];
+    if (reward.coins) bits.push(`🪙 ${reward.coins}`);
+    if (reward.powerup) {
+      const info = POWERUP_INFO[reward.powerup];
+      bits.push(`${info ? info.icon : "🎁"} ${info ? info.name : reward.powerup}`);
+    }
+    if (reward.crate) bits.push("📦 Crate");
+    if (reward.seasonXp) bits.push(`⭐ ${reward.seasonXp} XP`);
+    return bits.join(" · ");
+  }
+
+  _claimQuest(scope, index) {
+    if (!this.cb.claimQuest) return;
+    const res = this.cb.claimQuest(scope, index);
+    if (!res) {
+      this.buildQuests();
+      return;
+    }
+    Audio.coin();
+    this.toast(`🎁 ${this._questRewardLabel(res.reward)}`);
+    this.buildQuests();
+  }
+
+  // Show a badge on the menu's Quests tile whenever a reward is ready to claim.
+  refreshQuestsBadge() {
+    const badge = this.el["quests-badge"];
+    if (!badge) return;
+    const state = ensureQuests(Storage.get("quests"), todayKey(), weekKey());
+    const n = questsClaimable(state);
+    if (n > 0) {
+      badge.textContent = String(n);
       badge.classList.remove("hidden");
     } else {
       badge.classList.add("hidden");

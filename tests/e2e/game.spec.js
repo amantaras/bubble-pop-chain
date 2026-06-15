@@ -119,6 +119,7 @@ test.describe("menu & navigation (UI)", () => {
       "btn-pets",
       "btn-calendar",
       "btn-season",
+      "btn-quests",
       "btn-tutorial",
     ]) {
       await expect(page.locator(`#${id}`)).toBeVisible();
@@ -4231,6 +4232,67 @@ test.describe("premium Nova gunship pet", () => {
     await page.evaluate(() => window.__bpc.game.startTutorial());
     await page.waitForTimeout(300);
     expect(await page.evaluate(() => window.__bpc.game.alienShip.active)).toBe(false);
+  });
+});
+
+test.describe("daily & weekly quests (Tier 1)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("the Quests screen opens from the menu and Back returns", async ({
+    page,
+  }) => {
+    await page.locator("#btn-quests").click();
+    await expect(page.locator("#quests")).toBeVisible();
+    // Three daily quests and one weekly quest are rendered.
+    await expect(page.locator("#quests-list .quest")).toHaveCount(4);
+    await page.locator("#quests-back").click();
+    await expect(page.locator("#menu")).toBeVisible();
+  });
+
+  test("playing pops feeds bubble-count quest progress", async ({ page }) => {
+    await page.evaluate(() => {
+      const { ensureQuests, todayKey, weekKey } = window.__bpc.quests;
+      const S = window.__bpc.Storage;
+      // Force a known daily set that includes the 150-bubble quest.
+      const st = ensureQuests(S.get("quests"), todayKey(), weekKey());
+      st.daily = [{ id: "d_pop150", progress: 0, claimed: false }];
+      S.set("quests", st);
+    });
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(200);
+    await autoPlay(page);
+    const progress = await page.evaluate(
+      () => window.__bpc.Storage.get("quests").daily[0].progress
+    );
+    expect(progress).toBeGreaterThan(0);
+  });
+
+  test("a completed quest is claimable and grants its reward with a badge", async ({
+    page,
+  }) => {
+    const before = await page.evaluate(() => {
+      const { ensureQuests, todayKey, weekKey } = window.__bpc.quests;
+      const S = window.__bpc.Storage;
+      const st = ensureQuests(S.get("quests"), todayKey(), weekKey());
+      // Mark the first daily quest complete (d_pop150 → 60 coins reward).
+      st.daily = [{ id: "d_pop150", progress: 150, claimed: false }];
+      S.set("quests", st);
+      window.__bpc.UI.refreshQuestsBadge();
+      return window.__bpc.Economy.coins;
+    });
+    // The menu badge advertises a claimable reward.
+    await expect(page.locator("#quests-badge")).toBeVisible();
+    await page.locator("#btn-quests").click();
+    const claim = page.locator("#quests-list .quest").first().locator(".quest-claim");
+    await expect(claim).toHaveText("Claim");
+    await claim.click();
+    await expect(claim).toHaveText("Claimed ✓");
+    const after = await page.evaluate(() => ({
+      coins: window.__bpc.Economy.coins,
+      claimed: window.__bpc.Storage.get("quests").daily[0].claimed,
+    }));
+    expect(after.coins).toBe(before + 60);
+    expect(after.claimed).toBe(true);
   });
 });
 

@@ -95,6 +95,12 @@ import {
 } from "./pets.js";
 import { calendarStatus, advanceCalendar } from "./calendar.js";
 import {
+  ensureQuests,
+  applyQuestProgress,
+  claimQuest,
+  questsClaimable,
+} from "./quests.js";
+import {
   seasonStatus,
   addSeasonXp,
   claimTier,
@@ -102,7 +108,7 @@ import {
   unlockPremium,
   SEASON_PREMIUM_PRODUCT,
 } from "./season.js";
-import { makeRng, todayKey } from "./rng.js";
+import { makeRng, todayKey, weekKey } from "./rng.js";
 const TOP_INSET = 168;
 const BOTTOM_INSET = 120;
 const COMBO_WINDOW = 1.6; // seconds before a combo resets
@@ -204,6 +210,7 @@ class Game {
       claimAchievement: (id) => this.claimAchievement(id),
       claimAllAchievements: () => this.claimAllAchievements(),
       claimCalendar: () => this.claimCalendar(),
+      claimQuest: (scope, index) => this.claimQuestReward(scope, index),
       claimSeasonTier: (index, track) => this.claimSeasonTier(index, track),
       buySeasonPremium: () => this.buySeasonPremium(),
       buyStarterPack: () => this.buyStarterPack(),
@@ -1497,6 +1504,16 @@ class Game {
     // Whether the cleared set included a creeping vine bubble (captured before
     // _popCells/_tut may rebuild the board, so the flag stays accurate).
     const vinePopped = cells.some((p) => s.board.isVine(p.c, p.r));
+    // Count of special bubbles in the cleared set (also captured before the
+    // board is cleared) for daily/weekly quest progress.
+    const specialsPopped = cells.filter(
+      (p) =>
+        s.board.isLightning(p.c, p.r) ||
+        s.board.isBomb(p.c, p.r) ||
+        s.board.isMultiplier(p.c, p.r) ||
+        s.board.isCoin(p.c, p.r) ||
+        s.board.isVine(p.c, p.r)
+    ).length;
     if (coinCount > 0) {
       const coinsDropped = coinCount * COIN_BUBBLE_VALUE;
       if (s.mode !== "tutorial") {
@@ -1533,6 +1550,14 @@ class Game {
       pops: 1,
       bestCombo: s.combo,
       biggestGroup: cells.length,
+    });
+    // Quest progress: bubbles cleared, combo reached, group size, and any
+    // special bubbles (lightning/bomb/multiplier/coin/vine) in the cleared set.
+    this._recordQuestProgress({
+      bubbles: cells.length,
+      combo: s.combo,
+      group: group.length,
+      specials: specialsPopped,
     });
     if (s.mode === "campaign") s.movesLeft -= 1;
     this.refreshHud();
@@ -1589,6 +1614,7 @@ class Game {
     this.floating.spawn(this.W / 2, this.H * 0.4, "FEVER ×2!", "#ff5b8a", 34);
     this._tut("fever");
     this._recordProgress({ fevers: 1 });
+    this._recordQuestProgress({ fevers: 1 });
   }
 
   // ---- Achievements -----------------------------------------------------
@@ -1610,6 +1636,50 @@ class Game {
     if (gained > 0) this._announceChestReady(gained);
     UI.refreshAchievementsBadge();
     return gained;
+  }
+
+  // ---- Daily & Weekly Quests --------------------------------------------
+  // Fold a quest metric delta into the active daily/weekly quests. Quests are
+  // refreshed for the current day/week first, then progressed; a toast fires
+  // when a quest becomes newly complete. Tutorial play never counts.
+  _recordQuestProgress(deltas) {
+    const s = this.session;
+    if (s && s.mode === "tutorial") return;
+    if (this.tutorial && this.tutorial.active) return;
+    if (!deltas) return;
+    const current = ensureQuests(Storage.get("quests"), todayKey(), weekKey());
+    const { state, newlyComplete } = applyQuestProgress(current, deltas);
+    Storage.set("quests", state);
+    if (newlyComplete > 0) {
+      Audio.coin();
+      UI.toast(
+        newlyComplete > 1
+          ? `✅ ${newlyComplete} quests complete!`
+          : "✅ Quest complete — claim your reward!",
+        2200
+      );
+    }
+    UI.refreshQuestsBadge();
+  }
+
+  // Claim a completed quest's reward (called from the Quests UI). Grants the
+  // reward (coins / power-up / crate / season XP), persists the claim, and
+  // returns a reward summary for the toast — or null if not claimable.
+  claimQuestReward(scope, index) {
+    const current = ensureQuests(Storage.get("quests"), todayKey(), weekKey());
+    const res = claimQuest(current, scope, index);
+    if (!res) {
+      Storage.set("quests", current);
+      return null;
+    }
+    const r = res.reward || {};
+    if (r.coins) Economy.addCoins(r.coins);
+    if (r.powerup) Economy.addPowerup(r.powerup, 1);
+    if (r.crate) Storage.addCrates(r.crate);
+    if (r.seasonXp) this._awardSeasonXp(r.seasonXp);
+    Storage.set("quests", res.state);
+    UI.refreshQuestsBadge();
+    return { reward: r, label: res.def ? res.def.label : "" };
   }
 
   // Toast that one or more achievement chests are ready to collect.
@@ -2811,6 +2881,8 @@ class Game {
         });
         // Season Pass XP scales with the star result of the clear.
         this._awardSeasonXp(30 + stars * 15);
+        // Quest progress: a campaign level was won.
+        this._recordQuestProgress({ levelsWon: 1 });
         Audio.win();
         UI.setWinTitle(
           mtype === "boss"
@@ -3281,6 +3353,7 @@ if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) 
     pets: { petBuffs, petActive, levelForXp, rollCrate, rollLegendaryCrate, getPet },
     calendar: { calendarStatus, advanceCalendar, todayKey },
     season: { seasonStatus, addSeasonXp, claimTier, tierReward },
+    quests: { ensureQuests, applyQuestProgress, claimQuest, questsClaimable, todayKey, weekKey },
     popStyle: popStyleForGroup,
     cascade: { cascadeBonus, cascadeTier },
     tournament: { getTournamentLevel, getTournamentGoals, tournamentRank, getTournamentBest },

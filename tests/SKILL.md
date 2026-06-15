@@ -92,6 +92,10 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   canClaim gating on premium ownership/unlock state, seasonStatus progress +
   claimable counts, addSeasonXp/claimTier immutability + idempotency,
   unlockPremium),
+  the daily & weekly quests (`quests.js`: seeded daily/weekly selection,
+  ensureQuests reroll on day/week change, applyQuestProgress count+max+cap +
+  newlyComplete, claimQuest claimable/idempotent, questsClaimable count,
+  immutability),
   the pet companion system (catalog integrity + premium flags, XP/level curve,
   passive buff scaling, active-pet cooldown/strength/count scaling, seeded
   crate rolls including the rare premium drop chance + the boosted Legendary
@@ -172,6 +176,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   the season pass (Season screen lists the 10-tier ladder, earning XP unlocks +
   pays out a free tier, the premium track is gated until the pass is purchased,
   and the menu badge appears when a reward is claimable),
+  the daily & weekly quests (Quests screen lists 3 daily + 1 weekly goal,
+  gameplay pops feed progress, completing one makes its reward claimable, and the
+  menu badge counts claimable rewards),
   the last-bubble finale (leaving exactly one bubble triggers the glow+explode
   finale with a random style 0–4, suspends input, and clears the board to win
   the level),

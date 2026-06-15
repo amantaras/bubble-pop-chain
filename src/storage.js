@@ -34,6 +34,10 @@ const DEFAULT_SAVE = {
   },
   // Weekly tournament: local best-score chase for the current ISO week.
   tournament: { weekKey: null, best: 0, plays: 0 },
+  // Daily & weekly quests: a rotating set of small goals. `daily`/`weekly` hold
+  // the active quest tracking entries ({id, progress, claimed}); they reset
+  // when `dayKey`/`weekKey` roll over (see quests.js `ensureQuests`).
+  quests: { dayKey: null, weekKey: null, daily: [], weekly: [] },
   firstRunDone: false,
   activeSession: null, // snapshot of an in-progress campaign level (resume)
   // Rolling 7-day login reward cycle: { lastClaim: "YYYY-MM-DD"|null, day }.

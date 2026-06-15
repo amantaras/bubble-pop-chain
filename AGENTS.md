@@ -543,6 +543,27 @@ never re‑discovered the hard way.
   return new state without mutating input. It is **purely additive** (never
   affects win/star outcomes) and, like other meta displays, gets **no tutorial
   step**.
+
+- **Daily & weekly quests** (`quests.js`, pure; `storage.js` `quests`; `main.js`
+  `_recordQuestProgress`/`claimQuestReward`; `ui.js`
+  `buildQuests`/`refreshQuestsBadge`): a rotating set of small goals that refresh
+  **once per day** (3 daily quests from `DAILY_QUESTS`) and **once per week** (1
+  weekly quest from `WEEKLY_QUESTS`). The active set is chosen by a **seeded
+  Fisher–Yates** keyed on the day/week (`pickQuests` → `makeRng(hashSeed(...))`),
+  so it is stable for the period and reproducible. Each quest watches a gameplay
+  **metric** (`bubbles`/`levelsWon`/`fevers`/`combo`/`group`/`specials`) in one of
+  two modes — `count` accumulates the metric, `max` tracks the best single value
+  — capped at its `goal`. Gameplay emits deltas via `game._recordQuestProgress`:
+  `popAt` reports `{ bubbles, combo, group, specials }` (special-bubble membership
+  is captured **before** `_popCells` clears the cells), `_startFever` reports
+  `{ fevers: 1 }`, and a campaign win reports `{ levelsWon: 1 }`. **Tutorial play
+  never counts.** A complete quest is **claimable** and grants its reward
+  (`{ coins | powerup | crate | seasonXp }`) **explicitly + idempotently** via
+  `claimQuest(state, scope, index)`; `questsClaimable(state)` drives the
+  claimable-count badge on the menu Quests tile (`#quests-badge`). `quests.js` is
+  **pure** (no DOM/storage) — `ensureQuests`, `applyQuestProgress`, `claimQuest`,
+  `questsClaimable` all return new state without mutating input. Like other meta
+  features it never affects win/star outcomes and gets **no tutorial step**.
 - **Pet companions** (`pets.js`, pure; `storage.js` `pets`): collectible helper
   pets that support the player both **passively** and with **active board
   powers**. `PET_CATALOG` holds 15 pets across four rarities
@@ -700,6 +721,7 @@ src/
   daily.js          # Daily challenge + streak logic
   calendar.js       # Login calendar / daily gifts (pure: 7-day reward cycle)
   season.js         # Season Pass / Battle Pass (pure: 10-tier free+premium track)
+  quests.js         # Daily & weekly quests (pure: rotating goals + claimable rewards)
   events.js         # Falling gift/problem events (pure: delay/type/reward rolls)
   pets.js           # Pet companions (pure: catalog, buffs, active actions, crate rolls)
   monetization.js   # F2P abstraction (ads/IAP) — MOCK provider, pluggable  tutorial.js       # Gated step-by-step onboarding: TUTORIAL_STEPS + Tutorial class  ui.js             # All DOM UI: screens, level map, shop, themes, HUD, modals
@@ -760,7 +782,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 369 unit tests + 298 E2E
+- **Current baseline (keep growing, never shrink)**: 381 unit tests + 304 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests
