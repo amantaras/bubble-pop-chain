@@ -306,5 +306,38 @@ describe("storage", () => {
       expect(raw.pets.owned.draco).toBeTruthy();
       expect(raw.pets.crates).toBe(5);
     });
+
+    it("defaults dust and pity to zero", () => {
+      const p = Storage.getPetState();
+      expect(p.dust).toBe(0);
+      expect(p.pity).toEqual({ sinceEpic: 0, sinceLegendary: 0 });
+    });
+
+    it("adds, spends and clamps dust", () => {
+      expect(Storage.getDust()).toBe(0);
+      expect(Storage.addDust(50)).toBe(50);
+      expect(Storage.getDust()).toBe(50);
+      expect(Storage.spendDust(30)).toBe(true);
+      expect(Storage.getDust()).toBe(20);
+      expect(Storage.spendDust(999)).toBe(false); // can't overspend
+      expect(Storage.getDust()).toBe(20);
+      Storage.addDust(-100); // never goes negative
+      expect(Storage.getDust()).toBe(0);
+    });
+
+    it("reads and writes pity counters", () => {
+      Storage.setPity({ sinceEpic: 4, sinceLegendary: 9 });
+      expect(Storage.getPity()).toEqual({ sinceEpic: 4, sinceLegendary: 9 });
+      Storage.setPity({ sinceEpic: -3, sinceLegendary: 0 }); // clamps to 0
+      expect(Storage.getPity()).toEqual({ sinceEpic: 0, sinceLegendary: 0 });
+    });
+
+    it("persists dust and pity across a fresh read", () => {
+      Storage.addDust(75);
+      Storage.setPity({ sinceEpic: 3, sinceLegendary: 7 });
+      const raw = JSON.parse(localStorage.getItem("bpc_save_v1"));
+      expect(raw.pets.dust).toBe(75);
+      expect(raw.pets.pity).toEqual({ sinceEpic: 3, sinceLegendary: 7 });
+    });
   });
 });

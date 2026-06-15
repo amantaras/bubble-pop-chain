@@ -82,6 +82,11 @@ const DEFAULT_SAVE = {
     owned: { sparky: { xp: 0, cosmetics: ["default"], cosmetic: "default" } },
     equipped: "sparky",
     crates: 1,
+    // Pet Dust — earned from duplicate crate pulls, spent to craft a chosen pet.
+    dust: 0,
+    // Pity counters: opens since the last epic / legendary, for the crate
+    // guarantee (see pets.js pityRarityFloor / nextPity).
+    pity: { sinceEpic: 0, sinceLegendary: 0 },
   },
   // While the interactive tutorial is running it temporarily loads a generous,
   // complete inventory so the player can experiment with every tool and pet.
@@ -285,10 +290,16 @@ class StorageManager {
   // saves that predate the pet system).
   getPetState() {
     const p = this.data.pets || {};
+    const pity = p.pity && typeof p.pity === "object" ? p.pity : {};
     return {
       owned: p.owned && typeof p.owned === "object" ? p.owned : {},
       equipped: p.equipped || null,
       crates: p.crates || 0,
+      dust: p.dust || 0,
+      pity: {
+        sinceEpic: pity.sinceEpic || 0,
+        sinceLegendary: pity.sinceLegendary || 0,
+      },
     };
   }
 
@@ -297,6 +308,11 @@ class StorageManager {
       owned: state.owned,
       equipped: state.equipped,
       crates: Math.max(0, state.crates || 0),
+      dust: Math.max(0, state.dust || 0),
+      pity: {
+        sinceEpic: Math.max(0, (state.pity && state.pity.sinceEpic) || 0),
+        sinceLegendary: Math.max(0, (state.pity && state.pity.sinceLegendary) || 0),
+      },
     };
     this.save();
   }
@@ -350,6 +366,42 @@ class StorageManager {
     p.crates -= 1;
     this._writePets(p);
     return true;
+  }
+
+  // ---- Pet Dust (duplicate currency) -----------------------------------
+  getDust() {
+    return this.getPetState().dust;
+  }
+
+  // Add (or subtract) dust; clamps at 0. Returns the new balance.
+  addDust(n) {
+    const p = this.getPetState();
+    p.dust = Math.max(0, (p.dust || 0) + n);
+    this._writePets(p);
+    return p.dust;
+  }
+
+  // Spend dust if affordable. Returns true on success.
+  spendDust(n) {
+    const p = this.getPetState();
+    if ((p.dust || 0) < n) return false;
+    p.dust -= n;
+    this._writePets(p);
+    return true;
+  }
+
+  // ---- Crate pity counters ---------------------------------------------
+  getPity() {
+    return this.getPetState().pity;
+  }
+
+  setPity(pity) {
+    const p = this.getPetState();
+    p.pity = {
+      sinceEpic: Math.max(0, (pity && pity.sinceEpic) || 0),
+      sinceLegendary: Math.max(0, (pity && pity.sinceLegendary) || 0),
+    };
+    this._writePets(p);
   }
 
   // Add a cosmetic to a pet. Returns true if newly granted (idempotent).

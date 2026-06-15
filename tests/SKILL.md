@@ -117,8 +117,11 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   the pet companion system (catalog integrity + premium flags, XP/level curve,
   passive buff scaling, active-pet cooldown/strength/count scaling, seeded
   crate rolls including the rare premium drop chance + the boosted Legendary
-  Crate roll, premium-pet catalog filter, and the storage pet helpers —
-  grant/equip/XP/crates/cosmetics) plus the grid helpers it relies on
+  Crate roll, premium-pet catalog filter, the pity timer (`pityRarityFloor`/
+  `nextPity` thresholds + dry-streak guarantee) + Pet Dust economy
+  (`dustValue`/`dustCost` tables, `rollCrate` floor), and the storage pet
+  helpers — grant/equip/XP/crates/cosmetics/dust/pity) plus the grid helpers it
+  relies on
   (dominant colour, first-cell-of-colour, isolated-cell detection, and
   most-isolated-cell ranking for the Talon pick pet),
   special bubbles (rainbow wildcard + ice two-hit + lightning row/column
@@ -218,6 +221,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   the pet companions flow (Pets screen with starter Sparky owned/equipped,
   buy + open a crate grants a pet, the Pet Store sells premium pets + a
   Legendary Crate that grants a pet, buying a premium pet unlocks it,
+  duplicate crate pulls grant Pet Dust + the crate panel shows the balance,
+  crafting a pet with dust unlocks it (rejecting premium/unaffordable), the
+  pity timer guarantees rarer pets after dry opens,
   winning a new pet fires the `#pet-reveal` celebration showing its name/rarity/
   ability with an Equip & Play CTA, equipping
   refreshes the live

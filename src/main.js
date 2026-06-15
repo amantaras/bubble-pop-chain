@@ -92,6 +92,12 @@ import {
   CRATE_COST,
   LEGENDARY_CRATE,
   PET_CATALOG,
+  pityRarityFloor,
+  nextPity,
+  dustValue,
+  dustCost,
+  PITY_EPIC,
+  PITY_LEGENDARY,
 } from "./pets.js";
 import { calendarStatus, advanceCalendar } from "./calendar.js";
 import {
@@ -213,6 +219,7 @@ class Game {
       openCrate: () => this.openCrate(),
       buyCrate: () => this.buyCrate(),
       buyLegendaryCrate: () => this.buyLegendaryCrate(),
+      craftPet: (id) => this.craftPet(id),
       equipPet: (id) => this.equipPet(id),
       buyPremiumPet: (id) => this.buyPremiumPet(id),
       buyCosmetic: (petId, cos) => this.buyCosmetic(petId, cos),
@@ -802,10 +809,20 @@ class Game {
     if (!Storage.consumeCrate()) return null;
     this._crateSeed = ((this._crateSeed || 1) * 1664525 + 1013904223) >>> 0;
     const seed = (this._crateSeed ^ ((Date.now() >>> 0) || 1)) >>> 0;
-    const { petId, premium } = rollCrate(makeRng(seed));
+    const floor = pityRarityFloor(Storage.getPity());
+    const { petId, rarity, premium } = rollCrate(
+      makeRng(seed),
+      floor ? { floor } : {}
+    );
+    Storage.setPity(nextPity(Storage.getPity(), rarity));
     const isNew = Storage.grantPet(petId);
-    if (!isNew) Storage.addPetXp(petId, DUP_XP);
-    return { petId, isNew, premium: !!premium };
+    let dust = 0;
+    if (!isNew) {
+      Storage.addPetXp(petId, DUP_XP);
+      dust = dustValue(rarity);
+      Storage.addDust(dust);
+    }
+    return { petId, isNew, premium: !!premium, rarity, dust };
   }
 
   // Buy one crate with coins. Returns true on success.
@@ -817,6 +834,20 @@ class Game {
     return false;
   }
 
+  // Craft (buy) a specific NON-premium pet outright with Pet Dust — the
+  // duplicate currency. Lets a player escape bad crate luck and target a pet
+  // they want. Returns { ok, petId, rarity, cost } or { ok:false, reason }.
+  craftPet(petId) {
+    const pet = getPet(petId);
+    if (!pet) return { ok: false, reason: "unknown" };
+    if (pet.premium) return { ok: false, reason: "premium" };
+    if (Storage.ownsPet(petId)) return { ok: false, reason: "owned" };
+    const cost = dustCost(pet.rarity);
+    if (!Storage.spendDust(cost)) return { ok: false, reason: "dust" };
+    Storage.grantPet(petId);
+    return { ok: true, petId, rarity: pet.rarity, cost };
+  }
+
   // Buy + open the premium Legendary Crate via the (mock) IAP provider. Boosted
   // odds (see rollLegendaryCrate): always a legendary, often a premium pet.
   // Returns { petId, isNew, premium } on success, or null if the purchase fails.
@@ -825,10 +856,16 @@ class Game {
     if (!res || !res.ok) return null;
     this._crateSeed = ((this._crateSeed || 1) * 1664525 + 1013904223) >>> 0;
     const seed = (this._crateSeed ^ ((Date.now() >>> 0) || 1)) >>> 0;
-    const { petId, premium } = rollLegendaryCrate(makeRng(seed));
+    const { petId, rarity, premium } = rollLegendaryCrate(makeRng(seed));
+    Storage.setPity(nextPity(Storage.getPity(), rarity));
     const isNew = Storage.grantPet(petId);
-    if (!isNew) Storage.addPetXp(petId, DUP_XP);
-    return { petId, isNew, premium: !!premium };
+    let dust = 0;
+    if (!isNew) {
+      Storage.addPetXp(petId, DUP_XP);
+      dust = dustValue(rarity);
+      Storage.addDust(dust);
+    }
+    return { petId, isNew, premium: !!premium, rarity, dust };
   }
 
   // Equip a pet you own; refreshes the live session's buffs if mid-level.
@@ -3535,7 +3572,7 @@ if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) 
     Monetization,
     UI,
     getLevel,
-    pets: { petBuffs, petActive, levelForXp, rollCrate, rollLegendaryCrate, getPet },
+    pets: { petBuffs, petActive, levelForXp, rollCrate, rollLegendaryCrate, getPet, PET_CATALOG, pityRarityFloor, nextPity, dustValue, dustCost, PITY_EPIC, PITY_LEGENDARY },
     calendar: { calendarStatus, advanceCalendar, todayKey },
     season: { seasonStatus, addSeasonXp, claimTier, tierReward },
     quests: { ensureQuests, applyQuestProgress, claimQuest, questsClaimable, todayKey, weekKey },

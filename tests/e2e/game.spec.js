@@ -3658,6 +3658,78 @@ test.describe("pet companions (collection & buffs)", () => {
     expect(typeof owned.last.premium).toBe("boolean");
   });
 
+  test("duplicate crate pulls grant Pet Dust", async ({ page }) => {
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    const dust = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const S = window.__bpc.Storage;
+      // Own every pet so any crate pull (even a rare premium) is a duplicate.
+      for (const p of window.__bpc.pets.PET_CATALOG) {
+        S.grantPet(p.id);
+      }
+      const before = S.getDust();
+      S.addCrates(1);
+      const res = g.openCrate();
+      return { before, after: S.getDust(), res };
+    });
+    expect(dust.res).not.toBeNull();
+    expect(dust.res.isNew).toBe(false);
+    expect(dust.res.dust).toBeGreaterThan(0);
+    expect(dust.after).toBe(dust.before + dust.res.dust);
+    // The crate panel shows the live dust balance.
+    await page.evaluate(() => window.__bpc.UI.buildPets());
+    await expect(page.locator("#dust-count")).toHaveText(String(dust.after));
+  });
+
+  test("crafting a pet with dust unlocks it and spends dust", async ({ page }) => {
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    // Give plenty of dust and target an unowned non-premium pet (rover, rare).
+    const cost = await page.evaluate(() => {
+      window.__bpc.Storage.addDust(2000);
+      return window.__bpc.pets.dustCost(window.__bpc.pets.getPet("rover").rarity);
+    });
+    const res = await page.evaluate(() => window.__bpc.game.craftPet("rover"));
+    expect(res.ok).toBe(true);
+    expect(res.petId).toBe("rover");
+    const owns = await page.evaluate(
+      () => !!window.__bpc.Storage.getPetState().owned.rover
+    );
+    expect(owns).toBe(true);
+    const remaining = await page.evaluate(() => window.__bpc.Storage.getDust());
+    expect(remaining).toBe(2000 - cost);
+  });
+
+  test("crafting rejects premium pets and unaffordable dust", async ({ page }) => {
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    const rejects = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      window.__bpc.Storage.addDust(0); // none
+      return {
+        premium: g.craftPet("aurora"), // premium → rejected
+        broke: g.craftPet("rover"), // no dust → rejected
+        unknown: g.craftPet("nope"),
+      };
+    });
+    expect(rejects.premium.ok).toBe(false);
+    expect(rejects.premium.reason).toBe("premium");
+    expect(rejects.broke.ok).toBe(false);
+    expect(rejects.broke.reason).toBe("dust");
+    expect(rejects.unknown.ok).toBe(false);
+  });
+
+  test("the pity timer guarantees rarer pets after dry opens", async ({ page }) => {
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    const result = await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      const { pityRarityFloor, nextPity, PITY_EPIC } = window.__bpc.pets;
+      // Simulate PITY_EPIC-1 dry common opens.
+      S.setPity({ sinceEpic: PITY_EPIC - 1, sinceLegendary: 0 });
+      const floor = pityRarityFloor(S.getPity());
+      return { floor };
+    });
+    expect(result.floor).toBe("epic");
+  });
+
   test("Pet Store sells premium pets and a legendary crate", async ({ page }) => {
     await page.evaluate(() => window.__bpc.Economy.addCoins(1000));
     await page.getByRole("button", { name: "Pets", exact: true }).click();

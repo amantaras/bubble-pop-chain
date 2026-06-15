@@ -19,6 +19,59 @@ export const DUP_XP = 30;
 // Coin cost to buy one crate from the Pets screen.
 export const CRATE_COST = 250;
 
+// ---- Pity timer (anti-bad-luck guarantee) ----------------------------------
+// Gacha fairness: a standard crate guarantees an EPIC by this many opens
+// without one, and a LEGENDARY by this many. The running counters live in
+// storage; `pityRarityFloor` (what the next roll must at least yield) and
+// `nextPity` (the counters after a roll) are pure so the whole rule is testable.
+export const PITY_EPIC = 10;
+export const PITY_LEGENDARY = 30;
+
+// ---- Pet Dust (duplicate currency) -----------------------------------------
+// Opening a crate that rolls a pet you ALREADY own converts the duplicate into
+// Dust (on top of the existing bonus XP). Dust is then spent to CRAFT a chosen
+// non-premium pet outright — agency over pure RNG / a pity-of-last-resort. Both
+// tables are keyed by pet rarity.
+export const DUST_PER_DUP = { common: 5, rare: 12, epic: 30, legendary: 80 };
+export const DUST_COST = { common: 60, rare: 160, epic: 360, legendary: 900 };
+
+// Dust granted for a duplicate of the given rarity.
+export function dustValue(rarity) {
+  return DUST_PER_DUP[rarity] != null ? DUST_PER_DUP[rarity] : DUST_PER_DUP.common;
+}
+
+// Dust price to craft a pet of the given rarity.
+export function dustCost(rarity) {
+  return DUST_COST[rarity] != null ? DUST_COST[rarity] : DUST_COST.common;
+}
+
+// The minimum rarity the NEXT standard crate must yield, given the pity
+// counters BEFORE that roll. Returns "legendary", "epic", or null (no floor).
+// The legendary guarantee takes precedence over the epic one.
+export function pityRarityFloor(pity) {
+  const p = pity || {};
+  if ((p.sinceLegendary || 0) + 1 >= PITY_LEGENDARY) return "legendary";
+  if ((p.sinceEpic || 0) + 1 >= PITY_EPIC) return "epic";
+  return null;
+}
+
+// The pity counters AFTER a crate yields `rarity`. Hitting epic resets the epic
+// counter; hitting legendary resets both (a legendary also satisfies the epic
+// guarantee); otherwise both increment by one.
+export function nextPity(pity, rarity) {
+  const p = pity || {};
+  let sinceEpic = (p.sinceEpic || 0) + 1;
+  let sinceLegendary = (p.sinceLegendary || 0) + 1;
+  if (rarity === "legendary") {
+    sinceEpic = 0;
+    sinceLegendary = 0;
+  } else if (rarity === "epic") {
+    sinceEpic = 0;
+  }
+  return { sinceEpic, sinceLegendary };
+}
+
+
 // A standard coin crate can VERY rarely surprise you with a premium pet — the
 // only free way to win one (otherwise they're bought in the Pet Store). Kept
 // well under 1% so premiums stay aspirational / mostly paid.
@@ -343,6 +396,8 @@ export function crateRarity(rng) {
 // A small `premiumChance` (default PREMIUM_DROP_CHANCE, <1%) can surprise the
 // player with a premium pet; otherwise a non-premium pet drops by rarity
 // weight, stepping down the ladder if a rolled rarity has no obtainable pet.
+// `opts.floor` (a rarity from the pity system) raises a low roll up to that
+// guaranteed minimum rarity.
 export function rollCrate(rng, opts = {}) {
   const premiumChance =
     opts.premiumChance == null ? PREMIUM_DROP_CHANCE : opts.premiumChance;
@@ -354,6 +409,11 @@ export function rollCrate(rng, opts = {}) {
     }
   }
   let rarity = crateRarity(rng);
+  // Pity floor: never roll below the guaranteed minimum rarity.
+  if (opts.floor) {
+    const fi = RARITIES.indexOf(opts.floor);
+    if (fi > RARITIES.indexOf(rarity)) rarity = opts.floor;
+  }
   let idx = RARITIES.indexOf(rarity);
   let pool = petsOfRarity(rarity);
   while (pool.length === 0 && idx > 0) {

@@ -26,6 +26,14 @@ import {
   shooterStats,
   PREMIUM_DROP_CHANCE,
   LEGENDARY_CRATE,
+  PITY_EPIC,
+  PITY_LEGENDARY,
+  DUST_PER_DUP,
+  DUST_COST,
+  dustValue,
+  dustCost,
+  pityRarityFloor,
+  nextPity,
 } from "../../src/pets.js";
 import { makeRng } from "../../src/rng.js";
 
@@ -310,6 +318,133 @@ describe("crate rolls", () => {
     expect(PET_XP_PER_LEVEL).toBeGreaterThan(0);
     expect(DUP_XP).toBeGreaterThan(0);
     expect(RARITY_WEIGHTS.common).toBeGreaterThan(RARITY_WEIGHTS.legendary);
+  });
+
+  it("rollCrate honours a rarity floor (pity)", () => {
+    // Force a roll that would otherwise be common up to the epic floor.
+    const r = rollCrate(() => 0, { floor: "epic", premiumChance: 0 });
+    expect(RARITIES.indexOf(r.rarity)).toBeGreaterThanOrEqual(
+      RARITIES.indexOf("epic")
+    );
+    expect(getPet(r.petId).rarity).toBe(r.rarity);
+  });
+
+  it("rollCrate floor never lowers a higher roll", () => {
+    // rng→~1 normally lands legendary; an epic floor must not pull it down.
+    const r = rollCrate(() => 0.999999, { floor: "epic", premiumChance: 0 });
+    expect(r.rarity).toBe("legendary");
+  });
+});
+
+describe("pity timer", () => {
+  it("exposes sensible thresholds", () => {
+    expect(PITY_EPIC).toBeGreaterThan(0);
+    expect(PITY_LEGENDARY).toBeGreaterThan(PITY_EPIC);
+  });
+
+  it("pityRarityFloor returns null until a threshold is reached", () => {
+    expect(pityRarityFloor({ sinceEpic: 0, sinceLegendary: 0 })).toBe(null);
+    expect(pityRarityFloor({ sinceEpic: PITY_EPIC - 2, sinceLegendary: 0 })).toBe(
+      null
+    );
+  });
+
+  it("pityRarityFloor guarantees epic on the threshold open", () => {
+    // sinceEpic+1 reaches PITY_EPIC.
+    expect(
+      pityRarityFloor({ sinceEpic: PITY_EPIC - 1, sinceLegendary: 0 })
+    ).toBe("epic");
+  });
+
+  it("pityRarityFloor guarantees legendary with precedence over epic", () => {
+    expect(
+      pityRarityFloor({
+        sinceEpic: PITY_EPIC - 1,
+        sinceLegendary: PITY_LEGENDARY - 1,
+      })
+    ).toBe("legendary");
+  });
+
+  it("pityRarityFloor tolerates a missing/empty pity object", () => {
+    expect(pityRarityFloor()).toBe(null);
+    expect(pityRarityFloor({})).toBe(null);
+  });
+
+  it("nextPity increments both counters on a low roll", () => {
+    expect(nextPity({ sinceEpic: 2, sinceLegendary: 5 }, "common")).toEqual({
+      sinceEpic: 3,
+      sinceLegendary: 6,
+    });
+    expect(nextPity({ sinceEpic: 2, sinceLegendary: 5 }, "rare")).toEqual({
+      sinceEpic: 3,
+      sinceLegendary: 6,
+    });
+  });
+
+  it("nextPity resets the epic counter on an epic roll", () => {
+    expect(nextPity({ sinceEpic: 7, sinceLegendary: 12 }, "epic")).toEqual({
+      sinceEpic: 0,
+      sinceLegendary: 13,
+    });
+  });
+
+  it("nextPity resets both counters on a legendary roll", () => {
+    expect(nextPity({ sinceEpic: 7, sinceLegendary: 25 }, "legendary")).toEqual({
+      sinceEpic: 0,
+      sinceLegendary: 0,
+    });
+  });
+
+  it("nextPity tolerates a missing pity object", () => {
+    expect(nextPity(undefined, "common")).toEqual({
+      sinceEpic: 1,
+      sinceLegendary: 1,
+    });
+  });
+
+  it("repeated common opens eventually guarantee an epic then legendary", () => {
+    let pity = { sinceEpic: 0, sinceLegendary: 0 };
+    let firstEpicAt = -1;
+    let firstLegendAt = -1;
+    for (let open = 1; open <= PITY_LEGENDARY; open++) {
+      const floor = pityRarityFloor(pity);
+      // Simulate the worst case: always roll the lowest allowed rarity.
+      const rarity = floor || "common";
+      if (rarity === "epic" && firstEpicAt < 0) firstEpicAt = open;
+      if (rarity === "legendary" && firstLegendAt < 0) firstLegendAt = open;
+      pity = nextPity(pity, rarity);
+    }
+    expect(firstEpicAt).toBe(PITY_EPIC);
+    expect(firstLegendAt).toBe(PITY_LEGENDARY);
+  });
+});
+
+describe("pet dust", () => {
+  it("dust tables cover every rarity and rise with rarity", () => {
+    for (const r of RARITIES) {
+      expect(DUST_PER_DUP[r]).toBeGreaterThan(0);
+      expect(DUST_COST[r]).toBeGreaterThan(0);
+    }
+    expect(DUST_PER_DUP.legendary).toBeGreaterThan(DUST_PER_DUP.common);
+    expect(DUST_COST.legendary).toBeGreaterThan(DUST_COST.common);
+  });
+
+  it("dustValue / dustCost map rarity to the tables", () => {
+    for (const r of RARITIES) {
+      expect(dustValue(r)).toBe(DUST_PER_DUP[r]);
+      expect(dustCost(r)).toBe(DUST_COST[r]);
+    }
+  });
+
+  it("dustValue / dustCost fall back to common for unknown rarity", () => {
+    expect(dustValue("mythic")).toBe(DUST_PER_DUP.common);
+    expect(dustCost("mythic")).toBe(DUST_COST.common);
+  });
+
+  it("crafting a pet costs more dust than a single duplicate yields", () => {
+    for (const r of RARITIES) {
+      expect(dustCost(r)).toBeGreaterThan(dustValue(r));
+    }
   });
 });
 

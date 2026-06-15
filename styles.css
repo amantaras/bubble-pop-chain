@@ -1717,6 +1717,11 @@ body {
   font-size: 12px;
   color: var(--text-dim);
 }
+.pets-crate .crate-dust {
+  font-size: 12px;
+  color: #cba6ff;
+  margin-top: 2px;
+}
 .crate-btns {
   display: flex;
   gap: 8px;
@@ -2071,6 +2076,14 @@ body {
 .pet-premium-btn {
   width: 100%;
   margin-top: 12px;
+}
+.pet-craft-btn {
+  width: 100%;
+  margin-top: 12px;
+  background: linear-gradient(135deg, #7b53c9, #b07be8);
+}
+.pet-craft-btn.locked {
+  opacity: 0.55;
 }
 .pd-locked-hint {
   margin-top: 12px;

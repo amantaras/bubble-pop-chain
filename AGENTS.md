@@ -724,7 +724,21 @@ never re‑discovered the hard way.
   (`rollCrate`, seeded; `buyCrate` for `CRATE_COST` coins, treasure milestones
   drop a free crate, falling 🎁 gifts can drop a crate `GIFT_CRATE_CHANCE`,
   starter save grants Sparky + 1 crate); duplicates convert
-  to XP (`DUP_XP`). The **premium** pets (Aurora 🌈 / Gizmo 🤖 are passive
+  to XP (`DUP_XP`) **and Pet Dust** (`dustValue(rarity)`, `DUST_PER_DUP`) — the
+  duplicate currency. Dust is spent to **craft** any chosen non-premium pet
+  outright (`Game.craftPet(id)` → `Storage.spendDust(dustCost(rarity))` →
+  `grantPet`; rejects premium/owned/insufficient-dust), giving agency over pure
+  RNG. Crate pulls also run a **pity timer** (`pets.js` `PITY_EPIC`=10/
+  `PITY_LEGENDARY`=30, pure `pityRarityFloor`/`nextPity`; counters in
+  `storage.js` `pets.pity {sinceEpic,sinceLegendary}`): a dry streak guarantees
+  an epic by the 10th open and a legendary by the 30th. `openCrate`/
+  `buyLegendaryCrate` read `Storage.getPity()`, pass the `{floor}` to `rollCrate`
+  (which bumps a low roll up to the floor), then `Storage.setPity(nextPity(...))`.
+  Dust + pity deep-merge into old saves (`Storage.getDust`/`addDust`/`spendDust`/
+  `getPity`/`setPity`); the Pets crate panel shows the live dust balance
+  (`#dust-count`) and locked non-premium pets gain a **Craft ✨N** button. Meta
+  acquisition economy — **no tutorial step**. The **premium** pets (Aurora 🌈 /
+  Gizmo 🤖 are passive
   side-grades; **Nova 🛸** is the one premium *active* gunship — IAP `pet_*` via
   `monetization.purchase`). The strongest score booster (Draco, legendary) and
   all four free active board helpers stay free/earnable. Premiums are bought
@@ -880,7 +894,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 438 unit tests + 330 E2E
+- **Current baseline (keep growing, never shrink)**: 458 unit tests + 338 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

@@ -74,6 +74,7 @@ import {
   CRATE_COST,
   LEGENDARY_CRATE,
   premiumPets,
+  dustCost,
 } from "./pets.js";
 
 const $ = (id) => document.getElementById(id);
@@ -1752,11 +1753,11 @@ class UIManager {
   _buildPetCrate() {
     const wrap = this.el["pets-crate"];
     if (!wrap) return;
-    const { crates } = Storage.getPetState();
+    const { crates, dust } = Storage.getPetState();
     wrap.innerHTML = "";
     const info = document.createElement("div");
     info.className = "crate-info";
-    info.innerHTML = `<span class="crate-icon">🎁</span><div><div class="crate-title">Pet Crates</div><div class="crate-sub">You have <b id="crate-count">${crates}</b> — open one to win a pet!</div></div>`;
+    info.innerHTML = `<span class="crate-icon">🎁</span><div><div class="crate-title">Pet Crates</div><div class="crate-sub">You have <b id="crate-count">${crates}</b> — open one to win a pet!</div><div class="crate-dust">✨ <b id="dust-count">${dust}</b> Pet Dust — craft a pet below</div></div>`;
 
     const openBtn = document.createElement("button");
     openBtn.className = "buy-btn pet-open-btn";
@@ -1777,7 +1778,8 @@ class UIManager {
       if (res.isNew) {
         this.showPetReveal(res);
       } else {
-        this.toast(`${pet.icon} ${pet.name} +XP (duplicate)`);
+        const dustTxt = res.dust ? ` (+${res.dust}✨ dust)` : "";
+        this.toast(`${pet.icon} ${pet.name} +XP${dustTxt} (duplicate)`);
       }
     });
 
@@ -1998,9 +2000,35 @@ class UIManager {
       });
       panel.appendChild(buy);
     } else {
+      const cost = dustCost(pet.rarity);
+      const { dust } = Storage.getPetState();
+      const craft = document.createElement("button");
+      craft.className = "buy-btn pet-craft-btn";
+      craft.id = "pet-craft";
+      craft.innerHTML = `Craft ✨${cost}`;
+      if (dust < cost) {
+        craft.disabled = true;
+        craft.classList.add("locked");
+      }
+      craft.addEventListener("click", () => {
+        if (!this.cb.craftPet) return;
+        const res = this.cb.craftPet(pet.id);
+        if (res && res.ok) {
+          Audio.coin();
+          this.toast(`${pet.icon} ${pet.name} crafted!`);
+          this._selectedPet = pet.id;
+          this.buildPets();
+        } else if (res && res.reason === "dust") {
+          this.toast("Not enough Pet Dust");
+        } else {
+          this.toast("Can't craft this pet");
+        }
+      });
+      panel.appendChild(craft);
+
       const hint = document.createElement("div");
       hint.className = "pd-locked-hint";
-      hint.textContent = "Find this pet by opening crates.";
+      hint.textContent = `Open crates to win this pet, or craft it with ✨${cost} Pet Dust (you have ✨${dust}). Dust comes from duplicate crate pulls.`;
       panel.appendChild(hint);
     }
   }
