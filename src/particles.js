@@ -34,10 +34,15 @@ export class ParticleSystem {
   constructor() {
     this.particles = [];
     this.rings = [];
+    // Scales emitted particle volume. The reduced-motion accessibility setting
+    // lowers this so bursts throw far fewer particles (and shockwave rings are
+    // skipped); default 1 leaves emission exactly as before.
+    this.motionScale = 1;
   }
 
   burst(x, y, color, count = 12, power = 1) {
-    for (let i = 0; i < count; i++) {
+    const n = this.motionScale <= 0 ? 0 : Math.max(1, Math.round(count * this.motionScale));
+    for (let i = 0; i < n; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = (60 + Math.random() * 180) * power;
       this.particles.push({
@@ -56,7 +61,8 @@ export class ParticleSystem {
   }
 
   sparkle(x, y, color, count = 6) {
-    for (let i = 0; i < count; i++) {
+    const n = this.motionScale <= 0 ? 0 : Math.max(1, Math.round(count * this.motionScale));
+    for (let i = 0; i < n; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = 20 + Math.random() * 60;
       this.particles.push({
@@ -77,6 +83,9 @@ export class ParticleSystem {
   // Expanding shockwave ring used by the bigger pop-explosion styles. `fill`
   // makes it a soft white flash bloom instead of a hollow ring.
   ring(x, y, color, { maxRadius = 60, width = 4, life = 0.5, fill = false } = {}) {
+    // Expanding shockwaves are exactly the kind of large motion reduced-motion
+    // users want to avoid, so skip them when motion is dialled down.
+    if (this.motionScale < 0.6) return;
     this.rings.push({ x, y, color, r0: 6, maxRadius, width, life: 0, max: life, fill });
     const over = this.rings.length - MAX_RINGS;
     if (over > 0) this.rings.splice(0, over);

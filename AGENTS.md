@@ -402,6 +402,30 @@ never re‑discovered the hard way.
   look). The flag is applied at startup from `Storage.get("settings")` and
   updated live via the `onColorblindChange` UI callback. The toggle lives on the
   **Themes screen** (`#cb-toggle`); the setting deep-merges into existing saves.
+- **Reduced motion / accessibility** (`storage.js` `settings.reducedMotion`,
+  `animations.js` `ScreenShake.motionScale`, `particles.js`
+  `ParticleSystem.motionScale`, `main.js` `_applyReducedMotion`, `ui.js`
+  `_refreshReducedMotionToggle`/`_motionOff`, `styles.css`): an accessibility
+  toggle that **calms motion** for players sensitive to vestibular triggers. When
+  on it disables **screen shake** (`ScreenShake.motionScale` → 0, applied at the
+  single `add()` chokepoint so all shake is gated), thins **particle bursts**
+  (`ParticleSystem.motionScale` → 0.45 scales `burst`/`sparkle` counts and skips
+  expanding shockwave `ring`s below a 0.6 threshold), suppresses purely
+  decorative UI bursts (`_motionOff` gates `_playPetConfetti`/`_spawnChestBurst`),
+  and adds a `body.reduced-motion` class that **neutralises large CSS
+  animations/transitions** (blanket rule in `styles.css`). The CSS also honours
+  the OS `@media (prefers-reduced-motion: reduce)` preference independently (free,
+  no JS); the JS runtime flag stays driven solely by the explicit setting for
+  deterministic tests. `_applyReducedMotion(on)` (called at startup from the saved
+  setting and live via the `onReducedMotionChange` UI callback) sets
+  `Game.reducedMotion`, both `motionScale`s, the body class, and `UI.reducedMotion`.
+  The toggle lives on the **Themes screen** (`#rm-toggle`, default **off**);
+  `settings.reducedMotion` deep-merges into existing saves. Like colourblind/hints
+  it is a **settings/accessibility toggle, not a gesture**, so it gets **no
+  tutorial step**. Also tightened core ARIA: the `#game-canvas` is `role="img"`
+  with an `aria-label`, `#toast` is an `aria-live="polite"` `role="status"` region,
+  and key overlays (`#win`/`#lose`/`#pet-confirm`/`#pet-reveal`/`#isolated`/
+  `#loadout`/`#chest`) are `role="dialog" aria-modal="true"`.
 - **Idle move hint** (`grid.js` `findHint`, `renderer.js` `drawHint`, `main.js`
   `_updateHint`/`_noteActivity`/`HINT_DELAY`, `storage.js` `settings.hints`): a
   player-friendly assist that nudges a stuck player. After `HINT_DELAY` (5s) of
@@ -828,7 +852,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 404 unit tests + 322 E2E
+- **Current baseline (keep growing, never shrink)**: 413 unit tests + 328 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

@@ -59,6 +59,51 @@ describe("ParticleSystem", () => {
     expect(ps.rings.length).toBe(48);
   });
 
+  describe("motionScale (reduced-motion accessibility)", () => {
+    it("defaults to 1 (full motion)", () => {
+      expect(new ParticleSystem().motionScale).toBe(1);
+    });
+
+    it("scales burst and sparkle particle counts down", () => {
+      const ps = new ParticleSystem();
+      ps.motionScale = 0.45;
+      ps.burst(0, 0, "#f00", 12, 1);
+      // 12 * 0.45 = 5.4 -> rounded to 5
+      expect(ps.count).toBe(5);
+      const ps2 = new ParticleSystem();
+      ps2.motionScale = 0.45;
+      ps2.sparkle(0, 0, "#fff", 6);
+      // 6 * 0.45 = 2.7 -> rounded to 3
+      expect(ps2.count).toBe(3);
+    });
+
+    it("emits at least one particle when scaled but not zero", () => {
+      const ps = new ParticleSystem();
+      ps.motionScale = 0.01;
+      ps.burst(0, 0, "#f00", 4, 1);
+      expect(ps.count).toBe(1);
+    });
+
+    it("emits no particles when motionScale is zero", () => {
+      const ps = new ParticleSystem();
+      ps.motionScale = 0;
+      ps.burst(0, 0, "#f00", 20, 1);
+      ps.sparkle(0, 0, "#fff", 10);
+      expect(ps.count).toBe(0);
+    });
+
+    it("skips expanding shockwave rings below the motion threshold", () => {
+      const ps = new ParticleSystem();
+      ps.motionScale = 0.45;
+      ps.ring(0, 0, "#0ff", { life: 1 });
+      expect(ps.rings.length).toBe(0);
+      // Full motion still draws rings.
+      const ps2 = new ParticleSystem();
+      ps2.ring(0, 0, "#0ff", { life: 1 });
+      expect(ps2.rings.length).toBe(1);
+    });
+  });
+
   it("draw() handles particles, hollow rings and fill flashes without throwing", () => {
     const ps = new ParticleSystem();
     ps.burst(10, 10, "#f00", 5, 1);

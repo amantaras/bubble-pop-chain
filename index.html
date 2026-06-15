@@ -19,7 +19,7 @@
 <body>
   <div id="app">
     <!-- Gameplay canvas -->
-    <canvas id="game-canvas"></canvas>
+    <canvas id="game-canvas" role="img" aria-label="Bubble Pop Chain game board"></canvas>
 
     <!-- In-game HUD -->
     <div id="hud" class="overlay hidden">
@@ -313,6 +313,13 @@
         </span>
         <span class="cb-toggle-state" id="hints-toggle-state">On</span>
       </button>
+      <button class="cb-toggle" id="rm-toggle" aria-pressed="false">
+        <span class="cb-toggle-text">
+          <span class="cb-toggle-title">Reduced motion</span>
+          <span class="cb-toggle-sub">Calms screen shake, particles and big animations</span>
+        </span>
+        <span class="cb-toggle-state" id="rm-toggle-state">Off</span>
+      </button>
       <div class="theme-list" id="theme-list"></div>
     </div>
 
@@ -406,7 +413,7 @@
     </div>
 
     <!-- Switch-companion confirmation (shown when changing pets mid-level) -->
-    <div id="pet-confirm" class="overlay modal hidden">
+    <div id="pet-confirm" class="overlay modal hidden" role="dialog" aria-modal="true" aria-label="Switch companion">
       <div class="modal-card">
         <h2 class="modal-title">Switch companion?</h2>
         <p class="modal-sub" id="pet-confirm-sub">
@@ -420,7 +427,7 @@
     </div>
 
     <!-- Big "new companion" celebration shown when a brand-new pet is won -->
-    <div id="pet-reveal" class="overlay modal hidden">
+    <div id="pet-reveal" class="overlay modal hidden" role="dialog" aria-modal="true" aria-label="New companion">
       <div class="modal-card pet-reveal-card">
         <div class="pr-confetti" id="pet-reveal-confetti" aria-hidden="true"></div>
         <div class="pr-congrats" id="pet-reveal-congrats">🎉 New Companion!</div>
@@ -441,7 +448,7 @@
     </div>
 
     <!-- Win screen -->
-    <div id="win" class="overlay screen modal hidden">
+    <div id="win" class="overlay screen modal hidden" role="dialog" aria-modal="true" aria-label="Level complete">
       <div class="modal-card">
         <h2 class="modal-title win-title">Level Clear!</h2>
         <div class="stars" id="win-stars">
@@ -475,7 +482,7 @@
     </div>
 
     <!-- Lose screen -->
-    <div id="lose" class="overlay screen modal hidden">
+    <div id="lose" class="overlay screen modal hidden" role="dialog" aria-modal="true" aria-label="Level failed">
       <div class="modal-card">
         <h2 class="modal-title lose-title">Out of Moves</h2>
         <div class="modal-score">Score <b id="lose-score">0</b></div>
@@ -489,7 +496,7 @@
 
     <!-- Lone-bubble rescue: single bubbles can't be popped normally, so steer
          the player to the Pick tool instead of stranding/failing them. -->
-    <div id="isolated" class="overlay screen modal hidden">
+    <div id="isolated" class="overlay screen modal hidden" role="dialog" aria-modal="true" aria-label="Lone bubbles">
       <div class="modal-card">
         <h2 class="modal-title">Oh no! Lone bubbles 😮</h2>
         <p class="iso-msg" id="iso-msg">
@@ -504,7 +511,7 @@
     </div>
 
     <!-- Loadout picker: choose which power-up fills a quick-access HUD slot -->
-    <div id="loadout" class="overlay modal hidden">
+    <div id="loadout" class="overlay modal hidden" role="dialog" aria-modal="true" aria-label="Choose power-up">
       <div class="modal-card loadout-card">
         <h2 class="modal-title">Quick-access slot</h2>
         <p class="loadout-sub" id="loadout-sub">Pick the power-up for this slot.</p>
@@ -514,7 +521,7 @@
     </div>
 
     <!-- Achievement chest reveal: shows everything a collected chest dropped -->
-    <div id="chest" class="overlay modal hidden">
+    <div id="chest" class="overlay modal hidden" role="dialog" aria-modal="true" aria-label="Reward chest">
       <div class="modal-card chest-card">
         <div class="chest-icon" id="chest-icon">🎁</div>
         <h2 class="modal-title chest-title" id="chest-title">Chest</h2>
@@ -537,7 +544,7 @@
     <div id="events-layer" class="events-layer" aria-hidden="true"></div>
 
     <!-- Toast -->
-    <div id="toast" class="toast hidden"></div>
+    <div id="toast" class="toast hidden" role="status" aria-live="polite" aria-atomic="true"></div>
 
     <!-- Interactive tutorial coach (gated, step-by-step) -->
     <div id="tutorial" class="tutorial-overlay hidden" aria-live="polite">

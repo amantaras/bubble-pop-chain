@@ -104,6 +104,7 @@ class UIManager {
       "chest", "chest-icon", "chest-title", "chest-sub", "chest-rewards", "chest-ok",
       "cb-toggle", "cb-toggle-state",
       "hints-toggle", "hints-toggle-state",
+      "rm-toggle", "rm-toggle-state",
       "pets", "pets-coins", "pets-crate", "pet-store", "pet-list", "pet-detail",
       "pet-confirm", "pet-confirm-sub", "pet-confirm-ok", "pet-confirm-cancel",
       "pet-reveal", "pet-reveal-confetti", "pet-reveal-congrats", "pet-reveal-glow",
@@ -217,6 +218,16 @@ class UIManager {
       Storage.set("settings", settings);
       if (this.cb.onHintsChange) this.cb.onHintsChange(on);
       this._refreshHintsToggle();
+    });
+
+    // Reduced-motion accessibility toggle (Themes screen).
+    click("rm-toggle", () => {
+      const settings = { ...(Storage.get("settings") || {}) };
+      const on = !settings.reducedMotion;
+      settings.reducedMotion = on;
+      Storage.set("settings", settings);
+      if (this.cb.onReducedMotionChange) this.cb.onReducedMotionChange(on);
+      this._refreshReducedMotionToggle();
     });
 
     // Sound
@@ -334,6 +345,7 @@ class UIManager {
       this.buildThemes();
       this._refreshColorblindToggle();
       this._refreshHintsToggle();
+      this._refreshReducedMotionToggle();
     }
     if (name === "achievements") this.buildAchievements();
     if (name === "calendar") this.buildCalendar();
@@ -513,6 +525,7 @@ class UIManager {
     const layer = this.el["pet-reveal-confetti"];
     if (!layer) return;
     layer.innerHTML = "";
+    if (this._motionOff()) return;
     const colors = ["#ffd24d", "#ff6ec7", "#5b9fff", "#7ddc8f", color || "#b478ff"];
     const N = 26;
     for (let i = 0; i < N; i++) {
@@ -1039,6 +1052,29 @@ class UIManager {
     }
     if (this.el["hints-toggle-state"])
       this.el["hints-toggle-state"].textContent = on ? "On" : "Off";
+  }
+
+  // Reflect the saved reduced-motion setting on the Themes-screen toggle.
+  _refreshReducedMotionToggle() {
+    const on = !!(Storage.get("settings") || {}).reducedMotion;
+    if (this.el["rm-toggle"]) {
+      this.el["rm-toggle"].classList.toggle("on", on);
+      this.el["rm-toggle"].setAttribute("aria-pressed", on ? "true" : "false");
+    }
+    if (this.el["rm-toggle-state"])
+      this.el["rm-toggle-state"].textContent = on ? "On" : "Off";
+  }
+
+  // True when motion should be dialled down — either the in-game reduced-motion
+  // setting is on, or the OS `prefers-reduced-motion` accessibility preference
+  // is set. Used to skip purely decorative bursts (confetti, chest sparkles).
+  _motionOff() {
+    if (this.reducedMotion) return true;
+    return !!(
+      typeof window !== "undefined" &&
+      window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    );
   }
 
   // ---- Achievements -----------------------------------------------------
@@ -2324,6 +2360,7 @@ class UIManager {
     const host = this.el["win-chest-burst"];
     if (!host) return;
     host.innerHTML = "";
+    if (this._motionOff()) return;
     const glyphs = ["🪙", "🪙", "🪙", "✨", "⭐"];
     const n = 12;
     for (let i = 0; i < n; i++) {

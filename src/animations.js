@@ -27,9 +27,12 @@ export class ScreenShake {
     this.x = 0;
     this.y = 0;
     this.rot = 0;
+    // Scales every added trauma. The reduced-motion accessibility setting sets
+    // this to 0 so the screen never shakes; default 1 leaves shake unchanged.
+    this.motionScale = 1;
   }
   add(amount) {
-    this.trauma = Math.min(1, this.trauma + amount);
+    this.trauma = Math.min(1, this.trauma + amount * this.motionScale);
   }
   update(dt) {
     if (this.trauma > 0) {

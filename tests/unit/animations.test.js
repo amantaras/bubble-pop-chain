@@ -209,6 +209,26 @@ describe("existing animators still parse/behave", () => {
     s.update(1);
     expect(s.trauma).toBeLessThan(1);
   });
+
+  it("ScreenShake defaults to full motionScale", () => {
+    expect(new ScreenShake().motionScale).toBe(1);
+  });
+
+  it("ScreenShake with motionScale 0 ignores all added trauma (reduced motion)", () => {
+    const s = new ScreenShake();
+    s.motionScale = 0;
+    s.add(1);
+    expect(s.trauma).toBe(0);
+    s.add(0.5);
+    expect(s.trauma).toBe(0);
+  });
+
+  it("ScreenShake scales added trauma by motionScale", () => {
+    const s = new ScreenShake();
+    s.motionScale = 0.5;
+    s.add(0.4);
+    expect(s.trauma).toBeCloseTo(0.2, 5);
+  });
 });
 
 // A laid-out board with a known bubble in column 2 (and an empty column 1).

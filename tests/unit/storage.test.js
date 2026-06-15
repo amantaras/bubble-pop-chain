@@ -178,12 +178,22 @@ describe("storage", () => {
     expect(Storage.get("settings")).toEqual({
       colorblind: false,
       hints: true,
+      reducedMotion: false,
       buyRepeatMs: 500,
     });
     Storage.set("settings", { colorblind: true });
     expect(Storage.get("settings").colorblind).toBe(true);
     const raw = JSON.parse(localStorage.getItem("bpc_save_v1"));
     expect(raw.settings.colorblind).toBe(true);
+  });
+
+  it("reduced-motion defaults to off and round-trips", () => {
+    expect((Storage.get("settings") || {}).reducedMotion).toBe(false);
+    const s = { ...Storage.get("settings"), reducedMotion: true };
+    Storage.set("settings", s);
+    expect(Storage.get("settings").reducedMotion).toBe(true);
+    const raw = JSON.parse(localStorage.getItem("bpc_save_v1"));
+    expect(raw.settings.reducedMotion).toBe(true);
   });
 
   it("hold-to-buy repeat rate defaults to 500ms (2 per second) and round-trips", () => {

@@ -207,6 +207,9 @@ class Game {
         this.hintsEnabled = !!on;
         if (!on && this.session) this.session.hint = null;
       },
+      onReducedMotionChange: (on) => {
+        this._applyReducedMotion(on);
+      },
       openCrate: () => this.openCrate(),
       buyCrate: () => this.buyCrate(),
       buyLegendaryCrate: () => this.buyLegendaryCrate(),
@@ -240,6 +243,10 @@ class Game {
     });
     this.input.setEnabled(false);
 
+    // Apply the saved reduced-motion accessibility setting (gates screen shake,
+    // particle volume, and large CSS animations).
+    this._applyReducedMotion(!!(Storage.get("settings") || {}).reducedMotion);
+
     // Unlock audio on first interaction.
     const unlock = () => {
       Audio.unlock();
@@ -267,6 +274,19 @@ class Game {
     }
 
     requestAnimationFrame((t) => this.loop(t));
+  }
+
+  // Apply the reduced-motion accessibility setting. When on: screen shake is
+  // disabled, particle bursts emit far fewer particles (and skip shockwave
+  // rings), and a body class neutralises large CSS animations. Honoured live
+  // from the Themes-screen toggle and at startup from the saved setting.
+  _applyReducedMotion(on) {
+    this.reducedMotion = !!on;
+    this.shake.motionScale = this.reducedMotion ? 0 : 1;
+    this.particles.motionScale = this.reducedMotion ? 0.45 : 1;
+    if (typeof document !== "undefined" && document.body)
+      document.body.classList.toggle("reduced-motion", this.reducedMotion);
+    UI.reducedMotion = this.reducedMotion;
   }
 
   resize() {

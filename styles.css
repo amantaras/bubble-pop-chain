@@ -26,6 +26,31 @@
   -webkit-touch-callout: none;
 }
 
+/* Reduced-motion accessibility: neutralise large CSS animations/transitions.
+   Activated by the OS `prefers-reduced-motion` preference OR the in-game
+   "Reduced motion" toggle (which adds `.reduced-motion` to <body>). This is a
+   blanket safety net for CSS-driven motion; screen shake and particle volume
+   are dialled down separately in JS. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+body.reduced-motion *,
+body.reduced-motion *::before,
+body.reduced-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
 html,
 body {
   width: 100%;

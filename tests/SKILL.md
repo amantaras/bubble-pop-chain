@@ -72,6 +72,10 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   `aggregateChestRewards` which merges many chests into one summary — summing
   coins, merging power-ups by id, and gathering pets + categories for Collect All),
   the colourblind symbol set (distinct glyph per colour, enough for every level),
+  the reduced-motion accessibility flags (`ScreenShake.motionScale` gates added
+  trauma at the `add()` chokepoint — 0 disables shake entirely; `ParticleSystem.
+  motionScale` scales `burst`/`sparkle` counts down and skips shockwave `ring`s
+  below the threshold; `settings.reducedMotion` defaults off and round-trips),
   the idle move-hint scan (`findHint` returns the largest poppable group or
   `null` on a deadlock) and the per-level best-score store (`recordLevelScore`
   keeps the highest and flags a genuine new best),
@@ -171,6 +175,10 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   and the Collect All button which batch-collects every ready chest in one tap
   and shows the aggregate reveal),
   colourblind mode (toggle flips the renderer flag, persists, applies on reload),
+  reduced-motion mode (the Themes `#rm-toggle` zeroes `shake.motionScale`, thins
+  `particles.motionScale`, adds the `reduced-motion` body class, persists, and is
+  re-applied on reload) plus the core ARIA metadata (canvas `role="img"`+label,
+  toast `aria-live` status region, win/lose dialogs),
   the idle move-hint assist (a hint surfaces after idling, any input clears it,
   and the Themes toggle disables/suppresses it), per-level best score (a clear
   records a best shown on the level map, beating a prior best celebrates a

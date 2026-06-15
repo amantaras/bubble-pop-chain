@@ -2407,6 +2407,100 @@ test.describe("colorblind mode (accessibility)", () => {
   });
 });
 
+test.describe("reduced motion (accessibility)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("toggle on the Themes screen dials down motion and persists", async ({
+    page,
+  }) => {
+    await page.getByRole("button", { name: "Themes", exact: true }).click();
+    await expect(page.locator("#themes")).toBeVisible();
+
+    // Off by default: full screen shake / particles, no body class.
+    await expect(page.locator("#rm-toggle-state")).toHaveText("Off");
+    expect(
+      await page.evaluate(() => window.__bpc.game.shake.motionScale)
+    ).toBe(1);
+    expect(
+      await page.evaluate(() => document.body.classList.contains("reduced-motion"))
+    ).toBe(false);
+
+    // Turn it on: label, runtime flags, body class and saved setting all update.
+    await page.locator("#rm-toggle").click();
+    await expect(page.locator("#rm-toggle-state")).toHaveText("On");
+    await expect(page.locator("#rm-toggle")).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    expect(
+      await page.evaluate(() => window.__bpc.game.shake.motionScale)
+    ).toBe(0);
+    expect(
+      await page.evaluate(() => window.__bpc.game.particles.motionScale)
+    ).toBeLessThan(1);
+    expect(
+      await page.evaluate(() => document.body.classList.contains("reduced-motion"))
+    ).toBe(true);
+    expect(
+      await page.evaluate(
+        () =>
+          JSON.parse(localStorage.getItem("bpc_save_v1")).settings.reducedMotion
+      )
+    ).toBe(true);
+
+    // Turn it back off.
+    await page.locator("#rm-toggle").click();
+    await expect(page.locator("#rm-toggle-state")).toHaveText("Off");
+    expect(
+      await page.evaluate(() => window.__bpc.game.shake.motionScale)
+    ).toBe(1);
+    expect(
+      await page.evaluate(() => document.body.classList.contains("reduced-motion"))
+    ).toBe(false);
+  });
+
+  test("the saved reduced-motion setting is applied on reload", async ({
+    page,
+  }) => {
+    await page.getByRole("button", { name: "Themes", exact: true }).click();
+    await page.locator("#rm-toggle").click();
+    await expect(page.locator("#rm-toggle-state")).toHaveText("On");
+
+    await page.reload();
+    await page.waitForFunction(() => window.__bpc && window.__bpc.game);
+    // The game applies the saved setting on startup.
+    expect(
+      await page.evaluate(() => window.__bpc.game.shake.motionScale)
+    ).toBe(0);
+    expect(
+      await page.evaluate(() => document.body.classList.contains("reduced-motion"))
+    ).toBe(true);
+  });
+});
+
+test.describe("accessibility attributes", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("the canvas, toast and modals carry screen-reader metadata", async ({
+    page,
+  }) => {
+    // The gameplay canvas is exposed as a labelled image.
+    await expect(page.locator("#game-canvas")).toHaveAttribute("role", "img");
+    await expect(page.locator("#game-canvas")).toHaveAttribute(
+      "aria-label",
+      /board/i
+    );
+    // The toast is a polite live region so announcements are read out.
+    await expect(page.locator("#toast")).toHaveAttribute("aria-live", "polite");
+    await expect(page.locator("#toast")).toHaveAttribute("role", "status");
+    // Key overlays are proper dialogs.
+    await expect(page.locator("#win")).toHaveAttribute("role", "dialog");
+    await expect(page.locator("#win")).toHaveAttribute("aria-modal", "true");
+    await expect(page.locator("#lose")).toHaveAttribute("role", "dialog");
+  });
+});
+
+
 test.describe("idle move hint (assist)", () => {
   test.beforeEach(({ page }) => openGame(page));
 
