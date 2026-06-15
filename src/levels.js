@@ -1,16 +1,30 @@
 // Level definitions with a smooth difficulty curve.
 // Each level is generated from its index so the campaign is fully deterministic.
+//
+// The campaign is effectively endless: levels are generated on the fly from
+// their index (zero are stored), difficulty ramps up to a fair peak and then
+// plateaus so every level stays winnable no matter how high you climb, and
+// chapters continue procedurally past the hand-authored worlds.
 
 import { hashSeed } from "./rng.js";
 import { milestoneType, bossConfig } from "./milestones.js";
 
-export const LEVEL_COUNT = 40;
+// Total campaign length. The campaign is generative, so this is just a sane
+// upper bound (clamps absurd ids); play runs from level 1 up to here.
+export const LEVEL_COUNT = 9999;
+
+// Difficulty ramps with the level number up to this cap, then plateaus at a
+// fair peak. Past the cap every level is equally hard (the journey continues
+// through fresh boards + procedural chapters), so the campaign never becomes
+// mathematically impossible. Levels 1..DIFFICULTY_CAP keep their exact original
+// tuning (d === n there), so the hand-authored arc is unchanged.
+export const DIFFICULTY_CAP = 60;
 
 // World map chapters -------------------------------------------------------
-// The 40-level campaign is grouped into themed chapters of 8 levels each so the
-// level map reads as a journey across distinct "worlds" rather than one long
-// list. This is purely organisational metadata (presentation + flavour); it
-// does not change difficulty, which is driven by the per-level helpers below.
+// The campaign is grouped into themed chapters of 8 levels each so the level
+// map reads as a journey across distinct "worlds" rather than one long list.
+// This is purely organisational metadata (presentation + flavour); it does not
+// change difficulty, which is driven by the per-level helpers below.
 export const CHAPTER_SIZE = 8;
 export const CHAPTERS = [
   { id: 1, name: "Bubble Meadow", icon: "🌱" },
@@ -20,11 +34,68 @@ export const CHAPTERS = [
   { id: 5, name: "Cosmic Finale", icon: "🌌" },
 ];
 
+// Hand-authored levels (the first CHAPTERS.length chapters). Beyond this the
+// level map streams in procedural chapters as the player climbs.
+export const AUTHORED_LEVELS = CHAPTERS.length * CHAPTER_SIZE;
+
+// Procedural chapter flavour used once the authored chapters run out. The pool
+// cycles deterministically; each full cycle past the first appends a Roman
+// numeral so names stay distinct forever (e.g. "Aurora Reach II").
+const PROC_CHAPTERS = [
+  { name: "Aurora Reach", icon: "🌠" },
+  { name: "Ember Hollow", icon: "🔥" },
+  { name: "Tidal Expanse", icon: "🌊" },
+  { name: "Verdant Wilds", icon: "🍃" },
+  { name: "Obsidian Depths", icon: "🪨" },
+  { name: "Solar Spire", icon: "☀️" },
+  { name: "Nebula Drift", icon: "🌫️" },
+  { name: "Mirage Sands", icon: "🏜️" },
+];
+
+// Minimal Roman numeral for chapter-cycle suffixes (always a positive int).
+function romanize(num) {
+  const map = [
+    ["M", 1000],
+    ["CM", 900],
+    ["D", 500],
+    ["CD", 400],
+    ["C", 100],
+    ["XC", 90],
+    ["L", 50],
+    ["XL", 40],
+    ["X", 10],
+    ["IX", 9],
+    ["V", 5],
+    ["IV", 4],
+    ["I", 1],
+  ];
+  let r = "";
+  let n = num;
+  for (const [sym, val] of map) {
+    while (n >= val) {
+      r += sym;
+      n -= val;
+    }
+  }
+  return r || "I";
+}
+
 // Resolve the chapter a (1-based) level belongs to, including its level range.
+// Authored chapters come first; beyond them chapters are generated procedurally
+// so the world map can run effectively forever.
 export function chapterForLevel(id) {
   const n = Math.max(1, Math.min(LEVEL_COUNT, id));
   const index = Math.floor((n - 1) / CHAPTER_SIZE);
-  const base = CHAPTERS[index] || CHAPTERS[CHAPTERS.length - 1];
+  let base;
+  if (index < CHAPTERS.length) {
+    base = CHAPTERS[index];
+  } else {
+    const k = index - CHAPTERS.length;
+    const pool = PROC_CHAPTERS[k % PROC_CHAPTERS.length];
+    const cycle = Math.floor(k / PROC_CHAPTERS.length); // 0, 1, 2, ...
+    const suffix = cycle > 0 ? ` ${romanize(cycle + 1)}` : "";
+    base = { id: index + 1, name: pool.name + suffix, icon: pool.icon };
+  }
   const startLevel = index * CHAPTER_SIZE + 1;
   const endLevel = Math.min(LEVEL_COUNT, startLevel + CHAPTER_SIZE - 1);
   return { ...base, index, startLevel, endLevel };
@@ -74,10 +145,13 @@ function specialsForLevel(n) {
 // already carry their own identity.
 export function objectiveForLevel(n) {
   if (n <= 2 || milestoneType(n)) return null;
+  // Goals scale with difficulty but plateau with the curve so they stay
+  // achievable on the endless plateau (an objective is a bonus, never a gate).
+  const d = Math.min(n, DIFFICULTY_CAP);
   const kinds = ["combo", "group", "nopowerup"];
   const kind = kinds[(n - 3) % kinds.length];
   if (kind === "combo") {
-    const goal = 3 + Math.floor(n / 12); // 3 → 6 across the campaign
+    const goal = 3 + Math.floor(d / 12); // 3 → 8 across the ramp
     return {
       type: "combo",
       goal,
@@ -86,7 +160,7 @@ export function objectiveForLevel(n) {
     };
   }
   if (kind === "group") {
-    const goal = 5 + Math.floor(n / 14); // 5 → 7 across the campaign
+    const goal = 5 + Math.floor(d / 14); // 5 → 9 across the ramp
     return {
       type: "group",
       goal,
@@ -100,22 +174,26 @@ export function objectiveForLevel(n) {
 
 export function getLevel(id) {
   const n = Math.max(1, Math.min(LEVEL_COUNT, id));
-  const cols = colsForLevel(n);
-  const rows = rowsForLevel(n);
-  const colors = colorsForLevel(n);
+  // Difficulty ramps with the level number then plateaus at the cap so the
+  // endless campaign stays winnable. The level identity (seed, milestone beats,
+  // chapter, objective rotation) still uses the real index `n`.
+  const d = Math.min(n, DIFFICULTY_CAP);
+  const cols = colsForLevel(d);
+  const rows = rowsForLevel(d);
+  const colors = colorsForLevel(d);
   const cells = cols * rows;
 
-  // Move budget tightens as levels progress.
-  const moves = Math.max(6, Math.round(cells / 6) + 6 - Math.floor(n / 8));
+  // Move budget tightens as levels progress (then plateaus with the curve).
+  const moves = Math.max(6, Math.round(cells / 6) + 6 - Math.floor(d / 8));
 
-  // Target score scales with board size and level number.
+  // Target score scales with board size and difficulty.
   const target = Math.round(
-    cells * (10 + n * 2.4) * (1 + colors * 0.05)
+    cells * (10 + d * 2.4) * (1 + colors * 0.05)
   );
 
   // Milestone beats every 5 levels (treasure) and 10 levels (boss).
   const milestone = milestoneType(n);
-  const specials = specialsForLevel(n);
+  const specials = specialsForLevel(d);
   let moveBudget = moves;
   let boss = null;
   if (milestone === "boss") {

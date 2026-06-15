@@ -1,6 +1,6 @@
 // DOM-based UI: menus, level map, shop, themes, HUD, modals, toasts.
 import { Storage } from "./storage.js";
-import { LEVEL_COUNT, getLevel, CHAPTERS, CHAPTER_SIZE } from "./levels.js";
+import { LEVEL_COUNT, getLevel, CHAPTER_SIZE, AUTHORED_LEVELS, chapterForLevel } from "./levels.js";
 import { milestoneType } from "./milestones.js";
 import {
   THEMES,
@@ -595,20 +595,29 @@ class UIManager {
     const grid = this.el["level-grid"];
     grid.innerHTML = "";
     const maxUnlocked = Storage.get("maxUnlockedLevel");
-    for (let i = 1; i <= LEVEL_COUNT; i++) {
+    // The campaign is endless, so render a window: every cleared/authored level
+    // plus one preview chapter beyond the player's current progress. This keeps
+    // the DOM bounded (it grows with progress, not to LEVEL_COUNT) while still
+    // letting the player scroll back to replay any earlier level.
+    const progressEnd =
+      (Math.ceil(maxUnlocked / CHAPTER_SIZE) + 1) * CHAPTER_SIZE;
+    const renderEnd = Math.min(
+      LEVEL_COUNT,
+      Math.max(AUTHORED_LEVELS, progressEnd)
+    );
+    for (let i = 1; i <= renderEnd; i++) {
       // Insert a chapter header before the first level of each chapter so the
-      // map reads as a journey across themed worlds.
+      // map reads as a journey across themed worlds (authored + procedural).
       if ((i - 1) % CHAPTER_SIZE === 0) {
-        const ch = CHAPTERS[Math.floor((i - 1) / CHAPTER_SIZE)];
+        const ch = chapterForLevel(i);
         if (ch) {
-          const endLevel = Math.min(LEVEL_COUNT, i + CHAPTER_SIZE - 1);
-          const chapterDone = maxUnlocked > endLevel;
+          const chapterDone = maxUnlocked > ch.endLevel;
           const chapterLocked = maxUnlocked < i;
           const header = document.createElement("div");
           header.className = "chapter-header";
           if (chapterDone) header.classList.add("done");
           if (chapterLocked) header.classList.add("locked");
-          header.innerHTML = `<span class="ch-icon">${ch.icon}</span><span class="ch-name">${ch.name}</span><span class="ch-range">${i}–${endLevel}</span>`;
+          header.innerHTML = `<span class="ch-icon">${ch.icon}</span><span class="ch-name">${ch.name}</span><span class="ch-range">${ch.startLevel}–${ch.endLevel}</span>`;
           grid.appendChild(header);
         }
       }

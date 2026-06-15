@@ -428,17 +428,47 @@ never re‑discovered the hard way.
   `levelScores` is a new `DEFAULT_SAVE` field, so old saves auto-default to `{}`.
   Like stars/achievements this meta-progression display gets **no tutorial
   step**.
+- **Endless / generative campaign** (`levels.js` `LEVEL_COUNT`/
+  `DIFFICULTY_CAP`/`AUTHORED_LEVELS`, `milestones.js` `BOSS_TIER_CAP`, `ui.js`
+  `buildLevelMap`): the campaign no longer stops at 40 — `LEVEL_COUNT = 9999`
+  (a clamp bound, effectively endless) and every level is **generated** by the
+  pure per-level helpers. The first `AUTHORED_LEVELS` (= `CHAPTERS.length *
+  CHAPTER_SIZE` = **40**) keep their **exact original tuning** (difficulty input
+  `d === n` there), so the hand-tuned 1–40 arc is unchanged. Beyond that,
+  difficulty **ramps then plateaus**: `getLevel`/`objectiveForLevel` clamp the
+  difficulty input to `d = min(n, DIFFICULTY_CAP)` (= **60**), so cols/rows/
+  colors/cells/moves/target/specials/objective goals all stop growing at a fair
+  peak and levels stay **winnable forever** (without the cap, target grew
+  linearly while moves floored at 6 → eventually impossible). Identity fields —
+  `seed` (`level-${n}-bpc`), `chapter`, milestone type — still use the real `n`,
+  so each high level is a distinct seeded board even though two capped levels
+  share scaling (e.g. `getLevel(61)` and `getLevel(9991)` have identical
+  cols/rows/colors/moves/target/specials). Boss objectives are likewise capped
+  via `BOSS_TIER_CAP = 8` (`tier = min(idx, 8)`) so deep bosses' frozen
+  cores/stone vaults/extra-moves stay board-sized; the boss *archetype* still
+  rotates on the real `idx`. `main.js` `showNext` (`s.level.id < LEVEL_COUNT`)
+  lets the player advance indefinitely, and `maxUnlockedLevel` just increments.
+  Generative levels are **not** a player gesture/mechanic → **no tutorial step**.
 - **World map chapters** (`levels.js` `CHAPTERS`/`CHAPTER_SIZE`/
-  `chapterForLevel`, `ui.js` `buildLevelMap`): the 40-level campaign is grouped
-  into **5 themed chapters of 8 levels** (Bubble Meadow 🌱, Frosty Peaks ❄️,
-  Thunder Valley ⚡, Crystal Caverns 💎, Cosmic Finale 🌌) so the level map reads
-  as a journey across worlds. `CHAPTERS` is pure presentation/flavour metadata
-  (it does **not** alter difficulty, which stays driven by the per-level
-  helpers); `chapterForLevel(id)` resolves the chapter + `startLevel`/`endLevel`
-  range and is folded into `getLevel(id).chapter`. `buildLevelMap` inserts a
-  full-width `.chapter-header` (icon, name, level range, plus a `done ✓` /
-  `locked` state from `maxUnlockedLevel`) before the first level of each chapter.
-  Like other map/meta displays this gets **no tutorial step**.
+  `PROC_CHAPTERS`/`romanize`/`chapterForLevel`, `ui.js` `buildLevelMap`): the
+  campaign is grouped into **themed chapters of 8 levels**. The first 5 are the
+  authored worlds (Bubble Meadow 🌱, Frosty Peaks ❄️, Thunder Valley ⚡, Crystal
+  Caverns 💎, Cosmic Finale 🌌); past level 40 chapters are **procedurally
+  named** from `PROC_CHAPTERS` (8 worlds: Aurora Reach 🌠, Ember Hollow 🔥,
+  Tidal Expanse 🌊, Verdant Wilds 🍃, Obsidian Depths 🪨, Solar Spire ☀️, Nebula
+  Drift 🌫️, Mirage Sands 🏜️), cycling with a Roman-numeral suffix
+  (`romanize(cycle+1)`) on repeats so names stay distinct forever. `CHAPTERS`/
+  `PROC_CHAPTERS` are pure presentation/flavour metadata (they do **not** alter
+  difficulty, which the per-level helpers drive); `chapterForLevel(id)` resolves
+  the chapter (authored or procedural) + `startLevel`/`endLevel` range and is
+  folded into `getLevel(id).chapter`. `buildLevelMap` renders a **bounded
+  window** — every authored/cleared level plus one preview chapter beyond the
+  player's progress (`renderEnd = min(LEVEL_COUNT, max(AUTHORED_LEVELS,
+  (ceil(maxUnlocked/CHAPTER_SIZE)+1)*CHAPTER_SIZE))`), so the DOM grows with
+  progress, not to 9999 — inserting a full-width `.chapter-header` (icon, name,
+  level range, plus a `done ✓` / `locked` state from `maxUnlockedLevel`) before
+  the first level of each chapter (via `chapterForLevel(i)`, so procedural
+  chapters render). Like other map/meta displays this gets **no tutorial step**.
 - **Bonus objectives** (`levels.js` `objectiveForLevel`, `main.js`
   `_trackObjective`/`_markPowerupUsed`, `ui.js` `updateObjective`): every
   ordinary campaign level carries an **optional bonus objective** layered on top
@@ -626,7 +656,7 @@ src/
   audio.js          # WebAudio (unlocked on first pointerdown)
   storage.js        # Storage singleton over localStorage (bpc_save_v1)
   themes.js         # Theme catalog + unlock logic + applyThemeCss
-  levels.js         # LEVEL_COUNT=40, getLevel(id), star thresholds, world chapters
+  levels.js         # LEVEL_COUNT=9999 (endless), getLevel(id) generative + DIFFICULTY_CAP, world/proc chapters
   scoring.js        # groupScore, comboMultiplier, clearBonus, starsForScore
   rng.js            # mulberry32 seeded RNG, todayKey
   economy.js        # Coins + power-up inventory/prices
@@ -693,7 +723,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 240 unit tests + 186 E2E
+- **Current baseline (keep growing, never shrink)**: 349 unit tests + 290 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

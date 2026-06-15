@@ -109,6 +109,25 @@ describe("milestones", () => {
     // Every archetype grants extra moves to keep the objective fair.
     for (const cfg of [f, s, c]) expect(cfg.extraMoves).toBeGreaterThan(0);
   });
+
+  it("high boss objectives stay board-sized (tier cap) for the endless campaign", () => {
+    // A very deep boss still produces a vault/core that fits the largest board
+    // (cols ≤ 9, rows ≤ 11) instead of growing without bound.
+    for (const id of [500, 1000, 9990]) {
+      const cfg = bossConfig(id);
+      expect(cfg).toBeTruthy();
+      const lvl = getLevel(id);
+      if (cfg.kind === "frozen") {
+        expect(cfg.coreW).toBeLessThanOrEqual(lvl.cols);
+        expect(cfg.coreH).toBeLessThanOrEqual(lvl.rows);
+      } else if (cfg.kind === "stone") {
+        expect(cfg.vaultW).toBeLessThanOrEqual(lvl.cols);
+        expect(cfg.vaultH).toBeLessThanOrEqual(lvl.rows);
+      }
+      // Bonus moves stay sane (not thousands).
+      expect(cfg.extraMoves).toBeLessThanOrEqual(40);
+    }
+  });
 });
 
 describe("levels with milestones", () => {

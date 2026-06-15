@@ -75,8 +75,11 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   the idle move-hint scan (`findHint` returns the largest poppable group or
   `null` on a deadlock) and the per-level best-score store (`recordLevelScore`
   keeps the highest and flags a genuine new best),
-  the world-map chapters (`chapterForLevel` tiles all 40 levels into 5 themed
-  chapters of 8 with no gaps),
+  the world-map chapters (`chapterForLevel` tiles the authored 40 levels into 5
+  themed chapters of 8 and generates procedural chapters past level 40, with a
+  Roman-numeral suffix on repeats) plus the endless/generative campaign
+  (`LEVEL_COUNT=9999`, difficulty ramps then plateaus at `DIFFICULTY_CAP` so two
+  high levels share scaling and stay winnable forever),
   the per-level bonus objectives (`objectiveForLevel`: deterministic combo/
   group/nopowerup challenges, skipped on early + milestone levels),
   the milestone beats (`bossConfig` rotates the three boss archetypes
@@ -156,8 +159,10 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   and the Themes toggle disables/suppresses it), per-level best score (a clear
   records a best shown on the level map, beating a prior best celebrates a
   "New best score"),
-  the world-map chapter headers on the level map (5 themed chapters with level
-  ranges), the per-level bonus objectives (HUD chip shown on ordinary levels +
+  the world-map chapter headers on the level map (5 authored themed chapters
+  with level ranges, plus procedural chapters revealed past level 40 with
+  generated level cells), the per-level bonus objectives (HUD chip shown on
+  ordinary levels +
   hidden on milestones, meeting one pays a coin bonus on the win screen),
   the season pass (Season screen lists the 10-tier ladder, earning XP unlocks +
   pays out a free tier, the premium track is gated until the pass is purchased,

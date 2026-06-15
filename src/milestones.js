@@ -73,15 +73,24 @@ export function bossReward(id) {
 // and `extraMoves`; frozen/stone also carry their block sizing.
 export const BOSS_ARCHETYPES = ["frozen", "stone", "color"];
 
+// Boss objective sizing grows with the boss number but plateaus at this tier so
+// vaults/cores keep fitting the board (and move grants stay sane) no matter how
+// far the endless campaign runs. Bosses 1–8 (levels 10–80) cover the full ramp;
+// beyond that the size is constant. Kind still rotates by the real boss index.
+export const BOSS_TIER_CAP = 8;
+
 export function bossConfig(id) {
   if (milestoneType(id) !== "boss") return null;
   const idx = bossIndex(id);
   const kind = BOSS_ARCHETYPES[(idx - 1) % BOSS_ARCHETYPES.length];
+  // Capped tier drives the objective size + bonus moves so high bosses stay
+  // board-sized and fair; the original bosses 1–4 are unaffected (tier === idx).
+  const tier = Math.min(idx, BOSS_TIER_CAP);
 
   if (kind === "stone") {
     // A thin (2-row) vault keeps every stone reachable: each one always borders
     // a non-stone cell so an adjacent pop can break it.
-    const vaultW = 2 + Math.floor((idx - 1) / BOSS_ARCHETYPES.length);
+    const vaultW = 2 + Math.floor((tier - 1) / BOSS_ARCHETYPES.length);
     const vaultH = 2;
     return {
       idx,
@@ -91,7 +100,7 @@ export function bossConfig(id) {
       objectiveCount: vaultW * vaultH,
       label: "Stone Vault",
       hudLabel: "Stone",
-      extraMoves: 10 + idx * 2,
+      extraMoves: 10 + tier * 2,
     };
   }
 
@@ -101,22 +110,22 @@ export function bossConfig(id) {
       kind,
       label: "Colour Purge",
       hudLabel: "Left",
-      extraMoves: 8 + idx * 2,
+      extraMoves: 8 + tier * 2,
     };
   }
 
   // Default: the classic frozen core, growing with the boss number.
-  const coreW = 1 + idx; // 2, 3, 4, 5
-  const coreH = 2 + Math.floor((idx - 1) / 2); // 2, 2, 3, 3
+  const coreW = 1 + tier; // 2, 3, 4, 5 … capped at 9
+  const coreH = 2 + Math.floor((tier - 1) / 2); // 2, 2, 3, 3 … capped
   return {
     idx,
     kind: "frozen",
     coreW,
     coreH,
-    coreCount: coreW * coreH, // 4, 6, 12, 15
+    coreCount: coreW * coreH, // 4, 6, 12, 15 …
     objectiveCount: coreW * coreH,
     label: "Frozen Core",
     hudLabel: "Core",
-    extraMoves: 6 + idx * 2, // 8, 10, 12, 14
+    extraMoves: 6 + tier * 2, // 8, 10, 12, 14 …
   };
 }

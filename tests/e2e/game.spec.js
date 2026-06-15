@@ -731,6 +731,33 @@ test.describe("milestone events (every 5 levels)", () => {
     await expect(headers.last()).toContainText("33–40");
   });
 
+  test("the endless campaign reveals procedural chapters past level 40", async ({
+    page,
+  }) => {
+    // Advance the player well past the authored 40 levels, then open the map:
+    // it should render a procedural chapter header (41–48) and a level cell
+    // numbered above 40 that the original authored campaign never had.
+    await page.evaluate(() => {
+      window.__bpc.Storage.set("maxUnlockedLevel", 45);
+      window.__bpc.UI.buildLevelMap();
+    });
+    await page.locator("#btn-play").click();
+    await expect(page.locator("#levelmap")).toBeVisible();
+    const headers = page.locator(".chapter-header");
+    // Authored 5 + at least one procedural chapter beyond level 40.
+    await expect(headers.nth(5)).toBeVisible();
+    await expect(headers.nth(5)).toContainText("41–48");
+    // A real, generated level cell beyond the authored campaign exists.
+    await expect(
+      page.locator(".level-cell .num", { hasText: /^41$/ })
+    ).toBeVisible();
+    // Its generated config is well-formed and clamped to the difficulty cap.
+    const lvl = await page.evaluate(() => window.__bpc.getLevel(9999));
+    expect(lvl.id).toBe(9999);
+    expect(lvl.cols).toBeLessThanOrEqual(9);
+    expect(lvl.target).toBeGreaterThan(0);
+  });
+
   test("a treasure level pays a one-time bonus + free power-up (not farmable)", async ({
     page,
   }) => {

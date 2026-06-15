@@ -37,13 +37,32 @@ describe("levels", () => {
     const late = getLevel(LEVEL_COUNT);
     expect(late.cols).toBeGreaterThanOrEqual(early.cols);
     expect(late.rows).toBeGreaterThanOrEqual(early.rows);
-    for (let n = 1; n <= LEVEL_COUNT; n++) {
+    // Sample across the ramp plus a few extreme levels (the campaign is
+    // generative, so we spot-check rather than iterate all 9999).
+    const sample = [1, 5, 12, 22, 40, 60, 99, 250, 1000, LEVEL_COUNT];
+    for (const n of sample) {
       const lvl = getLevel(n);
       expect(lvl.cols).toBeGreaterThanOrEqual(6);
+      expect(lvl.cols).toBeLessThanOrEqual(9);
       expect(lvl.rows).toBeGreaterThanOrEqual(8);
+      expect(lvl.rows).toBeLessThanOrEqual(11);
+      expect(lvl.colors).toBeLessThanOrEqual(6);
       expect(lvl.moves).toBeGreaterThanOrEqual(6);
       expect(lvl.target).toBeGreaterThan(0);
     }
+  });
+
+  it("difficulty ramps then plateaus at the cap so endless levels stay winnable", () => {
+    // Two high, non-milestone levels share the capped difficulty, so all the
+    // scaling fields match (only identity — seed/chapter/objective — differs).
+    const a = getLevel(61);
+    const b = getLevel(9991);
+    for (const k of ["cols", "rows", "colors", "moves", "target"]) {
+      expect(b[k]).toBe(a[k]);
+    }
+    expect(b.specials).toEqual(a.specials);
+    // The plateau is the peak: a capped level is at least as hard as level 40.
+    expect(getLevel(9991).target).toBeGreaterThanOrEqual(getLevel(40).target);
   });
 
   it("targets rise with level number", () => {
@@ -83,16 +102,33 @@ describe("levels", () => {
     expect(boss.specials.stone || 0).toBe(0);
   });
 
-  it("groups every level into a chapter and covers the whole campaign", () => {
-    // Chapters tile the campaign contiguously with no gaps or overlaps.
-    expect(CHAPTERS.length * CHAPTER_SIZE).toBeGreaterThanOrEqual(LEVEL_COUNT);
-    for (let n = 1; n <= LEVEL_COUNT; n++) {
+  it("resolves a well-formed chapter for every level, authored or procedural", () => {
+    // Every level (including far-future procedural ones) maps to a chapter whose
+    // range contains it. Sample densely early + a few extreme levels.
+    const sample = [
+      1, 8, 9, 40, 41, 48, 49, 96, 97, 250, 1000, 9999,
+    ];
+    for (const n of sample) {
       const ch = chapterForLevel(n);
       expect(ch.name).toBeTruthy();
       expect(ch.icon).toBeTruthy();
       expect(n).toBeGreaterThanOrEqual(ch.startLevel);
       expect(n).toBeLessThanOrEqual(ch.endLevel);
     }
+  });
+
+  it("generates procedural chapters past the authored worlds", () => {
+    // The 5 authored chapters cover levels 1–40; level 41 opens a procedural
+    // chapter with its own name/icon and a contiguous range.
+    const authored = chapterForLevel(40);
+    expect(CHAPTERS.map((c) => c.name)).toContain(authored.name);
+    const proc = chapterForLevel(41);
+    expect(CHAPTERS.map((c) => c.name)).not.toContain(proc.name);
+    expect(proc.startLevel).toBe(41);
+    expect(proc.endLevel).toBe(48);
+    // Names stay distinct after a full cycle (Roman-numeral suffix).
+    const farLater = chapterForLevel(41 + CHAPTERS.length * CHAPTER_SIZE * 100);
+    expect(farLater.name).toBeTruthy();
   });
 
   it("chapter boundaries land on CHAPTER_SIZE multiples", () => {
@@ -121,14 +157,20 @@ describe("levels", () => {
   });
 
   it("ordinary levels get a deterministic, well-formed objective", () => {
-    for (let n = 3; n <= LEVEL_COUNT; n++) {
-      const obj = objectiveForLevel(n);
+    // Cover the full ramp plus extreme levels; objective goals must stay
+    // bounded (achievable) on the endless plateau.
+    const sample = [3, 4, 6, 7, 12, 19, 60, 99, 1000, 9999];
+    for (const n of sample) {
       if (n % 5 === 0) continue; // milestone level, handled above
+      const obj = objectiveForLevel(n);
       expect(obj).toBeTruthy();
       expect(["combo", "group", "nopowerup"]).toContain(obj.type);
       expect(obj.bonus).toBeGreaterThan(0);
       expect(typeof obj.label).toBe("string");
-      if (obj.type !== "nopowerup") expect(obj.goal).toBeGreaterThan(0);
+      if (obj.type !== "nopowerup") {
+        expect(obj.goal).toBeGreaterThan(0);
+        expect(obj.goal).toBeLessThanOrEqual(12); // capped, stays achievable
+      }
       // Deterministic per level.
       expect(objectiveForLevel(n)).toEqual(obj);
     }
