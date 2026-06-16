@@ -4439,10 +4439,14 @@ test.describe("lone-bubble rescue", () => {
 test.describe("pet gems & sockets (RPG batch 4)", () => {
   test.beforeEach(({ page }) => openGame(page));
 
-  test("the Pets screen shows the gem panel with Bag & Forge tabs", async ({ page }) => {
+  test("the Pets screen launches a dedicated Gem Forge with Bag & Forge tabs", async ({ page }) => {
     await page.getByRole("button", { name: "Pets", exact: true }).click();
-    await expect(page.locator("#pet-gems")).toBeVisible();
-    // The panel opens on the Bag tab; Forge holds the crafting UI.
+    // The Pets screen now shows a compact launcher card, not the full panel.
+    await expect(page.locator("#gem-launch")).toBeVisible();
+    await page.locator("#gem-launch").click();
+    // It opens a separate destination holding the gem manager.
+    await expect(page.locator("#gem-forge")).toBeVisible();
+    // The manager opens on the Bag tab; Forge holds the crafting UI.
     await expect(page.locator('.pg-tab[data-tab="bag"].active')).toBeVisible();
     await page.locator('.pg-tab[data-tab="forge"]').click();
     // Forge defaults to the first gem type (ruby) and shows just its 3 tiers.
@@ -4451,6 +4455,10 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
     await page.locator('.pg-forge-type[data-gem="diamond"]').click();
     await expect(page.locator('.pg-craft-btn[data-gem="diamond"][data-tier="brilliant"]')).toBeVisible();
     await expect(page.locator('.pg-craft-btn[data-gem="ruby"][data-tier="chipped"]')).toHaveCount(0);
+    // Back returns to the Pets screen.
+    await page.locator("#gemforge-back").click();
+    await expect(page.locator("#gem-forge")).toBeHidden();
+    await expect(page.locator("#gem-launch")).toBeVisible();
   });
 
   test("crafting a gem with dust adds it to inventory and spends dust", async ({ page }) => {
@@ -4767,6 +4775,7 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
   test("the gem inventory shows a Fuse button that merges through the UI", async ({ page }) => {
     await page.evaluate(() => window.__bpc.Storage.addGem("sapphire:chipped", 3));
     await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#gem-launch").click();
     const fuse = page.locator('.pg-fuse-btn[data-gem="sapphire:chipped"]');
     await expect(fuse).toBeVisible();
     await expect(fuse).toBeEnabled();
@@ -4785,6 +4794,7 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
   test("the Fuse button is disabled below 3 gems", async ({ page }) => {
     await page.evaluate(() => window.__bpc.Storage.addGem("amber:chipped", 2));
     await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#gem-launch").click();
     const fuse = page.locator('.pg-fuse-btn[data-gem="amber:chipped"]');
     await expect(fuse).toBeVisible();
     await expect(fuse).toBeDisabled();
@@ -4797,6 +4807,7 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
       S.addGem("ruby:chipped", 2);
     });
     await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#gem-launch").click();
     // Two owned gems => two compact cells in the grid.
     await expect(page.locator(".pg-grid2 .pg-cell")).toHaveCount(2);
     // The strongest gem (brilliant) is auto-selected and is top tier.

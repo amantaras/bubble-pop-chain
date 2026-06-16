@@ -415,6 +415,18 @@
       <div class="pet-detail" id="pet-detail"></div>
     </div>
 
+    <!-- Dedicated Gem Forge: a separate destination for crafting, fusing and
+         managing gems, so it doesn't crowd the Pets screen. Socketing stays
+         contextual (tap a pet's socket on the Pets screen). -->
+    <div id="gem-forge" class="overlay screen hidden">
+      <div class="screen-head">
+        <button class="icon-btn" id="gemforge-back" aria-label="Back">‹</button>
+        <h2>Gem Forge</h2>
+        <div class="gf-dust-pill">✨ <span id="gemforge-dust">0</span> Dust</div>
+      </div>
+      <div class="gemforge-body" id="gemforge-body"></div>
+    </div>
+
     <!-- Switch-companion confirmation (shown when changing pets mid-level) -->
     <div id="pet-confirm" class="overlay modal hidden" role="dialog" aria-modal="true" aria-label="Switch companion">
       <div class="modal-card">

@@ -2330,6 +2330,75 @@ body {
   padding: 12px;
   margin-bottom: 12px;
 }
+
+/* Compact launcher card on the Pets screen → opens the dedicated Gem Forge. */
+.gem-launch {
+  appearance: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--glass-brd);
+  border-radius: 14px;
+  background: linear-gradient(
+    100deg,
+    rgba(120, 90, 255, 0.18),
+    rgba(80, 200, 255, 0.1)
+  );
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.08s ease, box-shadow 0.2s ease;
+}
+.gem-launch:active {
+  transform: scale(0.98);
+}
+.gem-launch .gl-icon {
+  font-size: 26px;
+  filter: drop-shadow(0 0 8px rgba(150, 120, 255, 0.7));
+}
+.gem-launch .gl-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.gem-launch .gl-title {
+  font-size: 15px;
+  font-weight: 800;
+}
+.gem-launch .gl-sub {
+  font-size: 11.5px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.gem-launch .gl-go {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-dim);
+}
+
+/* Dedicated Gem Forge destination (overlays the Pets screen). */
+#gem-forge {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  z-index: 30;
+}
+.gf-dust-pill {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dim);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--glass-brd);
+  border-radius: 999px;
+  padding: 6px 12px;
+}
+.gemforge-body {
+  display: flex;
+  flex-direction: column;
+}
+
 .pg-title {
   font-size: 14px;
   font-weight: 800;

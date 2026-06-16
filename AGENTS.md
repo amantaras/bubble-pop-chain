@@ -860,10 +860,19 @@ never re‑discovered the hard way.
   `unsocketDustRefund(tier)` = `floor(socketDustCost*0.4)` = 8/24/60 (always less
   than was paid). `socketGem`/`unsocketGem` live-refresh the running
   session's buffs/active stats (`_refreshPetSession`) so a socket swap applies
-  without a restart. The **Pets screen** `#pet-gems` panel is a **compact tabbed
-  card** (`_buildPetGems` → `_buildGemBag`/`_buildGemForge`) built to a
-  **market-standard inventory pattern** so it never becomes the old wall of 18
-  big labelled cards: the **🎒 Bag** tab (`.pg-tabs`/`.pg-tab[data-tab]`) shows a
+  without a restart. Gem crafting/fusing/browsing lives in a **dedicated Gem
+  Forge destination** (`#gem-forge` overlay, `ui.js`
+  `openGemForge`/`closeGemForge`/`_renderGemManager`) — a separate screen layered
+  over the Pets overlay, mirroring how mobile RPGs keep the crafting bench apart
+  from the contextual inventory/equip flow (Genshin's synthesis bench, Diablo
+  Immortal's jeweler). The Pets screen itself only shows a **compact launcher
+  card** (`#gem-launch`, `_buildPetGems` normal mode) reading
+  `💎 Gem Forge · N gems · ✨ dust · craft, fuse & manage` that opens it; this
+  keeps gems from crowding the pet roster. Inside the Gem Forge body
+  (`#gemforge-body`) is the **tabbed manager** (`_renderGemManager` →
+  `_buildGemBag`/`_buildGemForge`) built to a **market-standard inventory
+  pattern** so it never becomes the old wall of 18 big labelled cards: the
+  **🎒 Bag** tab (`.pg-tabs`/`.pg-tab[data-tab]`) shows a
   **dense 5-column grid of small gem icons** (`.pg-grid2` › `.pg-cell
   [data-gem="type:tier"]`, each a tier-colour-bordered square with a count badge
   (`.pg-cell-count`), the gem icon and **tier stars** ★/★★/★★★
@@ -874,21 +883,23 @@ never re‑discovered the hard way.
   action row** (`.pg-fuse-row`): fusible gems get a `.pg-fuse-btn[data-gem=...]`
   reading `⬆ Fuse 3` + the ladder (`3× <tier> → 1 <next>`, disabled below 3 with
   a `.pg-fuse-note`), top-tier gems show `.pg-fuse-top`. A successful fuse follows
-  the upgraded gem (`_gemSel = res.to`) and rebuilds in place.
+  the upgraded gem (`_gemSel = res.to`) and rebuilds in place
+  (`_renderGemManager`).
   The **⚒️ Forge** tab shows a 6-icon **type selector** (`.pg-forge-type`)
   whose selection (`_gemForgeType`, defaults to the first type) reveals just that
   gem's description + its **three tier craft buttons** (`.pg-craft-btn`, with
-  `have N` + `✨cost`) — 3 buttons at a time, not 18. The detail also renders a
+  `have N` + `✨cost`) — 3 buttons at a time, not 18. The pet detail renders a
   clickable socket row;
   each gem advertises its concrete effect via `gemBuffLabel(key)`
   (e.g. `+12% Score`, `+6% all stats`, `-3 move ability cooldown`), shown both on
   picker buttons (`.pg-buff`) and as a buff caption under filled slots
-  (`.pd-socket-buffs`). Tapping an empty slot opens the gem picker. Because the
-  `#pet-gems` panel sits **above** the pet detail in the DOM, the picker promotes
-  that panel to a centered overlay (`.pet-gems.pg-picking`) so it can't render
-  off-screen; gems above the pet's unlocked tier appear **locked** with the
-  required level, and gems the player can't afford show their dust cost as
-  unaffordable. A successful embue plays a celebratory `_playSocketMagic()`
+  (`.pd-socket-buffs`). **Socketing stays contextual on the Pets screen**: tapping
+  an empty slot opens the gem **picker** (still rendered into `#pet-gems` in
+  picker mode). Because the `#pet-gems` host sits **above** the pet detail in the
+  DOM, the picker promotes it to a centered overlay (`.pet-gems.pg-picking`) so it
+  can't render off-screen; gems above the pet's unlocked tier appear **locked**
+  with the required level, and gems the player can't afford show their dust cost
+  as unaffordable. A successful embue plays a celebratory `_playSocketMagic()`
   flourish — one of **5 random variants** (`.socket-magic[data-variant]`, ring +
   glyph + sparks, recorded as `_lastSocketMagic`, skipped under reduced motion).
   Tapping a **filled** slot opens the `#gem-remove` warning modal

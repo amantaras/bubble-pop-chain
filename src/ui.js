@@ -139,6 +139,7 @@ class UIManager {
       "hints-toggle", "hints-toggle-state",
       "rm-toggle", "rm-toggle-state",
       "pets", "pets-coins", "pets-crate", "pet-party", "pet-gems", "pet-store", "pet-list", "pet-detail",
+      "gem-forge", "gemforge-body", "gemforge-dust", "gemforge-back",
       "pet-confirm", "pet-confirm-sub", "pet-confirm-ok", "pet-confirm-cancel",
       "gem-remove", "gem-remove-sub", "gem-remove-ok", "gem-remove-cancel",
       "pet-reveal", "pet-reveal-confetti", "pet-reveal-congrats", "pet-reveal-glow",
@@ -217,6 +218,7 @@ class UIManager {
     click("season-back", () => this.showScreen("menu"));
     click("season-buy", () => this._buySeasonPremium());
     click("pets-back", () => this.closePetOverlay());
+    click("gemforge-back", () => this.closeGemForge());
     click("chest-ok", () => this.showScreen("achievements"));
     click("btn-back", () => this.cb.quitToMenu && this.cb.quitToMenu());
 
@@ -443,6 +445,7 @@ class UIManager {
     this._selectedPet = null;
     if (overGame && this.cb.pauseGame) this.cb.pauseGame();
     this.hideModals();
+    if (this.el["gem-forge"]) this.el["gem-forge"].classList.add("hidden");
     this.buildPets();
     this.refreshCoins();
     if (this.el["pets"]) this.el["pets"].classList.remove("hidden");
@@ -453,6 +456,7 @@ class UIManager {
     this._petOverlayOverGame = false;
     this._pendingEquipId = null;
     if (this.el["pet-confirm"]) this.el["pet-confirm"].classList.add("hidden");
+    if (this.el["gem-forge"]) this.el["gem-forge"].classList.add("hidden");
     if (this.el["pets"]) this.el["pets"].classList.add("hidden");
     if (overGame) {
       if (this.cb.resumeGame) this.cb.resumeGame();
@@ -2399,7 +2403,7 @@ class UIManager {
       if (!keys.length) {
         const empty = document.createElement("div");
         empty.className = "pg-empty";
-        empty.textContent = "No gems yet — craft one below, or find them in crates & gifts.";
+        empty.textContent = "No gems yet — craft one in the Gem Forge, or find them in crates & gifts.";
         card.appendChild(empty);
       } else {
         const grid = document.createElement("div");
@@ -2465,15 +2469,52 @@ class UIManager {
     }
     wrap.classList.remove("pg-picking");
 
-    // Normal mode: a compact tabbed panel. The old design stacked all 16+
-    // inventory chips above all 18 craft buttons (6 types × 3 tiers) in one
-    // long scroll — overwhelming. We split it into two tabs (🎒 Bag, ⚒️ Forge)
-    // so only one concern shows at a time, like the material/forge screens in
-    // most mobile RPGs.
-    const head = document.createElement("div");
-    head.className = "pg-title";
-    head.innerHTML = `💎 Gems <span class="pg-dust">✨ <b id="gem-dust">${dust}</b> Dust</span>`;
-    wrap.appendChild(head);
+    // Normal mode: a compact launcher card only. Crafting, fusing and browsing
+    // the gem bag now live in their own dedicated destination (the Gem Forge
+    // overlay) so they don't crowd the Pets screen — mirroring how mobile RPGs
+    // keep the crafting bench separate from the contextual inventory/equip flow
+    // (Genshin's synthesis bench, Diablo Immortal's jeweler). Socketing stays
+    // contextual here (tap a pet's socket → the picker above).
+    const owned = Object.keys(gems).filter((k) => gems[k] > 0);
+    const gemTotal = owned.reduce((a, k) => a + gems[k], 0);
+    const card = document.createElement("button");
+    card.className = "gem-launch";
+    card.id = "gem-launch";
+    card.innerHTML =
+      `<span class="gl-icon">💎</span>` +
+      `<span class="gl-text">` +
+      `<span class="gl-title">Gem Forge</span>` +
+      `<span class="gl-sub">${gemTotal} gem${gemTotal === 1 ? "" : "s"} · ✨ ${dust} Dust · craft, fuse &amp; manage</span>` +
+      `</span>` +
+      `<span class="gl-go">›</span>`;
+    card.addEventListener("click", () => {
+      Audio.click();
+      this.openGemForge();
+    });
+    wrap.appendChild(card);
+  }
+
+  // Open the dedicated Gem Forge destination (layers over the Pets overlay).
+  openGemForge() {
+    this._renderGemManager();
+    if (this.el["gem-forge"]) this.el["gem-forge"].classList.remove("hidden");
+  }
+
+  closeGemForge() {
+    if (this.el["gem-forge"]) this.el["gem-forge"].classList.add("hidden");
+    // Refresh the launcher card on the Pets screen (gem count / dust changed).
+    this._buildPetGems();
+  }
+
+  // Render the Bag / Forge manager into the dedicated Gem Forge body. The two
+  // concerns are split into tabs so only one shows at a time.
+  _renderGemManager() {
+    const wrap = this.el["gemforge-body"];
+    if (!wrap) return;
+    const gems = Storage.getGems();
+    const dust = Storage.getDust();
+    if (this.el["gemforge-dust"]) this.el["gemforge-dust"].textContent = dust;
+    wrap.innerHTML = "";
 
     const tab = this._gemTab === "forge" ? "forge" : "bag";
     const tabs = document.createElement("div");
@@ -2486,7 +2527,7 @@ class UIManager {
       b.addEventListener("click", () => {
         Audio.click();
         this._gemTab = id;
-        this._buildPetGems();
+        this._renderGemManager();
       });
       tabs.appendChild(b);
     }
@@ -2541,7 +2582,7 @@ class UIManager {
       cell.addEventListener("click", () => {
         Audio.click();
         this._gemSel = key;
-        this._buildPetGems();
+        this._renderGemManager();
       });
       grid.appendChild(cell);
     }
@@ -2588,7 +2629,7 @@ class UIManager {
           Audio.fever();
           this.toast(`Fused ${FUSE_COUNT}× ${gemLabel(res.from)} → ${gemLabel(res.to)}!`);
           this._gemSel = res.to; // follow the upgraded gem
-          this._buildPetGems();
+          this._renderGemManager();
         } else {
           this.toast(`Need ${FUSE_COUNT} to fuse`);
         }
@@ -2632,7 +2673,7 @@ class UIManager {
       b.addEventListener("click", () => {
         Audio.click();
         this._gemForgeType = def.type;
-        this._buildPetGems();
+        this._renderGemManager();
       });
       types.appendChild(b);
     }
@@ -2665,7 +2706,7 @@ class UIManager {
         if (res && res.ok) {
           Audio.fever();
           this.toast(`Crafted ${gemLabel(gemKey(sel, t.id))}!`);
-          this._buildPetGems();
+          this._renderGemManager();
         } else {
           this.toast("Not enough Dust");
         }
