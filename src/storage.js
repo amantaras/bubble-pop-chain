@@ -79,7 +79,9 @@ const DEFAULT_SAVE = {
   // `crates` is the number of unopened pet crates. New players start with
   // Sparky equipped and one starter crate so the system is usable immediately.
   pets: {
-    owned: { sparky: { xp: 0, cosmetics: ["default"], cosmetic: "default" } },
+    owned: {
+      sparky: { xp: 0, cosmetics: ["default"], cosmetic: "default", trait: "balanced" },
+    },
     equipped: "sparky",
     crates: 1,
     // Pet Dust — earned from duplicate crate pulls, spent to craft a chosen pet.
@@ -323,13 +325,26 @@ class StorageManager {
   }
 
   // Add a pet to the collection. Returns true only the first time (so duplicate
-  // crate pulls can be redirected to bonus XP by the caller).
-  grantPet(id) {
+  // crate pulls can be redirected to bonus XP by the caller). A `trait`
+  // (rolled on acquisition) is stored on the new entry; defaults to balanced.
+  grantPet(id, trait = "balanced") {
     const p = this.getPetState();
     if (p.owned[id]) return false;
-    p.owned[id] = { xp: 0, cosmetics: ["default"], cosmetic: "default" };
+    p.owned[id] = {
+      xp: 0,
+      cosmetics: ["default"],
+      cosmetic: "default",
+      trait: trait || "balanced",
+    };
     this._writePets(p);
     return true;
+  }
+
+  // The trait id of an owned pet (or null if not owned). Old saves without a
+  // trait field resolve to balanced via pets.getTrait's fallback.
+  getPetTrait(id) {
+    const p = this.getPetState();
+    return p.owned[id] ? p.owned[id].trait || "balanced" : null;
   }
 
   addPetXp(id, amount) {

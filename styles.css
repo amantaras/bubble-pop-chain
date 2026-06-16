@@ -2072,6 +2072,29 @@ body {
   height: 100%;
   background: linear-gradient(90deg, var(--accent), #5b9fff);
 }
+.pd-trait {
+  margin-top: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+.pd-trait-icon {
+  font-size: 18px;
+}
+.pd-trait-name {
+  font-weight: 700;
+  color: var(--accent);
+}
+.pd-trait-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  flex: 1 1 100%;
+}
 .pet-equip-btn,
 .pet-premium-btn {
   width: 100%;

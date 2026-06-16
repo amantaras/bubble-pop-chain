@@ -264,6 +264,21 @@ describe("storage", () => {
       expect(Storage.getPetState().owned.draco.xp).toBe(0);
     });
 
+    it("stores a trait on a granted pet and reads it back", () => {
+      Storage.grantPet("draco", "swift");
+      expect(Storage.getPetState().owned.draco.trait).toBe("swift");
+      expect(Storage.getPetTrait("draco")).toBe("swift");
+      // Default trait is balanced when none is given.
+      Storage.grantPet("clover");
+      expect(Storage.getPetTrait("clover")).toBe("balanced");
+      // Unowned pets report no trait.
+      expect(Storage.getPetTrait("ghost")).toBeNull();
+    });
+
+    it("starter Sparky carries the balanced trait", () => {
+      expect(Storage.getPetTrait("sparky")).toBe("balanced");
+    });
+
     it("accumulates XP only for owned pets", () => {
       Storage.addPetXp("sparky", 40);
       expect(Storage.getPetState().owned.sparky.xp).toBe(40);

@@ -34,6 +34,9 @@ import {
   dustCost,
   pityRarityFloor,
   nextPity,
+  TRAITS,
+  getTrait,
+  rollTrait,
 } from "../../src/pets.js";
 import { makeRng } from "../../src/rng.js";
 
@@ -499,5 +502,82 @@ describe("shooterStats progression", () => {
     expect(levels[4].nuke).toBe(true);
     expect(levels[4].nukeInterval).toBeGreaterThan(0);
     expect(levels[4].fireInterval).toBeLessThan(levels[0].fireInterval);
+  });
+});
+
+describe("pet traits", () => {
+  it("defines a non-empty trait table with stable shape", () => {
+    expect(Array.isArray(TRAITS)).toBe(true);
+    expect(TRAITS.length).toBeGreaterThanOrEqual(5);
+    const ids = new Set();
+    for (const t of TRAITS) {
+      expect(typeof t.id).toBe("string");
+      expect(typeof t.icon).toBe("string");
+      expect(typeof t.label).toBe("string");
+      expect(typeof t.desc).toBe("string");
+      expect(typeof t.mods).toBe("object");
+      ids.add(t.id);
+    }
+    expect(ids.size).toBe(TRAITS.length); // ids are unique
+    // Balanced is the neutral default and must exist with empty mods.
+    const balanced = TRAITS.find((t) => t.id === "balanced");
+    expect(balanced).toBeTruthy();
+    expect(Object.keys(balanced.mods).length).toBe(0);
+  });
+
+  it("getTrait resolves known ids and falls back to balanced for unknown/missing", () => {
+    expect(getTrait("swift").id).toBe("swift");
+    expect(getTrait("nope").id).toBe("balanced");
+    expect(getTrait(undefined).id).toBe("balanced");
+    expect(getTrait(null).id).toBe("balanced");
+  });
+
+  it("rollTrait is deterministic for a seeded rng and always in range", () => {
+    const a = rollTrait(makeRng(123));
+    const b = rollTrait(makeRng(123));
+    expect(a).toBe(b);
+    const valid = new Set(TRAITS.map((t) => t.id));
+    for (let s = 0; s < 50; s++) {
+      expect(valid.has(rollTrait(makeRng(s)))).toBe(true);
+    }
+  });
+
+  it("balanced trait leaves petActive/petBuffs identical to no trait", () => {
+    // Rover (active gather pet) and Sparky (passive) cover both paths.
+    expect(petActive("rover", 3, "balanced")).toEqual(petActive("rover", 3));
+    expect(petBuffs("sparky", 3, "balanced")).toEqual(petBuffs("sparky", 3));
+  });
+
+  it("swift trait shortens an active pet's cooldown by one (min 1)", () => {
+    const base = petActive("rover", 1);
+    const swift = petActive("rover", 1, "swift");
+    expect(swift.cooldown).toBe(Math.max(1, base.cooldown - 1));
+  });
+
+  it("mighty trait boosts an active pet's count and strength", () => {
+    const base = petActive("rover", 2);
+    const mighty = petActive("rover", 2, "mighty");
+    expect(mighty.count).toBe(base.count + 1);
+    expect(mighty.strength).toBeGreaterThan(base.strength);
+    expect(mighty.strength).toBeLessThanOrEqual(1);
+  });
+
+  it("passive traits stack their multipliers onto pet buffs", () => {
+    const lucky = petBuffs("sparky", 1, "lucky");
+    const base = petBuffs("sparky", 1, "balanced");
+    expect(lucky.coinMult).toBeCloseTo(base.coinMult * 1.2, 6);
+    const keen = petBuffs("sparky", 1, "keen");
+    expect(keen.scoreMult).toBeCloseTo(base.scoreMult * 1.15, 6);
+    const fiery = petBuffs("sparky", 1, "fiery");
+    expect(fiery.powerMult).toBeCloseTo(base.powerMult * 1.2, 6);
+    expect(fiery.feverMult).toBeCloseTo(base.feverMult * 1.15, 6);
+  });
+
+  it("active-only pets gain passive value from traits", () => {
+    // Rover has no passive ability, but a Lucky trait still pays coins.
+    const buffs = petBuffs("rover", 3, "lucky");
+    expect(buffs.coinMult).toBeCloseTo(1.2, 6);
+    // And a balanced/active-only pet is fully neutral.
+    expect(petBuffs("rover", 3, "balanced")).toEqual(neutralBuffs());
   });
 });

@@ -75,6 +75,7 @@ import {
   LEGENDARY_CRATE,
   premiumPets,
   dustCost,
+  getTrait,
 } from "./pets.js";
 
 const $ = (id) => document.getElementById(id);
@@ -506,7 +507,12 @@ class UIManager {
     }
     if (this.el["pet-reveal-ability"])
       this.el["pet-reveal-ability"].textContent = `✨ ${ability}`;
-    if (this.el["pet-reveal-desc"]) this.el["pet-reveal-desc"].textContent = pet.desc || "";
+    if (this.el["pet-reveal-desc"]) {
+      const tr = res.trait ? getTrait(res.trait) : null;
+      this.el["pet-reveal-desc"].textContent = tr
+        ? `${pet.desc || ""}  ${tr.icon} ${tr.label}: ${tr.desc}`
+        : pet.desc || "";
+    }
 
     Audio.coin();
     this.hideModals();
@@ -1959,6 +1965,16 @@ class UIManager {
         `<span>${prog.max ? "" : prog.toNext + " XP to next"}</span></div>` +
         `<div class="pd-xp-bar"><div class="pd-xp-fill" style="width:${Math.round(prog.progress * 100)}%"></div></div>`;
       panel.appendChild(bar);
+
+      // Personality trait (rolled on acquisition).
+      const trait = getTrait(owned[pet.id].trait);
+      const traitEl = document.createElement("div");
+      traitEl.className = "pd-trait";
+      traitEl.innerHTML =
+        `<span class="pd-trait-icon">${trait.icon}</span>` +
+        `<span class="pd-trait-name">${trait.label}</span>` +
+        `<span class="pd-trait-desc">${trait.desc}</span>`;
+      panel.appendChild(traitEl);
 
       // Equip button.
       const equip = document.createElement("button");

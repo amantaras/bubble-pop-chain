@@ -3730,6 +3730,41 @@ test.describe("pet companions (collection & buffs)", () => {
     expect(result.floor).toBe("epic");
   });
 
+  test("a crafted pet is assigned a valid personality trait", async ({ page }) => {
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    const out = await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      const { TRAITS } = window.__bpc.pets;
+      S.addDust(2000);
+      const res = window.__bpc.game.craftPet("rover");
+      return {
+        ok: res.ok,
+        trait: S.getPetTrait("rover"),
+        valid: TRAITS.map((t) => t.id),
+      };
+    });
+    expect(out.ok).toBe(true);
+    expect(out.valid).toContain(out.trait);
+  });
+
+  test("an equipped pet's trait modifies its buffs", async ({ page }) => {
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    const out = await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      const { petBuffs, levelForXp } = window.__bpc.pets;
+      // Force Sparky's trait to Lucky and equip it.
+      const st = S.getPetState();
+      st.owned.sparky.trait = "lucky";
+      S.set("pets", st);
+      S.equipPet("sparky");
+      const eq = S.getEquippedPet();
+      const buffs = petBuffs(eq.id, levelForXp(eq.xp || 0), eq.trait);
+      const base = petBuffs(eq.id, levelForXp(eq.xp || 0), "balanced");
+      return { coin: buffs.coinMult, baseCoin: base.coinMult };
+    });
+    expect(out.coin).toBeCloseTo(out.baseCoin * 1.2, 5);
+  });
+
   test("Pet Store sells premium pets and a legendary crate", async ({ page }) => {
     await page.evaluate(() => window.__bpc.Economy.addCoins(1000));
     await page.getByRole("button", { name: "Pets", exact: true }).click();

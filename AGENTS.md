@@ -737,7 +737,21 @@ never re‑discovered the hard way.
   Dust + pity deep-merge into old saves (`Storage.getDust`/`addDust`/`spendDust`/
   `getPity`/`setPity`); the Pets crate panel shows the live dust balance
   (`#dust-count`) and locked non-premium pets gain a **Craft ✨N** button. Meta
-  acquisition economy — **no tutorial step**. The **premium** pets (Aurora 🌈 /
+  acquisition economy — **no tutorial step**. Every pet also rolls a permanent
+  **personality trait** the moment it joins the collection (`pets.js` `TRAITS`
+  table — Balanced 🔘 / Swift ⚡ / Mighty 💪 / Lucky 🍀 / Keen 🎯 / Fiery 🔥;
+  pure `rollTrait(rng)` / `getTrait(id)` with a Balanced fallback for old saves).
+  A trait is a small flavourful modifier layered onto the pet's own ability:
+  `cooldownDelta`/`countDelta`/`strengthMult` nudge an **active** pet's board
+  move, while `scoreMult`/`coinMult`/`powerMult`/`feverMult` are passive buffs
+  that apply to **any** pet — so even an active-only pet earns value from a Lucky
+  trait. `petBuffs(petId, level, traitId)` applies the pet's ability first then
+  stacks the trait mults; `petActive(petId, level, traitId)` clamps cooldown ≥1.
+  The trait is stored per owned entry (`storage.js` `grantPet(id, trait)`,
+  `getPetTrait(id)`; rolled via `main.js` `_rollPetTrait()` at every grant site
+  and surfaced in `_equippedBuffs`/`_equippedActive`). The detail pane shows the
+  owned pet's trait badge (`.pd-trait`) and the reveal modal appends it to the
+  flavour line. The **premium** pets (Aurora 🌈 /
   Gizmo 🤖 are passive
   side-grades; **Nova 🛸** is the one premium *active* gunship — IAP `pet_*` via
   `monetization.purchase`). The strongest score booster (Draco, legendary) and
@@ -894,7 +908,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 458 unit tests + 338 E2E
+- **Current baseline (keep growing, never shrink)**: 468 unit tests + 342 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

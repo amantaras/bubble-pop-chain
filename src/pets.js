@@ -327,42 +327,127 @@ export function abilityValue(pet, level) {
   return pet.ability.per * lvl;
 }
 
+// ---- Traits (RNG personality rolled on acquisition) ------------------------
+// Every pet rolls a permanent TRAIT the moment it joins the collection. A trait
+// is a small, flavourful stat modifier layered on top of the pet's own
+// ability/active — two of the same pet can feel different. Trait `mods`:
+//   cooldownDelta  (int)   — adjusts an active pet's move cooldown (− = faster)
+//   countDelta     (int)   — adjusts an active pet's bubbles-affected count
+//   strengthMult   (float) — scales an active pet's pull/clear strength
+//   scoreMult/coinMult/powerMult/feverMult (float) — passive multipliers that
+//     apply to EVERY pet (even active-only ones), giving traits universal value.
+export const TRAITS = [
+  {
+    id: "balanced",
+    icon: "🔘",
+    label: "Balanced",
+    desc: "A steady all-rounder with no specialty.",
+    mods: {},
+  },
+  {
+    id: "swift",
+    icon: "⚡",
+    label: "Swift",
+    desc: "Active ability charges one move sooner.",
+    mods: { cooldownDelta: -1 },
+  },
+  {
+    id: "mighty",
+    icon: "💪",
+    label: "Mighty",
+    desc: "Active ability hits harder and reaches further.",
+    mods: { countDelta: 1, strengthMult: 1.15 },
+  },
+  {
+    id: "lucky",
+    icon: "🍀",
+    label: "Lucky",
+    desc: "Earns +20% coins while equipped.",
+    mods: { coinMult: 1.2 },
+  },
+  {
+    id: "keen",
+    icon: "🎯",
+    label: "Keen",
+    desc: "Scores +15% points while equipped.",
+    mods: { scoreMult: 1.15 },
+  },
+  {
+    id: "fiery",
+    icon: "🔥",
+    label: "Fiery",
+    desc: "Charge & Fever meters fill faster.",
+    mods: { powerMult: 1.2, feverMult: 1.15 },
+  },
+];
+
+// Resolve a trait id to its definition (falling back to the neutral Balanced
+// trait for unknown / missing ids — old saves had no trait field).
+export function getTrait(id) {
+  return TRAITS.find((t) => t.id === id) || TRAITS[0];
+}
+
+// Roll a random trait id on acquisition. `rng` is a function returning [0,1).
+export function rollTrait(rng) {
+  const r = typeof rng === "function" ? rng() : Math.random();
+  return TRAITS[Math.floor(r * TRAITS.length) % TRAITS.length].id;
+}
+
 // Neutral buff set (no pet equipped, or an active-only pet).
 export function neutralBuffs() {
   return { powerMult: 1, feverMult: 1, scoreMult: 1, coinMult: 1, startCharge: 0 };
 }
 
 // The passive buffs an equipped pet provides at the given level, as a flat
-// object the game can multiply against (or add, for startCharge). Active-only
-// pets return the neutral set.
-export function petBuffs(petId, level) {
+// object the game can multiply against (or add, for startCharge). A pet's own
+// ability is applied first, then its TRAIT's passive mods are stacked on — so
+// even active-only pets contribute buffs via a Lucky/Keen/Fiery trait.
+export function petBuffs(petId, level, traitId) {
   const base = neutralBuffs();
   const pet = getPet(petId);
-  if (!pet || !pet.ability) return base;
-  const v = abilityValue(pet, level);
-  const key = pet.ability.key;
-  if (key === "startCharge") base.startCharge = Math.min(1, v);
-  else base[key] = 1 + v;
+  if (pet && pet.ability) {
+    const v = abilityValue(pet, level);
+    const key = pet.ability.key;
+    if (key === "startCharge") base.startCharge = Math.min(1, v);
+    else base[key] = 1 + v;
+  }
+  const m = getTrait(traitId).mods || {};
+  if (m.scoreMult) base.scoreMult *= m.scoreMult;
+  if (m.coinMult) base.coinMult *= m.coinMult;
+  if (m.powerMult) base.powerMult *= m.powerMult;
+  if (m.feverMult) base.feverMult *= m.feverMult;
   return base;
 }
 
 // The active board action an equipped pet performs, or null for passive pets.
 // `cooldown` is the number of moves between actions (shortens as the pet levels
 // up); `count` is how many bubbles a cleanse clears; `strength` (0..1) is how
-// strongly a gather pulls a colour together. Both scale with level.
-export function petActive(petId, level) {
+// strongly a gather pulls a colour together. All scale with level, then the
+// pet's TRAIT nudges them (Swift = faster cooldown, Mighty = +count/strength).
+export function petActive(petId, level, traitId) {
   const pet = getPet(petId);
   if (!pet || !pet.active) return null;
   const lvl = Math.max(1, Math.min(MAX_PET_LEVEL, Math.floor(level)));
   const a = pet.active;
+  const m = getTrait(traitId).mods || {};
+  const cooldown = Math.max(
+    1,
+    Math.max(a.minCooldown, a.baseCooldown - (lvl - 1)) + (m.cooldownDelta || 0)
+  );
+  const count = Math.max(
+    0,
+    (a.baseCount || 0) + (lvl - 1) * (a.countPer || 0) + (m.countDelta || 0)
+  );
+  const strength = Math.min(1, (0.45 + lvl * 0.12) * (m.strengthMult || 1));
   return {
     type: a.type,
-    cooldown: Math.max(a.minCooldown, a.baseCooldown - (lvl - 1)),
-    count: (a.baseCount || 0) + (lvl - 1) * (a.countPer || 0),
-    strength: Math.min(1, 0.45 + lvl * 0.12),
+    cooldown,
+    count,
+    strength,
     label: a.label,
   };
 }
+
 
 // Non-premium pets of a rarity (the only ones a standard crate normally drops).
 export function petsOfRarity(rarity) {

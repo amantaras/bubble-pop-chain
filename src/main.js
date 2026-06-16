@@ -98,6 +98,9 @@ import {
   dustCost,
   PITY_EPIC,
   PITY_LEGENDARY,
+  rollTrait,
+  getTrait,
+  TRAITS,
 } from "./pets.js";
 import { calendarStatus, advanceCalendar } from "./calendar.js";
 import {
@@ -354,14 +357,22 @@ class Game {
   _equippedBuffs() {
     const eq = Storage.getEquippedPet();
     if (!eq) return neutralBuffs();
-    return petBuffs(eq.id, levelForXp(eq.xp || 0));
+    return petBuffs(eq.id, levelForXp(eq.xp || 0), eq.trait);
   }
 
   // The active board action the equipped pet performs (or null for passive pets).
   _equippedActive() {
     const eq = Storage.getEquippedPet();
     if (!eq) return null;
-    return petActive(eq.id, levelForXp(eq.xp || 0));
+    return petActive(eq.id, levelForXp(eq.xp || 0), eq.trait);
+  }
+
+  // Roll a fresh personality trait for a newly-acquired pet, advancing the
+  // shared crate seed so each grant gets a different (seeded) trait.
+  _rollPetTrait() {
+    this._crateSeed = ((this._crateSeed || 1) * 1664525 + 1013904223) >>> 0;
+    const seed = (this._crateSeed ^ ((Date.now() >>> 0) || 1)) >>> 0;
+    return rollTrait(makeRng(seed));
   }
 
   // Award XP to the equipped pet for completing a level. Returns a short reward
@@ -815,14 +826,15 @@ class Game {
       floor ? { floor } : {}
     );
     Storage.setPity(nextPity(Storage.getPity(), rarity));
-    const isNew = Storage.grantPet(petId);
+    const trait = this._rollPetTrait();
+    const isNew = Storage.grantPet(petId, trait);
     let dust = 0;
     if (!isNew) {
       Storage.addPetXp(petId, DUP_XP);
       dust = dustValue(rarity);
       Storage.addDust(dust);
     }
-    return { petId, isNew, premium: !!premium, rarity, dust };
+    return { petId, isNew, premium: !!premium, rarity, dust, trait: isNew ? trait : null };
   }
 
   // Buy one crate with coins. Returns true on success.
@@ -844,8 +856,9 @@ class Game {
     if (Storage.ownsPet(petId)) return { ok: false, reason: "owned" };
     const cost = dustCost(pet.rarity);
     if (!Storage.spendDust(cost)) return { ok: false, reason: "dust" };
-    Storage.grantPet(petId);
-    return { ok: true, petId, rarity: pet.rarity, cost };
+    const trait = this._rollPetTrait();
+    Storage.grantPet(petId, trait);
+    return { ok: true, petId, rarity: pet.rarity, cost, trait };
   }
 
   // Buy + open the premium Legendary Crate via the (mock) IAP provider. Boosted
@@ -858,14 +871,15 @@ class Game {
     const seed = (this._crateSeed ^ ((Date.now() >>> 0) || 1)) >>> 0;
     const { petId, rarity, premium } = rollLegendaryCrate(makeRng(seed));
     Storage.setPity(nextPity(Storage.getPity(), rarity));
-    const isNew = Storage.grantPet(petId);
+    const trait = this._rollPetTrait();
+    const isNew = Storage.grantPet(petId, trait);
     let dust = 0;
     if (!isNew) {
       Storage.addPetXp(petId, DUP_XP);
       dust = dustValue(rarity);
       Storage.addDust(dust);
     }
-    return { petId, isNew, premium: !!premium, rarity, dust };
+    return { petId, isNew, premium: !!premium, rarity, dust, trait: isNew ? trait : null };
   }
 
   // Equip a pet you own; refreshes the live session's buffs if mid-level.
@@ -922,7 +936,7 @@ class Game {
     if (!pet || !pet.premium) return false;
     const res = await Monetization.purchase(pet.product || `pet_${id}`);
     if (!res || !res.ok) return false;
-    Storage.grantPet(id);
+    Storage.grantPet(id, this._rollPetTrait());
     return true;
   }
 
@@ -1844,7 +1858,7 @@ class Game {
     let pet = null;
     if (chest.petRoll) {
       const { petId, premium } = rollCrate(rng);
-      const isNew = Storage.grantPet(petId);
+      const isNew = Storage.grantPet(petId, rollTrait(rng));
       if (!isNew) Storage.addPetXp(petId, DUP_XP);
       const def = getPet(petId) || {};
       pet = {
@@ -3572,7 +3586,7 @@ if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) 
     Monetization,
     UI,
     getLevel,
-    pets: { petBuffs, petActive, levelForXp, rollCrate, rollLegendaryCrate, getPet, PET_CATALOG, pityRarityFloor, nextPity, dustValue, dustCost, PITY_EPIC, PITY_LEGENDARY },
+    pets: { petBuffs, petActive, levelForXp, rollCrate, rollLegendaryCrate, getPet, PET_CATALOG, pityRarityFloor, nextPity, dustValue, dustCost, PITY_EPIC, PITY_LEGENDARY, rollTrait, getTrait, TRAITS },
     calendar: { calendarStatus, advanceCalendar, todayKey },
     season: { seasonStatus, addSeasonXp, claimTier, tierReward },
     quests: { ensureQuests, applyQuestProgress, claimQuest, questsClaimable, todayKey, weekKey },
