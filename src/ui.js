@@ -2213,6 +2213,7 @@ class UIManager {
         slot.addEventListener("click", () => {
           Audio.click();
           this._gemPicker = { petId: pet.id, slot: i };
+          this._gemPickSel = null;
           this._buildPetGems();
           this._buildPetDetail(Storage.getPetState().owned);
         });
@@ -2388,80 +2389,156 @@ class UIManager {
       const maxTier = maxGemTierForLevel(lvl);
       const card = document.createElement("div");
       card.className = "pg-picker-card";
+
       const head = document.createElement("div");
-      head.className = "pg-title";
-      head.textContent = `Socket a gem into ${pet ? pet.name : "pet"} (slot ${slot + 1})`;
+      head.className = "pg-pick-head";
+      head.innerHTML =
+        `<span class="pg-pick-title">Socket a gem</span>` +
+        `<span class="pg-pick-sub">${pet ? pet.name : "Pet"} · Slot ${slot + 1} · Lv.${lvl}</span>`;
       card.appendChild(head);
-      const cap = document.createElement("div");
-      cap.className = "pg-cap";
-      cap.innerHTML =
-        (maxTier >= 0
-          ? `Lv.${lvl} — can socket up to <b>${getGemTier(GEM_TIERS[maxTier].id).label}</b> gems.`
-          : `Lv.${lvl} — no gem tiers unlocked yet.`) +
-        ` Embuing costs dust. You have ✨<b>${dust}</b>.`;
-      card.appendChild(cap);
+
       const keys = Object.keys(gems).filter((k) => gems[k] > 0);
+      // Strongest first: higher tier, then larger buff magnitude — so the most
+      // powerful gems lead and the "BEST" badge lands on the top one you can use.
+      keys.sort((a, b) => {
+        const ga = parseGemKey(a), gb = parseGemKey(b);
+        const ta = ga ? gemTierIndex(ga.tier) : -1;
+        const tb = gb ? gemTierIndex(gb.tier) : -1;
+        if (tb !== ta) return tb - ta;
+        return Math.abs(gemValue(b)) - Math.abs(gemValue(a));
+      });
+      const socketable = (key) => {
+        const g = parseGemKey(key);
+        if (!g) return false;
+        if (gemTierIndex(g.tier) > maxTier) return false;
+        return dust >= socketDustCost(g.tier);
+      };
+      const bestKey = keys.find(socketable) || null;
+      // Default the selection to the strongest gem the player can actually
+      // socket, so a single tap on Embue equips the best option.
+      if (!this._gemPickSel || !gems[this._gemPickSel]) {
+        this._gemPickSel = bestKey || keys[0] || null;
+      }
+      const sel = this._gemPickSel;
+
       if (!keys.length) {
         const empty = document.createElement("div");
         empty.className = "pg-empty";
         empty.textContent = "No gems yet — craft one in the Gem Forge, or find them in crates & gifts.";
         card.appendChild(empty);
       } else {
+        const gridWrap = document.createElement("div");
+        gridWrap.className = "pg-pick-gridwrap";
         const grid = document.createElement("div");
-        grid.className = "pg-grid";
-        // Strongest unlocked tiers first so the best pluggable gems lead.
-        keys.sort((a, b) => {
-          const ga = parseGemKey(a), gb = parseGemKey(b);
-          return (gb ? gemTierIndex(gb.tier) : -1) - (ga ? gemTierIndex(ga.tier) : -1);
-        });
+        grid.className = "pg-pick-grid";
         for (const key of keys) {
           const g = parseGemKey(key);
-          const tierLocked = g ? gemTierIndex(g.tier) > maxTier : true;
+          const tierIdx = g ? gemTierIndex(g.tier) : 0;
+          const tierLocked = g ? tierIdx > maxTier : true;
           const cost = g ? socketDustCost(g.tier) : 0;
           const tooPoor = !tierLocked && dust < cost;
-          const locked = tierLocked || tooPoor;
-          const b = document.createElement("button");
-          b.className = "pg-gem" + (locked ? " locked" : "");
-          b.dataset.gem = key;
-          if (g) b.style.borderColor = g.def.color;
-          let footTxt;
-          if (tierLocked && g) footTxt = `🔒 Lv.${levelForGemTier(g.tier)}`;
-          else footTxt = `✨${cost}${tooPoor ? " — low" : ""}`;
-          b.innerHTML =
-            `<span class="pg-icon">${gemIcon(key)}</span>` +
-            `<span class="pg-name">${gemLabel(key)}</span>` +
-            `<span class="pg-buff">${gemBuffLabel(key)}</span>` +
-            `<span class="pg-x">${footTxt} · ×${gems[key]}</span>`;
-          if (locked) {
-            b.disabled = true;
-            b.title = tierLocked && g
-              ? `${gemLabel(key)} needs Lv.${levelForGemTier(g.tier)} to socket`
-              : `Need ✨${cost} dust to embue this gem`;
-          } else {
-            b.addEventListener("click", () => {
-              Audio.click();
-              if (this.cb.socketGem && this.cb.socketGem(petId, slot, key)) {
-                Audio.fever();
-                this._playSocketMagic();
-                this.toast(`Embued ${gemLabel(key)} (${gemBuffLabel(key)})`);
-                this._gemPicker = null;
-                this.buildPets();
-              } else {
-                this.toast("Not enough Dust");
-              }
-            });
-          }
-          grid.appendChild(b);
+          const cell = document.createElement("button");
+          cell.className =
+            "pg-pick-cell" +
+            (key === sel ? " sel" : "") +
+            (tierLocked ? " locked" : "") +
+            (tooPoor ? " poor" : "") +
+            (key === bestKey ? " best" : "");
+          cell.dataset.gem = key;
+          if (g) cell.style.setProperty("--gc", g.def.color);
+          cell.title = gemLabel(key) + " — " + gemBuffLabel(key);
+          cell.innerHTML =
+            `<span class="pg-pc-count">×${gems[key]}</span>` +
+            (key === bestKey ? `<span class="pg-pc-best">★ BEST</span>` : "") +
+            (g ? this._gemVis(g.type, g.tier) : "") +
+            `<span class="pg-pc-stars">${"◆".repeat(tierIdx + 1)}</span>` +
+            (tierLocked ? `<span class="pg-pc-lock">🔒</span>` : "");
+          cell.addEventListener("click", () => {
+            Audio.click();
+            this._gemPickSel = key;
+            this._buildPetGems();
+          });
+          grid.appendChild(cell);
         }
-        card.appendChild(grid);
+        gridWrap.appendChild(grid);
+        card.appendChild(gridWrap);
+
+        // Selected-gem detail: big visual, exact buff, and a power bar so the
+        // player can clearly see what they picked and how strong it is.
+        const sg = parseGemKey(sel);
+        const sTierIdx = sg ? gemTierIndex(sg.tier) : 0;
+        const sLocked = sg ? sTierIdx > maxTier : true;
+        const sCost = sg ? socketDustCost(sg.tier) : 0;
+        const sPoor = !sLocked && dust < sCost;
+        const powerPct = Math.round(((sTierIdx + 1) / GEM_TIERS.length) * 100);
+        const detail = document.createElement("div");
+        detail.className = "pg-pick-detail";
+        detail.innerHTML =
+          `<div class="pg-pd-top">` +
+            `<span class="pg-pd-vis">${sg ? this._gemVis(sg.type, sg.tier) : ""}</span>` +
+            `<div class="pg-pd-info">` +
+              `<div class="pg-pd-name">${gemLabel(sel)}` +
+                `<span class="pg-pd-stars">${"◆".repeat(sTierIdx + 1)}</span></div>` +
+              `<div class="pg-pd-buff">${gemBuffLabel(sel)}</div>` +
+            `</div>` +
+            `<span class="pg-pd-have">×${gems[sel]}</span>` +
+          `</div>` +
+          `<div class="pg-pd-power">` +
+            `<span class="pg-pd-plabel">Power</span>` +
+            `<span class="pg-pd-bar"><span class="pg-pd-fill" style="width:${powerPct}%;background:${sg ? sg.def.color : "#888"}"></span></span>` +
+            `<span class="pg-pd-tier">${getGemTier(sg ? sg.tier : "chipped").label}</span>` +
+          `</div>`;
+        card.appendChild(detail);
+
+        const actions = document.createElement("div");
+        actions.className = "pg-pick-actions";
+        const embue = document.createElement("button");
+        embue.className = "buy-btn pg-pick-embue";
+        embue.id = "gem-picker-embue";
+        embue.dataset.gem = sel;
+        if (sLocked && sg) {
+          embue.disabled = true;
+          embue.textContent = `🔒 Needs Lv.${levelForGemTier(sg.tier)}`;
+        } else if (sPoor) {
+          embue.disabled = true;
+          embue.textContent = `Need ✨${sCost} Dust`;
+        } else {
+          embue.innerHTML = `Embue <span class="pg-embue-cost">✨${sCost}</span>`;
+          embue.addEventListener("click", () => {
+            Audio.click();
+            if (this.cb.socketGem && this.cb.socketGem(petId, slot, sel)) {
+              Audio.fever();
+              this._playSocketMagic();
+              this.toast(`Embued ${gemLabel(sel)} (${gemBuffLabel(sel)})`);
+              this._gemPicker = null;
+              this._gemPickSel = null;
+              this.buildPets();
+            } else {
+              this.toast("Not enough Dust");
+            }
+          });
+        }
+        actions.appendChild(embue);
+        card.appendChild(actions);
       }
+
+      const cap = document.createElement("div");
+      cap.className = "pg-pick-cap";
+      cap.innerHTML =
+        (maxTier >= 0
+          ? `Embue up to <b>${getGemTier(GEM_TIERS[maxTier].id).label}</b> at Lv.${lvl}.`
+          : `No gem tiers unlocked yet.`) +
+        ` You have ✨<b>${dust}</b> Dust.`;
+      card.appendChild(cap);
+
       const cancel = document.createElement("button");
-      cancel.className = "buy-btn pg-cancel";
+      cancel.className = "pg-pick-cancel";
       cancel.id = "gem-picker-cancel";
       cancel.textContent = "Cancel";
       cancel.addEventListener("click", () => {
         Audio.click();
         this._gemPicker = null;
+        this._gemPickSel = null;
         this.buildPets();
       });
       card.appendChild(cancel);

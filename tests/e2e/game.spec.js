@@ -4672,14 +4672,19 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
       S.grantPet("rover");
       S.addPetXp("rover", 999); // high level → sockets unlocked
       S.addGem("citrine:chipped", 1);
+      S.addDust(500); // affordable → the gem is socketable + flagged BEST
     });
     await page.getByRole("button", { name: "Pets", exact: true }).click();
     await page.locator('.pet-card[data-pet="rover"]').click();
     await page.locator("#pet-detail .socket-slot.empty").first().click();
     // The picker is promoted to a centered overlay (it lives above the detail in
-    // the DOM, so it must NOT render off-screen) and shows the pluggable gem.
+    // the DOM, so it must NOT render off-screen) and shows the pluggable gem as a
+    // selectable cell, pre-selected with a clear Embue confirm button.
     await expect(page.locator(".pet-gems.pg-picking")).toBeVisible();
-    await expect(page.locator('.pg-gem[data-gem="citrine:chipped"]')).toBeVisible();
+    await expect(page.locator('.pg-pick-cell[data-gem="citrine:chipped"]')).toBeVisible();
+    // The only socketable gem is auto-selected and flagged BEST.
+    await expect(page.locator('.pg-pick-cell[data-gem="citrine:chipped"]')).toHaveClass(/\bsel\b/);
+    await expect(page.locator('.pg-pick-cell[data-gem="citrine:chipped"] .pg-pc-best')).toBeVisible();
   });
 
   test("socketing a gem costs dust and is rejected when too poor", async ({ page }) => {
@@ -4715,10 +4720,11 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
     await page.getByRole("button", { name: "Pets", exact: true }).click();
     await page.locator('.pet-card[data-pet="draco"]').click();
     await page.locator("#pet-detail .socket-slot.empty").first().click();
-    const gem = page.locator('.pg-gem[data-gem="ruby:brilliant"]');
-    await expect(gem).toBeVisible();
-    await expect(gem.locator(".pg-buff")).toHaveText("+12% Score"); // the exact buff
-    await expect(gem.locator(".pg-x")).toContainText("✨150"); // the embue cost
+    // The single gem is auto-selected; the detail panel shows its exact buff and
+    // the Embue confirm button shows the dust cost.
+    await expect(page.locator('.pg-pick-cell[data-gem="ruby:brilliant"]')).toBeVisible();
+    await expect(page.locator(".pg-pick-detail .pg-pd-buff")).toHaveText("+12% Score");
+    await expect(page.locator("#gem-picker-embue")).toContainText("✨150");
   });
 
   test("socketing through the UI plays one of 5 magic variants", async ({ page }) => {
@@ -4737,13 +4743,46 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
     await page.getByRole("button", { name: "Pets", exact: true }).click();
     await page.locator('.pet-card[data-pet="draco"]').click();
     await page.locator("#pet-detail .socket-slot.empty").first().click();
-    await page.locator('.pg-gem[data-gem="ruby:brilliant"]').click();
+    // Pre-selected gem → confirm the embue via the Embue button.
+    await page.locator("#gem-picker-embue").click();
     const variant = await page.evaluate(() => window.__bpc.UI._lastSocketMagic);
     expect(variant).toBeGreaterThanOrEqual(0);
     expect(variant).toBeLessThanOrEqual(4);
     // The gem is now socketed.
     const slotted = await page.evaluate(() => window.__bpc.Storage.getSockets("draco")[0]);
     expect(slotted).toBe("ruby:brilliant");
+  });
+
+  test("the gem picker lets you pick a different gem and updates the detail", async ({ page }) => {
+    await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      S.grantPet("draco");
+      S.addPetXp("draco", 999); // high level → brilliant socketable
+      S.addGem("ruby:brilliant", 1); // +12% score (the default BEST)
+      S.addGem("citrine:chipped", 1); // +5% coins, weaker tier
+      S.addDust(500);
+    });
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator('.pet-card[data-pet="draco"]').click();
+    await page.locator("#pet-detail .socket-slot.empty").first().click();
+    // The strongest socketable gem leads, is auto-selected, and is the embue target.
+    await expect(page.locator('.pg-pick-cell[data-gem="ruby:brilliant"]')).toHaveClass(/\bsel\b/);
+    await expect(page.locator(".pg-pick-detail .pg-pd-buff")).toHaveText("+12% Score");
+    await expect(page.locator(".pg-pick-detail .pg-pd-tier")).toHaveText("Brilliant");
+    // Picking the weaker gem updates the selection, detail buff, tier and power bar.
+    await page.locator('.pg-pick-cell[data-gem="citrine:chipped"]').click();
+    await expect(page.locator('.pg-pick-cell[data-gem="citrine:chipped"]')).toHaveClass(/\bsel\b/);
+    await expect(page.locator('.pg-pick-cell[data-gem="ruby:brilliant"]')).not.toHaveClass(/\bsel\b/);
+    await expect(page.locator(".pg-pick-detail .pg-pd-buff")).toHaveText("+5% Coins");
+    await expect(page.locator(".pg-pick-detail .pg-pd-tier")).toHaveText("Chipped");
+    await expect(page.locator("#gem-picker-embue")).toContainText("✨20");
+    // The power bar reflects the chipped tier (1 of 3 → ~33%).
+    const w = await page.locator(".pg-pick-detail .pg-pd-fill").evaluate((el) => el.style.width);
+    expect(w).toBe("33%");
+    // Embuing the chosen gem sockets *that* gem.
+    await page.locator("#gem-picker-embue").click();
+    const slotted = await page.evaluate(() => window.__bpc.Storage.getSockets("draco")[0]);
+    expect(slotted).toBe("citrine:chipped");
   });
 
   test("removing a socketed gem warns then shatters it for dust", async ({ page }) => {

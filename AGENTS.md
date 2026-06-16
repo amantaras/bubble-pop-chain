@@ -907,14 +907,28 @@ never re‑discovered the hard way.
   detail renders a clickable socket row;
   each gem advertises its concrete effect via `gemBuffLabel(key)`
   (e.g. `+12% Score`, `+6% all stats`, `-3 move ability cooldown`), shown both on
-  picker buttons (`.pg-buff`) and as a buff caption under filled slots
-  (`.pd-socket-buffs`). **Socketing stays contextual on the Pets screen**: tapping
-  an empty slot opens the gem **picker** (still rendered into `#pet-gems` in
-  picker mode). Because the `#pet-gems` host sits **above** the pet detail in the
-  DOM, the picker promotes it to a centered overlay (`.pet-gems.pg-picking`) so it
-  can't render off-screen; gems above the pet's unlocked tier appear **locked**
-  with the required level, and gems the player can't afford show their dust cost
-  as unaffordable. A successful embue plays a celebratory `_playSocketMagic()`
+  the picker's selection detail (`.pg-pd-buff`) and as a buff caption under filled
+  slots (`.pd-socket-buffs`). **Socketing stays contextual on the Pets screen**:
+  tapping an empty slot opens the gem **picker** (rendered into `#pet-gems` in
+  picker mode, `_gemPicker = {petId, slot}` / `_gemPickSel`). Because the
+  `#pet-gems` host sits **above** the pet detail in the DOM, the picker promotes it
+  to a centered overlay (`.pet-gems.pg-picking`) so it can't render off-screen. The
+  picker is a **select→confirm** flow built for clarity: a **dense 4-column grid**
+  of small selectable cells (`.pg-pick-cell[data-gem]`) using the distinct
+  `_gemVis` tier visuals (matte chip / glossy gem / faceted diamond) + tier pips
+  (◆/◆◆/◆◆◆) + a count badge, **sorted strongest-first** (tier desc, then buff
+  magnitude) with a **★ BEST** badge (`.pg-pc-best`) on the strongest gem the pet
+  can actually socket. Tapping a cell **selects** it (`.pg-pick-cell.sel`,
+  highlighted, persisted in `_gemPickSel`); the selection defaults to that BEST
+  gem so one tap on **Embue** equips it. A fixed **detail panel**
+  (`.pg-pick-detail`) below the scrolling grid shows the selected gem's big visual,
+  name + tier pips, exact buff (`.pg-pd-buff`), and a **power bar** (`.pg-pd-fill`,
+  tier/3 width, gem-coloured) with the tier label (`.pg-pd-tier`); a prominent
+  **Embue** button (`#gem-picker-embue`) confirms the embue showing the dust cost.
+  Gems above the pet's unlocked tier appear **locked** (`.locked`, 🔒 + required
+  level, excluded from BEST/default selection), and gems the player can't afford
+  show the Embue button disabled with the shortfall. A successful embue plays a
+  celebratory `_playSocketMagic()`
   flourish — one of **5 random variants** (`.socket-magic[data-variant]`, ring +
   glyph + sparks, recorded as `_lastSocketMagic`, skipped under reduced motion).
   Tapping a **filled** slot opens the `#gem-remove` warning modal
