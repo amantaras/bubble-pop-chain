@@ -12,6 +12,7 @@
 // ⚠️ Player-facing feature — keep the tutorial in sync (AGENTS.md §11).
 
 import { socketBuffs, socketActiveMods } from "./gems.js";
+import { techBuffs, techActiveMods } from "./tech.js";
 
 export const MAX_PET_LEVEL = 5;
 // XP granted to the equipped pet each time a level is cleared.
@@ -31,20 +32,14 @@ export const PITY_LEGENDARY = 30;
 
 // ---- Pet Dust (duplicate currency) -----------------------------------------
 // Opening a crate that rolls a pet you ALREADY own converts the duplicate into
-// Dust (on top of the existing bonus XP). Dust is then spent to CRAFT a chosen
-// non-premium pet outright — agency over pure RNG / a pity-of-last-resort. Both
-// tables are keyed by pet rarity.
+// Dust (on top of the existing bonus XP). Dust is then spent on the GEM system
+// (crafting and embuing gems into pet sockets) — see gems.js. The table is
+// keyed by pet rarity.
 export const DUST_PER_DUP = { common: 5, rare: 12, epic: 30, legendary: 80 };
-export const DUST_COST = { common: 60, rare: 160, epic: 360, legendary: 900 };
 
 // Dust granted for a duplicate of the given rarity.
 export function dustValue(rarity) {
   return DUST_PER_DUP[rarity] != null ? DUST_PER_DUP[rarity] : DUST_PER_DUP.common;
-}
-
-// Dust price to craft a pet of the given rarity.
-export function dustCost(rarity) {
-  return DUST_COST[rarity] != null ? DUST_COST[rarity] : DUST_COST.common;
 }
 
 // The minimum rarity the NEXT standard crate must yield, given the pity
@@ -403,10 +398,10 @@ export function neutralBuffs() {
 // The passive buffs an equipped pet provides at the given level, as a flat
 // object the game can multiply against (or add, for startCharge). A pet's own
 // ability is applied first, then its TRAIT's passive mods are stacked on — so
-// even active-only pets contribute buffs via a Lucky/Keen/Fiery trait. Finally
-// any GEMS slotted into the pet's sockets (`sockets`, an array of "type:tier"
-// keys) fold their passive buffs on top.
-export function petBuffs(petId, level, traitId, sockets) {
+// even active-only pets contribute buffs via a Lucky/Keen/Fiery trait. Then any
+// GEMS slotted into the pet's sockets (`sockets`, an array of "type:tier" keys)
+// and any chosen TECH-TREE nodes (`tech`, an array of node ids) fold on top.
+export function petBuffs(petId, level, traitId, sockets, tech) {
   const base = neutralBuffs();
   const pet = getPet(petId);
   if (pet && pet.ability) {
@@ -427,6 +422,13 @@ export function petBuffs(petId, level, traitId, sockets) {
   base.powerMult *= g.powerMult;
   base.feverMult *= g.feverMult;
   base.startCharge = Math.min(1, base.startCharge + (g.startCharge || 0));
+  // Tech-tree nodes (passive axes) stack on multiplicatively too.
+  const t = techBuffs(tech);
+  base.scoreMult *= t.scoreMult;
+  base.coinMult *= t.coinMult;
+  base.powerMult *= t.powerMult;
+  base.feverMult *= t.feverMult;
+  base.startCharge = Math.min(1, base.startCharge + (t.startCharge || 0));
   return base;
 }
 
@@ -435,25 +437,35 @@ export function petBuffs(petId, level, traitId, sockets) {
 // up); `count` is how many bubbles a cleanse clears; `strength` (0..1) is how
 // strongly a gather pulls a colour together. All scale with level, then the
 // pet's TRAIT nudges them (Swift = faster cooldown, Mighty = +count/strength),
-// then any socketed GEMS (e.g. an Emerald shortens the cooldown further).
-export function petActive(petId, level, traitId, sockets) {
+// then any socketed GEMS (e.g. an Emerald shortens the cooldown further), then
+// any chosen TECH-TREE nodes (e.g. Haste/Mastery) fold on top.
+export function petActive(petId, level, traitId, sockets, tech) {
   const pet = getPet(petId);
   if (!pet || !pet.active) return null;
   const lvl = Math.max(1, Math.min(MAX_PET_LEVEL, Math.floor(level)));
   const a = pet.active;
   const m = getTrait(traitId).mods || {};
   const gm = socketActiveMods(sockets);
+  const tm = techActiveMods(tech);
   const cooldown = Math.max(
     1,
     Math.max(a.minCooldown, a.baseCooldown - (lvl - 1)) +
       (m.cooldownDelta || 0) +
-      (gm.cooldownDelta || 0)
+      (gm.cooldownDelta || 0) +
+      (tm.cooldownDelta || 0)
   );
   const count = Math.max(
     0,
-    (a.baseCount || 0) + (lvl - 1) * (a.countPer || 0) + (m.countDelta || 0) + (gm.countDelta || 0)
+    (a.baseCount || 0) +
+      (lvl - 1) * (a.countPer || 0) +
+      (m.countDelta || 0) +
+      (gm.countDelta || 0) +
+      (tm.countDelta || 0)
   );
-  const strength = Math.min(1, (0.45 + lvl * 0.12) * (m.strengthMult || 1) * (gm.strengthMult || 1));
+  const strength = Math.min(
+    1,
+    (0.45 + lvl * 0.12) * (m.strengthMult || 1) * (gm.strengthMult || 1) * (tm.strengthMult || 1)
+  );
   return {
     type: a.type,
     cooldown,
@@ -493,7 +505,7 @@ export function partyBuffs(members) {
   const out = neutralBuffs();
   for (const m of members || []) {
     if (!m || !m.id) continue;
-    const b = petBuffs(m.id, m.level, m.trait, m.sockets);
+    const b = petBuffs(m.id, m.level, m.trait, m.sockets, m.tech);
     const frac = m.role === "support" ? SUPPORT_FRACTION : 1;
     out.powerMult *= 1 + (b.powerMult - 1) * frac;
     out.feverMult *= 1 + (b.feverMult - 1) * frac;

@@ -74,7 +74,6 @@ import {
   CRATE_COST,
   LEGENDARY_CRATE,
   premiumPets,
-  dustCost,
   getTrait,
   SUPPORT_SLOTS,
   activeSynergies,
@@ -98,6 +97,14 @@ import {
   socketDustCost,
   unsocketDustRefund,
 } from "./gems.js";
+import {
+  TECH_TREE,
+  techTierAt,
+  techNode,
+  pendingTechTier,
+  hasPendingTech,
+  techTiersUnlocked,
+} from "./tech.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -134,7 +141,7 @@ class UIManager {
       "pet-reveal", "pet-reveal-confetti", "pet-reveal-congrats", "pet-reveal-glow",
       "pet-reveal-icon", "pet-reveal-name", "pet-reveal-rarity", "pet-reveal-ability",
       "pet-reveal-desc", "pet-reveal-close", "pet-reveal-equip",
-      "btn-pets", "pets-back", "hud-pet", "hud-pet-icon", "hud-pet-buff",
+      "btn-pets", "pets-back", "hud-pet", "hud-pet-icon", "hud-pet-buff", "pets-badge",
       "btn-continue", "daily-summary",
       "hud-mode-label", "hud-score", "hud-target", "hud-target-wrap", "hud-target-label",
       "hud-moves", "hud-moves-label", "hud-progress-fill",
@@ -366,6 +373,7 @@ class UIManager {
       this.refreshQuestsBadge();
       this.refreshSeasonBadge();
       this.refreshPuzzleBadge();
+      this.refreshPetsBadge();
     }
     if (name === "levelmap") this.buildLevelMap();
     if (name === "shop") this.buildShop();
@@ -1578,6 +1586,26 @@ class UIManager {
     }
   }
 
+  // Show a badge on the menu Pets tile when any owned pet has a tech-tree
+  // upgrade ready to pick. Counts pets, not pending tiers.
+  refreshPetsBadge() {
+    const badge = this.el["pets-badge"];
+    if (!badge) return;
+    let n = 0;
+    if (this.cb.petHasPendingTech) {
+      const owned = Storage.getPetState().owned || {};
+      for (const id of Object.keys(owned)) {
+        if (this.cb.petHasPendingTech(id)) n++;
+      }
+    }
+    if (n > 0) {
+      badge.textContent = String(n);
+      badge.classList.remove("hidden");
+    } else {
+      badge.classList.add("hidden");
+    }
+  }
+
   // ---- Stats / Profile dashboard ----------------------------------------
   // Render the read-only profile + lifetime totals. All data is sourced from
   // the save via the pure `stats.js` aggregator, so this is purely a view.
@@ -1827,7 +1855,7 @@ class UIManager {
     wrap.innerHTML = "";
     const info = document.createElement("div");
     info.className = "crate-info";
-    info.innerHTML = `<span class="crate-icon">🎁</span><div><div class="crate-title">Pet Crates</div><div class="crate-sub">You have <b id="crate-count">${crates}</b> — open one to win a pet!</div><div class="crate-dust">✨ <b id="dust-count">${dust}</b> Pet Dust — craft a pet below</div></div>`;
+    info.innerHTML = `<span class="crate-icon">🎁</span><div><div class="crate-title">Pet Crates</div><div class="crate-sub">You have <b id="crate-count">${crates}</b> — open one to win a pet!</div><div class="crate-dust">✨ <b id="dust-count">${dust}</b> Pet Dust — craft & embue gems</div></div>`;
 
     const openBtn = document.createElement("button");
     openBtn.className = "buy-btn pet-open-btn";
@@ -1982,11 +2010,13 @@ class UIManager {
       const cos = has ? getCosmetic(owned[pet.id].cosmetic) : null;
       const hue = cos ? cos.hue : 0;
       const tag = pet.premium && !has ? "premium" : pet.rarity;
+      const pendingTech = has && this.cb.petHasPendingTech && this.cb.petHasPendingTech(pet.id);
       card.innerHTML =
         `<span class="pet-icon" style="filter:hue-rotate(${hue}deg)">${has ? pet.icon : (pet.premium ? "💎" : "❓")}</span>` +
         `<span class="pet-name">${has ? pet.name : (pet.premium ? "Premium" : "???")}</span>` +
         `<span class="pet-tag tag-${tag}">${has ? "Lv." + lvl : tag}</span>` +
-        (equipped === pet.id ? `<span class="pet-eqbadge">✓</span>` : "");
+        (equipped === pet.id ? `<span class="pet-eqbadge">✓</span>` : "") +
+        (pendingTech ? `<span class="pet-techbadge" title="Tech upgrade ready">🧬</span>` : "");
       card.addEventListener("click", () => {
         Audio.click();
         this._selectedPet = pet.id;
@@ -2042,6 +2072,9 @@ class UIManager {
 
       // Gem sockets (unlock with level; tap to socket / unsocket a gem).
       panel.appendChild(this._buildSocketRow(pet, lvl, owned[pet.id]));
+
+      // Technology tree (pick one upgrade per level-up tier).
+      panel.appendChild(this._buildPetTech(pet, lvl, owned[pet.id]));
 
       // Equip button.
       const equip = document.createElement("button");
@@ -2110,35 +2143,9 @@ class UIManager {
       });
       panel.appendChild(buy);
     } else {
-      const cost = dustCost(pet.rarity);
-      const { dust } = Storage.getPetState();
-      const craft = document.createElement("button");
-      craft.className = "buy-btn pet-craft-btn";
-      craft.id = "pet-craft";
-      craft.innerHTML = `Craft ✨${cost}`;
-      if (dust < cost) {
-        craft.disabled = true;
-        craft.classList.add("locked");
-      }
-      craft.addEventListener("click", () => {
-        if (!this.cb.craftPet) return;
-        const res = this.cb.craftPet(pet.id);
-        if (res && res.ok) {
-          Audio.coin();
-          this.toast(`${pet.icon} ${pet.name} crafted!`);
-          this._selectedPet = pet.id;
-          this.buildPets();
-        } else if (res && res.reason === "dust") {
-          this.toast("Not enough Pet Dust");
-        } else {
-          this.toast("Can't craft this pet");
-        }
-      });
-      panel.appendChild(craft);
-
       const hint = document.createElement("div");
       hint.className = "pd-locked-hint";
-      hint.textContent = `Open crates to win this pet, or craft it with ✨${cost} Pet Dust (you have ✨${dust}). Dust comes from duplicate crate pulls.`;
+      hint.textContent = `Open Pet Crates to win ${pet.name}. Duplicate pulls turn into ✨ Pet Dust you can spend on gems.`;
       panel.appendChild(hint);
     }
   }
@@ -2219,6 +2226,82 @@ class UIManager {
         )
         .join("");
       wrap.appendChild(caps);
+    }
+    return wrap;
+  }
+
+  // A pet's technology tree: four tiers, each unlocked at a level-up (Lv.2→5).
+  // The player picks ONE of two nodes per tier; the choice is permanent. The
+  // currently-pending tier is highlighted and its options are clickable; locked
+  // future tiers show the level required.
+  _buildPetTech(pet, lvl, state) {
+    const wrap = document.createElement("div");
+    wrap.className = "pd-tech";
+    const chosen = state && Array.isArray(state.tech) ? state.tech : [];
+    const pending = pendingTechTier(chosen, lvl);
+    const unlocked = techTiersUnlocked(lvl);
+    const title = document.createElement("div");
+    title.className = "pd-tech-title";
+    title.innerHTML = `🧬 Tech Tree` + (pending >= 0 ? `<span class="pd-tech-pip">Pick!</span>` : "");
+    wrap.appendChild(title);
+    for (let i = 0; i < TECH_TREE.length; i++) {
+      const tier = techTierAt(i);
+      const tierEl = document.createElement("div");
+      tierEl.className = "pd-tech-tier";
+      const chosenNode = tier.options.find((o) => chosen.includes(o.id));
+      if (chosenNode) {
+        // Already picked — show the locked-in node.
+        tierEl.classList.add("picked");
+        const node = document.createElement("div");
+        node.className = "pd-tech-node chosen";
+        node.innerHTML =
+          `<span class="tn-icon">${chosenNode.icon}</span>` +
+          `<span class="tn-name">${chosenNode.name}</span>` +
+          `<span class="tn-desc">${chosenNode.desc}</span>` +
+          `<span class="tn-check">✓</span>`;
+        tierEl.appendChild(node);
+      } else if (i === pending) {
+        // The tier the player can pick right now — both options clickable.
+        tierEl.classList.add("pending");
+        const head = document.createElement("div");
+        head.className = "pd-tech-head";
+        head.textContent = `Tier ${tier.tier} — choose one`;
+        tierEl.appendChild(head);
+        const opts = document.createElement("div");
+        opts.className = "pd-tech-opts";
+        for (const o of tier.options) {
+          const btn = document.createElement("button");
+          btn.className = "pd-tech-node opt";
+          btn.dataset.node = o.id;
+          btn.innerHTML =
+            `<span class="tn-icon">${o.icon}</span>` +
+            `<span class="tn-name">${o.name}</span>` +
+            `<span class="tn-desc">${o.desc}</span>`;
+          btn.addEventListener("click", () => {
+            Audio.click();
+            if (this.cb.pickPetTech) {
+              const res = this.cb.pickPetTech(pet.id, o.id);
+              if (res && res.ok) {
+                Audio.powerup();
+                this.toast(`${o.icon} ${o.name} unlocked!`);
+              }
+            }
+            this.buildPets();
+          });
+          opts.appendChild(btn);
+        }
+        tierEl.appendChild(opts);
+      } else {
+        // Locked future tier — show the level required to unlock it.
+        tierEl.classList.add("locked");
+        const lock = document.createElement("div");
+        lock.className = "pd-tech-lock";
+        lock.innerHTML =
+          `<span class="tl-icon">🔒</span>` +
+          `<span class="tl-text">Tier ${tier.tier} — reach Lv.${tier.minLevel}</span>`;
+        tierEl.appendChild(lock);
+      }
+      wrap.appendChild(tierEl);
     }
     return wrap;
   }

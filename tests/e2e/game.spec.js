@@ -3681,42 +3681,6 @@ test.describe("pet companions (collection & buffs)", () => {
     await expect(page.locator("#dust-count")).toHaveText(String(dust.after));
   });
 
-  test("crafting a pet with dust unlocks it and spends dust", async ({ page }) => {
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
-    // Give plenty of dust and target an unowned non-premium pet (rover, rare).
-    const cost = await page.evaluate(() => {
-      window.__bpc.Storage.addDust(2000);
-      return window.__bpc.pets.dustCost(window.__bpc.pets.getPet("rover").rarity);
-    });
-    const res = await page.evaluate(() => window.__bpc.game.craftPet("rover"));
-    expect(res.ok).toBe(true);
-    expect(res.petId).toBe("rover");
-    const owns = await page.evaluate(
-      () => !!window.__bpc.Storage.getPetState().owned.rover
-    );
-    expect(owns).toBe(true);
-    const remaining = await page.evaluate(() => window.__bpc.Storage.getDust());
-    expect(remaining).toBe(2000 - cost);
-  });
-
-  test("crafting rejects premium pets and unaffordable dust", async ({ page }) => {
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
-    const rejects = await page.evaluate(() => {
-      const g = window.__bpc.game;
-      window.__bpc.Storage.addDust(0); // none
-      return {
-        premium: g.craftPet("aurora"), // premium → rejected
-        broke: g.craftPet("rover"), // no dust → rejected
-        unknown: g.craftPet("nope"),
-      };
-    });
-    expect(rejects.premium.ok).toBe(false);
-    expect(rejects.premium.reason).toBe("premium");
-    expect(rejects.broke.ok).toBe(false);
-    expect(rejects.broke.reason).toBe("dust");
-    expect(rejects.unknown.ok).toBe(false);
-  });
-
   test("the pity timer guarantees rarer pets after dry opens", async ({ page }) => {
     await page.getByRole("button", { name: "Pets", exact: true }).click();
     const result = await page.evaluate(() => {
@@ -3728,23 +3692,6 @@ test.describe("pet companions (collection & buffs)", () => {
       return { floor };
     });
     expect(result.floor).toBe("epic");
-  });
-
-  test("a crafted pet is assigned a valid personality trait", async ({ page }) => {
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
-    const out = await page.evaluate(() => {
-      const S = window.__bpc.Storage;
-      const { TRAITS } = window.__bpc.pets;
-      S.addDust(2000);
-      const res = window.__bpc.game.craftPet("rover");
-      return {
-        ok: res.ok,
-        trait: S.getPetTrait("rover"),
-        valid: TRAITS.map((t) => t.id),
-      };
-    });
-    expect(out.ok).toBe(true);
-    expect(out.valid).toContain(out.trait);
   });
 
   test("an equipped pet's trait modifies its buffs", async ({ page }) => {
@@ -4693,6 +4640,95 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
     expect(out.sockets[0]).toBeFalsy(); // slot emptied
     expect(out.inBag).toBe(0); // gem destroyed, not returned
     expect(out.dust).toBe(dustBefore + out.refund); // partial dust refund
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Pet technology tree (RPG batch 5): each level-up unlocks a tier of two
+// upgrade nodes; the player permanently picks one, customizing the pet.
+// ---------------------------------------------------------------------------
+test.describe("pet technology tree (RPG batch 5)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("the pet detail shows the tech tree with a pending pick at Lv.2", async ({ page }) => {
+    await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      S.grantPet("draco");
+      S.addPetXp("draco", 60); // → Lv.2 (unlocks tier 1)
+    });
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator('.pet-card[data-pet="draco"]').click();
+    await expect(page.locator("#pet-detail .pd-tech")).toBeVisible();
+    // Tier 1 is pending: both options are clickable.
+    await expect(page.locator("#pet-detail .pd-tech-tier.pending")).toBeVisible();
+    await expect(page.locator('#pet-detail .pd-tech-node.opt[data-node="t1_power"]')).toBeVisible();
+    await expect(page.locator('#pet-detail .pd-tech-node.opt[data-node="t1_fortune"]')).toBeVisible();
+    // Locked future tiers show the level required.
+    await expect(page.locator("#pet-detail .pd-tech-tier.locked")).toHaveCount(3);
+  });
+
+  test("picking a node records it and raises the pet's buff", async ({ page }) => {
+    await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      S.grantPet("draco");
+      S.addPetXp("draco", 60); // Lv.2
+    });
+    const before = await page.evaluate(() => {
+      const { petBuffs, levelForXp } = window.__bpc.pets;
+      const S = window.__bpc.Storage;
+      const lvl = levelForXp(S.getPetState().owned.draco.xp);
+      return petBuffs("draco", lvl, S.getPetTrait("draco"), S.getSockets("draco"), S.getPetTech("draco")).scoreMult;
+    });
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator('.pet-card[data-pet="draco"]').click();
+    await page.locator('#pet-detail .pd-tech-node.opt[data-node="t1_power"]').click();
+    const out = await page.evaluate(() => {
+      const { petBuffs, levelForXp } = window.__bpc.pets;
+      const S = window.__bpc.Storage;
+      const lvl = levelForXp(S.getPetState().owned.draco.xp);
+      return {
+        tech: S.getPetTech("draco"),
+        scoreMult: petBuffs("draco", lvl, S.getPetTrait("draco"), S.getSockets("draco"), S.getPetTech("draco")).scoreMult,
+      };
+    });
+    expect(out.tech).toContain("t1_power");
+    expect(out.scoreMult).toBeCloseTo(before * 1.06, 5);
+    // After picking, the chosen node is shown locked-in with a check.
+    await expect(page.locator('#pet-detail .pd-tech-node.chosen')).toBeVisible();
+  });
+
+  test("a higher tier cannot be picked before its level is reached", async ({ page }) => {
+    const out = await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      const G = window.__bpc.game;
+      S.grantPet("draco");
+      S.addPetXp("draco", 60); // Lv.2 → only tier 1 unlocked
+      // Try to pick a tier-2 node directly (illegal at Lv.2).
+      const bad = G.pickPetTech("draco", "t2_charge");
+      // The legal tier-1 pick still works.
+      const good = G.pickPetTech("draco", "t1_power");
+      return { bad, good, tech: S.getPetTech("draco") };
+    });
+    expect(out.bad.ok).toBe(false);
+    expect(out.good.ok).toBe(true);
+    expect(out.tech).toEqual(["t1_power"]);
+  });
+
+  test("the menu Pets tile badges a pet with a pending upgrade", async ({ page }) => {
+    await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      S.grantPet("draco");
+      S.addPetXp("draco", 60); // Lv.2 → pending tier
+    });
+    // Re-show the menu so the badge refreshes.
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#pets-back").click();
+    await expect(page.locator("#pets-badge")).toBeVisible();
+    // Once picked, the badge clears.
+    await page.evaluate(() => window.__bpc.game.pickPetTech("draco", "t1_power"));
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#pets-back").click();
+    await expect(page.locator("#pets-badge")).toBeHidden();
   });
 });
 

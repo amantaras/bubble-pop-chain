@@ -95,7 +95,6 @@ import {
   pityRarityFloor,
   nextPity,
   dustValue,
-  dustCost,
   PITY_EPIC,
   PITY_LEGENDARY,
   rollTrait,
@@ -127,6 +126,15 @@ import {
   unsocketDustRefund,
   MAX_SOCKETS,
 } from "./gems.js";
+import {
+  TECH_TREE,
+  techNode,
+  techTierOf,
+  pendingTechTier,
+  hasPendingTech,
+  canPickTech,
+  techTiersUnlocked,
+} from "./tech.js";
 import { calendarStatus, advanceCalendar } from "./calendar.js";
 import {
   ensureQuests,
@@ -247,12 +255,13 @@ class Game {
       openCrate: () => this.openCrate(),
       buyCrate: () => this.buyCrate(),
       buyLegendaryCrate: () => this.buyLegendaryCrate(),
-      craftPet: (id) => this.craftPet(id),
       equipPet: (id) => this.equipPet(id),
       toggleSupport: (id) => this.toggleSupport(id),
       craftGem: (type, tier) => this.craftGem(type, tier),
       socketGem: (petId, slot, key) => this.socketGem(petId, slot, key),
       unsocketGem: (petId, slot) => this.unsocketGem(petId, slot),
+      pickPetTech: (petId, nodeId) => this.pickPetTech(petId, nodeId),
+      petHasPendingTech: (petId) => this.petHasPendingTech(petId),
       buyPremiumPet: (id) => this.buyPremiumPet(id),
       buyCosmetic: (petId, cos) => this.buyCosmetic(petId, cos),
       isLevelActive: () => this.isLevelActive(),
@@ -386,7 +395,7 @@ class Game {
   _partyMembers() {
     const members = [];
     const eq = Storage.getEquippedPet();
-    if (eq) members.push({ id: eq.id, level: levelForXp(eq.xp || 0), trait: eq.trait, sockets: Storage.getSockets(eq.id), role: "lead" });
+    if (eq) members.push({ id: eq.id, level: levelForXp(eq.xp || 0), trait: eq.trait, sockets: Storage.getSockets(eq.id), tech: Storage.getPetTech(eq.id), role: "lead" });
     for (const id of Storage.getPartySupports()) {
       if (!Storage.ownsPet(id) || id === (eq && eq.id)) continue;
       members.push({
@@ -394,6 +403,7 @@ class Game {
         level: levelForXp((Storage.getPetState().owned[id] || {}).xp || 0),
         trait: Storage.getPetTrait(id),
         sockets: Storage.getSockets(id),
+        tech: Storage.getPetTech(id),
         role: "support",
       });
     }
@@ -417,7 +427,7 @@ class Game {
   _equippedActive() {
     const eq = Storage.getEquippedPet();
     if (!eq) return null;
-    return petActive(eq.id, levelForXp(eq.xp || 0), eq.trait, Storage.getSockets(eq.id));
+    return petActive(eq.id, levelForXp(eq.xp || 0), eq.trait, Storage.getSockets(eq.id), Storage.getPetTech(eq.id));
   }
 
   // Roll a fresh personality trait for a newly-acquired pet, advancing the
@@ -438,7 +448,12 @@ class Game {
     const after = levelForXp((eq.xp || 0) + PET_XP_PER_LEVEL);
     const pet = getPet(eq.id);
     const name = pet ? `${pet.icon} ${pet.name}` : "Pet";
-    if (after > before) return `🐾 ${name} reached Lv.${after}!`;
+    if (after > before) {
+      // A level-up may unlock a new tech-tree tier to pick.
+      const tech = Storage.getPetTech(eq.id);
+      const pick = hasPendingTech(tech, after) ? " — pick an upgrade in Pets!" : "";
+      return `🐾 ${name} reached Lv.${after}!${pick}`;
+    }
     return `🐾 ${name} +${PET_XP_PER_LEVEL} XP`;
   }
 
@@ -919,6 +934,21 @@ class Game {
     return { ok: true, petId, rarity: pet.rarity, cost, trait };
   }
 
+  // Craft (buy) a specific NON-premium pet outright with Pet Dust — the
+  // duplicate currency. Lets a player escape bad crate luck and target a pet
+  // they want. Returns { ok, petId, rarity, cost } or { ok:false, reason }.
+  craftPet(petId) {
+    const pet = getPet(petId);
+    if (!pet) return { ok: false, reason: "unknown" };
+    if (pet.premium) return { ok: false, reason: "premium" };
+    if (Storage.ownsPet(petId)) return { ok: false, reason: "owned" };
+    const cost = dustCost(pet.rarity);
+    if (!Storage.spendDust(cost)) return { ok: false, reason: "dust" };
+    const trait = this._rollPetTrait();
+    Storage.grantPet(petId, trait);
+    return { ok: true, petId, rarity: pet.rarity, cost, trait };
+  }
+
   // Buy + open the premium Legendary Crate via the (mock) IAP provider. Boosted
   // odds (see rollLegendaryCrate): always a legendary, often a premium pet.
   // Returns { petId, isNew, premium } on success, or null if the purchase fails.
@@ -1026,6 +1056,27 @@ class Game {
     if (dust > 0) Storage.addDust(dust);
     this._refreshPetSession();
     return { key, dust };
+  }
+
+  // Pick a tech-tree node for an owned pet. Validates the pick is legal at the
+  // pet's current level (the node's tier must be the currently-pending tier),
+  // records it, and live-refreshes the running session if it's the active lead.
+  // Returns { ok:true, node } or { ok:false, reason }.
+  pickPetTech(petId, nodeId) {
+    if (!Storage.ownsPet(petId)) return { ok: false, reason: "unowned" };
+    const lvl = levelForXp((Storage.getPetState().owned[petId] || {}).xp || 0);
+    const chosen = Storage.getPetTech(petId);
+    if (!canPickTech(chosen, nodeId, lvl)) return { ok: false, reason: "locked" };
+    if (!Storage.addPetTech(petId, nodeId)) return { ok: false, reason: "owned" };
+    this._refreshPetSession();
+    return { ok: true, node: techNode(nodeId) };
+  }
+
+  // Whether an owned pet has a tech-tier ready to pick (drives the Pets badge).
+  petHasPendingTech(petId) {
+    if (!Storage.ownsPet(petId)) return false;
+    const lvl = levelForXp((Storage.getPetState().owned[petId] || {}).xp || 0);
+    return hasPendingTech(Storage.getPetTech(petId), lvl);
   }
 
   // Roll a gem reward and add it to inventory (used by crate/event drops).
@@ -3734,8 +3785,9 @@ if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) 
     Monetization,
     UI,
     getLevel,
-    pets: { petBuffs, petActive, levelForXp, rollCrate, rollLegendaryCrate, getPet, PET_CATALOG, pityRarityFloor, nextPity, dustValue, dustCost, PITY_EPIC, PITY_LEGENDARY, rollTrait, getTrait, TRAITS, partyBuffs, partyTotalBuffs, activeSynergies, SYNERGIES, SUPPORT_SLOTS },
+    pets: { petBuffs, petActive, levelForXp, rollCrate, rollLegendaryCrate, getPet, PET_CATALOG, pityRarityFloor, nextPity, dustValue, PITY_EPIC, PITY_LEGENDARY, rollTrait, getTrait, TRAITS, partyBuffs, partyTotalBuffs, activeSynergies, SYNERGIES, SUPPORT_SLOTS },
     gems: { GEM_CATALOG, GEM_TIERS, socketsForLevel, socketBuffs, socketActiveMods, rollGem, gemKey, parseGemKey, gemDustCost, getGemDef, getGemTier, gemLabel, canSocketGemAtLevel, maxGemTierForLevel, levelForGemTier, socketDustCost, unsocketDustRefund, MAX_SOCKETS },
+    tech: { TECH_TREE, techNode, techTierOf, pendingTechTier, hasPendingTech, canPickTech, techTiersUnlocked },
     calendar: { calendarStatus, advanceCalendar, todayKey },
     season: { seasonStatus, addSeasonXp, claimTier, tierReward },
     quests: { ensureQuests, applyQuestProgress, claimQuest, questsClaimable, todayKey, weekKey },

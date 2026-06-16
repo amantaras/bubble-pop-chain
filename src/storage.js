@@ -84,7 +84,7 @@ const DEFAULT_SAVE = {
   // Sparky equipped and one starter crate so the system is usable immediately.
   pets: {
     owned: {
-      sparky: { xp: 0, cosmetics: ["default"], cosmetic: "default", trait: "balanced", sockets: [] },
+      sparky: { xp: 0, cosmetics: ["default"], cosmetic: "default", trait: "balanced", sockets: [], tech: [] },
     },
     equipped: "sparky",
     crates: 1,
@@ -353,6 +353,7 @@ class StorageManager {
       cosmetic: "default",
       trait: trait || "balanced",
       sockets: [],
+      tech: [],
     };
     this._writePets(p);
     return true;
@@ -363,6 +364,28 @@ class StorageManager {
   getPetTrait(id) {
     const p = this.getPetState();
     return p.owned[id] ? p.owned[id].trait || "balanced" : null;
+  }
+
+  // The chosen tech-tree node ids for an owned pet (always a fresh array; old
+  // saves without a tech field resolve to an empty array).
+  getPetTech(id) {
+    const p = this.getPetState();
+    const pet = p.owned[id];
+    if (!pet) return [];
+    return Array.isArray(pet.tech) ? pet.tech.slice() : [];
+  }
+
+  // Record a chosen tech-tree node for an owned pet (idempotent per node id).
+  // Returns true when newly added. Caller validates the pick is legal.
+  addPetTech(id, nodeId) {
+    const p = this.getPetState();
+    const pet = p.owned[id];
+    if (!pet) return false;
+    if (!Array.isArray(pet.tech)) pet.tech = [];
+    if (pet.tech.includes(nodeId)) return false;
+    pet.tech.push(nodeId);
+    this._writePets(p);
+    return true;
   }
 
   addPetXp(id, amount) {

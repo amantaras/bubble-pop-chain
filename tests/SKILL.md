@@ -149,6 +149,20 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   (a ruby raises `petBuffs.scoreMult`, a diamond lifts all axes, an emerald
   shortens `petActive.cooldown` clamped ≥1, undefined-sockets backward compat);
   `events.test.js` adds the `{type:"gem"}` gift reward slice.
+- **tech** (`tests/unit/tech.test.js`): the pet technology tree module — tree
+  structure (4 tiers × 2 options, `minLevel` 2/3/4/5, unique node ids, every
+  node has icon/name/desc/non-empty mods), `techNode`/`techTierOf`/`techTierAt`/
+  `techTierOptions` lookups, `techTiersUnlocked` level-gating, `pendingTechTier`
+  (first unlocked unpicked tier, -1 when none), `hasPendingTech`, `canPickTech`
+  (only the pending tier, no skipping ahead / no re-picking), `techBuffs` passive
+  aggregation (`1+sum` per axis, overdrive lifts all four, unknown ids ignored),
+  and `techActiveMods` (cooldown/count summed, strength multiplied, neutral when
+  empty). `pets.test.js` adds the tech-fold cases (a score node raises
+  `petBuffs.scoreMult`, gems+tech stack multiplicatively on the same axis,
+  overdrive all-axes, `t3_haste` shortens `petActive.cooldown`, `t4_mastery`
+  boosts count+strength, undefined-tech backward compat). Storage coverage adds
+  `getPetTech`/`addPetTech` (idempotent per node, fresh-array return, empty for
+  unowned, default Sparky `tech:[]`, no-op on unowned).
   plus the grid helpers it relies on
   (dominant colour, first-cell-of-colour, isolated-cell detection, and
   most-isolated-cell ranking for the Talon pick pet),
@@ -250,9 +264,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   buy + open a crate grants a pet, the Pet Store sells premium pets + a
   Legendary Crate that grants a pet, buying a premium pet unlocks it,
   duplicate crate pulls grant Pet Dust + the crate panel shows the balance,
-  crafting a pet with dust unlocks it (rejecting premium/unaffordable), the
-  pity timer guarantees rarer pets after dry opens, a crafted pet is assigned a
-  valid personality trait and an equipped pet's trait modifies its buffs, the
+  the pity timer guarantees rarer pets after dry opens, an equipped pet's trait
+  modifies its buffs, the
   Pets screen shows the party panel with a lead slot, adding a support pet folds
   its buffs into the equipped party, and a matching party grants a set synergy
   bonus,
@@ -276,6 +289,11 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   successful UI embue plays one of 5 random magic flourishes
   (`_lastSocketMagic` 0–4), and tapping an empty socket opens a visible centered
   gem-picker overlay),
+  the pet technology tree flow (the pet detail shows the `#pet-detail .pd-tech`
+  tree with a pending pick at Lv.2 and three locked future tiers, picking a node
+  records it and raises the pet's live buff (chosen node shown locked-in), a
+  higher tier can't be picked before its level is reached, and the menu Pets tile
+  badges a pet with a pending upgrade then clears once picked),
   the daily retention flow (summary, streak reward),
   buying a power-up refreshing the HUD tool-slot count,
   a performance guard (a heavy pop storm keeps the particle pool capped and it

@@ -725,10 +725,9 @@ never re‑discovered the hard way.
   drop a free crate, falling 🎁 gifts can drop a crate `GIFT_CRATE_CHANCE`,
   starter save grants Sparky + 1 crate); duplicates convert
   to XP (`DUP_XP`) **and Pet Dust** (`dustValue(rarity)`, `DUST_PER_DUP`) — the
-  duplicate currency. Dust is spent to **craft** any chosen non-premium pet
-  outright (`Game.craftPet(id)` → `Storage.spendDust(dustCost(rarity))` →
-  `grantPet`; rejects premium/owned/insufficient-dust), giving agency over pure
-  RNG. Crate pulls also run a **pity timer** (`pets.js` `PITY_EPIC`=10/
+  duplicate currency. Dust is **not** spent on pets (there is no pet-crafting);
+  it is the sole currency for the **gem system** (crafting + embuing gems —
+  see Gems & sockets below). Crate pulls also run a **pity timer** (`pets.js` `PITY_EPIC`=10/
   `PITY_LEGENDARY`=30, pure `pityRarityFloor`/`nextPity`; counters in
   `storage.js` `pets.pity {sinceEpic,sinceLegendary}`): a dry streak guarantees
   an epic by the 10th open and a legendary by the 30th. `openCrate`/
@@ -736,7 +735,7 @@ never re‑discovered the hard way.
   (which bumps a low roll up to the floor), then `Storage.setPity(nextPity(...))`.
   Dust + pity deep-merge into old saves (`Storage.getDust`/`addDust`/`spendDust`/
   `getPity`/`setPity`); the Pets crate panel shows the live dust balance
-  (`#dust-count`) and locked non-premium pets gain a **Craft ✨N** button. Meta
+  (`#dust-count`). Meta
   acquisition economy — **no tutorial step**. Every pet also rolls a permanent
   **personality trait** the moment it joins the collection (`pets.js` `TRAITS`
   table — Balanced 🔘 / Swift ⚡ / Mighty 💪 / Lucky 🍀 / Keen 🎯 / Fiery 🔥;
@@ -873,6 +872,43 @@ never re‑discovered the hard way.
   for a partial dust refund before it's destroyed. Meta/RPG customization —
   **no tutorial step** (consistent with traits, party & synergies). (Exposed for
   tests via `__bpc.gems`.)
+- **Pet technology tree** (`tech.js`, pure; `storage.js` per-pet `owned[id].tech`;
+  `main.js` `pickPetTech`/`petHasPendingTech`; `ui.js`
+  `_buildPetTech`/`refreshPetsBadge`): an RPG **ability tree** that lets the
+  player permanently customize a pet by spending the **level-up picks** it earns
+  as it grows (purely XP-driven — no currency, no IAP, deliberately **not**
+  pay-to-win). `TECH_TREE` is `MAX_TECH_TIERS` (**4**) tiers, each unlocked at a
+  level-up (`minLevel` 2/3/4/5) and offering a **choice of two nodes** that is a
+  genuine trade-off, not a strict upgrade — T1 (Lv.2) Power Core ⚔️ +6% score |
+  Fortune 💰 +8% coins; T2 (Lv.3) Charged ⚡ +8% charge | Frenzy 🔥 +8% fever;
+  T3 (Lv.4) Sharp Focus 🎯 +10% score | Haste 🌀 −1 ability cooldown +5% charge;
+  T4 (Lv.5 capstone) Overdrive 🌟 +10% all passives | Mastery ⚙️ +1 active count,
+  ×1.15 strength, +6% score. Each node's `mods` fold into the pet exactly like
+  traits/gems: `techBuffs(chosen)` aggregates the **passive** axes (`scoreMult`/
+  `coinMult`/`powerMult`/`feverMult` as `1+sum`, `startCharge` additive) and
+  `techActiveMods(chosen)` the **active** mods (`cooldownDelta`/`countDelta` summed,
+  `strengthMult` multiplied), both consumed by `pets.js`
+  `petBuffs(petId, level, traitId, sockets, tech)` /
+  `petActive(..., tech)` (new optional 5th param → neutral when undefined, so it's
+  backward compatible; `partyBuffs` passes each member's `m.tech`). `tech.js` is
+  **pure** (imports nothing from pets — pets imports tech one-way): `techTiersUnlocked(level)`
+  counts unlocked tiers, `pendingTechTier(chosen, level)` is the first unlocked
+  tier with no chosen node (`-1` when none pending), `canPickTech(chosen, nodeId,
+  level)` enforces that a pick is in the currently-pending tier (no skipping
+  ahead, no re-picking a tier). State lives per-pet in `storage.js`
+  `owned[id].tech` (an array of node ids; seeded `[]` on `grantPet` and on starter
+  Sparky, deep-merge safe) via `getPetTech`/`addPetTech`. `Game.pickPetTech(petId,
+  nodeId)` validates with the pet's level, records the pick, and live-refreshes
+  the running session (`_refreshPetSession`) so the buff applies without a
+  restart; `petHasPendingTech(id)` drives badges. A level-up that unlocks a new
+  tier appends "— pick an upgrade in Pets!" to the `_awardPetXp` toast. The
+  **Pets screen** renders the tree in the pet detail (`_buildPetTech`, `#pet-detail
+  .pd-tech`): chosen nodes show locked-in with a ✓, the pending tier's two
+  options are clickable, and locked future tiers show "reach Lv.X". A menu Pets
+  tile badge (`#pets-badge`, `refreshPetsBadge`) and a per-card `🧬` badge
+  (`.pet-techbadge`) flag pets with a pick ready. Meta/RPG progression —
+  **no tutorial step** (consistent with traits, party, synergies & gems).
+  (Exposed for tests via `__bpc.tech`.)
 - **Interactive tutorial** (`tutorial.js`): a gated, step‑by‑step onboarding that
   auto‑opens on first run (and re‑playable via the menu's **How to Play**
   button). Each action step **blocks until the player actually performs the
@@ -984,7 +1020,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 543 unit tests + 376 E2E
+- **Current baseline (keep growing, never shrink)**: 568 unit tests + 380 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

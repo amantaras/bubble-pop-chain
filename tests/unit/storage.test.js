@@ -279,6 +279,31 @@ describe("storage", () => {
       expect(Storage.getPetTrait("sparky")).toBe("balanced");
     });
 
+    it("a granted pet starts with an empty tech array", () => {
+      Storage.grantPet("draco");
+      expect(Storage.getPetTech("draco")).toEqual([]);
+      // Unowned pets report an empty array, not undefined.
+      expect(Storage.getPetTech("ghost")).toEqual([]);
+      // Starter Sparky too.
+      expect(Storage.getPetTech("sparky")).toEqual([]);
+    });
+
+    it("addPetTech records chosen nodes (idempotent per node)", () => {
+      Storage.grantPet("draco");
+      expect(Storage.addPetTech("draco", "t1_power")).toBe(true);
+      expect(Storage.addPetTech("draco", "t1_power")).toBe(false);
+      expect(Storage.addPetTech("draco", "t2_charge")).toBe(true);
+      expect(Storage.getPetTech("draco")).toEqual(["t1_power", "t2_charge"]);
+      // getPetTech returns a fresh array (mutating it doesn't affect storage).
+      const t = Storage.getPetTech("draco");
+      t.push("x");
+      expect(Storage.getPetTech("draco")).toEqual(["t1_power", "t2_charge"]);
+    });
+
+    it("addPetTech on an unowned pet is a no-op", () => {
+      expect(Storage.addPetTech("ghost", "t1_power")).toBe(false);
+    });
+
     it("defaults the party support list to empty", () => {
       expect(Storage.getPartySupports()).toEqual([]);
       expect(Storage.getPetState().party).toEqual({ supports: [] });

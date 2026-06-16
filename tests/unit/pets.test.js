@@ -29,9 +29,7 @@ import {
   PITY_EPIC,
   PITY_LEGENDARY,
   DUST_PER_DUP,
-  DUST_COST,
   dustValue,
-  dustCost,
   pityRarityFloor,
   nextPity,
   TRAITS,
@@ -430,31 +428,21 @@ describe("pity timer", () => {
 });
 
 describe("pet dust", () => {
-  it("dust tables cover every rarity and rise with rarity", () => {
+  it("dust table covers every rarity and rises with rarity", () => {
     for (const r of RARITIES) {
       expect(DUST_PER_DUP[r]).toBeGreaterThan(0);
-      expect(DUST_COST[r]).toBeGreaterThan(0);
     }
     expect(DUST_PER_DUP.legendary).toBeGreaterThan(DUST_PER_DUP.common);
-    expect(DUST_COST.legendary).toBeGreaterThan(DUST_COST.common);
   });
 
-  it("dustValue / dustCost map rarity to the tables", () => {
+  it("dustValue maps rarity to the duplicate table", () => {
     for (const r of RARITIES) {
       expect(dustValue(r)).toBe(DUST_PER_DUP[r]);
-      expect(dustCost(r)).toBe(DUST_COST[r]);
     }
   });
 
-  it("dustValue / dustCost fall back to common for unknown rarity", () => {
+  it("dustValue falls back to common for unknown rarity", () => {
     expect(dustValue("mythic")).toBe(DUST_PER_DUP.common);
-    expect(dustCost("mythic")).toBe(DUST_COST.common);
-  });
-
-  it("crafting a pet costs more dust than a single duplicate yields", () => {
-    for (const r of RARITIES) {
-      expect(dustCost(r)).toBeGreaterThan(dustValue(r));
-    }
   });
 });
 
@@ -696,6 +684,49 @@ describe("gem sockets fold into pet buffs/active", () => {
   it("active cooldown never drops below 1 even with a strong emerald", () => {
     const withGem = petActive("rover", 5, "balanced", ["emerald:brilliant", "emerald:brilliant"]);
     expect(withGem.cooldown).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("tech-tree nodes fold into pet buffs/active", () => {
+  it("a chosen score node raises a pet's scoreMult on top of gems", () => {
+    const base = petBuffs("sparky", 3);
+    const withTech = petBuffs("sparky", 3, "balanced", [], ["t1_power"]);
+    expect(withTech.scoreMult).toBeCloseTo(base.scoreMult * 1.06, 6);
+    expect(withTech.coinMult).toBeCloseTo(base.coinMult, 6);
+  });
+
+  it("gems and tech stack multiplicatively on the same axis", () => {
+    const base = petBuffs("sparky", 3);
+    const both = petBuffs("sparky", 3, "balanced", ["ruby:polished"], ["t1_power"]);
+    expect(both.scoreMult).toBeCloseTo(base.scoreMult * 1.08 * 1.06, 6);
+  });
+
+  it("t4_overdrive lifts all four passive axes", () => {
+    const base = petBuffs("sparky", 3);
+    const t = petBuffs("sparky", 3, "balanced", [], ["t4_overdrive"]);
+    expect(t.scoreMult).toBeCloseTo(base.scoreMult * 1.1, 6);
+    expect(t.coinMult).toBeCloseTo(base.coinMult * 1.1, 6);
+    expect(t.powerMult).toBeCloseTo(base.powerMult * 1.1, 6);
+    expect(t.feverMult).toBeCloseTo(base.feverMult * 1.1, 6);
+  });
+
+  it("undefined tech leaves buffs unchanged (backward compatible)", () => {
+    expect(petBuffs("sparky", 3, "balanced", [], undefined)).toEqual(petBuffs("sparky", 3));
+    expect(petActive("rover", 3, "balanced", [], undefined)).toEqual(petActive("rover", 3));
+  });
+
+  it("t3_haste shortens an active pet's cooldown", () => {
+    const base = petActive("rover", 3);
+    const withTech = petActive("rover", 3, "balanced", [], ["t3_haste"]);
+    expect(withTech.cooldown).toBe(base.cooldown - 1);
+  });
+
+  it("t4_mastery boosts an active pet's count and strength", () => {
+    const base = petActive("rover", 2);
+    const withTech = petActive("rover", 2, "balanced", [], ["t4_mastery"]);
+    expect(withTech.count).toBe(base.count + 1);
+    expect(withTech.strength).toBeGreaterThan(base.strength);
+    expect(withTech.strength).toBeLessThanOrEqual(1);
   });
 });
 
