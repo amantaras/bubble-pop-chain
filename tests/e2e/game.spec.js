@@ -4716,6 +4716,27 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
     await expect(fuse).toBeVisible();
     await expect(fuse).toBeDisabled();
   });
+
+  test("the Bag grid selects a gem and shows its detail + fusion action", async ({ page }) => {
+    await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      S.addGem("diamond:brilliant", 1);
+      S.addGem("ruby:chipped", 2);
+    });
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    // Two owned gems => two compact cells in the grid.
+    await expect(page.locator(".pg-grid2 .pg-cell")).toHaveCount(2);
+    // The strongest gem (brilliant) is auto-selected and is top tier.
+    await expect(page.locator('.pg-cell.sel[data-gem="diamond:brilliant"]')).toBeVisible();
+    await expect(page.locator(".pg-fuse-top")).toBeVisible();
+    // Tapping a chipped gem updates the detail panel + offers a (disabled) fuse.
+    await page.locator('.pg-cell[data-gem="ruby:chipped"]').click();
+    await expect(page.locator('.pg-cell.sel[data-gem="ruby:chipped"]')).toBeVisible();
+    const fuse = page.locator('.pg-fuse-btn[data-gem="ruby:chipped"]');
+    await expect(fuse).toBeVisible();
+    await expect(fuse).toBeDisabled();
+    await expect(page.locator(".pg-sel-buff")).toContainText("Score");
+  });
 });
 
 

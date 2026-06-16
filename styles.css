@@ -2370,60 +2370,138 @@ body {
   color: #fff;
 }
 
-/* 🎒 Bag — a grid of owned gem tiles. */
-.pg-bag {
+/* 🎒 Bag — a dense grid of small gem icons + a detail/action panel. */
+.pg-grid2 {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-bottom: 10px;
 }
-.pg-tile {
+.pg-cell {
   position: relative;
+  aspect-ratio: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 2px;
-  padding: 8px 6px 6px;
-  border-radius: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.25);
-  background: rgba(255, 255, 255, 0.06);
+  padding: 4px;
+  border-radius: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: transform 0.12s, background 0.12s, box-shadow 0.12s;
 }
-.pg-tile-count {
+.pg-cell:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.pg-cell.sel {
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 0 0 2px #fff inset, 0 3px 10px rgba(0, 0, 0, 0.3);
+  transform: translateY(-1px);
+}
+.pg-cell-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+.pg-cell-count {
   position: absolute;
-  top: 4px;
-  right: 6px;
-  font-size: 11px;
+  top: 2px;
+  right: 4px;
+  font-size: 10px;
   font-weight: 800;
   color: var(--text);
 }
-.pg-tile-icon {
-  font-size: 26px;
-  line-height: 1.1;
+.pg-cell-stars {
+  font-size: 8px;
+  line-height: 1;
+  color: #ffd23f;
+  letter-spacing: -1px;
 }
-.pg-tile-name {
+/* Selected-gem detail / action panel. */
+.pg-sel {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.pg-sel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pg-sel-icon {
+  font-size: 34px;
+  line-height: 1;
+}
+.pg-sel-info {
+  flex: 1;
+  min-width: 0;
+}
+.pg-sel-name {
+  font-size: 14px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pg-sel-stars {
   font-size: 10px;
-  font-weight: 700;
-  text-align: center;
+  color: #ffd23f;
+  letter-spacing: -1px;
 }
-.pg-tile-buff {
-  font-size: 9px;
+.pg-sel-buff {
+  font-size: 12px;
+  font-weight: 700;
+  color: #b07be8;
+}
+.pg-sel-hint {
+  font-size: 10px;
   color: var(--text-dim);
-  text-align: center;
-  min-height: 22px;
+  margin-top: 2px;
+}
+.pg-sel-count {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-dim);
+}
+.pg-fuse-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
 }
 .pg-fuse-btn {
-  margin-top: 4px;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 3px 9px;
-  border-radius: 999px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 14px;
+  border-radius: 12px;
   border: none;
   color: #fff;
   background: linear-gradient(135deg, #2ec27e, #4d8bff);
   cursor: pointer;
 }
+.pg-fuse-main {
+  font-size: 12px;
+  font-weight: 800;
+}
+.pg-fuse-sub {
+  font-size: 8px;
+  font-weight: 600;
+  opacity: 0.85;
+}
 .pg-fuse-btn:disabled {
-  opacity: 0.35;
+  opacity: 0.4;
   cursor: default;
+}
+.pg-fuse-note {
+  font-size: 10px;
+  color: #ff9f1c;
+}
+.pg-fuse-top {
+  font-size: 11px;
+  color: var(--text-dim);
 }
 .pg-empty {
   font-size: 11px;

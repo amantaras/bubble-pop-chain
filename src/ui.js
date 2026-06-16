@@ -2496,19 +2496,23 @@ class UIManager {
     else this._buildGemBag(wrap, gems);
   }
 
-  // 🎒 Bag tab: a tidy grid of only the gems the player actually owns. Each
-  // tile shows the gem, its count and its concrete buff; fusible stacks carry a
-  // ⬆ Fuse button (enabled at FUSE_COUNT+) right on the tile.
+  // 🎒 Bag tab: market-standard inventory layout — a dense grid of small gem
+  // icons (count badge + tier stars), with a single detail/action panel below
+  // for the SELECTED gem (its buff + a clear fusion action). This replaces the
+  // old wall of 18 big labelled cards, mirroring how gear/material bags work in
+  // most mobile RPGs (Diablo Immortal, Raid, AFK Arena): pick an icon → act.
   _buildGemBag(wrap, gems) {
-    const bag = document.createElement("div");
-    bag.className = "pg-bag";
     const keys = Object.keys(gems).filter((k) => gems[k] > 0);
     if (!keys.length) {
-      bag.innerHTML = `<span class="pg-empty">No gems yet — forge one in the ⚒️ Forge tab, or find them in crates & gifts.</span>`;
-      wrap.appendChild(bag);
+      const empty = document.createElement("div");
+      empty.className = "pg-empty";
+      empty.textContent =
+        "No gems yet — forge one in the ⚒️ Forge tab, or find them in crates & gifts.";
+      wrap.appendChild(empty);
+      this._gemSel = null;
       return;
     }
-    // Strongest tier first, then group by type so the bag reads top-down.
+    // Strongest tier first, then group by type so the grid reads top-down.
     keys.sort((a, b) => {
       const ga = parseGemKey(a), gb = parseGemKey(b);
       const ta = ga ? gemTierIndex(ga.tier) : -1;
@@ -2516,47 +2520,94 @@ class UIManager {
       if (tb !== ta) return tb - ta;
       return (ga ? ga.type : "").localeCompare(gb ? gb.type : "");
     });
+    // Keep selection valid across rebuilds; default to the strongest gem.
+    if (!this._gemSel || !gems[this._gemSel]) this._gemSel = keys[0];
+    const sel = this._gemSel;
+
+    const grid = document.createElement("div");
+    grid.className = "pg-grid2";
     for (const key of keys) {
       const g = parseGemKey(key);
-      const tile = document.createElement("div");
-      tile.className = "pg-tile";
-      tile.dataset.gem = key;
-      if (g) tile.style.borderColor = g.def.color;
-      tile.innerHTML =
-        `<span class="pg-tile-count">×${gems[key]}</span>` +
-        `<span class="pg-tile-icon">${gemIcon(key)}</span>` +
-        `<span class="pg-tile-name">${gemLabel(key)}</span>` +
-        `<span class="pg-tile-buff">${gemBuffLabel(key)}</span>`;
-      // Fusion: combine FUSE_COUNT identical gems into one of the next tier.
-      if (g && canFuseTier(g.tier)) {
-        const up = fusedGemKey(key);
-        const can = gems[key] >= FUSE_COUNT;
-        const fb = document.createElement("button");
-        fb.className = "pg-fuse-btn";
-        fb.dataset.gem = key;
-        fb.disabled = !can;
-        fb.textContent = `⬆ Fuse ${FUSE_COUNT}`;
-        fb.title = can
-          ? `Fuse ${FUSE_COUNT}× ${gemLabel(key)} → 1 ${gemLabel(up)}`
-          : `Need ${FUSE_COUNT}× ${gemLabel(key)} to fuse (have ${gems[key]})`;
-        fb.addEventListener("click", (e) => {
-          e.stopPropagation();
-          Audio.click();
-          if (!this.cb.fuseGem) return;
-          const res = this.cb.fuseGem(key);
-          if (res && res.ok) {
-            Audio.fever();
-            this.toast(`Fused ${FUSE_COUNT}× ${gemLabel(res.from)} → ${gemLabel(res.to)}!`);
-            this._buildPetGems();
-          } else {
-            this.toast(`Need ${FUSE_COUNT} to fuse`);
-          }
-        });
-        tile.appendChild(fb);
-      }
-      bag.appendChild(tile);
+      const tierIdx = g ? gemTierIndex(g.tier) : 0;
+      const cell = document.createElement("button");
+      cell.className = "pg-cell" + (key === sel ? " sel" : "");
+      cell.dataset.gem = key;
+      if (g) cell.style.borderColor = g.def.color;
+      cell.title = `${gemLabel(key)} — ${gemBuffLabel(key)}`;
+      cell.innerHTML =
+        `<span class="pg-cell-count">${gems[key]}</span>` +
+        `<span class="pg-cell-icon">${gemIcon(key)}</span>` +
+        `<span class="pg-cell-stars">${"★".repeat(tierIdx + 1)}</span>`;
+      cell.addEventListener("click", () => {
+        Audio.click();
+        this._gemSel = key;
+        this._buildPetGems();
+      });
+      grid.appendChild(cell);
     }
-    wrap.appendChild(bag);
+    wrap.appendChild(grid);
+
+    // Detail / action panel for the selected gem.
+    const g = parseGemKey(sel);
+    const tierIdx = g ? gemTierIndex(g.tier) : 0;
+    const panel = document.createElement("div");
+    panel.className = "pg-sel";
+    panel.innerHTML =
+      `<div class="pg-sel-head">` +
+      `<span class="pg-sel-icon"${g ? ` style="text-shadow:0 0 12px ${g.def.color}"` : ""}>${gemIcon(sel)}</span>` +
+      `<div class="pg-sel-info">` +
+      `<div class="pg-sel-name">${gemLabel(sel)} <span class="pg-sel-stars">${"★".repeat(tierIdx + 1)}</span></div>` +
+      `<div class="pg-sel-buff">${gemBuffLabel(sel)}</div>` +
+      `<div class="pg-sel-hint">Tap an empty socket on a pet below to embue ↓</div>` +
+      `</div>` +
+      `<span class="pg-sel-count">×${gems[sel]}</span>` +
+      `</div>`;
+
+    const fuseRow = document.createElement("div");
+    fuseRow.className = "pg-fuse-row";
+    const up = g && canFuseTier(g.tier) ? fusedGemKey(sel) : null;
+    if (up) {
+      const upG = parseGemKey(up);
+      const can = gems[sel] >= FUSE_COUNT;
+      const fb = document.createElement("button");
+      fb.className = "pg-fuse-btn";
+      fb.dataset.gem = sel;
+      fb.disabled = !can;
+      fb.innerHTML =
+        `<span class="pg-fuse-main">⬆ Fuse ${FUSE_COUNT}</span>` +
+        `<span class="pg-fuse-sub">${FUSE_COUNT}× ${getGemTier(g.tier).label} → 1 ${getGemTier(upG.tier).label}</span>`;
+      fb.title = can
+        ? `Fuse ${FUSE_COUNT}× ${gemLabel(sel)} → 1 ${gemLabel(up)}`
+        : `Need ${FUSE_COUNT}× ${gemLabel(sel)} to fuse (have ${gems[sel]})`;
+      fb.addEventListener("click", (e) => {
+        e.stopPropagation();
+        Audio.click();
+        if (!this.cb.fuseGem) return;
+        const res = this.cb.fuseGem(sel);
+        if (res && res.ok) {
+          Audio.fever();
+          this.toast(`Fused ${FUSE_COUNT}× ${gemLabel(res.from)} → ${gemLabel(res.to)}!`);
+          this._gemSel = res.to; // follow the upgraded gem
+          this._buildPetGems();
+        } else {
+          this.toast(`Need ${FUSE_COUNT} to fuse`);
+        }
+      });
+      fuseRow.appendChild(fb);
+      if (!can) {
+        const note = document.createElement("span");
+        note.className = "pg-fuse-note";
+        note.textContent = `Collect ${FUSE_COUNT - gems[sel]} more to fuse`;
+        fuseRow.appendChild(note);
+      }
+    } else {
+      const top = document.createElement("span");
+      top.className = "pg-fuse-top";
+      top.textContent = "✦ Top tier — already the strongest";
+      fuseRow.appendChild(top);
+    }
+    panel.appendChild(fuseRow);
+    wrap.appendChild(panel);
   }
 
   // ⚒️ Forge tab: pick ONE gem type from a compact icon row, then see just that

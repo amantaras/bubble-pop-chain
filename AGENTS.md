@@ -856,11 +856,21 @@ never re‑discovered the hard way.
   than was paid). `socketGem`/`unsocketGem` live-refresh the running
   session's buffs/active stats (`_refreshPetSession`) so a socket swap applies
   without a restart. The **Pets screen** `#pet-gems` panel is a **compact tabbed
-  card** (`_buildPetGems` → `_buildGemBag`/`_buildGemForge`) so it never becomes
-  the old wall of 16 chips + 18 craft buttons: a **🎒 Bag** tab (`.pg-tabs`/
-  `.pg-tab[data-tab]`) shows a 3-column grid of **owned-gem tiles** (`.pg-tile`,
-  icon + name + `gemBuffLabel` + count, fusible tiles carry a `.pg-fuse-btn`),
-  and a **⚒️ Forge** tab shows a 6-icon **type selector** (`.pg-forge-type`)
+  card** (`_buildPetGems` → `_buildGemBag`/`_buildGemForge`) built to a
+  **market-standard inventory pattern** so it never becomes the old wall of 18
+  big labelled cards: the **🎒 Bag** tab (`.pg-tabs`/`.pg-tab[data-tab]`) shows a
+  **dense 5-column grid of small gem icons** (`.pg-grid2` › `.pg-cell
+  [data-gem="type:tier"]`, each a tier-colour-bordered square with a count badge
+  (`.pg-cell-count`), the gem icon and **tier stars** ★/★★/★★★
+  (`.pg-cell-stars`)). Tapping a cell **selects** it (`.pg-cell.sel`, persisted in
+  `this._gemSel`, auto-defaulting to the strongest owned gem) and a single
+  **detail/action panel** below (`.pg-sel`) shows that gem's big icon, name +
+  stars, its concrete `gemBuffLabel`, the embue hint, count, and a **fusion
+  action row** (`.pg-fuse-row`): fusible gems get a `.pg-fuse-btn[data-gem=...]`
+  reading `⬆ Fuse 3` + the ladder (`3× <tier> → 1 <next>`, disabled below 3 with
+  a `.pg-fuse-note`), top-tier gems show `.pg-fuse-top`. A successful fuse follows
+  the upgraded gem (`_gemSel = res.to`) and rebuilds in place.
+  The **⚒️ Forge** tab shows a 6-icon **type selector** (`.pg-forge-type`)
   whose selection (`_gemForgeType`, defaults to the first type) reveals just that
   gem's description + its **three tier craft buttons** (`.pg-craft-btn`, with
   `have N` + `✨cost`) — 3 buttons at a time, not 18. The detail also renders a
@@ -890,7 +900,7 @@ never re‑discovered the hard way.
   is atomic (only proceeds with ≥`count` in the bag, spends `count`, adds one
   `upKey`); `Game.fuseGem(key)` validates and returns `{ ok, from, to }` or
   `{ ok:false, reason }` (`"top"` at the top tier, `"count"` below the
-  threshold). On the **🎒 Bag** tab each non-top-tier gem tile renders a
+  threshold). On the **🎒 Bag** tab the selected gem's detail panel renders the
   **⬆ Fuse 3** button (`.pg-fuse-btn[data-gem="type:tier"]`, disabled below 3 in
   the bag); clicking it merges and rebuilds the panel in place (the tab/selection
   state survives the rebuild). Meta/RPG customization

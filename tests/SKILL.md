@@ -281,7 +281,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   picks off the most isolated bubbles one by one, premium IAP grants ownership,
   HUD pet badge),
   the pet gems & sockets flow (the Pets screen shows the `#pet-gems` panel with
-  per-type/tier craft buttons, crafting a gem with dust adds it to inventory +
+  **🎒 Bag / ⚒️ Forge tabs**; the Forge tab shows per-type tier craft buttons,
+  crafting a gem with dust adds it to inventory +
   spends dust and rejects unaffordable crafts, sockets unlock with pet level,
   socketing a ruby raises an equipped pet's live score buff, an emerald shortens
   an equipped active pet's live cooldown, **embuing costs dust and is rejected
@@ -291,8 +292,11 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   low-level pet can only socket low-tier gems, the gem picker advertises each
   gem's `gemBuffLabel` effect (`.pg-buff`) and its embue cost (`.pg-x`), a
   successful UI embue plays one of 5 random magic flourishes
-  (`_lastSocketMagic` 0–4), and tapping an empty socket opens a visible centered
-  gem-picker overlay),
+  (`_lastSocketMagic` 0–4), tapping an empty socket opens a visible centered
+  gem-picker overlay, **the Bag grid (`.pg-grid2 .pg-cell`) selects a gem and
+  surfaces its detail (`.pg-sel-buff`) + a fusion action**, a `.pg-fuse-btn`
+  merges 3 same-tier gems through the UI, and the Fuse button is disabled below
+  3 gems),
   the pet technology tree flow (the pet detail shows the `#pet-detail .pd-tech`
   tree with a pending pick at Lv.2 and three locked future tiers, picking a node
   records it and raises the pet's live buff (chosen node shown locked-in), a
