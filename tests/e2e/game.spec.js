@@ -5366,4 +5366,88 @@ test.describe("puzzle mode (Tier 2)", () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Downpour — the Tetris-style advanced-level modifier. Every N resolved moves a
+// fresh row of bubbles rains in from the top of each column and settles down;
+// let the stack reach the ceiling and you're "Buried!". Gated to campaign
+// levels >= 30 and suppressed on boss/treasure milestones.
+// ---------------------------------------------------------------------------
+test.describe("downpour (advanced levels)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("advanced campaign levels arm downpour, early levels don't", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(31));
+    expect(
+      await page.evaluate(() => window.__bpc.game.session.downpour)
+    ).toEqual({ interval: 6 });
+    // Early levels stay a pure tap-to-pop game — no rain.
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    expect(
+      await page.evaluate(() => window.__bpc.game.session.downpour)
+    ).toBeNull();
+  });
+
+  test("a downpour drop rains a fresh row onto the stacks every N moves", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(31));
+    await page.waitForTimeout(400);
+    const result = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const s = g.session;
+      const bd = s.board;
+      // Mimic a post-pop board: gravity has settled the stacks downward, so the
+      // top few rows are empty and ready to receive rain.
+      for (let c = 0; c < bd.cols; c++)
+        for (let r = 0; r < 3; r++) {
+          bd.grid[c][r] = -1;
+          bd.spriteGrid[c][r] = null;
+        }
+      bd.sprites = bd.sprites.filter((sp) => bd.grid[sp.c][sp.r] !== -1);
+      const topBefore = bd.topFilledRow();
+      const countBefore = bd.countRemaining();
+      // Drive the move-driven cadence: the first 5 ticks are quiet, the 6th
+      // (interval) drops a row and resets the counter.
+      const tops = [];
+      s.movesSinceDrop = 0;
+      for (let i = 0; i < 6; i++) {
+        g._downpour();
+        tops.push({ moves: s.movesSinceDrop, top: bd.topFilledRow() });
+      }
+      return {
+        topBefore,
+        topAfter: bd.topFilledRow(),
+        countBefore,
+        countAfter: bd.countRemaining(),
+        tops,
+      };
+    });
+    // Five quiet ticks (counter climbs), then the drop on the 6th resets it.
+    expect(result.tops.slice(0, 5).map((t) => t.moves)).toEqual([1, 2, 3, 4, 5]);
+    expect(result.tops[5].moves).toBe(0);
+    // The stack rose one row toward the ceiling and the board has more bubbles.
+    expect(result.topAfter).toBe(result.topBefore - 1);
+    expect(result.countAfter).toBeGreaterThan(result.countBefore);
+  });
+
+  test("overflowing the ceiling buries the player", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(31));
+    await page.waitForTimeout(400);
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const s = g.session;
+      const bd = s.board;
+      // Pack one column solid to the very top so the next rain has nowhere to
+      // land — that column overflows and buries the player.
+      for (let r = 0; r < bd.rows; r++) if (bd.grid[0][r] === -1) bd.grid[0][r] = 0;
+      s.movesSinceDrop = 5; // the next tick is the drop tick
+      g._downpour();
+    });
+    await expect(page.locator("#lose")).toBeVisible();
+    await expect(page.locator("#lose .modal-title")).toHaveText("Buried!");
+  });
+});
+
 

@@ -284,6 +284,30 @@ never re‑discovered the hard way.
   (`grant: "vine"` → `Game._placeTutorialVine`, advancing on `_tut("vine")`)
   with gated steps. (The bomb **bubble** uses the `bombbubble` step/grant/action
   id to avoid colliding with the bomb **power-up** step's `grant: "bomb"`.)
+- **Downpour** (the Tetris-style advanced-level modifier) drops a fresh row of
+  ordinary bubbles in from the **top** every N resolved moves; with gravity
+  settling **downward**, each column's new bubble rests directly on top of its
+  stack so the board climbs toward the ceiling, and a column whose stack already
+  reaches the top edge **buries** the player (level lost, fail title `"Buried!"`).
+  It's **move-driven, not realtime**, so the tap-to-pop core is untouched.
+  `levels.downpourForLevel(n)` arms it only on campaign levels ≥
+  `DOWNPOUR_MIN_LEVEL` (30) and returns `null` on boss/treasure milestones
+  (`milestoneType` suppresses it), with the cadence tightening from every 6 moves
+  to a floor of every 3 as difficulty ramps to the cap (`{interval}`); `getLevel`
+  carries it as `level.downpour`. `grid.dropRow()` places one `NORMAL` bubble of
+  a random colour at the cell above each column's stack (sprites start above the
+  board so they visibly fall in) and returns `{added:[{c,r}], buried:[c,...]}`;
+  `grid.topFilledRow()` (0 = a bubble on the very top edge, `rows` = empty) drives
+  the warning cue. `main._downpour()` is called once per move from `afterMove`
+  (after the win guard, before deadlock detection; campaign-only, skipped during
+  finale), counts `session.movesSinceDrop` and on reaching `interval` resets it
+  and calls `dropRow` — playing a `🌧️ Downpour!` cue on a successful rain and
+  `_scheduleEnd(false, "buried")` when any column overflowed. `movesSinceDrop`
+  is part of the save/resume snapshot. `renderer.drawDangerLine` paints a pulsing
+  dashed red line `dangerRows` (2) cells down from the top once the stack climbs
+  into that zone, brightening/quickening with proximity; `main` only draws it
+  when `session.downpour` is set and `topFilledRow() <= dangerRows`. No tutorial
+  step (it's an advanced meta-threat, like gems).
 - **Ads gating** (`monetization.js`): forced interstitials only from
   `adsStartLevel` (7) onward; rewarded ads always available. The manager owns
   all **policy** (cadence, new-player grace, the ads-removed gate, and

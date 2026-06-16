@@ -360,6 +360,73 @@ export class Board {
     return { c: pick[0], r: pick[1] };
   }
 
+  // ---- Downpour (advanced levels) --------------------------------------
+  // Tetris-style pressure: drop a fresh row of ordinary bubbles in from the top.
+  // Each column gets one new bubble resting directly on top of its stack; the
+  // new sprites start above the board so they visibly fall into place. A column
+  // whose stack already reaches the very top (row 0 occupied) has no room — it
+  // "buries" the player. Returns { added:[{c,r}], buried:[c,...] } so the caller
+  // can play the drop cue and end the level when any column overflowed.
+  dropRow() {
+    const added = [];
+    const buried = [];
+    for (let c = 0; c < this.cols; c++) {
+      // The top of this column's stack: the smallest r that holds a bubble.
+      let top = this.rows; // rows => column is empty
+      for (let r = 0; r < this.rows; r++) {
+        if (this.grid[c][r] !== -1) {
+          top = r;
+          break;
+        }
+      }
+      const dest = top - 1; // the empty cell directly above the stack
+      if (dest < 0) {
+        buried.push(c); // stack already reaches the top — no room to drop
+        continue;
+      }
+      const color = Math.floor(this.rng() * this.colorCount);
+      this.grid[c][dest] = color;
+      this.types[c][dest] = NORMAL;
+      const t = this.targetPixel(c, dest);
+      const s = {
+        id: SPRITE_ID++,
+        color,
+        type: NORMAL,
+        c,
+        r: dest,
+        x: t.x,
+        y: t.y - this.boardH - 60, // start above the board for a fall-in
+        scale: 1,
+        alpha: 1,
+        state: "idle",
+        t: 0,
+        delay: c * 0.02, // slight per-column stagger so the row patters in
+        glideDur: 0,
+      };
+      this.spriteGrid[c][dest] = s;
+      this.sprites.push(s);
+      added.push({ c, r: dest });
+    }
+    return { added, buried };
+  }
+
+  // The topmost occupied row across all columns (0 = a bubble sits on the very
+  // top edge), or `rows` when the board is empty. Drives the danger-line cue:
+  // the closer this gets to 0, the nearer the player is to being buried.
+  topFilledRow() {
+    let top = this.rows;
+    for (let c = 0; c < this.cols; c++) {
+      for (let r = 0; r < top; r++) {
+        if (this.grid[c][r] !== -1) {
+          top = r;
+          break;
+        }
+      }
+      if (top === 0) break;
+    }
+    return top;
+  }
+
   // Expand a popped group: if it contains any LIGHTNING bubble, every lightning
   // cell discharges along its full row and column (via crossCells), and those
   // cells are merged into the cleared set (deduped). Returns the full cell list

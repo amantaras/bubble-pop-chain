@@ -527,6 +527,10 @@ class Game {
       usedPowerup: false,
       undoStack: [],
       undosLeft: UNDO_BUDGET,
+      // Downpour (advanced campaign levels): a fresh row drops from the top
+      // every `interval` resolved moves; `movesSinceDrop` paces that cadence.
+      downpour: (mode === "campaign" && level.downpour) || null,
+      movesSinceDrop: 0,
       // Time Attack countdown (seconds). Unused by other modes.
       timeLeft: mode === "timeattack" ? TIME_ATTACK_SECONDS : 0,
     };
@@ -664,6 +668,8 @@ class Game {
       usedPowerup: !!snap.usedPowerup,
       undoStack: [],
       undosLeft: UNDO_BUDGET,
+      downpour: level.downpour || null,
+      movesSinceDrop: snap.movesSinceDrop || 0,
     };
     this._enterSession();
   }
@@ -687,6 +693,7 @@ class Game {
       bossTargetColor: s.bossTargetColor == null ? -1 : s.bossTargetColor,
       objectiveMet: !!s.objectiveMet,
       usedPowerup: !!s.usedPowerup,
+      movesSinceDrop: s.movesSinceDrop || 0,
     });
   }
 
@@ -2947,6 +2954,11 @@ class Game {
       return;
     }
 
+    // Downpour pressure (advanced campaign levels): a fresh row drops in from
+    // the top every few moves. Runs only after the win/finale checks above, so
+    // a clearing move still wins; if a drop buries a column the level is lost.
+    if (this._downpour()) return;
+
     const deadlock = this._isDeadlocked();
 
     // The board is playable again (e.g. a Pick made bubbles fall into matches):
@@ -3021,6 +3033,36 @@ class Game {
     if (!sprouted) return;
     const p = s.board.targetPixel(sprouted.c, sprouted.r);
     this.floating.spawn(p.x, p.y - 24, "🌿", "#7ff0a0", 18);
+  }
+
+  // Downpour pressure for advanced campaign levels: tick a per-move counter and,
+  // every `interval` resolved moves, drop a fresh row of bubbles in from the top
+  // (Board.dropRow animates them falling onto each column's stack). The board
+  // climbs toward the ceiling; if a column has no room left the player is buried
+  // and the level ends. Returns true when it ended the level (caller must stop).
+  _downpour() {
+    const s = this.session;
+    if (!s || s.ended || s.mode !== "campaign") return false;
+    if (!s.downpour || typeof s.board.dropRow !== "function") return false;
+    if (this.finale.active) return false; // never drop mid clear-finale
+    s.movesSinceDrop = (s.movesSinceDrop || 0) + 1;
+    const interval = Math.max(1, s.downpour.interval || 6);
+    if (s.movesSinceDrop < interval) return false;
+    s.movesSinceDrop = 0;
+
+    const { added, buried } = s.board.dropRow();
+    if (added && added.length) {
+      Audio.pop(1, 2);
+      vibrate(12);
+      this.floating.spawn(this.W / 2, TOP_INSET + 18, "🌧️ Downpour!", "#9fd8ff", 24);
+    }
+    if (buried && buried.length) {
+      // A column overflowed the top — the player is buried. End the level.
+      this._scheduleEnd(false, "buried");
+      return true;
+    }
+    this.refreshHud();
+    return false;
   }
 
   // ---- Lone-bubble rescue (isolated single bubbles) ---------------------
@@ -3342,7 +3384,12 @@ class Game {
         UI.showLose({
           score: s.score,
           showRevive: !s.revived,
-          title: s.movesLeft <= 0 ? "Out of Moves" : "No Moves Left",
+          title:
+            reason === "buried"
+              ? "Buried!"
+              : s.movesLeft <= 0
+              ? "Out of Moves"
+              : "No Moves Left",
         });
       }
     } else if (s.mode === "endless") {
@@ -3788,6 +3835,21 @@ class Game {
     ctx.translate(this.shake.x, this.shake.y);
     if (this.session) {
       this.renderer.drawBoardFrame(this.session.board);
+      // Downpour: warn the player when the rising stack climbs into the top
+      // rows, so being buried never feels unfair.
+      if (this.session.downpour) {
+        const dangerRows = 2;
+        const top = this.session.board.topFilledRow();
+        if (top <= dangerRows) {
+          const proximity = (dangerRows + 1 - top) / (dangerRows + 1);
+          this.renderer.drawDangerLine(
+            this.session.board,
+            time,
+            dangerRows,
+            proximity
+          );
+        }
+      }
       // While aiming a magnet, shake the target-colour bubbles harder the
       // closer the gauge needle is to the (randomised) green sweet spot.
       let aim = null;

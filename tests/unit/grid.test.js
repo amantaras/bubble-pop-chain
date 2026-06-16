@@ -1112,3 +1112,71 @@ describe("swipe-aware deadlock detection (hasShiftMove)", () => {
   });
 });
 
+describe("grid / Board downpour", () => {
+  // Build a board whose logic grid, types and sprite coupling are all sized to
+  // the supplied layout so dropRow()/topFilledRow() act deterministically.
+  function makeBoard(grid) {
+    const cols = grid.length;
+    const rows = grid[0].length;
+    const b = new Board(cols, rows, 5, 1);
+    b.cols = cols;
+    b.rows = rows;
+    b.grid = grid.map((col) => col.slice());
+    b.types = grid.map((col) => col.map(() => NORMAL));
+    b.spriteGrid = grid.map((col) => col.map(() => null));
+    b.sprites = [];
+    b.layout(320, 480, 40, 40); // give sprites a real target pixel
+    return b;
+  }
+
+  it("dropRow drops one bubble onto the top of every column's stack", () => {
+    const b = makeBoard([
+      [-1, -1, 0, 0], // col0: stack starts at row 2
+      [-1, -1, -1, -1], // col1: empty — bubble lands on the floor
+      [3, 3, 3, 3], // col2: full — no room, buries the player
+    ]);
+    const res = b.dropRow();
+    // col0: a fresh bubble now rests directly above the old stack (row 1).
+    expect(b.grid[0][1]).toBeGreaterThanOrEqual(0);
+    expect(b.grid[0][0]).toBe(-1);
+    // col1 was empty, so the new bubble lands at the very bottom (rows-1).
+    expect(b.grid[1][3]).toBeGreaterThanOrEqual(0);
+    // col2 was full — it can't take a bubble and reports as buried.
+    expect(res.buried).toEqual([2]);
+    expect(res.added.map((a) => a.c).sort()).toEqual([0, 1]);
+    // One sprite spawned per added cell, each starting above the board.
+    expect(b.sprites.length).toBe(2);
+    for (const s of b.sprites) expect(s.y).toBeLessThan(0);
+  });
+
+  it("dropRow returns no buried columns while there is headroom", () => {
+    const b = makeBoard([
+      [-1, -1, -1, 1],
+      [-1, -1, -1, 2],
+    ]);
+    const res = b.dropRow();
+    expect(res.buried).toEqual([]);
+    expect(res.added.length).toBe(2);
+    // The stack climbed one row toward the ceiling.
+    expect(b.topFilledRow()).toBe(2);
+  });
+
+  it("topFilledRow reports the highest occupied row, or rows when empty", () => {
+    const empty = makeBoard([
+      [-1, -1, -1],
+      [-1, -1, -1],
+    ]);
+    expect(empty.topFilledRow()).toBe(3); // rows => board is clear
+    const stacked = makeBoard([
+      [-1, -1, 5], // top at row 2
+      [-1, 4, 4], // top at row 1 (the highest across columns)
+    ]);
+    expect(stacked.topFilledRow()).toBe(1);
+    const ceiling = makeBoard([
+      [-1, -1, -1],
+      [6, 6, 6], // a bubble sits on the very top edge
+    ]);
+    expect(ceiling.topFilledRow()).toBe(0);
+  });
+});
+

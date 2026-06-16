@@ -9,6 +9,8 @@ import {
   objectiveForLevel,
 } from "../../src/levels.js";
 
+import { downpourForLevel, DOWNPOUR_MIN_LEVEL } from "../../src/levels.js";
+
 describe("levels", () => {
   it("exposes a positive level count", () => {
     expect(LEVEL_COUNT).toBeGreaterThan(0);
@@ -217,5 +219,36 @@ describe("levels", () => {
   it("getLevel carries its bonus objective", () => {
     expect(getLevel(3).objective).toEqual(objectiveForLevel(3));
     expect(getLevel(5).objective).toBeNull();
+  });
+
+  it("downpour kicks in only on advanced, non-milestone campaign levels", () => {
+    // Below the threshold: no Tetris-style pressure anywhere in the early game.
+    expect(downpourForLevel(1)).toBeNull();
+    expect(downpourForLevel(20)).toBeNull();
+    expect(downpourForLevel(DOWNPOUR_MIN_LEVEL - 1)).toBeNull();
+    // The threshold level itself (30) is a boss milestone, so it's suppressed;
+    // the first ordinary level past it gets the gentlest cadence.
+    expect(downpourForLevel(30)).toBeNull(); // boss
+    expect(downpourForLevel(35)).toBeNull(); // treasure
+    expect(downpourForLevel(31)).toEqual({ interval: 6 });
+  });
+
+  it("downpour cadence tightens with difficulty then floors at every 3 moves", () => {
+    expect(downpourForLevel(31).interval).toBe(6);
+    expect(downpourForLevel(41).interval).toBe(5);
+    expect(downpourForLevel(51).interval).toBe(4);
+    // Past the difficulty cap it plateaus at the fastest (every 3 moves).
+    expect(downpourForLevel(61).interval).toBe(3);
+    expect(downpourForLevel(9991).interval).toBe(3);
+    // Never faster than every 3 moves, so boards always stay clearable.
+    for (const n of [31, 55, 120, 500, 9999]) {
+      const d = downpourForLevel(n);
+      if (d) expect(d.interval).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it("getLevel carries its downpour config", () => {
+    expect(getLevel(31).downpour).toEqual(downpourForLevel(31));
+    expect(getLevel(10).downpour).toBeNull();
   });
 });

@@ -20,6 +20,11 @@ export const LEVEL_COUNT = 9999;
 // tuning (d === n there), so the hand-authored arc is unchanged.
 export const DIFFICULTY_CAP = 60;
 
+// The campaign level from which the Tetris-style "Downpour" pressure begins.
+// Chosen well past the last threat (vines at 20) so it reads as a late-game
+// escalation, and before the difficulty cap so it ramps before plateauing.
+export const DOWNPOUR_MIN_LEVEL = 30;
+
 // World map chapters -------------------------------------------------------
 // The campaign is grouped into themed chapters of 8 levels each so the level
 // map reads as a journey across distinct "worlds" rather than one long list.
@@ -148,6 +153,22 @@ function specialsForLevel(n) {
   return { rainbow, ice, lightning, stone, bomb, multiplier, coin, vine };
 }
 
+// Downpour (advanced levels) ------------------------------------------------
+// From a high level on, ordinary campaign levels gain a Tetris-style pressure:
+// every `interval` resolved moves a fresh row of bubbles drops in from the top
+// and the stack climbs toward the ceiling. Let a column reach the top and the
+// player is buried (the level is lost), so the new tension is "keep clearing or
+// drown". Returns null below the threshold (most of the campaign), or
+// `{ interval }` once it kicks in. The cadence tightens as levels climb but
+// never below every 3 moves so boards stay clearable. Suppressed on milestone
+// (treasure/boss) beats, which carry their own distinct identity.
+export function downpourForLevel(n) {
+  if (n < DOWNPOUR_MIN_LEVEL || milestoneType(n)) return null;
+  const d = Math.min(n, DIFFICULTY_CAP);
+  const interval = Math.max(3, 6 - Math.floor((d - DOWNPOUR_MIN_LEVEL) / 10));
+  return { interval };
+}
+
 // Bonus objectives ----------------------------------------------------------
 // Each ordinary campaign level carries an optional bonus objective: an extra
 // challenge layered on top of the score target. Meeting it pays bonus coins on
@@ -232,6 +253,7 @@ export function getLevel(id) {
     boss,
     chapter: chapterForLevel(n),
     objective: objectiveForLevel(n),
+    downpour: downpourForLevel(n),
   };
 }
 

@@ -108,6 +108,26 @@ export class Renderer {
     ctx.restore();
   }
 
+  // Downpour danger line: a pulsing dashed warning band `dangerRows` cells down
+  // from the top of the board, shown once the rising stack climbs into that
+  // zone. `proximity` (0..1) is how close the player is to being buried (1 = a
+  // bubble sits on the very top edge), brightening and quickening the pulse.
+  drawDangerLine(board, time, dangerRows, proximity) {
+    const ctx = this.ctx;
+    const y = board.originY + dangerRows * board.cell;
+    const pulse = 0.5 + 0.5 * Math.sin(time * (0.006 + proximity * 0.01));
+    const a = Math.min(0.9, (0.25 + 0.6 * proximity) * pulse);
+    ctx.save();
+    ctx.strokeStyle = `rgba(255,80,92,${a})`;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([10, 8]);
+    ctx.beginPath();
+    ctx.moveTo(board.originX, y);
+    ctx.lineTo(board.originX + board.boardW, y);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   // `aim` (optional) describes an in-progress magnet: { color, intensity, time }.
   // Plain bubbles of that colour jitter — harder as the gauge nears green —
   // as if straining to pull together before the gather fires.
