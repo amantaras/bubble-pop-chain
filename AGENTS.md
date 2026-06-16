@@ -817,6 +817,62 @@ never re‑discovered the hard way.
   Save state lives in `storage.js` `pets: { owned, equipped, crates }` with
   helpers (`getPetState`/`grantPet`/`addPetXp`/`equipPet`/`addCrates`/
   `consumeCrate`/`grantCosmetic`/`setCosmetic`); it deep-merges into old saves.
+- **Gems & sockets** (`gems.js`, pure; `storage.js` `gems` + per-pet
+  `owned[id].sockets`; `main.js` `craftGem`/`socketGem`/`unsocketGem`/
+  `_grantRolledGem`/`_refreshPetSession`; `ui.js`
+  `_buildSocketRow`/`_buildPetGems`): an RPG customization layer that lets the
+  player **socket gems into pets** to tune their buffs. `GEM_CATALOG` holds 6
+  gems (ruby🔴 score, citrine🟡 coins, sapphire🔵 charge, amber🟠 fever,
+  emerald🟢 active-cooldown, diamond💎 a little of everything) across 3 quality
+  `GEM_TIERS` (chipped→polished→brilliant, ×1/×2/×3). A gem is the compact key
+  `"type:tier"` (`gemKey`/`parseGemKey`/`gemLabel`/`gemValue`). `gems.js` is
+  **pure**: `socketsForLevel(level)` gates how many sockets a pet has unlocked
+  (0 at L1, 1 at L2–3, 2 at L4+, capped at `MAX_SOCKETS`=2), and a parallel
+  **tier ladder** gates how *strong* a gem a pet may wear — `maxGemTierForLevel`
+  / `levelForGemTier` / `canSocketGemAtLevel` enforce `GEM_TIER_MIN_LEVEL`
+  (chipped→Lv.2, polished→Lv.4, brilliant→Lv.5) so a fresh low-level pet can
+  only socket weak gems and must grow before it can hold the strongest ones.
+  `socketBuffs(keys)`
+  aggregates the **passive** multipliers (diamond's `allMult` lifts all four
+  axes; emerald contributes none here) and `socketActiveMods(keys)` aggregates
+  the **active** mods (only emerald's `cooldownDelta` today). The fold happens in
+  `pets.js` `petBuffs(petId, level, traitId, sockets)` /
+  `petActive(petId, level, traitId, sockets)` (new optional 4th param, so
+  `partyBuffs` naturally includes each member's `m.sockets`); active cooldown is
+  clamped ≥1. Gems are **acquired** by crafting with Pet Dust
+  (`gemDustCost(tier)` = 40/120/300, `Game.craftGem(type,tier)` →
+  `Storage.spendDust` + `addGem`), from crate opens (~35% drop, biased higher
+  for rarer pulls; the premium Legendary crate always includes one), and from
+  **falling gift events** (`events.js` `GIFT_GEM_CHANCE`=0.12, a new
+  `{type:"gem"}` reward). `rollGem(rng, {tierBias})` is seeded/deterministic.
+  Storage owns the inventory + sockets (`getGems`/`gemCount`/`addGem`/
+  `spendGem`/`getSockets`/`socketGem`(displaced gem returns to inventory)/
+  `unsocketGem`); the new top-level `gems:{}` field and per-pet `sockets:[]`
+  deep-merge into old saves. **Embuing (socketing) costs Pet Dust** —
+  `socketDustCost(tier)` = 20/60/150 (cheaper than crafting); `Game.socketGem`
+  rejects when the player can't afford it and `spendDust`s on success. **Removing
+  a gem shatters it**: `Storage.unsocketGem` destroys the gem (it does NOT return
+  to the bag) and `Game.unsocketGem` returns `{key, dust}`, refunding
+  `unsocketDustRefund(tier)` = `floor(socketDustCost*0.4)` = 8/24/60 (always less
+  than was paid). `socketGem`/`unsocketGem` live-refresh the running
+  session's buffs/active stats (`_refreshPetSession`) so a socket swap applies
+  without a restart. The **Pets screen** renders a clickable socket row in the
+  pet detail; each gem advertises its concrete effect via `gemBuffLabel(key)`
+  (e.g. `+12% Score`, `+6% all stats`, `-3 move ability cooldown`), shown both on
+  picker buttons (`.pg-buff`) and as a buff caption under filled slots
+  (`.pd-socket-buffs`). Tapping an empty slot opens the gem picker. Because the
+  `#pet-gems` panel sits **above** the pet detail in the DOM, the picker promotes
+  that panel to a centered overlay (`.pet-gems.pg-picking`) so it can't render
+  off-screen; gems above the pet's unlocked tier appear **locked** with the
+  required level, and gems the player can't afford show their dust cost as
+  unaffordable. A successful embue plays a celebratory `_playSocketMagic()`
+  flourish — one of **5 random variants** (`.socket-magic[data-variant]`, ring +
+  glyph + sparks, recorded as `_lastSocketMagic`, skipped under reduced motion).
+  Tapping a **filled** slot opens the `#gem-remove` warning modal
+  (`_requestUnsocket`/`_confirmUnsocket`) that explains the gem will be shattered
+  for a partial dust refund before it's destroyed. Meta/RPG customization —
+  **no tutorial step** (consistent with traits, party & synergies). (Exposed for
+  tests via `__bpc.gems`.)
 - **Interactive tutorial** (`tutorial.js`): a gated, step‑by‑step onboarding that
   auto‑opens on first run (and re‑playable via the menu's **How to Play**
   button). Each action step **blocks until the player actually performs the
@@ -869,6 +925,7 @@ src/
   puzzle.js         # Puzzle Mode ladder (pure: clear-the-board-in-N-moves + star ratings)
   events.js         # Falling gift/problem events (pure: delay/type/reward rolls)
   pets.js           # Pet companions (pure: catalog, buffs, active actions, crate rolls)
+  gems.js           # Gems & sockets (pure: gem catalog, tiers, socket buffs, gem rolls)
   monetization.js   # F2P abstraction (ads/IAP) — MOCK provider, pluggable  tutorial.js       # Gated step-by-step onboarding: TUTORIAL_STEPS + Tutorial class  ui.js             # All DOM UI: screens, level map, shop, themes, HUD, modals
 tests/
   unit/*.test.js    # Vitest unit tests (real modules, jsdom)
@@ -927,7 +984,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 485 unit tests + 348 E2E
+- **Current baseline (keep growing, never shrink)**: 543 unit tests + 376 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

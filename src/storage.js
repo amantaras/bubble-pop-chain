@@ -84,7 +84,7 @@ const DEFAULT_SAVE = {
   // Sparky equipped and one starter crate so the system is usable immediately.
   pets: {
     owned: {
-      sparky: { xp: 0, cosmetics: ["default"], cosmetic: "default", trait: "balanced" },
+      sparky: { xp: 0, cosmetics: ["default"], cosmetic: "default", trait: "balanced", sockets: [] },
     },
     equipped: "sparky",
     crates: 1,
@@ -97,6 +97,9 @@ const DEFAULT_SAVE = {
     // guarantee (see pets.js pityRarityFloor / nextPity).
     pity: { sinceEpic: 0, sinceLegendary: 0 },
   },
+  // Loose gem inventory — earned from crates / events / Dust crafting, slotted
+  // into a pet's sockets for extra buffs. Maps a gem key "type:tier" → count.
+  gems: {},
   // While the interactive tutorial is running it temporarily loads a generous,
   // complete inventory so the player can experiment with every tool and pet.
   // The player's REAL inventory (power-ups, loadout, pets) is snapshotted here
@@ -349,6 +352,7 @@ class StorageManager {
       cosmetics: ["default"],
       cosmetic: "default",
       trait: trait || "balanced",
+      sockets: [],
     };
     this._writePets(p);
     return true;
@@ -459,6 +463,80 @@ class StorageManager {
       sinceLegendary: Math.max(0, (pity && pity.sinceLegendary) || 0),
     };
     this._writePets(p);
+  }
+
+  // ---- Gems (loose inventory) + sockets --------------------------------
+  // The loose gem inventory, a map of gem key "type:tier" → count.
+  getGems() {
+    const g = this.data.gems;
+    return g && typeof g === "object" ? { ...g } : {};
+  }
+
+  // How many of a given gem key the player holds.
+  gemCount(key) {
+    return Math.max(0, this.getGems()[key] || 0);
+  }
+
+  // Add (or subtract) gems of a key; clamps at 0 and prunes empties. Returns
+  // the new count for that key.
+  addGem(key, n = 1) {
+    const g = this.getGems();
+    const next = Math.max(0, (g[key] || 0) + n);
+    if (next <= 0) delete g[key];
+    else g[key] = next;
+    this.data.gems = g;
+    this.save();
+    return next;
+  }
+
+  // Spend one gem of a key if available. Returns true on success.
+  spendGem(key) {
+    if (this.gemCount(key) <= 0) return false;
+    this.addGem(key, -1);
+    return true;
+  }
+
+  // The socket array for an owned pet (empty slots are null). Always returns a
+  // fresh array; never the stored reference.
+  getSockets(id) {
+    const p = this.getPetState();
+    const pet = p.owned[id];
+    if (!pet) return [];
+    return Array.isArray(pet.sockets) ? pet.sockets.slice() : [];
+  }
+
+  // Slot a gem (key) into a pet's socket index. The gem must be in inventory;
+  // any gem already in that slot is returned to inventory first. Returns true
+  // on success. `maxSlots` bounds how many sockets the pet has unlocked.
+  socketGem(id, slot, key, maxSlots) {
+    const p = this.getPetState();
+    const pet = p.owned[id];
+    if (!pet) return false;
+    if (slot < 0 || (maxSlots != null && slot >= maxSlots)) return false;
+    if (this.gemCount(key) <= 0) return false;
+    const sockets = Array.isArray(pet.sockets) ? pet.sockets.slice() : [];
+    while (sockets.length <= slot) sockets.push(null);
+    // Return the displaced gem (if any) to inventory.
+    if (sockets[slot]) this.addGem(sockets[slot], 1);
+    this.spendGem(key);
+    sockets[slot] = key;
+    pet.sockets = sockets;
+    this._writePets(p);
+    return true;
+  }
+
+  // Remove the gem from a pet's socket index. The gem is NOT returned to the
+  // inventory — removal SHATTERS it (the caller converts it to a partial dust
+  // refund). Returns the removed gem key (or null if the slot was empty).
+  unsocketGem(id, slot) {
+    const p = this.getPetState();
+    const pet = p.owned[id];
+    if (!pet || !Array.isArray(pet.sockets)) return null;
+    const key = pet.sockets[slot];
+    if (!key) return null;
+    pet.sockets[slot] = null;
+    this._writePets(p);
+    return key;
   }
 
   // Add a cosmetic to a pet. Returns true if newly granted (idempotent).

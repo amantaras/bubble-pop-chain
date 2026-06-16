@@ -107,6 +107,26 @@ import {
   SYNERGIES,
   SUPPORT_SLOTS,
 } from "./pets.js";
+import {
+  GEM_CATALOG,
+  GEM_TIERS,
+  socketsForLevel,
+  socketBuffs,
+  socketActiveMods,
+  rollGem,
+  gemDustCost,
+  gemKey,
+  getGemDef,
+  getGemTier,
+  parseGemKey,
+  gemLabel,
+  canSocketGemAtLevel,
+  maxGemTierForLevel,
+  levelForGemTier,
+  socketDustCost,
+  unsocketDustRefund,
+  MAX_SOCKETS,
+} from "./gems.js";
 import { calendarStatus, advanceCalendar } from "./calendar.js";
 import {
   ensureQuests,
@@ -230,6 +250,9 @@ class Game {
       craftPet: (id) => this.craftPet(id),
       equipPet: (id) => this.equipPet(id),
       toggleSupport: (id) => this.toggleSupport(id),
+      craftGem: (type, tier) => this.craftGem(type, tier),
+      socketGem: (petId, slot, key) => this.socketGem(petId, slot, key),
+      unsocketGem: (petId, slot) => this.unsocketGem(petId, slot),
       buyPremiumPet: (id) => this.buyPremiumPet(id),
       buyCosmetic: (petId, cos) => this.buyCosmetic(petId, cos),
       isLevelActive: () => this.isLevelActive(),
@@ -363,13 +386,14 @@ class Game {
   _partyMembers() {
     const members = [];
     const eq = Storage.getEquippedPet();
-    if (eq) members.push({ id: eq.id, level: levelForXp(eq.xp || 0), trait: eq.trait, role: "lead" });
+    if (eq) members.push({ id: eq.id, level: levelForXp(eq.xp || 0), trait: eq.trait, sockets: Storage.getSockets(eq.id), role: "lead" });
     for (const id of Storage.getPartySupports()) {
       if (!Storage.ownsPet(id) || id === (eq && eq.id)) continue;
       members.push({
         id,
         level: levelForXp((Storage.getPetState().owned[id] || {}).xp || 0),
         trait: Storage.getPetTrait(id),
+        sockets: Storage.getSockets(id),
         role: "support",
       });
     }
@@ -393,7 +417,7 @@ class Game {
   _equippedActive() {
     const eq = Storage.getEquippedPet();
     if (!eq) return null;
-    return petActive(eq.id, levelForXp(eq.xp || 0), eq.trait);
+    return petActive(eq.id, levelForXp(eq.xp || 0), eq.trait, Storage.getSockets(eq.id));
   }
 
   // Roll a fresh personality trait for a newly-acquired pet, advancing the
@@ -863,7 +887,12 @@ class Game {
       dust = dustValue(rarity);
       Storage.addDust(dust);
     }
-    return { petId, isNew, premium: !!premium, rarity, dust, trait: isNew ? trait : null };
+    // A crate sometimes also drops a loose gem (~35%); rarer pulls bias higher.
+    let gem = null;
+    if (makeRng((seed ^ 0x9e3779b9) >>> 0)() < 0.35) {
+      gem = this._grantRolledGem(rarity === "legendary" ? 0.6 : rarity === "epic" ? 0.3 : 0);
+    }
+    return { petId, isNew, premium: !!premium, rarity, dust, gem, trait: isNew ? trait : null };
   }
 
   // Buy one crate with coins. Returns true on success.
@@ -908,10 +937,10 @@ class Game {
       dust = dustValue(rarity);
       Storage.addDust(dust);
     }
-    return { petId, isNew, premium: !!premium, rarity, dust, trait: isNew ? trait : null };
+    // The premium crate always includes a bonus gem (biased toward high tiers).
+    const gem = this._grantRolledGem(0.7);
+    return { petId, isNew, premium: !!premium, rarity, dust, gem, trait: isNew ? trait : null };
   }
-
-  // Equip a pet you own; refreshes the live session's buffs if mid-level.
   equipPet(id) {
     if (!Storage.equipPet(id)) return false;
     if (this.session && !this.session.ended) {
@@ -934,6 +963,79 @@ class Game {
       this.session.petBuffs = this._equippedBuffs();
     }
     return supports;
+  }
+
+  // ---- Gems & sockets ---------------------------------------------------
+  // Re-apply the equipped party's buffs + active stats to the live session
+  // (used after a socket change, which can alter both passive buffs and the
+  // active pet's cooldown). Keeps the current petTimer if it's already shorter
+  // so a socket swap never *delays* a pending action.
+  _refreshPetSession() {
+    if (!this.session || this.session.ended) return;
+    this.session.petBuffs = this._equippedBuffs();
+    const active = this._equippedActive();
+    this.session.petActive = active;
+    if (active) {
+      this.session.petTimer = Math.min(this.session.petTimer || active.cooldown, active.cooldown);
+    } else {
+      this.session.petTimer = 0;
+    }
+  }
+
+  // Craft a gem (type + tier) by spending Pet Dust. Returns
+  // { ok, key, cost } or { ok:false, reason }.
+  craftGem(type, tier) {
+    if (!getGemDef(type)) return { ok: false, reason: "unknown" };
+    const tierId = getGemTier(tier).id;
+    const cost = gemDustCost(tierId);
+    if (!Storage.spendDust(cost)) return { ok: false, reason: "dust" };
+    const key = gemKey(type, tierId);
+    Storage.addGem(key, 1);
+    return { ok: true, key, cost };
+  }
+
+  // Slot a gem from inventory into a pet's socket. `slot` is bounded by how many
+  // sockets the pet has unlocked at its current level. Returns true on success
+  // and refreshes the live session if the pet is the active lead.
+  socketGem(petId, slot, key) {
+    const lvl = levelForXp((Storage.getPetState().owned[petId] || {}).xp || 0);
+    // A gem's tier must be unlocked by the pet's level (stronger gems need a
+    // higher level — see GEM_TIER_MIN_LEVEL).
+    if (!canSocketGemAtLevel(key, lvl)) return false;
+    if (Storage.gemCount(key) <= 0) return false;
+    // Embuing a gem costs dust (separate from crafting). Reject if too poor.
+    const g = parseGemKey(key);
+    const cost = g ? socketDustCost(g.tier) : 0;
+    if (Storage.getDust() < cost) return false;
+    const maxSlots = socketsForLevel(lvl);
+    if (!Storage.socketGem(petId, slot, key, maxSlots)) return false;
+    if (cost > 0) Storage.spendDust(cost);
+    this._refreshPetSession();
+    return true;
+  }
+
+  // Remove a gem from a pet's socket. The gem is SHATTERED (destroyed) and the
+  // player recovers only a fraction of the embue cost as dust — always less than
+  // they paid. Returns { key, dust } on success (or null if the slot was empty)
+  // and refreshes the live session.
+  unsocketGem(petId, slot) {
+    const key = Storage.unsocketGem(petId, slot);
+    if (!key) return null;
+    const g = parseGemKey(key);
+    const dust = g ? unsocketDustRefund(g.tier) : 0;
+    if (dust > 0) Storage.addDust(dust);
+    this._refreshPetSession();
+    return { key, dust };
+  }
+
+  // Roll a gem reward and add it to inventory (used by crate/event drops).
+  // `tierBias` nudges toward better tiers for richer sources. Returns the key.
+  _grantRolledGem(tierBias = 0) {
+    this._crateSeed = ((this._crateSeed || 1) * 1664525 + 1013904223) >>> 0;
+    const seed = (this._crateSeed ^ ((Date.now() >>> 0) || 1)) >>> 0;
+    const key = rollGem(makeRng(seed), { tierBias });
+    Storage.addGem(key, 1);
+    return key;
   }
 
   // True while a real (non-tutorial) level is being played. Used by the pet
@@ -3526,6 +3628,12 @@ class Game {
         Storage.addCrates(1);
         this.floating.spawn(cx, cy, "🎁 Pet Crate!", "#c9a3ff", 28);
         UI.toast("🎁 Gift: a Pet Crate! Open it in the Pets menu");
+      } else if (reward.type === "gem") {
+        const key = this._grantRolledGem(0.2);
+        const g = parseGemKey(key);
+        const icon = g ? g.def.icon : "💎";
+        this.floating.spawn(cx, cy, `${icon} Gem!`, "#bde0fe", 28);
+        UI.toast(`🎁 Gift: a ${gemLabel(key)}! Socket it in the Pets menu`);
       } else if (reward.type === "powerup") {
         Economy.addPowerup(reward.powerup, 1);
         UI.updatePowerups();
@@ -3627,6 +3735,7 @@ if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) 
     UI,
     getLevel,
     pets: { petBuffs, petActive, levelForXp, rollCrate, rollLegendaryCrate, getPet, PET_CATALOG, pityRarityFloor, nextPity, dustValue, dustCost, PITY_EPIC, PITY_LEGENDARY, rollTrait, getTrait, TRAITS, partyBuffs, partyTotalBuffs, activeSynergies, SYNERGIES, SUPPORT_SLOTS },
+    gems: { GEM_CATALOG, GEM_TIERS, socketsForLevel, socketBuffs, socketActiveMods, rollGem, gemKey, parseGemKey, gemDustCost, getGemDef, getGemTier, gemLabel, canSocketGemAtLevel, maxGemTierForLevel, levelForGemTier, socketDustCost, unsocketDustRefund, MAX_SOCKETS },
     calendar: { calendarStatus, advanceCalendar, todayKey },
     season: { seasonStatus, addSeasonXp, claimTier, tierReward },
     quests: { ensureQuests, applyQuestProgress, claimQuest, questsClaimable, todayKey, weekKey },

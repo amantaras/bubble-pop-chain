@@ -79,6 +79,25 @@ import {
   SUPPORT_SLOTS,
   activeSynergies,
 } from "./pets.js";
+import {
+  GEM_CATALOG,
+  GEM_TIERS,
+  socketsForLevel,
+  getGemDef,
+  getGemTier,
+  gemKey,
+  parseGemKey,
+  gemLabel,
+  gemIcon,
+  gemValue,
+  gemDustCost,
+  gemTierIndex,
+  maxGemTierForLevel,
+  levelForGemTier,
+  gemBuffLabel,
+  socketDustCost,
+  unsocketDustRefund,
+} from "./gems.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -109,8 +128,9 @@ class UIManager {
       "cb-toggle", "cb-toggle-state",
       "hints-toggle", "hints-toggle-state",
       "rm-toggle", "rm-toggle-state",
-      "pets", "pets-coins", "pets-crate", "pet-party", "pet-store", "pet-list", "pet-detail",
+      "pets", "pets-coins", "pets-crate", "pet-party", "pet-gems", "pet-store", "pet-list", "pet-detail",
       "pet-confirm", "pet-confirm-sub", "pet-confirm-ok", "pet-confirm-cancel",
+      "gem-remove", "gem-remove-sub", "gem-remove-ok", "gem-remove-cancel",
       "pet-reveal", "pet-reveal-confetti", "pet-reveal-congrats", "pet-reveal-glow",
       "pet-reveal-icon", "pet-reveal-name", "pet-reveal-rarity", "pet-reveal-ability",
       "pet-reveal-desc", "pet-reveal-close", "pet-reveal-equip",
@@ -199,6 +219,10 @@ class UIManager {
     // Switch-companion confirmation (only seen when changing pets mid-level).
     click("pet-confirm-cancel", () => this._cancelEquip());
     click("pet-confirm-ok", () => this._confirmEquip());
+
+    // Gem-removal warning (gems shatter into a small dust refund when removed).
+    click("gem-remove-cancel", () => this._cancelUnsocket());
+    click("gem-remove-ok", () => this._confirmUnsocket());
 
     // New-companion celebration buttons.
     click("pet-reveal-close", () => this._closePetReveal());
@@ -1754,6 +1778,7 @@ class UIManager {
     }
     this._buildPetCrate();
     this._buildPetParty();
+    this._buildPetGems();
     this._buildPetStore();
     this._buildPetList(owned);
     this._buildPetDetail(owned);
@@ -2015,6 +2040,9 @@ class UIManager {
         `<span class="pd-trait-desc">${trait.desc}</span>`;
       panel.appendChild(traitEl);
 
+      // Gem sockets (unlock with level; tap to socket / unsocket a gem).
+      panel.appendChild(this._buildSocketRow(pet, lvl, owned[pet.id]));
+
       // Equip button.
       const equip = document.createElement("button");
       equip.className = "buy-btn pet-equip-btn";
@@ -2128,6 +2156,285 @@ class UIManager {
       return `🐾 ${pet.ability.label} (+${Math.round(b.startCharge * 100)}% charge)`;
     const pct = Math.round((b[key] - 1) * 100);
     return `🐾 ${pet.ability.label} (+${pct}%)`;
+  }
+
+  // A pet's gem-socket row: one button per unlocked socket (level-gated).
+  // Empty slots open the gem picker; filled slots pop their gem back out.
+  _buildSocketRow(pet, lvl, state) {
+    const wrap = document.createElement("div");
+    wrap.className = "pd-sockets";
+    const max = socketsForLevel(lvl);
+    const sockets = state && Array.isArray(state.sockets) ? state.sockets : [];
+    const title = document.createElement("div");
+    title.className = "pd-sockets-title";
+    title.textContent = "💎 Gem Sockets";
+    wrap.appendChild(title);
+    if (max <= 0) {
+      const hint = document.createElement("div");
+      hint.className = "pd-sockets-hint";
+      hint.textContent = "Unlocks at Lv.2 (a 2nd socket at Lv.4).";
+      wrap.appendChild(hint);
+      return wrap;
+    }
+    const row = document.createElement("div");
+    row.className = "pd-socket-row";
+    for (let i = 0; i < max; i++) {
+      const key = sockets[i] || null;
+      const slot = document.createElement("button");
+      slot.className = "socket-slot" + (key ? " filled" : " empty");
+      slot.dataset.slot = String(i);
+      if (key) {
+        const g = parseGemKey(key);
+        slot.innerHTML = `<span class="ss-gem">${gemIcon(key)}</span>`;
+        slot.title = `${gemLabel(key)} (${gemBuffLabel(key)}) — tap to remove`;
+        if (g) slot.style.borderColor = g.def.color;
+        slot.addEventListener("click", () => {
+          Audio.click();
+          this._requestUnsocket(pet, i, key);
+        });
+      } else {
+        slot.textContent = "＋";
+        slot.title = "Tap to socket a gem";
+        slot.addEventListener("click", () => {
+          Audio.click();
+          this._gemPicker = { petId: pet.id, slot: i };
+          this._buildPetGems();
+          this._buildPetDetail(Storage.getPetState().owned);
+        });
+      }
+      row.appendChild(slot);
+    }
+    wrap.appendChild(row);
+
+    // Caption: what each filled socket is currently granting, so the live buff
+    // is legible at a glance.
+    const filled = sockets.filter(Boolean);
+    if (filled.length) {
+      const caps = document.createElement("div");
+      caps.className = "pd-socket-buffs";
+      caps.innerHTML = filled
+        .map(
+          (key) =>
+            `<span class="pd-socket-buff">${gemIcon(key)} ${gemBuffLabel(key)}</span>`
+        )
+        .join("");
+      wrap.appendChild(caps);
+    }
+    return wrap;
+  }
+
+  // Removing a gem destroys it for a partial dust refund — confirm first so the
+  // player understands they won't get the gem (or the full embue cost) back.
+  _requestUnsocket(pet, slot, key) {
+    this._pendingUnsocket = { petId: pet.id, slot };
+    const g = parseGemKey(key);
+    const refund = g ? unsocketDustRefund(g.tier) : 0;
+    const paid = g ? socketDustCost(g.tier) : 0;
+    if (this.el["gem-remove-sub"]) {
+      this.el["gem-remove-sub"].innerHTML =
+        `Removing <b>${gemLabel(key)}</b> <b>shatters</b> it — you do <b>not</b> get the gem back. ` +
+        `You'll recover only <b>✨${refund} dust</b> of the ✨${paid} spent to embue it.`;
+    }
+    if (this.el["gem-remove"]) this.el["gem-remove"].classList.remove("hidden");
+  }
+
+  _cancelUnsocket() {
+    this._pendingUnsocket = null;
+    if (this.el["gem-remove"]) this.el["gem-remove"].classList.add("hidden");
+  }
+
+  _confirmUnsocket() {
+    const req = this._pendingUnsocket;
+    this._pendingUnsocket = null;
+    if (this.el["gem-remove"]) this.el["gem-remove"].classList.add("hidden");
+    if (!req || !this.cb.unsocketGem) return;
+    const res = this.cb.unsocketGem(req.petId, req.slot);
+    if (res) {
+      Audio.blast();
+      this.toast(`Gem shattered — recovered ✨${res.dust} dust`);
+    }
+    this.buildPets();
+  }
+
+  // A short "magical embue" flourish played when a gem is bound into a socket.
+  // One of 5 randomly-chosen variants keeps repeated socketing fresh. Honours
+  // reduced-motion (skips the burst but still records the variant for parity).
+  _playSocketMagic() {
+    const variant = Math.floor(Math.random() * 5);
+    this._lastSocketMagic = variant;
+    if (this._motionOff() || typeof document === "undefined") return variant;
+    const fx = document.createElement("div");
+    fx.className = "socket-magic";
+    fx.dataset.variant = String(variant);
+    // A ring, a glyph, and a scatter of sparks — styled per variant in CSS.
+    const glyphs = ["✦", "✧", "❂", "✺", "❖"];
+    fx.innerHTML =
+      `<span class="sm-ring"></span><span class="sm-glyph">${glyphs[variant]}</span>` +
+      Array.from({ length: 6 }, (_, i) => `<span class="sm-spark sm-spark-${i}"></span>`).join("");
+    document.body.appendChild(fx);
+    setTimeout(() => fx.remove(), 1000);
+    return variant;
+  }
+
+  // Gem inventory + crafting panel (and the in-place gem picker when slotting).
+  _buildPetGems() {
+    const wrap = this.el["pet-gems"];
+    if (!wrap) return;
+    const gems = Storage.getGems();
+    const dust = Storage.getDust();
+    wrap.innerHTML = "";
+
+    // Picker mode: choosing which inventory gem to slot into a pet socket. The
+    // panel lives above the pet detail in the DOM, so render it as a centered
+    // overlay (pg-picking) — otherwise the picker opens off-screen above the
+    // socket the player just tapped.
+    if (this._gemPicker) {
+      wrap.classList.add("pg-picking");
+      const { petId, slot } = this._gemPicker;
+      const pet = getPet(petId);
+      const ownedPet = Storage.getPetState().owned[petId] || {};
+      const lvl = levelForXp(ownedPet.xp || 0);
+      const maxTier = maxGemTierForLevel(lvl);
+      const card = document.createElement("div");
+      card.className = "pg-picker-card";
+      const head = document.createElement("div");
+      head.className = "pg-title";
+      head.textContent = `Socket a gem into ${pet ? pet.name : "pet"} (slot ${slot + 1})`;
+      card.appendChild(head);
+      const cap = document.createElement("div");
+      cap.className = "pg-cap";
+      cap.innerHTML =
+        (maxTier >= 0
+          ? `Lv.${lvl} — can socket up to <b>${getGemTier(GEM_TIERS[maxTier].id).label}</b> gems.`
+          : `Lv.${lvl} — no gem tiers unlocked yet.`) +
+        ` Embuing costs dust. You have ✨<b>${dust}</b>.`;
+      card.appendChild(cap);
+      const keys = Object.keys(gems).filter((k) => gems[k] > 0);
+      if (!keys.length) {
+        const empty = document.createElement("div");
+        empty.className = "pg-empty";
+        empty.textContent = "No gems yet — craft one below, or find them in crates & gifts.";
+        card.appendChild(empty);
+      } else {
+        const grid = document.createElement("div");
+        grid.className = "pg-grid";
+        // Strongest unlocked tiers first so the best pluggable gems lead.
+        keys.sort((a, b) => {
+          const ga = parseGemKey(a), gb = parseGemKey(b);
+          return (gb ? gemTierIndex(gb.tier) : -1) - (ga ? gemTierIndex(ga.tier) : -1);
+        });
+        for (const key of keys) {
+          const g = parseGemKey(key);
+          const tierLocked = g ? gemTierIndex(g.tier) > maxTier : true;
+          const cost = g ? socketDustCost(g.tier) : 0;
+          const tooPoor = !tierLocked && dust < cost;
+          const locked = tierLocked || tooPoor;
+          const b = document.createElement("button");
+          b.className = "pg-gem" + (locked ? " locked" : "");
+          b.dataset.gem = key;
+          if (g) b.style.borderColor = g.def.color;
+          let footTxt;
+          if (tierLocked && g) footTxt = `🔒 Lv.${levelForGemTier(g.tier)}`;
+          else footTxt = `✨${cost}${tooPoor ? " — low" : ""}`;
+          b.innerHTML =
+            `<span class="pg-icon">${gemIcon(key)}</span>` +
+            `<span class="pg-name">${gemLabel(key)}</span>` +
+            `<span class="pg-buff">${gemBuffLabel(key)}</span>` +
+            `<span class="pg-x">${footTxt} · ×${gems[key]}</span>`;
+          if (locked) {
+            b.disabled = true;
+            b.title = tierLocked && g
+              ? `${gemLabel(key)} needs Lv.${levelForGemTier(g.tier)} to socket`
+              : `Need ✨${cost} dust to embue this gem`;
+          } else {
+            b.addEventListener("click", () => {
+              Audio.click();
+              if (this.cb.socketGem && this.cb.socketGem(petId, slot, key)) {
+                Audio.fever();
+                this._playSocketMagic();
+                this.toast(`Embued ${gemLabel(key)} (${gemBuffLabel(key)})`);
+                this._gemPicker = null;
+                this.buildPets();
+              } else {
+                this.toast("Not enough Dust");
+              }
+            });
+          }
+          grid.appendChild(b);
+        }
+        card.appendChild(grid);
+      }
+      const cancel = document.createElement("button");
+      cancel.className = "buy-btn pg-cancel";
+      cancel.id = "gem-picker-cancel";
+      cancel.textContent = "Cancel";
+      cancel.addEventListener("click", () => {
+        Audio.click();
+        this._gemPicker = null;
+        this.buildPets();
+      });
+      card.appendChild(cancel);
+      wrap.appendChild(card);
+      return;
+    }
+    wrap.classList.remove("pg-picking");
+
+    // Normal mode: inventory chips + crafting cards.
+    const head = document.createElement("div");
+    head.className = "pg-title";
+    head.innerHTML = `💎 Gems <span class="pg-dust">✨ <b id="gem-dust">${dust}</b> Dust</span>`;
+    wrap.appendChild(head);
+
+    const invKeys = Object.keys(gems).filter((k) => gems[k] > 0);
+    const inv = document.createElement("div");
+    inv.className = "pg-inv";
+    if (invKeys.length) {
+      inv.innerHTML = invKeys
+        .map((key) => {
+          const g = parseGemKey(key);
+          return `<span class="pg-chip" style="border-color:${g ? g.def.color : ""}" title="${gemLabel(key)}">${gemIcon(key)} ${gemLabel(key)} ×${gems[key]}</span>`;
+        })
+        .join("");
+    } else {
+      inv.innerHTML = `<span class="pg-empty">No gems yet — craft one below, or find them in crates & gifts.</span>`;
+    }
+    wrap.appendChild(inv);
+
+    const craft = document.createElement("div");
+    craft.className = "pg-craft";
+    for (const def of GEM_CATALOG) {
+      const card = document.createElement("div");
+      card.className = "pg-craft-card";
+      card.innerHTML =
+        `<div class="pg-cc-head"><span class="pg-cc-icon">${def.icon}</span><span class="pg-cc-name">${def.name}</span></div>` +
+        `<div class="pg-cc-desc">${def.desc}</div>`;
+      const tiers = document.createElement("div");
+      tiers.className = "pg-cc-tiers";
+      for (const t of GEM_TIERS) {
+        const cost = gemDustCost(t.id);
+        const b = document.createElement("button");
+        b.className = "pg-craft-btn";
+        b.dataset.gem = def.type;
+        b.dataset.tier = t.id;
+        b.textContent = `${t.label} ✨${cost}`;
+        b.disabled = dust < cost;
+        b.addEventListener("click", () => {
+          Audio.click();
+          if (!this.cb.craftGem) return;
+          const res = this.cb.craftGem(def.type, t.id);
+          if (res && res.ok) {
+            this.toast(`Crafted ${gemLabel(gemKey(def.type, t.id))}!`);
+            this.buildPets();
+          } else {
+            this.toast("Not enough Dust");
+          }
+        });
+        tiers.appendChild(b);
+      }
+      card.appendChild(tiers);
+      craft.appendChild(card);
+    }
+    wrap.appendChild(craft);
   }
 
   _buildCosmetics(pet, state) {

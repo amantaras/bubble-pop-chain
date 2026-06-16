@@ -2158,6 +2158,317 @@ body {
   font-size: 11px;
   color: var(--text-dim);
 }
+
+/* ---- Gem sockets (pet detail) ---- */
+.pd-sockets {
+  margin-top: 14px;
+}
+.pd-sockets-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.pd-sockets-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  opacity: 0.85;
+}
+.pd-socket-row {
+  display: flex;
+  gap: 10px;
+}
+.socket-slot {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 2px dashed rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-dim);
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.15s ease;
+}
+.socket-slot.empty:hover {
+  transform: scale(1.06);
+}
+.socket-slot.filled {
+  border-style: solid;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.18);
+}
+.socket-slot .ss-gem {
+  font-size: 22px;
+}
+
+/* ---- Gem inventory + crafting panel ---- */
+.pet-gems {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 14px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.pg-title {
+  font-size: 14px;
+  font-weight: 800;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.pg-dust {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.pg-inv {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.pg-chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.06);
+}
+.pg-empty {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.pg-craft {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.pg-craft-card {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  padding: 8px;
+}
+.pg-cc-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 13px;
+}
+.pg-cc-desc {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin: 4px 0 6px;
+  min-height: 26px;
+}
+.pg-cc-tiers {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pg-craft-btn {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 6px;
+  border-radius: 8px;
+  border: none;
+  color: #fff;
+  background: linear-gradient(135deg, #7b53c9, #b07be8);
+  cursor: pointer;
+}
+.pg-craft-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.pg-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.pg-gem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px;
+  border-radius: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  cursor: pointer;
+}
+.pg-gem .pg-icon {
+  font-size: 22px;
+}
+.pg-gem .pg-name {
+  font-size: 10px;
+  font-weight: 600;
+}
+.pg-gem .pg-x {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.pg-gem.locked {
+  opacity: 0.55;
+  cursor: not-allowed;
+  border-style: dashed;
+}
+.pg-gem.locked .pg-x {
+  color: #ff9f1c;
+  font-weight: 700;
+}
+.pg-cancel {
+  width: 100%;
+}
+
+/* Gem picker overlay: the #pet-gems panel sits above the pet detail in the DOM,
+   so while picking we promote it to a centered modal so it can't open
+   off-screen above the socket the player just tapped. */
+.pet-gems.pg-picking {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 10, 24, 0.78);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.pet-gems.pg-picking .pg-picker-card {
+  width: min(440px, 90vw);
+  max-height: 84vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--bg-1, #161a33);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+}
+.pet-gems.pg-picking .pg-cap {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+.pg-gem .pg-buff {
+  font-size: 9px;
+  font-weight: 700;
+  color: #7ddc8f;
+  text-align: center;
+}
+.pg-gem.locked .pg-buff {
+  color: var(--text-dim);
+}
+
+/* Per-socket buff captions under the slot row, so the live effect is legible. */
+.pd-socket-buffs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.pd-socket-buff {
+  font-size: 10px;
+  font-weight: 700;
+  color: #7ddc8f;
+  background: rgba(125, 220, 143, 0.12);
+  border: 1px solid rgba(125, 220, 143, 0.3);
+  border-radius: 8px;
+  padding: 2px 7px;
+}
+
+/* "Magical embue" flourish when a gem is socketed — 5 randomly chosen variants.
+   Skipped entirely under reduced motion (the element is never created). */
+.socket-magic {
+  position: fixed;
+  left: 50%;
+  top: 46%;
+  width: 0;
+  height: 0;
+  z-index: 80;
+  pointer-events: none;
+}
+.socket-magic .sm-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 26px;
+  height: 26px;
+  margin: -13px;
+  border-radius: 50%;
+  border: 3px solid #bde0fe;
+  transform: translate(-50%, -50%);
+  animation: sm-ring 0.9s ease-out forwards;
+}
+@keyframes sm-ring {
+  0% { opacity: 0.95; transform: translate(-50%, -50%) scale(0.2); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(6); }
+}
+.socket-magic .sm-glyph {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 40px;
+  color: #bde0fe;
+  filter: drop-shadow(0 0 10px currentColor);
+  animation: sm-glyph 0.9s cubic-bezier(.2,.7,.3,1) forwards;
+}
+@keyframes sm-glyph {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3) rotate(-40deg); }
+  45% { opacity: 1; transform: translate(-50%, -50%) scale(1.25) rotate(0deg); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.7) rotate(25deg); }
+}
+.socket-magic .sm-spark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin: -4px;
+  border-radius: 50%;
+  background: #ffd24d;
+  box-shadow: 0 0 8px currentColor;
+  animation: sm-spark 0.85s ease-out forwards;
+}
+@keyframes sm-spark {
+  0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--dx, 0px)), calc(-50% + var(--dy, 0px))) scale(0.3); }
+}
+.sm-spark-0 { --dx: 48px; --dy: 0px; }
+.sm-spark-1 { --dx: 24px; --dy: 42px; }
+.sm-spark-2 { --dx: -24px; --dy: 42px; }
+.sm-spark-3 { --dx: -48px; --dy: 0px; }
+.sm-spark-4 { --dx: -24px; --dy: -42px; }
+.sm-spark-5 { --dx: 24px; --dy: -42px; }
+/* 5 colour variants (glyph already varies in JS). */
+.socket-magic[data-variant="0"] .sm-ring,
+.socket-magic[data-variant="0"] .sm-glyph { border-color: #bde0fe; color: #bde0fe; }
+.socket-magic[data-variant="0"] .sm-spark { background: #5b9fff; }
+.socket-magic[data-variant="1"] .sm-ring,
+.socket-magic[data-variant="1"] .sm-glyph { border-color: #ff6ec7; color: #ff6ec7; }
+.socket-magic[data-variant="1"] .sm-spark { background: #ffb3e6; }
+.socket-magic[data-variant="2"] .sm-ring,
+.socket-magic[data-variant="2"] .sm-glyph { border-color: #7ddc8f; color: #7ddc8f; }
+.socket-magic[data-variant="2"] .sm-spark { background: #c7f5cf; }
+.socket-magic[data-variant="3"] .sm-ring,
+.socket-magic[data-variant="3"] .sm-glyph { border-color: #ffd24d; color: #ffd24d; }
+.socket-magic[data-variant="3"] .sm-spark { background: #fff0b3; }
+.socket-magic[data-variant="4"] .sm-ring,
+.socket-magic[data-variant="4"] .sm-glyph { border-color: #b478ff; color: #b478ff; }
+.socket-magic[data-variant="4"] .sm-spark { background: #d9bbff; }
+
+
 .pet-equip-btn,
 .pet-premium-btn {
   width: 100%;

@@ -9,6 +9,7 @@ import {
   GIFT_POWERUP_POOL,
   GIFT_POWERUP_CHANCE,
   GIFT_CRATE_CHANCE,
+  GIFT_GEM_CHANCE,
   nextEventDelay,
   pickEventType,
   rollGiftReward,
@@ -40,9 +41,11 @@ describe("events / falling gift & problem logic", () => {
   });
 
   it("rollGiftReward can grant a power-up from the pool", () => {
-    const first = rollGiftReward(seq([0.1, 0]));
+    // Roll past the crate + gem slices into the power-up band.
+    const base = GIFT_CRATE_CHANCE + GIFT_GEM_CHANCE + 0.01;
+    const first = rollGiftReward(seq([base, 0]));
     expect(first).toEqual({ type: "powerup", powerup: GIFT_POWERUP_POOL[0] });
-    const last = rollGiftReward(seq([0.1, 0.99]));
+    const last = rollGiftReward(seq([base, 0.99]));
     expect(last.type).toBe("powerup");
     expect(GIFT_POWERUP_POOL).toContain(last.powerup);
   });
@@ -54,6 +57,16 @@ describe("events / falling gift & problem logic", () => {
     // Just above the crate slice should not be a crate.
     const notCrate = rollGiftReward(seq([GIFT_CRATE_CHANCE + 0.001, 0]));
     expect(notCrate.type).not.toBe("crate");
+  });
+
+  it("rollGiftReward can grant a loose gem", () => {
+    expect(GIFT_GEM_CHANCE).toBeGreaterThan(0);
+    // Inside the gem slice (just past the crate slice).
+    const gem = rollGiftReward(seq([GIFT_CRATE_CHANCE + 0.001]));
+    expect(gem).toEqual({ type: "gem" });
+    // Just past the gem slice is no longer a gem.
+    const notGem = rollGiftReward(seq([GIFT_CRATE_CHANCE + GIFT_GEM_CHANCE + 0.001, 0]));
+    expect(notGem.type).not.toBe("gem");
   });
 
   it("hands out a tool on a meaningful share of gifts (not just coins)", () => {

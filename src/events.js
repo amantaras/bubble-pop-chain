@@ -28,6 +28,9 @@ export const GIFT_POWERUP_CHANCE = 0.4;
 // A gift can also (rarely) contain a pet crate, tying pet collection into
 // everyday play. Kept small so crates still feel like a treat.
 export const GIFT_CRATE_CHANCE = 0.08;
+// A gift can also contain a loose GEM (slotted into a pet's sockets for buffs),
+// tying the gem economy into everyday play alongside crates.
+export const GIFT_GEM_CHANCE = 0.12;
 
 // Power-ups a gift may grant (the premium "magnet" is intentionally excluded).
 export const GIFT_POWERUP_POOL = [
@@ -55,12 +58,13 @@ export function pickEventType(rand = Math.random) {
   return rand() < GIFT_CHANCE ? EVENT_GIFT : EVENT_PROBLEM;
 }
 
-// Decide a gift's payload: { type:"crate" }, { type:"powerup", powerup } or
-// { type:"coins", coins }.
+// Decide a gift's payload: { type:"crate" }, { type:"gem" },
+// { type:"powerup", powerup } or { type:"coins", coins }.
 export function rollGiftReward(rand = Math.random) {
   const r = rand();
   if (r < GIFT_CRATE_CHANCE) return { type: "crate" };
-  if (r < GIFT_CRATE_CHANCE + GIFT_POWERUP_CHANCE) {
+  if (r < GIFT_CRATE_CHANCE + GIFT_GEM_CHANCE) return { type: "gem" };
+  if (r < GIFT_CRATE_CHANCE + GIFT_GEM_CHANCE + GIFT_POWERUP_CHANCE) {
     const i = Math.floor(rand() * GIFT_POWERUP_POOL.length);
     return { type: "powerup", powerup: GIFT_POWERUP_POOL[i] };
   }

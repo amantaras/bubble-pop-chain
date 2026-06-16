@@ -11,6 +11,8 @@
 //
 // ⚠️ Player-facing feature — keep the tutorial in sync (AGENTS.md §11).
 
+import { socketBuffs, socketActiveMods } from "./gems.js";
+
 export const MAX_PET_LEVEL = 5;
 // XP granted to the equipped pet each time a level is cleared.
 export const PET_XP_PER_LEVEL = 12;
@@ -401,8 +403,10 @@ export function neutralBuffs() {
 // The passive buffs an equipped pet provides at the given level, as a flat
 // object the game can multiply against (or add, for startCharge). A pet's own
 // ability is applied first, then its TRAIT's passive mods are stacked on — so
-// even active-only pets contribute buffs via a Lucky/Keen/Fiery trait.
-export function petBuffs(petId, level, traitId) {
+// even active-only pets contribute buffs via a Lucky/Keen/Fiery trait. Finally
+// any GEMS slotted into the pet's sockets (`sockets`, an array of "type:tier"
+// keys) fold their passive buffs on top.
+export function petBuffs(petId, level, traitId, sockets) {
   const base = neutralBuffs();
   const pet = getPet(petId);
   if (pet && pet.ability) {
@@ -416,6 +420,13 @@ export function petBuffs(petId, level, traitId) {
   if (m.coinMult) base.coinMult *= m.coinMult;
   if (m.powerMult) base.powerMult *= m.powerMult;
   if (m.feverMult) base.feverMult *= m.feverMult;
+  // Socketed gems (passive axes) stack on multiplicatively.
+  const g = socketBuffs(sockets);
+  base.scoreMult *= g.scoreMult;
+  base.coinMult *= g.coinMult;
+  base.powerMult *= g.powerMult;
+  base.feverMult *= g.feverMult;
+  base.startCharge = Math.min(1, base.startCharge + (g.startCharge || 0));
   return base;
 }
 
@@ -423,22 +434,26 @@ export function petBuffs(petId, level, traitId) {
 // `cooldown` is the number of moves between actions (shortens as the pet levels
 // up); `count` is how many bubbles a cleanse clears; `strength` (0..1) is how
 // strongly a gather pulls a colour together. All scale with level, then the
-// pet's TRAIT nudges them (Swift = faster cooldown, Mighty = +count/strength).
-export function petActive(petId, level, traitId) {
+// pet's TRAIT nudges them (Swift = faster cooldown, Mighty = +count/strength),
+// then any socketed GEMS (e.g. an Emerald shortens the cooldown further).
+export function petActive(petId, level, traitId, sockets) {
   const pet = getPet(petId);
   if (!pet || !pet.active) return null;
   const lvl = Math.max(1, Math.min(MAX_PET_LEVEL, Math.floor(level)));
   const a = pet.active;
   const m = getTrait(traitId).mods || {};
+  const gm = socketActiveMods(sockets);
   const cooldown = Math.max(
     1,
-    Math.max(a.minCooldown, a.baseCooldown - (lvl - 1)) + (m.cooldownDelta || 0)
+    Math.max(a.minCooldown, a.baseCooldown - (lvl - 1)) +
+      (m.cooldownDelta || 0) +
+      (gm.cooldownDelta || 0)
   );
   const count = Math.max(
     0,
-    (a.baseCount || 0) + (lvl - 1) * (a.countPer || 0) + (m.countDelta || 0)
+    (a.baseCount || 0) + (lvl - 1) * (a.countPer || 0) + (m.countDelta || 0) + (gm.countDelta || 0)
   );
-  const strength = Math.min(1, (0.45 + lvl * 0.12) * (m.strengthMult || 1));
+  const strength = Math.min(1, (0.45 + lvl * 0.12) * (m.strengthMult || 1) * (gm.strengthMult || 1));
   return {
     type: a.type,
     cooldown,
@@ -478,7 +493,7 @@ export function partyBuffs(members) {
   const out = neutralBuffs();
   for (const m of members || []) {
     if (!m || !m.id) continue;
-    const b = petBuffs(m.id, m.level, m.trait);
+    const b = petBuffs(m.id, m.level, m.trait, m.sockets);
     const frac = m.role === "support" ? SUPPORT_FRACTION : 1;
     out.powerMult *= 1 + (b.powerMult - 1) * frac;
     out.feverMult *= 1 + (b.feverMult - 1) * frac;

@@ -664,3 +664,38 @@ describe("party & synergies", () => {
     expect(total.scoreMult).toBeCloseTo(base.scoreMult * 1.12, 6);
   });
 });
+
+describe("gem sockets fold into pet buffs/active", () => {
+  it("a socketed ruby raises a passive pet's scoreMult", () => {
+    const base = petBuffs("sparky", 3);
+    const withGem = petBuffs("sparky", 3, "balanced", ["ruby:polished"]);
+    expect(withGem.scoreMult).toBeCloseTo(base.scoreMult * 1.08, 6);
+    // Other axes unchanged by a ruby.
+    expect(withGem.powerMult).toBeCloseTo(base.powerMult, 6);
+  });
+
+  it("a diamond lifts all four passive axes", () => {
+    const base = petBuffs("sparky", 3);
+    const withGem = petBuffs("sparky", 3, "balanced", ["diamond:chipped"]);
+    expect(withGem.scoreMult).toBeCloseTo(base.scoreMult * 1.02, 6);
+    expect(withGem.coinMult).toBeCloseTo(base.coinMult * 1.02, 6);
+    expect(withGem.powerMult).toBeCloseTo(base.powerMult * 1.02, 6);
+    expect(withGem.feverMult).toBeCloseTo(base.feverMult * 1.02, 6);
+  });
+
+  it("undefined sockets leaves buffs unchanged (backward compatible)", () => {
+    expect(petBuffs("sparky", 3, "balanced", undefined)).toEqual(petBuffs("sparky", 3));
+  });
+
+  it("an emerald shortens an active pet's cooldown", () => {
+    const base = petActive("rover", 3);
+    const withGem = petActive("rover", 3, "balanced", ["emerald:chipped"]);
+    expect(withGem.cooldown).toBe(base.cooldown - 1);
+  });
+
+  it("active cooldown never drops below 1 even with a strong emerald", () => {
+    const withGem = petActive("rover", 5, "balanced", ["emerald:brilliant", "emerald:brilliant"]);
+    expect(withGem.cooldown).toBeGreaterThanOrEqual(1);
+  });
+});
+

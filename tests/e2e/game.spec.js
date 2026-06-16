@@ -4416,12 +4416,291 @@ test.describe("lone-bubble rescue", () => {
   });
 });
 
+test.describe("pet gems & sockets (RPG batch 4)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("the Pets screen shows the gem panel with craft buttons", async ({ page }) => {
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await expect(page.locator("#pet-gems")).toBeVisible();
+    // Every gem type offers a chipped-tier craft button.
+    await expect(page.locator('.pg-craft-btn[data-gem="ruby"][data-tier="chipped"]')).toBeVisible();
+    await expect(page.locator('.pg-craft-btn[data-gem="diamond"][data-tier="brilliant"]')).toBeVisible();
+  });
+
+  test("crafting a gem with dust adds it to inventory and spends dust", async ({ page }) => {
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    const out = await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      const G = window.__bpc.game;
+      const { gemDustCost } = window.__bpc.gems;
+      S.addDust(500);
+      const before = S.getDust();
+      const cost = gemDustCost("polished");
+      const res = G.craftGem("ruby", "polished");
+      return { res, cost, before, after: S.getDust(), count: S.gemCount("ruby:polished") };
+    });
+    expect(out.res.ok).toBe(true);
+    expect(out.res.key).toBe("ruby:polished");
+    expect(out.count).toBe(1);
+    expect(out.after).toBe(out.before - out.cost);
+  });
+
+  test("crafting rejects an unaffordable gem", async ({ page }) => {
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    const res = await page.evaluate(() => {
+      window.__bpc.Storage.addDust(0);
+      return window.__bpc.game.craftGem("diamond", "brilliant");
+    });
+    expect(res.ok).toBe(false);
+    expect(res.reason).toBe("dust");
+  });
+
+  test("sockets unlock with pet level (0 at L1, up to 2 at L4)", async ({ page }) => {
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    const out = await page.evaluate(() => {
+      const { socketsForLevel } = window.__bpc.gems;
+      return { l1: socketsForLevel(1), l2: socketsForLevel(2), l4: socketsForLevel(4) };
+    });
+    expect(out.l1).toBe(0);
+    expect(out.l2).toBe(1);
+    expect(out.l4).toBe(2);
+  });
+
+  test("socketing a ruby raises an equipped pet's score buff live", async ({ page }) => {
+    await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      S.grantPet("draco"); // legendary scoreMult pet
+      S.addPetXp("draco", 999); // push to high level → 2 sockets
+      S.addGem("ruby:brilliant", 1);
+      S.addDust(500); // embuing costs dust
+      window.__bpc.game.equipPet("draco");
+    });
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    const out = await page.evaluate(() => {
+      const G = window.__bpc.game;
+      const before = G.session.petBuffs.scoreMult;
+      const ok = G.socketGem("draco", 0, "ruby:brilliant");
+      const after = G.session.petBuffs.scoreMult;
+      return { ok, before, after };
+    });
+    expect(out.ok).toBe(true);
+    expect(out.after).toBeGreaterThan(out.before);
+  });
+
+  test("an emerald shortens an equipped active pet's cooldown live", async ({ page }) => {
+    await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      S.grantPet("rover"); // active gather pet
+      S.addPetXp("rover", 999);
+      S.addGem("emerald:brilliant", 1);
+      S.addDust(500); // embuing costs dust
+      window.__bpc.game.equipPet("rover");
+    });
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    const out = await page.evaluate(() => {
+      const G = window.__bpc.game;
+      const before = G.session.petActive.cooldown;
+      const ok = G.socketGem("rover", 0, "emerald:brilliant");
+      const after = G.session.petActive.cooldown;
+      return { ok, before, after };
+    });
+    expect(out.ok).toBe(true);
+    expect(out.after).toBeLessThan(out.before);
+  });
+
+  test("unsocketing a gem shatters it for a partial dust refund", async ({ page }) => {
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    const out = await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      const G = window.__bpc.game;
+      const { socketDustCost, unsocketDustRefund } = window.__bpc.gems;
+      S.grantPet("rover");
+      S.addPetXp("rover", 999);
+      S.addGem("citrine:chipped", 1);
+      S.addDust(500);
+      const dustBeforeSocket = S.getDust();
+      G.socketGem("rover", 0, "citrine:chipped");
+      const slotted = S.getSockets("rover")[0];
+      const dustAfterSocket = S.getDust();
+      const inBagWhileSlotted = S.gemCount("citrine:chipped");
+      const res = G.unsocketGem("rover", 0);
+      return {
+        slotted,
+        inBagWhileSlotted,
+        res,
+        backInBag: S.gemCount("citrine:chipped"),
+        embueCost: socketDustCost("chipped"),
+        expectRefund: unsocketDustRefund("chipped"),
+        dustSpent: dustBeforeSocket - dustAfterSocket,
+        dustAfterRemove: S.getDust(),
+        dustAfterSocket,
+      };
+    });
+    expect(out.slotted).toBe("citrine:chipped");
+    expect(out.inBagWhileSlotted).toBe(0);
+    expect(out.dustSpent).toBe(out.embueCost); // socketing cost dust
+    expect(out.res.key).toBe("citrine:chipped");
+    expect(out.res.dust).toBe(out.expectRefund);
+    expect(out.res.dust).toBeLessThan(out.embueCost); // refund is less than paid
+    expect(out.backInBag).toBe(0); // gem destroyed, NOT returned to inventory
+    expect(out.dustAfterRemove).toBe(out.dustAfterSocket + out.expectRefund);
+  });
+
+  test("a crate open can drop a loose gem into inventory", async ({ page }) => {
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    const dropped = await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      const G = window.__bpc.game;
+      // Own every pet so opens are duplicates (focus on the gem-drop path).
+      for (const p of window.__bpc.pets.PET_CATALOG) S.grantPet(p.id);
+      let gotGem = false;
+      for (let i = 0; i < 40 && !gotGem; i++) {
+        S.addCrates(1);
+        const r = G.openCrate();
+        if (r && r.gem) gotGem = true;
+      }
+      return gotGem && Object.keys(S.getGems()).length > 0;
+    });
+    expect(dropped).toBe(true);
+  });
+
+  test("a low-level pet can only socket low-tier gems", async ({ page }) => {
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    const out = await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      const G = window.__bpc.game;
+      S.grantPet("rover");
+      S.addPetXp("rover", 50); // → Lv.2 (1 socket, chipped tier only)
+      S.addGem("ruby:chipped", 1);
+      S.addGem("ruby:brilliant", 1);
+      S.addDust(500); // enough dust either way — the gate is tier, not cost
+      const strong = G.socketGem("rover", 0, "ruby:brilliant"); // too strong → rejected
+      const weak = G.socketGem("rover", 0, "ruby:chipped"); // within tier → ok
+      return { strong, weak, slotted: S.getSockets("rover")[0] };
+    });
+    expect(out.strong).toBe(false);
+    expect(out.weak).toBe(true);
+    expect(out.slotted).toBe("ruby:chipped");
+  });
+
+  test("tapping an empty socket opens a visible gem picker overlay", async ({ page }) => {
+    await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      S.grantPet("rover");
+      S.addPetXp("rover", 999); // high level → sockets unlocked
+      S.addGem("citrine:chipped", 1);
+    });
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator('.pet-card[data-pet="rover"]').click();
+    await page.locator("#pet-detail .socket-slot.empty").first().click();
+    // The picker is promoted to a centered overlay (it lives above the detail in
+    // the DOM, so it must NOT render off-screen) and shows the pluggable gem.
+    await expect(page.locator(".pet-gems.pg-picking")).toBeVisible();
+    await expect(page.locator('.pg-gem[data-gem="citrine:chipped"]')).toBeVisible();
+  });
+
+  test("socketing a gem costs dust and is rejected when too poor", async ({ page }) => {
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    const out = await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      const G = window.__bpc.game;
+      const { socketDustCost } = window.__bpc.gems;
+      S.grantPet("rover");
+      S.addPetXp("rover", 999);
+      S.addGem("ruby:chipped", 2);
+      S.addDust(0); // broke → first socket attempt must fail
+      const poor = G.socketGem("rover", 0, "ruby:chipped");
+      S.addDust(socketDustCost("chipped"));
+      const before = S.getDust();
+      const rich = G.socketGem("rover", 0, "ruby:chipped");
+      const after = S.getDust();
+      return { poor, rich, spent: before - after, cost: socketDustCost("chipped") };
+    });
+    expect(out.poor).toBe(false); // couldn't afford the embue
+    expect(out.rich).toBe(true);
+    expect(out.spent).toBe(out.cost);
+  });
+
+  test("the gem picker shows each gem's buff and embue cost", async ({ page }) => {
+    await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      S.grantPet("draco");
+      S.addPetXp("draco", 999);
+      S.addGem("ruby:brilliant", 1);
+      S.addDust(500);
+    });
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator('.pet-card[data-pet="draco"]').click();
+    await page.locator("#pet-detail .socket-slot.empty").first().click();
+    const gem = page.locator('.pg-gem[data-gem="ruby:brilliant"]');
+    await expect(gem).toBeVisible();
+    await expect(gem.locator(".pg-buff")).toHaveText("+12% Score"); // the exact buff
+    await expect(gem.locator(".pg-x")).toContainText("✨150"); // the embue cost
+  });
+
+  test("socketing through the UI plays one of 5 magic variants", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      S.grantPet("draco");
+      S.addPetXp("draco", 999);
+      S.addGem("ruby:brilliant", 1);
+      S.addDust(500);
+      // Force motion ON so the flourish element is actually created.
+      const s = { ...(S.get("settings") || {}), reducedMotion: false };
+      S.set("settings", s);
+      window.__bpc.UI.reducedMotion = false;
+    });
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator('.pet-card[data-pet="draco"]').click();
+    await page.locator("#pet-detail .socket-slot.empty").first().click();
+    await page.locator('.pg-gem[data-gem="ruby:brilliant"]').click();
+    const variant = await page.evaluate(() => window.__bpc.UI._lastSocketMagic);
+    expect(variant).toBeGreaterThanOrEqual(0);
+    expect(variant).toBeLessThanOrEqual(4);
+    // The gem is now socketed.
+    const slotted = await page.evaluate(() => window.__bpc.Storage.getSockets("draco")[0]);
+    expect(slotted).toBe("ruby:brilliant");
+  });
+
+  test("removing a socketed gem warns then shatters it for dust", async ({ page }) => {
+    await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      const G = window.__bpc.game;
+      S.grantPet("draco");
+      S.addPetXp("draco", 999);
+      S.addGem("ruby:brilliant", 1);
+      S.addDust(500);
+      G.socketGem("draco", 0, "ruby:brilliant");
+    });
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator('.pet-card[data-pet="draco"]').click();
+    const dustBefore = await page.evaluate(() => window.__bpc.Storage.getDust());
+    // Tapping a filled socket asks for confirmation (the gem will be destroyed).
+    await page.locator("#pet-detail .socket-slot.filled").first().click();
+    await expect(page.locator("#gem-remove")).toBeVisible();
+    await page.locator("#gem-remove-ok").click();
+    const out = await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      const { unsocketDustRefund } = window.__bpc.gems;
+      return {
+        sockets: S.getSockets("draco"),
+        inBag: S.gemCount("ruby:brilliant"),
+        dust: S.getDust(),
+        refund: unsocketDustRefund("brilliant"),
+      };
+    });
+    expect(out.sockets[0]).toBeFalsy(); // slot emptied
+    expect(out.inBag).toBe(0); // gem destroyed, not returned
+    expect(out.dust).toBe(dustBefore + out.refund); // partial dust refund
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Last-bubble finale: when a board is whittled down to a single un-poppable
 // bubble, it glows then explodes (one of several random styles) and the board
 // clears, resolving the level — instead of jamming on a lone bubble.
 // ---------------------------------------------------------------------------
-
 // Leave exactly ONE bubble on the active board, then run the real end-of-move
 // evaluation that detects the single-bubble finish.
 async function leaveOneBubble(page) {

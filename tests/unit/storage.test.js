@@ -398,4 +398,115 @@ describe("storage", () => {
       expect(raw.pets.pity).toEqual({ sinceEpic: 3, sinceLegendary: 7 });
     });
   });
+
+  describe("gems inventory", () => {
+    beforeEach(() => {
+      localStorage.clear();
+      Storage.reset();
+    });
+
+    it("starts empty", () => {
+      expect(Storage.getGems()).toEqual({});
+      expect(Storage.gemCount("ruby:chipped")).toBe(0);
+    });
+
+    it("adds and counts gems", () => {
+      Storage.addGem("ruby:chipped", 2);
+      expect(Storage.gemCount("ruby:chipped")).toBe(2);
+      Storage.addGem("ruby:chipped", 1);
+      expect(Storage.gemCount("ruby:chipped")).toBe(3);
+    });
+
+    it("spends a gem and prunes empties", () => {
+      Storage.addGem("citrine:polished", 1);
+      expect(Storage.spendGem("citrine:polished")).toBe(true);
+      expect(Storage.gemCount("citrine:polished")).toBe(0);
+      expect(Storage.getGems()).toEqual({});
+      expect(Storage.spendGem("citrine:polished")).toBe(false);
+    });
+
+    it("clamps at zero and never goes negative", () => {
+      Storage.addGem("ruby:chipped", -5);
+      expect(Storage.gemCount("ruby:chipped")).toBe(0);
+    });
+
+    it("persists gems across a fresh read", () => {
+      Storage.addGem("diamond:brilliant", 1);
+      const raw = JSON.parse(localStorage.getItem("bpc_save_v1"));
+      expect(raw.gems["diamond:brilliant"]).toBe(1);
+    });
+  });
+
+  describe("pet sockets", () => {
+    beforeEach(() => {
+      localStorage.clear();
+      Storage.reset();
+    });
+
+    it("a fresh pet has no sockets", () => {
+      Storage.grantPet("rover");
+      expect(Storage.getSockets("rover")).toEqual([]);
+    });
+
+    it("default sparky owns an empty sockets array", () => {
+      const raw = JSON.parse(localStorage.getItem("bpc_save_v1"));
+      expect(raw.pets.owned.sparky.sockets).toEqual([]);
+    });
+
+    it("sockets a gem from inventory into a pet", () => {
+      Storage.grantPet("rover");
+      Storage.addGem("ruby:chipped", 1);
+      expect(Storage.socketGem("rover", 0, "ruby:chipped", 2)).toBe(true);
+      expect(Storage.getSockets("rover")[0]).toBe("ruby:chipped");
+      // Gem consumed from inventory.
+      expect(Storage.gemCount("ruby:chipped")).toBe(0);
+    });
+
+    it("rejects socketing without the gem in inventory", () => {
+      Storage.grantPet("rover");
+      expect(Storage.socketGem("rover", 0, "ruby:chipped", 2)).toBe(false);
+    });
+
+    it("rejects a slot beyond maxSlots", () => {
+      Storage.grantPet("rover");
+      Storage.addGem("ruby:chipped", 1);
+      expect(Storage.socketGem("rover", 1, "ruby:chipped", 1)).toBe(false);
+    });
+
+    it("returns a displaced gem to inventory when overwriting a slot", () => {
+      Storage.grantPet("rover");
+      Storage.addGem("ruby:chipped", 1);
+      Storage.addGem("citrine:chipped", 1);
+      Storage.socketGem("rover", 0, "ruby:chipped", 2);
+      Storage.socketGem("rover", 0, "citrine:chipped", 2);
+      expect(Storage.getSockets("rover")[0]).toBe("citrine:chipped");
+      // The ruby came back to the bag.
+      expect(Storage.gemCount("ruby:chipped")).toBe(1);
+    });
+
+    it("shatters a gem on unsocket (returns the key, does NOT refund the gem)", () => {
+      Storage.grantPet("rover");
+      Storage.addGem("ruby:chipped", 1);
+      Storage.socketGem("rover", 0, "ruby:chipped", 2);
+      // Socketing consumes the gem from the bag.
+      expect(Storage.gemCount("ruby:chipped")).toBe(0);
+      // Unsocket reports the removed key but the gem is destroyed (not returned).
+      expect(Storage.unsocketGem("rover", 0)).toBe("ruby:chipped");
+      expect(Storage.getSockets("rover")[0]).toBeFalsy();
+      expect(Storage.gemCount("ruby:chipped")).toBe(0);
+    });
+
+    it("unsocketing an empty slot returns null", () => {
+      Storage.grantPet("rover");
+      expect(Storage.unsocketGem("rover", 0)).toBeNull();
+    });
+
+    it("persists sockets across a fresh read", () => {
+      Storage.grantPet("rover");
+      Storage.addGem("emerald:polished", 1);
+      Storage.socketGem("rover", 0, "emerald:polished", 2);
+      const raw = JSON.parse(localStorage.getItem("bpc_save_v1"));
+      expect(raw.pets.owned.rover.sockets[0]).toBe("emerald:polished");
+    });
+  });
 });

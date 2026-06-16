@@ -127,6 +127,28 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   `activeSynergies` matching, `applySynergies`/`partyTotalBuffs` fold-on), and
   the storage pet helpers — grant/equip/XP/crates/cosmetics/dust/pity/trait +
   party supports (`getPartySupports`/`toggleSupport` add/remove/cap/lead-eviction))
+- **gems** (`tests/unit/gems.test.js`): the gems & sockets RPG module — gem
+  catalog/tier integrity, `socketsForLevel` level-gating (0/1/2), the tier power
+  ladder (`gemTierIndex`/`levelForGemTier`/`maxGemTierForLevel`/
+  `canSocketGemAtLevel` so chipped/polished/brilliant unlock at Lv.2/4/5 and a
+  too-strong gem is rejected on a low-level pet),
+  `gemKey`/`parseGemKey`/`gemLabel`/`gemIcon`/`gemValue` key round-trips,
+  `socketBuffs` passive aggregation (ruby single-axis, diamond `allMult`
+  all-axes, emerald active-only contributes nothing), `socketActiveMods`
+  (emerald cooldown delta), `gemDustCost` tier escalation + fallback, the
+  **embue/shatter dust economy** (`socketDustCost` 20/60/150 cheaper than
+  crafting + fallback, `unsocketDustRefund` 8/24/60 always < the embue cost),
+  `gemBuffLabel` human-readable effect strings (`+12% Score`, `+6% all stats`,
+  `-3 move ability cooldown`, junk→""), and
+  `rollGem` seeded determinism + `tierBias` nudging toward higher tiers. Storage
+  coverage adds the gem inventory (`addGem`/`gemCount`/`spendGem`/`getGems`
+  clamp+prune+persist) and per-pet sockets (`getSockets`/`socketGem` with
+  displaced-gem-returns-to-bag + maxSlots bound/`unsocketGem` **shatters the gem
+  (returns the key but does NOT refund it to the bag)**, default Sparky
+  `sockets:[]`, persistence); `pets.test.js` adds the socket-fold cases
+  (a ruby raises `petBuffs.scoreMult`, a diamond lifts all axes, an emerald
+  shortens `petActive.cooldown` clamped ≥1, undefined-sockets backward compat);
+  `events.test.js` adds the `{type:"gem"}` gift reward slice.
   plus the grid helpers it relies on
   (dominant colour, first-cell-of-colour, isolated-cell detection, and
   most-isolated-cell ranking for the Talon pick pet),
@@ -241,6 +263,19 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   arms its gather action, the diagonal pet blasts a streak, the pick pet (Talon)
   picks off the most isolated bubbles one by one, premium IAP grants ownership,
   HUD pet badge),
+  the pet gems & sockets flow (the Pets screen shows the `#pet-gems` panel with
+  per-type/tier craft buttons, crafting a gem with dust adds it to inventory +
+  spends dust and rejects unaffordable crafts, sockets unlock with pet level,
+  socketing a ruby raises an equipped pet's live score buff, an emerald shortens
+  an equipped active pet's live cooldown, **embuing costs dust and is rejected
+  when the player is broke**, **removing a socketed gem opens the `#gem-remove`
+  warning modal and shatters the gem for a partial dust refund** (the gem is
+  destroyed, not returned to the bag), a crate open can drop a loose gem, a
+  low-level pet can only socket low-tier gems, the gem picker advertises each
+  gem's `gemBuffLabel` effect (`.pg-buff`) and its embue cost (`.pg-x`), a
+  successful UI embue plays one of 5 random magic flourishes
+  (`_lastSocketMagic` 0–4), and tapping an empty socket opens a visible centered
+  gem-picker overlay),
   the daily retention flow (summary, streak reward),
   buying a power-up refreshing the HUD tool-slot count,
   a performance guard (a heavy pop storm keeps the particle pool capped and it

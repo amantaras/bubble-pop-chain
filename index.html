@@ -408,6 +408,7 @@
       </div>
       <div class="pets-crate" id="pets-crate"></div>
       <div class="pet-party" id="pet-party"></div>
+      <div class="pet-gems" id="pet-gems"></div>
       <div class="pet-store" id="pet-store"></div>
       <div class="pet-list" id="pet-list"></div>
       <div class="pet-detail" id="pet-detail"></div>
@@ -423,6 +424,21 @@
         <div class="modal-buttons">
           <button class="btn btn-ghost" id="pet-confirm-cancel">Cancel</button>
           <button class="btn btn-primary" id="pet-confirm-ok">Switch &amp; restart</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gem-removal warning: removing a socketed gem shatters it for a partial
+         dust refund (the gem itself is destroyed). -->
+    <div id="gem-remove" class="overlay modal hidden" role="dialog" aria-modal="true" aria-label="Remove gem">
+      <div class="modal-card">
+        <h2 class="modal-title">Shatter this gem?</h2>
+        <p class="modal-sub" id="gem-remove-sub">
+          Removing a gem destroys it for a partial dust refund.
+        </p>
+        <div class="modal-buttons">
+          <button class="btn btn-ghost" id="gem-remove-cancel">Keep it</button>
+          <button class="btn btn-primary" id="gem-remove-ok">Shatter for dust</button>
         </div>
       </div>
     </div>
