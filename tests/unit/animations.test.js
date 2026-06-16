@@ -192,7 +192,45 @@ describe("PetAnim — pet ability animations", () => {
     // Cleanse pops its cells immediately, so the frozen pixels are correct.
     expect(pa.items[0].board).toBe(null);
   });
+
+  it("clear() drops every in-flight animation", () => {
+    const pa = new PetAnim();
+    pa.play({ kind: "gather", anchor: { x: 0, y: 0 }, targets: [{ x: 1, y: 1 }] });
+    expect(pa.busy).toBe(true);
+    pa.clear();
+    expect(pa.busy).toBe(false);
+    expect(pa.items).toHaveLength(0);
+  });
+
+  it("clear() does NOT fire a pick's onDone (stale-callback guard)", () => {
+    // Regression: clearing on quit/end must not run the stale onDone, which
+    // would re-enter Game.afterMove on a null/new session and crash.
+    const pa = new PetAnim();
+    let doneFired = false;
+    pa.play({
+      kind: "pick",
+      anchor: { x: 0, y: 0 },
+      targets: [{ x: 1, y: 1 }],
+      onHit: () => {},
+      onDone: () => {
+        doneFired = true;
+      },
+    });
+    expect(pa.busy).toBe(true);
+    pa.clear();
+    // Tick well past the animation's lifetime — the callback must never fire.
+    pa.update(10);
+    expect(doneFired).toBe(false);
+    expect(pa.busy).toBe(false);
+  });
+
+  it("clear() is a no-op when nothing is playing", () => {
+    const pa = new PetAnim();
+    expect(() => pa.clear()).not.toThrow();
+    expect(pa.busy).toBe(false);
+  });
 });
+
 
 describe("existing animators still parse/behave", () => {
   it("FloatingText spawns and expires", () => {

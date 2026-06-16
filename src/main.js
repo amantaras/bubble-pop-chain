@@ -2843,12 +2843,16 @@ class Game {
 
   // ---- End-of-move evaluation ------------------------------------------
   afterMove() {
-    if (this.session) {
-      // Any resolved move resets the idle-hint timer.
-      this.session.idleTime = 0;
-      this.session.hint = null;
-    }
     const s = this.session;
+    // Guard FIRST against a stale async callback firing after the level was
+    // quit or already ended — e.g. Talon's pick `onDone` or the last-bubble
+    // finale's `onDone` resolve on a later frame, by which point the session
+    // may be null (quit to menu) or already resolved. Reading `s.mode` below
+    // would otherwise throw "Cannot read properties of null".
+    if (!s || s.ended) return;
+    // Any resolved move resets the idle-hint timer.
+    s.idleTime = 0;
+    s.hint = null;
     // The tutorial is a sandbox: it never wins, loses, or persists — but it
     // must never strand the player either. Top the practice board back up
     // whenever they've popped it down low (or run out of moves) so there are
@@ -2859,7 +2863,6 @@ class Game {
       }
       return;
     }
-    if (!s || s.ended) return;
     // A last-bubble finale is mid-flight; it will resolve the board itself.
     if (s.finishing) return;
     // Talon's pick is mid-flourish (bubbles are being pecked off one by one). It
@@ -3206,6 +3209,10 @@ class Game {
     this.input.setEnabled(false);
     UI.clearFallingEvents();
     this.alienShip.stop();
+    // Drop any in-flight pet/finale flourish so its async onDone can't re-run
+    // afterMove after the session has resolved.
+    this.petAnim.clear();
+    this.finale.cancel();
     this.activeEvent = false;
     clearTimeout(this._endTimer);
     this._endTimer = setTimeout(() => this._finish(won, reason), 480);
@@ -3532,6 +3539,10 @@ class Game {
     this.input.setEnabled(false);
     UI.clearFallingEvents();
     this.alienShip.stop();
+    // Drop any in-flight pet/finale flourish so its async onDone can't fire
+    // afterMove on the now-null session (or the next level's fresh one).
+    this.petAnim.clear();
+    this.finale.cancel();
     Audio.stopMusic();
     this.activeEvent = false;
     UI.showScreen("menu");

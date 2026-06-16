@@ -4288,6 +4288,79 @@ test.describe("pet companions (collection & buffs)", () => {
     await expect(page.locator("#pets")).toBeVisible();
     expect(await page.evaluate(() => !!window.__bpc.game.session)).toBe(false);
   });
+
+  test("quitting mid-Talon-pick does not crash when the flourish resolves", async ({
+    page,
+  }) => {
+    // Regression: Talon's pick `onDone` fires on a later frame and calls
+    // afterMove(). If the player quits to the menu first, the session is null
+    // and afterMove used to throw "Cannot read properties of null (reading
+    // 'mode')". The fix guards afterMove and clears the in-flight flourish on
+    // quit, so no pageerror is raised.
+    const pageErrors = [];
+    page.on("pageerror", (e) => pageErrors.push(String(e)));
+
+    await page.evaluate(() => {
+      window.__bpc.Storage.grantPet("talon");
+      window.__bpc.game.equipPet("talon");
+    });
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    // Plant lone off-colour bubbles in a single-colour field so Talon has
+    // isolated targets, then fire the pick — it runs asynchronously.
+    const fired = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          b.grid[c][r] = 0;
+          b.types[c][r] = 0;
+          const sp = b.spriteGrid[c][r];
+          if (sp) {
+            sp.color = 0;
+            sp.type = 0;
+          }
+        }
+      b.grid[1][1] = 1;
+      if (b.spriteGrid[1][1]) b.spriteGrid[1][1].color = 1;
+      b.grid[2][2] = 2;
+      if (b.spriteGrid[2][2]) b.spriteGrid[2][2].color = 2;
+      g._petPick(g.session.petActive);
+      return { busy: g.petAnim.busy, picking: g.session.petPicking };
+    });
+    expect(fired.busy).toBe(true);
+    expect(fired.picking).toBe(true);
+
+    // Quit to the menu while the hawk is still pecking — this clears the
+    // in-flight flourish so its onDone can never fire on a null session.
+    await page.evaluate(() => window.__bpc.game.quitToMenu());
+    expect(await page.evaluate(() => window.__bpc.game.petAnim.busy)).toBe(false);
+    expect(await page.evaluate(() => window.__bpc.game.session)).toBeNull();
+
+    // Let several animation frames pass; the stale callback must not run.
+    await page.waitForTimeout(600);
+    expect(pageErrors).toHaveLength(0);
+    await expect(page.locator("#menu")).toBeVisible();
+  });
+
+  test("afterMove is a no-op once the session is gone (stale-callback guard)", async ({
+    page,
+  }) => {
+    // Directly exercise the guard: calling afterMove() with no session must
+    // never throw (mirrors a Talon pick / last-bubble finale onDone firing
+    // after the level ended).
+    const result = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      g.session = null;
+      let threw = false;
+      try {
+        g.afterMove();
+      } catch (e) {
+        threw = true;
+      }
+      return { threw };
+    });
+    expect(result.threw).toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------

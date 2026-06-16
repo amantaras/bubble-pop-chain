@@ -114,6 +114,14 @@ export class PetAnim {
     return this.items.length > 0;
   }
 
+  // Drop every in-flight animation WITHOUT firing its callbacks. Called when a
+  // level is quit or ends so a still-playing pick flourish (whose `onDone`
+  // would otherwise re-run afterMove on a later frame) can't contaminate the
+  // menu or the next level's fresh session.
+  clear() {
+    this.items = [];
+  }
+
   // Trigger a pet ability animation.
   //   opts.kind       — "gather" | "cleanse" | "pick" | "diagonal"
   //   opts.icon       — pet emoji to fly across the screen

@@ -679,7 +679,12 @@ never re‑discovered the hard way.
   re-evaluated **once**, in the animation's `onDone`, which flips
   `session.petPicking` off and re-runs `afterMove`; while the flourish is live
   `afterMove` early-returns on `session.petPicking` (no premature win/deadlock
-  check, no overlapping pet action). Its `count` scales 2→6 by level. Four **elemental** active board pets round out the free roster:
+  check, no overlapping pet action). Because this `onDone` (like the last-bubble
+  finale's) resolves on a **later frame**, `afterMove` guards `if (!s || s.ended)
+  return` **first thing** and both `quitToMenu`/`_scheduleEnd` call
+  `petAnim.clear()` + `finale.cancel()` — so a flourish still in flight when the
+  player quits or the level ends can never re-enter `afterMove` on a null/next
+  session. Its `count` scales 2→6 by level. Four **elemental** active board pets round out the free roster:
   **Quake 🌍** (`quake`, rare) is a *match-maker* — a board-wide tremor that
   resettles every bubble so identical colours land together in big connected
   groups (`grid.quakeRegroup` → `_petQuake`; colours are conserved, it creates
