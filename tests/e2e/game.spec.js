@@ -4451,6 +4451,9 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
     await page.locator('.pg-tab[data-tab="forge"]').click();
     // Forge defaults to the first gem type (ruby) and shows just its 3 tiers.
     await expect(page.locator('.pg-craft-btn[data-gem="ruby"][data-tier="chipped"]')).toBeVisible();
+    // The three tiers read left-to-right as a ladder with arrows between them.
+    await expect(page.locator(".pg-cc-ladder .pg-ladder-arrow")).toHaveCount(2);
+    await expect(page.locator(".pg-forge-hint")).toBeVisible();
     // Picking a different type swaps the visible tier buttons (no 18-button wall).
     await page.locator('.pg-forge-type[data-gem="diamond"]').click();
     await expect(page.locator('.pg-craft-btn[data-gem="diamond"][data-tier="brilliant"]')).toBeVisible();

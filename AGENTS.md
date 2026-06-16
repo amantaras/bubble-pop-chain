@@ -886,10 +886,15 @@ never re‑discovered the hard way.
   the upgraded gem (`_gemSel = res.to`) and rebuilds in place
   (`_renderGemManager`).
   The **⚒️ Forge** tab shows a 6-icon **type selector** (`.pg-forge-type`)
-  whose selection (`_gemForgeType`, defaults to the first type) reveals just that
-  gem's description + its **three tier craft buttons** (`.pg-craft-btn`, with
-  `have N` + `✨cost`) — 3 buttons at a time, not 18. The pet detail renders a
-  clickable socket row;
+  whose selection (`_gemForgeType`, defaults to the first type) reveals that
+  gem's description, a short forging **hint** (`.pg-forge-hint`), and its three
+  tiers laid out as a **left-to-right ladder** (`.pg-cc-ladder`): chipped → ★
+  polished → ★★ brilliant → ★★★, with `.pg-ladder-arrow` `→` separators so the
+  upgrade path reads at a glance. Each ladder node is a one-tap **craft button**
+  (`.pg-craft-btn[data-gem][data-tier]`, gem icon + tier stars + `✨cost` +
+  `have N`) that spends Dust to forge one of that tier — tap again to make as
+  many as you like — disabled when the player can't afford the tier. The pet
+  detail renders a clickable socket row;
   each gem advertises its concrete effect via `gemBuffLabel(key)`
   (e.g. `+12% Score`, `+6% all stats`, `-3 move ability cooldown`), shown both on
   picker buttons (`.pg-buff`) and as a buff caption under filled slots

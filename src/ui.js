@@ -2684,21 +2684,38 @@ class UIManager {
     card.className = "pg-forge-card";
     card.innerHTML =
       `<div class="pg-cc-head"><span class="pg-cc-icon">${def.icon}</span><span class="pg-cc-name">${def.name}</span></div>` +
-      `<div class="pg-cc-desc">${def.desc}</div>`;
-    const tiers = document.createElement("div");
-    tiers.className = "pg-cc-tiers";
-    for (const t of GEM_TIERS) {
+      `<div class="pg-cc-desc">${def.desc}</div>` +
+      `<div class="pg-forge-hint">Forge with ✨ Dust — each tier up is stronger and costs more. Tap a tier to craft one; tap again to make as many as you like.</div>`;
+    // Tier ladder: chipped → polished → brilliant, left to right with arrows so
+    // the upgrade path reads at a glance. Each node is a one-tap craft button.
+    const ladder = document.createElement("div");
+    ladder.className = "pg-cc-ladder";
+    GEM_TIERS.forEach((t, i) => {
+      if (i > 0) {
+        const arrow = document.createElement("span");
+        arrow.className = "pg-ladder-arrow";
+        arrow.setAttribute("aria-hidden", "true");
+        arrow.textContent = "→";
+        ladder.appendChild(arrow);
+      }
       const cost = gemDustCost(t.id);
       const have = gems[gemKey(sel, t.id)] || 0;
       const b = document.createElement("button");
       b.className = "pg-craft-btn";
       b.dataset.gem = sel;
       b.dataset.tier = t.id;
+      b.style.setProperty("--gem-col", def.color);
       b.innerHTML =
-        `<span class="pg-cb-tier">${t.icon} ${t.label}</span>` +
-        `<span class="pg-cb-have">have ${have}</span>` +
-        `<span class="pg-cb-cost">✨${cost}</span>`;
+        `<span class="pg-cb-icon">${def.icon}</span>` +
+        `<span class="pg-cb-stars">${"★".repeat(i + 1)}</span>` +
+        `<span class="pg-cb-tier">${t.label}</span>` +
+        `<span class="pg-cb-cost">✨${cost}</span>` +
+        `<span class="pg-cb-have">have ${have}</span>`;
       b.disabled = dust < cost;
+      b.title =
+        dust < cost
+          ? `Need ✨${cost} Dust to forge a ${t.label} ${def.name}`
+          : `Forge one ${t.label} ${def.name} for ✨${cost}`;
       b.addEventListener("click", () => {
         Audio.click();
         if (!this.cb.craftGem) return;
@@ -2711,9 +2728,9 @@ class UIManager {
           this.toast("Not enough Dust");
         }
       });
-      tiers.appendChild(b);
-    }
-    card.appendChild(tiers);
+      ladder.appendChild(b);
+    });
+    card.appendChild(ladder);
     wrap.appendChild(card);
   }
 
