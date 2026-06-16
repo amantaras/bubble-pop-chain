@@ -2470,8 +2470,96 @@ body {
   transform: translateY(-1px);
 }
 .pg-cell-icon {
-  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
   line-height: 1;
+}
+
+/* Distinct CSS gem visuals so the three tiers read clearly differently at a
+   glance (not just the same emoji + stars). The colour comes from the gem type
+   (--gc); the CUT, glow and size escalate with the tier. */
+.gemv {
+  --gc: #9aa6b2;
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+}
+.gemv-core {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at 34% 26%,
+    color-mix(in srgb, var(--gc) 35%, #fff) 0%,
+    var(--gc) 46%,
+    color-mix(in srgb, var(--gc) 72%, #000) 100%
+  );
+}
+.gemv-shine {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+/* chipped — a small, matte, rough chunk (irregular cut, no glow). */
+.gemv[data-tier="chipped"] {
+  width: 20px;
+  height: 20px;
+}
+.gemv[data-tier="chipped"] .gemv-core {
+  clip-path: polygon(22% 4%, 70% 0, 96% 40%, 82% 92%, 30% 100%, 2% 56%);
+  filter: saturate(0.72) brightness(0.82);
+}
+.gemv[data-tier="chipped"] .gemv-shine {
+  clip-path: polygon(22% 4%, 70% 0, 50% 30%, 30% 36%);
+  background: rgba(255, 255, 255, 0.28);
+}
+/* polished — a clean, glossy rounded gem (smooth cut, soft glow). */
+.gemv[data-tier="polished"] .gemv-core {
+  clip-path: polygon(50% 1%, 86% 20%, 99% 58%, 74% 99%, 26% 99%, 1% 58%, 14% 20%);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--gc) 55%, transparent);
+}
+.gemv[data-tier="polished"] .gemv-shine {
+  clip-path: polygon(50% 1%, 86% 20%, 60% 34%, 38% 30%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
+}
+/* brilliant — a faceted, sparkling diamond cut (sharp facets, strong glow). */
+.gemv[data-tier="brilliant"] {
+  width: 30px;
+  height: 30px;
+}
+.gemv[data-tier="brilliant"] .gemv-core {
+  clip-path: polygon(50% 0, 79% 16%, 100% 38%, 50% 100%, 0 38%, 21% 16%);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--gc) 80%, transparent), 0 0 5px #fff;
+  animation: gemv-glow 2.4s ease-in-out infinite;
+}
+.gemv[data-tier="brilliant"] .gemv-shine {
+  clip-path: polygon(50% 0, 79% 16%, 100% 38%, 50% 100%, 0 38%, 21% 16%);
+  background: linear-gradient(90deg, transparent 49%, rgba(255, 255, 255, 0.4) 50%, transparent 51%),
+    linear-gradient(57deg, transparent 49%, rgba(255, 255, 255, 0.22) 50%, transparent 51%),
+    linear-gradient(123deg, transparent 49%, rgba(255, 255, 255, 0.22) 50%, transparent 51%);
+  mix-blend-mode: screen;
+}
+.gemv[data-tier="brilliant"]::after {
+  content: "✦";
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  font-size: 11px;
+  color: #fff;
+  text-shadow: 0 0 6px #fff;
+  animation: gemv-spark 1.8s ease-in-out infinite;
+}
+@keyframes gemv-glow {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.18); }
+}
+@keyframes gemv-spark {
+  0%, 100% { opacity: 0.3; transform: scale(0.8) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.15) rotate(90deg); }
 }
 .pg-cell-count {
   position: absolute;
@@ -2499,7 +2587,10 @@ body {
   gap: 10px;
 }
 .pg-sel-icon {
-  font-size: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
   line-height: 1;
 }
 .pg-sel-info {
@@ -2613,6 +2704,11 @@ body {
   font-weight: 700;
   font-size: 14px;
 }
+.pg-cc-head .pg-cc-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
 .pg-cc-desc {
   font-size: 11px;
   color: var(--text-dim);
@@ -2667,7 +2763,10 @@ body {
   cursor: pointer;
 }
 .pg-craft-btn .pg-cb-icon {
-  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
   line-height: 1;
 }
 .pg-craft-btn .pg-cb-stars {
@@ -2688,6 +2787,14 @@ body {
 .pg-craft-btn .pg-cb-cost {
   font-size: 12px;
   font-weight: 800;
+}
+.pg-craft-btn .pg-cb-cost.pg-cb-fuse {
+  font-size: 10px;
+  color: #8fe3b4;
+}
+.pg-craft-btn.can-fuse {
+  border-color: #2ec27e;
+  box-shadow: 0 0 0 1px #2ec27e inset, 0 0 10px rgba(46, 194, 126, 0.35);
 }
 .pg-craft-btn:active {
   transform: scale(0.96);

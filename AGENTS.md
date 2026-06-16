@@ -890,10 +890,20 @@ never re‑discovered the hard way.
   gem's description, a short forging **hint** (`.pg-forge-hint`), and its three
   tiers laid out as a **left-to-right ladder** (`.pg-cc-ladder`): chipped → ★
   polished → ★★ brilliant → ★★★, with `.pg-ladder-arrow` `→` separators so the
-  upgrade path reads at a glance. Each ladder node is a one-tap **craft button**
-  (`.pg-craft-btn[data-gem][data-tier]`, gem icon + tier stars + `✨cost` +
-  `have N`) that spends Dust to forge one of that tier — tap again to make as
-  many as you like — disabled when the player can't afford the tier. The pet
+  upgrade path reads at a glance. Each ladder node is a one-tap **smart forge
+  button** (`.pg-craft-btn[data-gem][data-tier]`) that makes one gem of that tier
+  via the cheapest source: it **prefers to FUSE** `FUSE_COUNT` (3) of the tier
+  directly below when the player owns them (free, `via:"fuse"`, the button shows
+  a green `⬆ 3 <tier>` label + `.can-fuse` highlight), and otherwise **falls back
+  to spending Dust** (`via:"dust"`, `✨cost` label) — so clicking *Brilliant*
+  consumes 3 *Polished* when available, else dust. Driven by
+  `Game.forgeTier(type, tier)` (`gems.js prevGemTier` resolves the tier below);
+  the button is disabled only when **neither** fusion nor dust is affordable.
+  Tap again to make more. The three tiers are drawn with **distinct CSS gem
+  visuals** (`_gemVis(type, tier)` → `.gemv[data-tier]`, also used in the Bag
+  grid/detail) so they read clearly differently — a small matte **chip**
+  (chipped), a glossy rounded **gem** (polished), and a faceted sparkling
+  **diamond** (brilliant) — rather than the same emoji with stars. The pet
   detail renders a clickable socket row;
   each gem advertises its concrete effect via `gemBuffLabel(key)`
   (e.g. `+12% Score`, `+6% all stats`, `-3 move ability cooldown`), shown both on

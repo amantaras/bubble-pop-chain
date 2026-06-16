@@ -255,6 +255,15 @@ export function nextGemTier(tier) {
   return GEM_TIERS[idx + 1].id;
 }
 
+// The tier id directly BELOW `tier` on the ladder, or null if it's already the
+// bottom (chipped). Used by the smart forge: making a higher tier prefers to
+// FUSE FUSE_COUNT of the tier below before falling back to spending dust.
+export function prevGemTier(tier) {
+  const idx = gemTierIndex(tier);
+  if (idx <= 0) return null;
+  return GEM_TIERS[idx - 1].id;
+}
+
 // Whether a gem tier can be fused (has a higher tier to fuse into).
 export function canFuseTier(tier) {
   return nextGemTier(tier) != null;

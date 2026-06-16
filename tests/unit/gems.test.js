@@ -29,6 +29,7 @@ import {
   gemBuffLabel,
   FUSE_COUNT,
   nextGemTier,
+  prevGemTier,
   canFuseTier,
   fusedGemKey,
 } from "../../src/gems.js";
@@ -339,5 +340,15 @@ describe("gems — fusion", () => {
     expect(fusedGemKey("citrine:polished")).toBe("citrine:brilliant");
     expect(fusedGemKey("diamond:brilliant")).toBeNull();
     expect(fusedGemKey("nope")).toBeNull();
+  });
+
+  it("prevGemTier walks down the ladder, null at the bottom", () => {
+    expect(prevGemTier("brilliant")).toBe("polished");
+    expect(prevGemTier("polished")).toBe("chipped");
+    expect(prevGemTier("chipped")).toBeNull();
+  });
+
+  it("prevGemTier resolves unknown tiers via getGemTier fallback (chipped -> null)", () => {
+    expect(prevGemTier("garbage")).toBeNull();
   });
 });

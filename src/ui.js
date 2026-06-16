@@ -99,6 +99,7 @@ import {
   FUSE_COUNT,
   fusedGemKey,
   canFuseTier,
+  prevGemTier,
 } from "./gems.js";
 import {
   TECH_TREE,
@@ -2537,6 +2538,23 @@ class UIManager {
     else this._buildGemBag(wrap, gems);
   }
 
+  // A distinct CSS gem visual for a (type, tier) so the three tiers are clearly
+  // different at a glance — not just the same emoji with stars. The gem colour
+  // comes from the type; the CUT, glow and size escalate with the tier
+  // (chipped = small matte chip, polished = glossy gem, brilliant = faceted
+  // sparkling diamond). Driven entirely by `data-tier` + `--gc` in styles.css.
+  _gemVis(type, tierId) {
+    const def = getGemDef(type);
+    const col = def ? def.color : "#9aa";
+    const tid = getGemTier(tierId).id;
+    return (
+      `<span class="gemv" data-tier="${tid}" style="--gc:${col}">` +
+      `<span class="gemv-core"></span>` +
+      `<span class="gemv-shine"></span>` +
+      `</span>`
+    );
+  }
+
   // 🎒 Bag tab: market-standard inventory layout — a dense grid of small gem
   // icons (count badge + tier stars), with a single detail/action panel below
   // for the SELECTED gem (its buff + a clear fusion action). This replaces the
@@ -2577,7 +2595,7 @@ class UIManager {
       cell.title = `${gemLabel(key)} — ${gemBuffLabel(key)}`;
       cell.innerHTML =
         `<span class="pg-cell-count">${gems[key]}</span>` +
-        `<span class="pg-cell-icon">${gemIcon(key)}</span>` +
+        `<span class="pg-cell-icon">${g ? this._gemVis(g.type, g.tier) : gemIcon(key)}</span>` +
         `<span class="pg-cell-stars">${"★".repeat(tierIdx + 1)}</span>`;
       cell.addEventListener("click", () => {
         Audio.click();
@@ -2595,7 +2613,7 @@ class UIManager {
     panel.className = "pg-sel";
     panel.innerHTML =
       `<div class="pg-sel-head">` +
-      `<span class="pg-sel-icon"${g ? ` style="text-shadow:0 0 12px ${g.def.color}"` : ""}>${gemIcon(sel)}</span>` +
+      `<span class="pg-sel-icon"${g ? ` style="text-shadow:0 0 12px ${g.def.color}"` : ""}>${g ? this._gemVis(g.type, g.tier) : gemIcon(sel)}</span>` +
       `<div class="pg-sel-info">` +
       `<div class="pg-sel-name">${gemLabel(sel)} <span class="pg-sel-stars">${"★".repeat(tierIdx + 1)}</span></div>` +
       `<div class="pg-sel-buff">${gemBuffLabel(sel)}</div>` +
@@ -2683,11 +2701,12 @@ class UIManager {
     const card = document.createElement("div");
     card.className = "pg-forge-card";
     card.innerHTML =
-      `<div class="pg-cc-head"><span class="pg-cc-icon">${def.icon}</span><span class="pg-cc-name">${def.name}</span></div>` +
+      `<div class="pg-cc-head"><span class="pg-cc-icon">${this._gemVis(sel, "brilliant")}</span><span class="pg-cc-name">${def.name}</span></div>` +
       `<div class="pg-cc-desc">${def.desc}</div>` +
-      `<div class="pg-forge-hint">Forge with ✨ Dust — each tier up is stronger and costs more. Tap a tier to craft one; tap again to make as many as you like.</div>`;
+      `<div class="pg-forge-hint">Tap a tier to make one. Higher tiers <b>fuse ${FUSE_COUNT} of the tier below</b> when you have them — otherwise they spend ✨ Dust. Tap again to make more.</div>`;
     // Tier ladder: chipped → polished → brilliant, left to right with arrows so
-    // the upgrade path reads at a glance. Each node is a one-tap craft button.
+    // the upgrade path reads at a glance. Each node is a one-tap forge button
+    // that prefers to FUSE the tier below (free) before spending dust.
     const ladder = document.createElement("div");
     ladder.className = "pg-cc-ladder";
     GEM_TIERS.forEach((t, i) => {
@@ -2700,29 +2719,43 @@ class UIManager {
       }
       const cost = gemDustCost(t.id);
       const have = gems[gemKey(sel, t.id)] || 0;
+      // Smart source: fuse FUSE_COUNT of the tier below if owned, else dust.
+      const below = prevGemTier(t.id);
+      const belowHave = below ? (gems[gemKey(sel, below)] || 0) : 0;
+      const canFuse = !!below && belowHave >= FUSE_COUNT;
+      const canDust = dust >= cost;
       const b = document.createElement("button");
-      b.className = "pg-craft-btn";
+      b.className = "pg-craft-btn" + (canFuse ? " can-fuse" : "");
       b.dataset.gem = sel;
       b.dataset.tier = t.id;
       b.style.setProperty("--gem-col", def.color);
+      const costLabel = canFuse
+        ? `<span class="pg-cb-cost pg-cb-fuse">⬆ ${FUSE_COUNT} ${getGemTier(below).label}</span>`
+        : `<span class="pg-cb-cost">✨${cost}</span>`;
       b.innerHTML =
-        `<span class="pg-cb-icon">${def.icon}</span>` +
+        `<span class="pg-cb-icon">${this._gemVis(sel, t.id)}</span>` +
         `<span class="pg-cb-stars">${"★".repeat(i + 1)}</span>` +
         `<span class="pg-cb-tier">${t.label}</span>` +
-        `<span class="pg-cb-cost">✨${cost}</span>` +
+        costLabel +
         `<span class="pg-cb-have">have ${have}</span>`;
-      b.disabled = dust < cost;
-      b.title =
-        dust < cost
-          ? `Need ✨${cost} Dust to forge a ${t.label} ${def.name}`
-          : `Forge one ${t.label} ${def.name} for ✨${cost}`;
+      b.disabled = !canFuse && !canDust;
+      b.title = canFuse
+        ? `Fuse ${FUSE_COUNT}× ${getGemTier(below).label} ${def.name} → one ${t.label} ${def.name} (free)`
+        : canDust
+          ? `Forge one ${t.label} ${def.name} for ✨${cost} Dust`
+          : `Need ✨${cost} Dust (or ${FUSE_COUNT}× ${below ? getGemTier(below).label + " " : ""}${def.name}) to forge a ${t.label}`;
       b.addEventListener("click", () => {
         Audio.click();
-        if (!this.cb.craftGem) return;
-        const res = this.cb.craftGem(sel, t.id);
+        if (!this.cb.forgeTier) return;
+        const res = this.cb.forgeTier(sel, t.id);
         if (res && res.ok) {
           Audio.fever();
-          this.toast(`Crafted ${gemLabel(gemKey(sel, t.id))}!`);
+          const made = gemLabel(gemKey(sel, t.id));
+          this.toast(
+            res.via === "fuse"
+              ? `Fused ${FUSE_COUNT}× ${getGemTier(below).label} → ${made}!`
+              : `Forged ${made}!`
+          );
           this._renderGemManager();
         } else {
           this.toast("Not enough Dust");

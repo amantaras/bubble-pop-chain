@@ -127,6 +127,7 @@ import {
   MAX_SOCKETS,
   FUSE_COUNT,
   nextGemTier,
+  prevGemTier,
   canFuseTier,
   fusedGemKey,
 } from "./gems.js";
@@ -263,6 +264,7 @@ class Game {
       toggleSupport: (id) => this.toggleSupport(id),
       craftGem: (type, tier) => this.craftGem(type, tier),
       fuseGem: (key) => this.fuseGem(key),
+      forgeTier: (type, tier) => this.forgeTier(type, tier),
       socketGem: (petId, slot, key) => this.socketGem(petId, slot, key),
       unsocketGem: (petId, slot) => this.unsocketGem(petId, slot),
       pickPetTech: (petId, nodeId) => this.pickPetTech(petId, nodeId),
@@ -1039,6 +1041,31 @@ class Game {
     if (Storage.gemCount(key) < FUSE_COUNT) return { ok: false, reason: "count" };
     if (!Storage.fuseGems(key, up, FUSE_COUNT)) return { ok: false, reason: "count" };
     return { ok: true, from: key, to: up };
+  }
+
+  // Smart forge: make ONE gem of (type, tier), preferring to FUSE the tier below
+  // when the player has enough of it, otherwise spending dust. Clicking the
+  // target tier on the ladder is all the player does — the game picks the
+  // cheapest source (gems first, then dust). Returns
+  // { ok, key, via:"fuse"|"dust", cost } or { ok:false, reason }.
+  forgeTier(type, tier) {
+    if (!getGemDef(type)) return { ok: false, reason: "unknown" };
+    const tierId = getGemTier(tier).id;
+    const key = gemKey(type, tierId);
+    // Prefer fusion: consume FUSE_COUNT of the tier directly below (free).
+    const below = prevGemTier(tierId);
+    if (below) {
+      const belowKey = gemKey(type, below);
+      if (Storage.gemCount(belowKey) >= FUSE_COUNT &&
+          Storage.fuseGems(belowKey, key, FUSE_COUNT)) {
+        return { ok: true, key, via: "fuse", from: belowKey };
+      }
+    }
+    // Fall back to crafting with dust.
+    const cost = gemDustCost(tierId);
+    if (!Storage.spendDust(cost)) return { ok: false, reason: "dust" };
+    Storage.addGem(key, 1);
+    return { ok: true, key, via: "dust", cost };
   }
 
   // Slot a gem from inventory into a pet's socket. `slot` is bounded by how many
@@ -3814,7 +3841,7 @@ if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) 
     UI,
     getLevel,
     pets: { petBuffs, petActive, levelForXp, rollCrate, rollLegendaryCrate, getPet, PET_CATALOG, pityRarityFloor, nextPity, dustValue, PITY_EPIC, PITY_LEGENDARY, rollTrait, getTrait, TRAITS, partyBuffs, partyTotalBuffs, activeSynergies, SYNERGIES, SUPPORT_SLOTS },
-    gems: { GEM_CATALOG, GEM_TIERS, socketsForLevel, socketBuffs, socketActiveMods, rollGem, gemKey, parseGemKey, gemDustCost, getGemDef, getGemTier, gemLabel, canSocketGemAtLevel, maxGemTierForLevel, levelForGemTier, socketDustCost, unsocketDustRefund, MAX_SOCKETS, FUSE_COUNT, nextGemTier, canFuseTier, fusedGemKey },
+    gems: { GEM_CATALOG, GEM_TIERS, socketsForLevel, socketBuffs, socketActiveMods, rollGem, gemKey, parseGemKey, gemDustCost, getGemDef, getGemTier, gemLabel, canSocketGemAtLevel, maxGemTierForLevel, levelForGemTier, socketDustCost, unsocketDustRefund, MAX_SOCKETS, FUSE_COUNT, nextGemTier, prevGemTier, canFuseTier, fusedGemKey },
     tech: { TECH_TREE, techNode, techTierOf, pendingTechTier, hasPendingTech, canPickTech, techTiersUnlocked },
     calendar: { calendarStatus, advanceCalendar, todayKey },
     season: { seasonStatus, addSeasonXp, claimTier, tierReward },

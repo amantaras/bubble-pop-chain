@@ -4454,6 +4454,11 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
     // The three tiers read left-to-right as a ladder with arrows between them.
     await expect(page.locator(".pg-cc-ladder .pg-ladder-arrow")).toHaveCount(2);
     await expect(page.locator(".pg-forge-hint")).toBeVisible();
+    // Each tier shows a DISTINCT gem visual (matte chip → glossy → faceted),
+    // driven by data-tier — not the same emoji repeated.
+    await expect(page.locator('.pg-craft-btn[data-tier="chipped"] .gemv[data-tier="chipped"]')).toBeVisible();
+    await expect(page.locator('.pg-craft-btn[data-tier="polished"] .gemv[data-tier="polished"]')).toBeVisible();
+    await expect(page.locator('.pg-craft-btn[data-tier="brilliant"] .gemv[data-tier="brilliant"]')).toBeVisible();
     // Picking a different type swaps the visible tier buttons (no 18-button wall).
     await page.locator('.pg-forge-type[data-gem="diamond"]').click();
     await expect(page.locator('.pg-craft-btn[data-gem="diamond"][data-tier="brilliant"]')).toBeVisible();
@@ -4490,6 +4495,47 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
     });
     expect(res.ok).toBe(false);
     expect(res.reason).toBe("dust");
+  });
+
+  test("forgeTier fuses 3 of the tier below when available, else spends dust", async ({ page }) => {
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    const out = await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      const G = window.__bpc.game;
+      // Start from a clean ruby inventory: enough polished to fuse one brilliant.
+      while (S.gemCount("ruby:polished") > 0) S.spendGem("ruby:polished");
+      while (S.gemCount("ruby:brilliant") > 0) S.spendGem("ruby:brilliant");
+      while (S.gemCount("ruby:chipped") > 0) S.spendGem("ruby:chipped");
+      S.addGem("ruby:polished", 3);
+      S.addDust(10000);
+      const dust0 = S.getDust();
+      // 3 polished present → forging a brilliant FUSES them (free, no dust).
+      const fuseRes = G.forgeTier("ruby", "brilliant");
+      const afterFuse = {
+        via: fuseRes.via,
+        polished: S.gemCount("ruby:polished"),
+        brilliant: S.gemCount("ruby:brilliant"),
+        dustSpent: dust0 - S.getDust(),
+      };
+      // Now no polished left → forging another brilliant falls back to DUST.
+      const dust1 = S.getDust();
+      const dustRes = G.forgeTier("ruby", "brilliant");
+      const afterDust = {
+        via: dustRes.via,
+        brilliant: S.gemCount("ruby:brilliant"),
+        dustSpent: dust1 - S.getDust(),
+      };
+      return { afterFuse, afterDust };
+    });
+    // Fusion: consumed 3 polished, made 1 brilliant, spent NO dust.
+    expect(out.afterFuse.via).toBe("fuse");
+    expect(out.afterFuse.polished).toBe(0);
+    expect(out.afterFuse.brilliant).toBe(1);
+    expect(out.afterFuse.dustSpent).toBe(0);
+    // Dust fallback: made another brilliant by spending dust (> 0).
+    expect(out.afterDust.via).toBe("dust");
+    expect(out.afterDust.brilliant).toBe(2);
+    expect(out.afterDust.dustSpent).toBeGreaterThan(0);
   });
 
   test("sockets unlock with pet level (0 at L1, up to 2 at L4)", async ({ page }) => {
