@@ -122,9 +122,12 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   (`dustValue`/`dustCost` tables, `rollCrate` floor) + pet personality traits
   (`TRAITS` table integrity, `rollTrait` seeded/in-range, `getTrait` Balanced
   fallback, trait mods nudging `petActive` cooldown/count/strength and
-  `petBuffs` passive mults incl. active-only pets), and the storage pet
-  helpers — grant/equip/XP/crates/cosmetics/dust/pity/trait) plus the grid helpers it
-  relies on
+  `petBuffs` passive mults incl. active-only pets) + party & set synergies
+  (`partyBuffs` lead-full/support-fraction aggregation, `SYNERGIES` table +
+  `activeSynergies` matching, `applySynergies`/`partyTotalBuffs` fold-on), and
+  the storage pet helpers — grant/equip/XP/crates/cosmetics/dust/pity/trait +
+  party supports (`getPartySupports`/`toggleSupport` add/remove/cap/lead-eviction))
+  plus the grid helpers it relies on
   (dominant colour, first-cell-of-colour, isolated-cell detection, and
   most-isolated-cell ranking for the Talon pick pet),
   special bubbles (rainbow wildcard + ice two-hit + lightning row/column
@@ -227,7 +230,10 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   duplicate crate pulls grant Pet Dust + the crate panel shows the balance,
   crafting a pet with dust unlocks it (rejecting premium/unaffordable), the
   pity timer guarantees rarer pets after dry opens, a crafted pet is assigned a
-  valid personality trait and an equipped pet's trait modifies its buffs,
+  valid personality trait and an equipped pet's trait modifies its buffs, the
+  Pets screen shows the party panel with a lead slot, adding a support pet folds
+  its buffs into the equipped party, and a matching party grants a set synergy
+  bonus,
   winning a new pet fires the `#pet-reveal` celebration showing its name/rarity/
   ability with an Equip & Play CTA, equipping
   refreshes the live

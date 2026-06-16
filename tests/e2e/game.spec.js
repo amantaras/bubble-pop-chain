@@ -3765,6 +3765,51 @@ test.describe("pet companions (collection & buffs)", () => {
     expect(out.coin).toBeCloseTo(out.baseCoin * 1.2, 5);
   });
 
+  test("the Pets screen shows the party panel with a lead slot", async ({ page }) => {
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await expect(page.locator("#pet-party")).toBeVisible();
+    // The equipped pet appears in the lead slot.
+    await expect(page.locator("#pet-party .pp-lead")).toBeVisible();
+  });
+
+  test("adding a support pet folds its buffs into the equipped party", async ({ page }) => {
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    const out = await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      const G = window.__bpc.game;
+      // Sparky is the starter lead; grant + add Clover (coin pet) as a support.
+      S.grantPet("clover");
+      const before = G._equippedBuffs().coinMult;
+      const supports = G.toggleSupport("clover");
+      const after = G._equippedBuffs().coinMult;
+      return { supports, before, after };
+    });
+    expect(out.supports).toContain("clover");
+    // A coin support raises the party's coin multiplier above the lead-only value.
+    expect(out.after).toBeGreaterThan(out.before);
+  });
+
+  test("a matching party grants a set synergy bonus", async ({ page }) => {
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    const out = await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      const G = window.__bpc.game;
+      const { partyBuffs, partyTotalBuffs } = window.__bpc.pets;
+      // Build a two-legendary party (draco lead + tidal support) → Legendary Might.
+      S.grantPet("draco");
+      S.grantPet("tidal");
+      S.equipPet("draco");
+      G.toggleSupport("tidal");
+      const members = G._partyMembers();
+      const synergies = G._activeSynergies().map((s) => s.id);
+      const base = partyBuffs(members).scoreMult;
+      const total = partyTotalBuffs(members).scoreMult;
+      return { synergies, base, total };
+    });
+    expect(out.synergies).toContain("legendary_might");
+    expect(out.total).toBeGreaterThan(out.base);
+  });
+
   test("Pet Store sells premium pets and a legendary crate", async ({ page }) => {
     await page.evaluate(() => window.__bpc.Economy.addCoins(1000));
     await page.getByRole("button", { name: "Pets", exact: true }).click();

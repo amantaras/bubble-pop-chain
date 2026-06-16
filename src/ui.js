@@ -76,6 +76,8 @@ import {
   premiumPets,
   dustCost,
   getTrait,
+  SUPPORT_SLOTS,
+  activeSynergies,
 } from "./pets.js";
 
 const $ = (id) => document.getElementById(id);
@@ -107,7 +109,7 @@ class UIManager {
       "cb-toggle", "cb-toggle-state",
       "hints-toggle", "hints-toggle-state",
       "rm-toggle", "rm-toggle-state",
-      "pets", "pets-coins", "pets-crate", "pet-store", "pet-list", "pet-detail",
+      "pets", "pets-coins", "pets-crate", "pet-party", "pet-store", "pet-list", "pet-detail",
       "pet-confirm", "pet-confirm-sub", "pet-confirm-ok", "pet-confirm-cancel",
       "pet-reveal", "pet-reveal-confetti", "pet-reveal-congrats", "pet-reveal-glow",
       "pet-reveal-icon", "pet-reveal-name", "pet-reveal-rarity", "pet-reveal-ability",
@@ -1751,9 +1753,46 @@ class UIManager {
       this._selectedPet = eq || PET_CATALOG[0].id;
     }
     this._buildPetCrate();
+    this._buildPetParty();
     this._buildPetStore();
     this._buildPetList(owned);
     this._buildPetDetail(owned);
+  }
+
+  // Party summary: the equipped lead + up to SUPPORT_SLOTS support slots, plus
+  // any active set synergies. Supports lend a fraction of their passive buffs.
+  _buildPetParty() {
+    const wrap = this.el["pet-party"];
+    if (!wrap) return;
+    const st = Storage.getPetState();
+    const lead = st.equipped && st.owned[st.equipped] ? getPet(st.equipped) : null;
+    const supports = Storage.getPartySupports();
+    const slotHtml = (petId, role) => {
+      const p = petId ? getPet(petId) : null;
+      const cls = role === "lead" ? "pp-slot pp-lead" : "pp-slot";
+      if (!p) return `<div class="${cls} pp-empty" title="Empty support slot">＋</div>`;
+      return `<div class="${cls}" title="${p.name}"><span class="pp-icon">${p.icon}</span><span class="pp-role">${role === "lead" ? "Lead" : "Support"}</span></div>`;
+    };
+    let html = `<div class="pp-title">Party</div><div class="pp-slots">`;
+    html += slotHtml(lead ? lead.id : null, "lead");
+    for (let i = 0; i < SUPPORT_SLOTS; i++) html += slotHtml(supports[i] || null, "support");
+    html += `</div>`;
+
+    // Active synergies (built from the live party roster).
+    const members = [];
+    if (lead) members.push({ id: lead.id });
+    for (const id of supports) members.push({ id });
+    const syn = activeSynergies(members);
+    html += `<div class="pp-syn">`;
+    if (syn.length) {
+      html += syn
+        .map((s) => `<span class="pp-syn-chip" title="${s.desc}">${s.icon} ${s.label}</span>`)
+        .join("");
+    } else {
+      html += `<span class="pp-syn-none">No active synergy — fill your party to unlock bonuses.</span>`;
+    }
+    html += `</div>`;
+    wrap.innerHTML = html;
   }
 
   _buildPetCrate() {
@@ -1993,6 +2032,33 @@ class UIManager {
         });
       }
       panel.appendChild(equip);
+
+      // Support-slot toggle (only for owned pets that aren't the current lead).
+      if (equipped !== pet.id) {
+        const supports = Storage.getPartySupports();
+        const inParty = supports.includes(pet.id);
+        const full = supports.length >= SUPPORT_SLOTS;
+        const sup = document.createElement("button");
+        sup.className = "buy-btn pet-support-btn";
+        sup.id = "pet-support";
+        if (inParty) {
+          sup.textContent = "In Party ✓";
+          sup.classList.add("active-tag");
+        } else if (full) {
+          sup.textContent = "Party Full";
+          sup.disabled = true;
+        } else {
+          sup.textContent = "Add to Party";
+          sup.classList.add("owned");
+        }
+        sup.addEventListener("click", () => {
+          if (sup.disabled) return;
+          Audio.click();
+          if (this.cb.toggleSupport) this.cb.toggleSupport(pet.id);
+          this.buildPets();
+        });
+        panel.appendChild(sup);
+      }
 
       // Cosmetics row.
       panel.appendChild(this._buildCosmetics(pet, owned[pet.id]));

@@ -448,6 +448,109 @@ export function petActive(petId, level, traitId) {
   };
 }
 
+// ---- Party & set synergies -------------------------------------------------
+// The player fields a PARTY: a LEAD pet (full ability + active board move) plus
+// up to SUPPORT_SLOTS support pets that lend a FRACTION of their PASSIVE buffs.
+// Supports never contribute an active board move (only the lead acts), so the
+// party is a pure passive-stacking + set-bonus layer — additive and never
+// changing the win/star outcome.
+export const SUPPORT_SLOTS = 2;
+export const SUPPORT_FRACTION = 0.35;
+
+function rarityOf(id) {
+  const p = getPet(id);
+  return p ? p.rarity : null;
+}
+function isCoinPet(id) {
+  const p = getPet(id);
+  return !!(p && p.ability && p.ability.key === "coinMult");
+}
+function isActivePet(id) {
+  const p = getPet(id);
+  return !!(p && p.active);
+}
+
+// Combine a party's passive buffs. `members` is an array of
+// { id, level, trait, role:"lead"|"support" }. The lead applies its full
+// petBuffs; each support applies SUPPORT_FRACTION of the amount its buff
+// exceeds neutral (so a 1.20 coin support adds 0.35 × 0.20 = +7%).
+export function partyBuffs(members) {
+  const out = neutralBuffs();
+  for (const m of members || []) {
+    if (!m || !m.id) continue;
+    const b = petBuffs(m.id, m.level, m.trait);
+    const frac = m.role === "support" ? SUPPORT_FRACTION : 1;
+    out.powerMult *= 1 + (b.powerMult - 1) * frac;
+    out.feverMult *= 1 + (b.feverMult - 1) * frac;
+    out.scoreMult *= 1 + (b.scoreMult - 1) * frac;
+    out.coinMult *= 1 + (b.coinMult - 1) * frac;
+    out.startCharge += (b.startCharge || 0) * frac;
+  }
+  out.startCharge = Math.min(1, out.startCharge);
+  return out;
+}
+
+// Set-bonus synergies: composition rules that pay an extra party-wide bonus.
+// Each is pure (`test(members)` over the party's pets) and additive.
+export const SYNERGIES = [
+  {
+    id: "full_party",
+    icon: "🎉",
+    label: "Full Party",
+    desc: "All 3 party slots filled: +8% to every buff.",
+    test: (m) => m.length >= 3,
+    mods: { scoreMult: 1.08, coinMult: 1.08, powerMult: 1.08, feverMult: 1.08 },
+  },
+  {
+    id: "legendary_might",
+    icon: "👑",
+    label: "Legendary Might",
+    desc: "Two or more legendary pets: +12% score.",
+    test: (m) => m.filter((p) => rarityOf(p.id) === "legendary").length >= 2,
+    mods: { scoreMult: 1.12 },
+  },
+  {
+    id: "fortune",
+    icon: "💰",
+    label: "Fortune Hunters",
+    desc: "Two or more coin pets: +25% coins.",
+    test: (m) => m.filter((p) => isCoinPet(p.id)).length >= 2,
+    mods: { coinMult: 1.25 },
+  },
+  {
+    id: "strike_team",
+    icon: "🌐",
+    label: "Strike Team",
+    desc: "Two or more active pets: +15% charge & Fever.",
+    test: (m) => m.filter((p) => isActivePet(p.id)).length >= 2,
+    mods: { powerMult: 1.15, feverMult: 1.15 },
+  },
+];
+
+// The synergies whose composition test passes for this party.
+export function activeSynergies(members) {
+  const m = (members || []).filter((x) => x && x.id);
+  return SYNERGIES.filter((s) => s.test(m));
+}
+
+// Apply a list of synergy bonuses onto a buff object (multiplicatively).
+export function applySynergies(buffs, synergies) {
+  const out = { ...buffs };
+  for (const s of synergies || []) {
+    const mods = s.mods || {};
+    if (mods.scoreMult) out.scoreMult *= mods.scoreMult;
+    if (mods.coinMult) out.coinMult *= mods.coinMult;
+    if (mods.powerMult) out.powerMult *= mods.powerMult;
+    if (mods.feverMult) out.feverMult *= mods.feverMult;
+  }
+  return out;
+}
+
+// Convenience: a party's full passive buffs INCLUDING matched set synergies.
+export function partyTotalBuffs(members) {
+  return applySynergies(partyBuffs(members), activeSynergies(members));
+}
+
 
 // Non-premium pets of a rarity (the only ones a standard crate normally drops).
 export function petsOfRarity(rarity) {

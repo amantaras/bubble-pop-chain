@@ -279,6 +279,49 @@ describe("storage", () => {
       expect(Storage.getPetTrait("sparky")).toBe("balanced");
     });
 
+    it("defaults the party support list to empty", () => {
+      expect(Storage.getPartySupports()).toEqual([]);
+      expect(Storage.getPetState().party).toEqual({ supports: [] });
+    });
+
+    it("toggleSupport adds and removes owned, non-lead pets", () => {
+      Storage.grantPet("clover");
+      expect(Storage.toggleSupport("clover")).toEqual(["clover"]);
+      expect(Storage.getPartySupports()).toEqual(["clover"]);
+      // Toggling again removes it.
+      expect(Storage.toggleSupport("clover")).toEqual([]);
+    });
+
+    it("toggleSupport rejects unowned pets", () => {
+      expect(Storage.toggleSupport("ghost")).toEqual([]);
+      expect(Storage.getPartySupports()).toEqual([]);
+    });
+
+    it("toggleSupport caps the party at two supports", () => {
+      Storage.grantPet("clover");
+      Storage.grantPet("draco");
+      Storage.grantPet("blaze");
+      Storage.toggleSupport("clover");
+      Storage.toggleSupport("draco");
+      // Third support is rejected (cap of 2).
+      expect(Storage.toggleSupport("blaze")).toEqual(["clover", "draco"]);
+    });
+
+    it("equipping a support pet pulls it out of the support slots", () => {
+      Storage.grantPet("draco");
+      Storage.toggleSupport("draco");
+      expect(Storage.getPartySupports()).toContain("draco");
+      Storage.equipPet("draco");
+      expect(Storage.getPartySupports()).not.toContain("draco");
+    });
+
+    it("persists party supports across a fresh read", () => {
+      Storage.grantPet("clover");
+      Storage.toggleSupport("clover");
+      const raw = JSON.parse(localStorage.getItem("bpc_save_v1"));
+      expect(raw.pets.party.supports).toEqual(["clover"]);
+    });
+
     it("accumulates XP only for owned pets", () => {
       Storage.addPetXp("sparky", 40);
       expect(Storage.getPetState().owned.sparky.xp).toBe(40);

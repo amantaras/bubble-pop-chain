@@ -2,6 +2,10 @@
 
 const KEY = "bpc_save_v1";
 
+// Max party support slots backing the equipped lead pet. Kept in sync with
+// pets.js SUPPORT_SLOTS (storage stays dependency-free of the pets module).
+const MAX_SUPPORTS = 2;
+
 const DEFAULT_SAVE = {
   version: 1,
   maxUnlockedLevel: 1,
@@ -84,6 +88,9 @@ const DEFAULT_SAVE = {
     },
     equipped: "sparky",
     crates: 1,
+    // Party support slots — up to 2 extra pets that lend a fraction of their
+    // passive buffs alongside the equipped lead (see pets.js partyBuffs).
+    party: { supports: [] },
     // Pet Dust — earned from duplicate crate pulls, spent to craft a chosen pet.
     dust: 0,
     // Pity counters: opens since the last epic / legendary, for the crate
@@ -293,11 +300,13 @@ class StorageManager {
   getPetState() {
     const p = this.data.pets || {};
     const pity = p.pity && typeof p.pity === "object" ? p.pity : {};
+    const party = p.party && typeof p.party === "object" ? p.party : {};
     return {
       owned: p.owned && typeof p.owned === "object" ? p.owned : {},
       equipped: p.equipped || null,
       crates: p.crates || 0,
       dust: p.dust || 0,
+      party: { supports: Array.isArray(party.supports) ? party.supports : [] },
       pity: {
         sinceEpic: pity.sinceEpic || 0,
         sinceLegendary: pity.sinceLegendary || 0,
@@ -311,6 +320,11 @@ class StorageManager {
       equipped: state.equipped,
       crates: Math.max(0, state.crates || 0),
       dust: Math.max(0, state.dust || 0),
+      party: {
+        supports: Array.isArray(state.party && state.party.supports)
+          ? state.party.supports
+          : [],
+      },
       pity: {
         sinceEpic: Math.max(0, (state.pity && state.pity.sinceEpic) || 0),
         sinceLegendary: Math.max(0, (state.pity && state.pity.sinceLegendary) || 0),
@@ -358,8 +372,36 @@ class StorageManager {
     const p = this.getPetState();
     if (!p.owned[id]) return false;
     p.equipped = id;
+    // The lead can't also occupy a support slot.
+    if (Array.isArray(p.party.supports)) {
+      p.party.supports = p.party.supports.filter((s) => s !== id);
+    }
     this._writePets(p);
     return true;
+  }
+
+  // ---- Party support slots ---------------------------------------------
+  // The (up to 2) support pet ids backing the equipped lead.
+  getPartySupports() {
+    const p = this.getPetState();
+    return Array.isArray(p.party.supports) ? p.party.supports.slice() : [];
+  }
+
+  // Toggle a pet in/out of the support slots. Must be owned and not the lead.
+  // Adds when there is room (cap MAX_SUPPORTS), removes when already present.
+  // Returns the new support list.
+  toggleSupport(id) {
+    const p = this.getPetState();
+    let s = Array.isArray(p.party.supports) ? p.party.supports.slice() : [];
+    if (!p.owned[id] || id === p.equipped) return s;
+    if (s.includes(id)) {
+      s = s.filter((x) => x !== id);
+    } else if (s.length < MAX_SUPPORTS) {
+      s.push(id);
+    }
+    p.party.supports = s;
+    this._writePets(p);
+    return s;
   }
 
   getEquippedPet() {

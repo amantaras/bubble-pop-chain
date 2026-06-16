@@ -101,6 +101,11 @@ import {
   rollTrait,
   getTrait,
   TRAITS,
+  partyBuffs,
+  partyTotalBuffs,
+  activeSynergies,
+  SYNERGIES,
+  SUPPORT_SLOTS,
 } from "./pets.js";
 import { calendarStatus, advanceCalendar } from "./calendar.js";
 import {
@@ -224,6 +229,7 @@ class Game {
       buyLegendaryCrate: () => this.buyLegendaryCrate(),
       craftPet: (id) => this.craftPet(id),
       equipPet: (id) => this.equipPet(id),
+      toggleSupport: (id) => this.toggleSupport(id),
       buyPremiumPet: (id) => this.buyPremiumPet(id),
       buyCosmetic: (petId, cos) => this.buyCosmetic(petId, cos),
       isLevelActive: () => this.isLevelActive(),
@@ -353,11 +359,34 @@ class Game {
     return { pops: 0, swipes: 0, blasts: 0, powerups: 0, bestCombo: 0, cleared: 0 };
   }
 
-  // The buffs the currently equipped pet provides (neutral if none).
-  _equippedBuffs() {
+  // Build the party roster (lead + support pets) as petBuffs/partyBuffs members.
+  _partyMembers() {
+    const members = [];
     const eq = Storage.getEquippedPet();
-    if (!eq) return neutralBuffs();
-    return petBuffs(eq.id, levelForXp(eq.xp || 0), eq.trait);
+    if (eq) members.push({ id: eq.id, level: levelForXp(eq.xp || 0), trait: eq.trait, role: "lead" });
+    for (const id of Storage.getPartySupports()) {
+      if (!Storage.ownsPet(id) || id === (eq && eq.id)) continue;
+      members.push({
+        id,
+        level: levelForXp((Storage.getPetState().owned[id] || {}).xp || 0),
+        trait: Storage.getPetTrait(id),
+        role: "support",
+      });
+    }
+    return members;
+  }
+
+  // The combined passive buffs from the whole party (lead + supports) including
+  // any matched set synergies. Neutral when no pet is equipped.
+  _equippedBuffs() {
+    const members = this._partyMembers();
+    if (!members.length) return neutralBuffs();
+    return partyTotalBuffs(members);
+  }
+
+  // The synergies currently active for the player's party (for HUD/UI).
+  _activeSynergies() {
+    return activeSynergies(this._partyMembers());
   }
 
   // The active board action the equipped pet performs (or null for passive pets).
@@ -894,6 +923,17 @@ class Game {
     }
     UI.updatePetHud(Storage.getEquippedPet());
     return true;
+  }
+
+  // Toggle a pet in/out of the party support slots. Supports only lend passive
+  // buffs (no active board move), so this safely refreshes the live session's
+  // buffs without restarting the level. Returns the new support id list.
+  toggleSupport(id) {
+    const supports = Storage.toggleSupport(id);
+    if (this.session && !this.session.ended) {
+      this.session.petBuffs = this._equippedBuffs();
+    }
+    return supports;
   }
 
   // True while a real (non-tutorial) level is being played. Used by the pet
@@ -3586,7 +3626,7 @@ if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) 
     Monetization,
     UI,
     getLevel,
-    pets: { petBuffs, petActive, levelForXp, rollCrate, rollLegendaryCrate, getPet, PET_CATALOG, pityRarityFloor, nextPity, dustValue, dustCost, PITY_EPIC, PITY_LEGENDARY, rollTrait, getTrait, TRAITS },
+    pets: { petBuffs, petActive, levelForXp, rollCrate, rollLegendaryCrate, getPet, PET_CATALOG, pityRarityFloor, nextPity, dustValue, dustCost, PITY_EPIC, PITY_LEGENDARY, rollTrait, getTrait, TRAITS, partyBuffs, partyTotalBuffs, activeSynergies, SYNERGIES, SUPPORT_SLOTS },
     calendar: { calendarStatus, advanceCalendar, todayKey },
     season: { seasonStatus, addSeasonXp, claimTier, tierReward },
     quests: { ensureQuests, applyQuestProgress, claimQuest, questsClaimable, todayKey, weekKey },

@@ -751,7 +751,26 @@ never re‑discovered the hard way.
   `getPetTrait(id)`; rolled via `main.js` `_rollPetTrait()` at every grant site
   and surfaced in `_equippedBuffs`/`_equippedActive`). The detail pane shows the
   owned pet's trait badge (`.pd-trait`) and the reveal modal appends it to the
-  flavour line. The **premium** pets (Aurora 🌈 /
+  flavour line. **Party & set synergies** (`pets.js` `partyBuffs` /
+  `activeSynergies` / `partyTotalBuffs`, `storage.js` `party.supports`): besides
+  the single **lead** (equipped) pet you may roster up to `SUPPORT_SLOTS` (2)
+  **support** pets. Supports don't take a board turn — only the lead's `active`
+  move runs — but each lends a `SUPPORT_FRACTION` (0.35) slice of its passive
+  buffs, aggregated multiplicatively in `partyBuffs(members)` (lead full,
+  supports fractional; `startCharge` clamped ≤1). The full roster is then checked
+  against the `SYNERGIES` table (Full Party 🎉 ≥3 members → +8% all; Legendary
+  Might 👑 ≥2 legendaries → +12% score; Fortune Hunters 💰 ≥2 coin pets → +25%
+  coins; Strike Team 🌐 ≥2 active pets → +15% power & fever) and any match is
+  folded on by `applySynergies`; `partyTotalBuffs` is what `main.js`
+  `_equippedBuffs` captures into `session.petBuffs`. Supports are managed in
+  storage (`getPartySupports`, `toggleSupport(id)` — owned-only, non-lead,
+  capped at 2; equipping a support pulls it out of the slots) and the Pets screen
+  renders a party panel (`ui.js` `_buildPetParty`, `#pet-party` — lead + support
+  slots + active synergy chips) plus an **Add to Party / In Party ✓ / Party Full**
+  toggle in the detail pane (`#pet-support`, `cb.toggleSupport` → `main.js`
+  `toggleSupport`, which live-refreshes `session.petBuffs` without a restart since
+  supports add no board move). Party/synergies are meta progression — **no
+  tutorial step**. The **premium** pets (Aurora 🌈 /
   Gizmo 🤖 are passive
   side-grades; **Nova 🛸** is the one premium *active* gunship — IAP `pet_*` via
   `monetization.purchase`). The strongest score booster (Draco, legendary) and
@@ -908,7 +927,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 468 unit tests + 342 E2E
+- **Current baseline (keep growing, never shrink)**: 485 unit tests + 348 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

@@ -37,6 +37,13 @@ import {
   TRAITS,
   getTrait,
   rollTrait,
+  SUPPORT_SLOTS,
+  SUPPORT_FRACTION,
+  partyBuffs,
+  partyTotalBuffs,
+  activeSynergies,
+  applySynergies,
+  SYNERGIES,
 } from "../../src/pets.js";
 import { makeRng } from "../../src/rng.js";
 
@@ -579,5 +586,81 @@ describe("pet traits", () => {
     expect(buffs.coinMult).toBeCloseTo(1.2, 6);
     // And a balanced/active-only pet is fully neutral.
     expect(petBuffs("rover", 3, "balanced")).toEqual(neutralBuffs());
+  });
+});
+
+describe("party & synergies", () => {
+  it("exposes party slot constants", () => {
+    expect(SUPPORT_SLOTS).toBe(2);
+    expect(SUPPORT_FRACTION).toBeGreaterThan(0);
+    expect(SUPPORT_FRACTION).toBeLessThan(1);
+  });
+
+  it("an empty party is neutral", () => {
+    expect(partyBuffs([])).toEqual(neutralBuffs());
+    expect(partyBuffs(null)).toEqual(neutralBuffs());
+  });
+
+  it("a lone lead applies its full buffs", () => {
+    const m = [{ id: "sparky", level: 1, trait: "balanced", role: "lead" }];
+    expect(partyBuffs(m).powerMult).toBeCloseTo(1.08, 6); // sparky per 0.08 × lvl1
+  });
+
+  it("supports contribute only a FRACTION of their passive buffs", () => {
+    const m = [
+      { id: "sparky", level: 1, trait: "balanced", role: "lead" }, // power 1.08
+      { id: "clover", level: 1, trait: "balanced", role: "support" }, // coin 1.05
+    ];
+    const b = partyBuffs(m);
+    expect(b.powerMult).toBeCloseTo(1.08, 6); // lead only
+    // clover's +0.05 coin scaled by SUPPORT_FRACTION (0.35) → 1 + 0.05*0.35.
+    expect(b.coinMult).toBeCloseTo(1 + 0.05 * SUPPORT_FRACTION, 6);
+  });
+
+  it("a full party of 3 grants the Full Party synergy", () => {
+    const m = [{ id: "sparky" }, { id: "clover" }, { id: "rover" }];
+    const syn = activeSynergies(m).map((s) => s.id);
+    expect(syn).toContain("full_party");
+  });
+
+  it("two legendary pets grant Legendary Might", () => {
+    const m = [{ id: "draco" }, { id: "tidal" }];
+    const ids = activeSynergies(m).map((s) => s.id);
+    expect(ids).toContain("legendary_might");
+  });
+
+  it("two coin pets grant Fortune Hunters", () => {
+    const m = [{ id: "clover" }, { id: "aurora" }];
+    const ids = activeSynergies(m).map((s) => s.id);
+    expect(ids).toContain("fortune");
+  });
+
+  it("two active pets grant the Strike Team synergy", () => {
+    const m = [{ id: "rover" }, { id: "whiskers" }];
+    const ids = activeSynergies(m).map((s) => s.id);
+    expect(ids).toContain("strike_team");
+  });
+
+  it("no synergy for a thin/mismatched party", () => {
+    expect(activeSynergies([{ id: "sparky" }])).toEqual([]);
+    expect(activeSynergies([])).toEqual([]);
+  });
+
+  it("applySynergies multiplies the matching buff fields", () => {
+    const fortune = SYNERGIES.find((s) => s.id === "fortune");
+    const out = applySynergies(neutralBuffs(), [fortune]);
+    expect(out.coinMult).toBeCloseTo(1.25, 6);
+    expect(out.scoreMult).toBe(1); // untouched
+  });
+
+  it("partyTotalBuffs folds set synergies onto the aggregated buffs", () => {
+    const m = [
+      { id: "draco", level: 1, trait: "balanced", role: "lead" },
+      { id: "tidal", level: 1, trait: "balanced", role: "support" },
+    ];
+    const base = partyBuffs(m);
+    const total = partyTotalBuffs(m);
+    // Legendary Might (+12% score) is active, so total beats base on score.
+    expect(total.scoreMult).toBeCloseTo(base.scoreMult * 1.12, 6);
   });
 });
