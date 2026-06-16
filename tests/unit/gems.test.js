@@ -27,6 +27,10 @@ import {
   UNSOCKET_REFUND_RATIO,
   unsocketDustRefund,
   gemBuffLabel,
+  FUSE_COUNT,
+  nextGemTier,
+  canFuseTier,
+  fusedGemKey,
 } from "../../src/gems.js";
 import { makeRng } from "../../src/rng.js";
 
@@ -306,5 +310,34 @@ describe("gems — rollGem (seeded)", () => {
   it("weight table favours chipped at no bias", () => {
     expect(GEM_TIER_WEIGHTS.chipped).toBeGreaterThan(GEM_TIER_WEIGHTS.polished);
     expect(GEM_TIER_WEIGHTS.polished).toBeGreaterThan(GEM_TIER_WEIGHTS.brilliant);
+  });
+});
+
+describe("gems — fusion", () => {
+  it("requires 3 gems to fuse", () => {
+    expect(FUSE_COUNT).toBe(3);
+  });
+
+  it("nextGemTier climbs the ladder, null at the top", () => {
+    expect(nextGemTier("chipped")).toBe("polished");
+    expect(nextGemTier("polished")).toBe("brilliant");
+    expect(nextGemTier("brilliant")).toBeNull();
+  });
+
+  it("nextGemTier resolves unknown tiers via getGemTier fallback (chipped)", () => {
+    expect(nextGemTier("garbage")).toBe("polished");
+  });
+
+  it("canFuseTier is true for all but the top tier", () => {
+    expect(canFuseTier("chipped")).toBe(true);
+    expect(canFuseTier("polished")).toBe(true);
+    expect(canFuseTier("brilliant")).toBe(false);
+  });
+
+  it("fusedGemKey maps a key one tier up, same type", () => {
+    expect(fusedGemKey("ruby:chipped")).toBe("ruby:polished");
+    expect(fusedGemKey("citrine:polished")).toBe("citrine:brilliant");
+    expect(fusedGemKey("diamond:brilliant")).toBeNull();
+    expect(fusedGemKey("nope")).toBeNull();
   });
 });

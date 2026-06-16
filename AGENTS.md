@@ -855,8 +855,17 @@ never re‑discovered the hard way.
   `unsocketDustRefund(tier)` = `floor(socketDustCost*0.4)` = 8/24/60 (always less
   than was paid). `socketGem`/`unsocketGem` live-refresh the running
   session's buffs/active stats (`_refreshPetSession`) so a socket swap applies
-  without a restart. The **Pets screen** renders a clickable socket row in the
-  pet detail; each gem advertises its concrete effect via `gemBuffLabel(key)`
+  without a restart. The **Pets screen** `#pet-gems` panel is a **compact tabbed
+  card** (`_buildPetGems` → `_buildGemBag`/`_buildGemForge`) so it never becomes
+  the old wall of 16 chips + 18 craft buttons: a **🎒 Bag** tab (`.pg-tabs`/
+  `.pg-tab[data-tab]`) shows a 3-column grid of **owned-gem tiles** (`.pg-tile`,
+  icon + name + `gemBuffLabel` + count, fusible tiles carry a `.pg-fuse-btn`),
+  and a **⚒️ Forge** tab shows a 6-icon **type selector** (`.pg-forge-type`)
+  whose selection (`_gemForgeType`, defaults to the first type) reveals just that
+  gem's description + its **three tier craft buttons** (`.pg-craft-btn`, with
+  `have N` + `✨cost`) — 3 buttons at a time, not 18. The detail also renders a
+  clickable socket row;
+  each gem advertises its concrete effect via `gemBuffLabel(key)`
   (e.g. `+12% Score`, `+6% all stats`, `-3 move ability cooldown`), shown both on
   picker buttons (`.pg-buff`) and as a buff caption under filled slots
   (`.pd-socket-buffs`). Tapping an empty slot opens the gem picker. Because the
@@ -869,8 +878,23 @@ never re‑discovered the hard way.
   glyph + sparks, recorded as `_lastSocketMagic`, skipped under reduced motion).
   Tapping a **filled** slot opens the `#gem-remove` warning modal
   (`_requestUnsocket`/`_confirmUnsocket`) that explains the gem will be shattered
-  for a partial dust refund before it's destroyed. Meta/RPG customization —
-  **no tutorial step** (consistent with traits, party & synergies). (Exposed for
+  for a partial dust refund before it's destroyed. **Gem fusion**
+  (`gems.js` `FUSE_COUNT`/`nextGemTier`/`canFuseTier`/`fusedGemKey`, `storage.js`
+  `fuseGems`, `main.js` `fuseGem`, `ui.js` gem inventory `.pg-fuse-btn`): a
+  dust-free way to upgrade a pile of weak duplicates — combining `FUSE_COUNT`
+  (**3**) identical gems of one tier yields **1 gem of the next tier up** (3
+  chipped ruby → 1 polished ruby; 3 polished → 1 brilliant; brilliant is the top
+  tier and **cannot** fuse further). The pure helpers resolve the ladder
+  (`nextGemTier(tier)` → next tier id or `null` at the top; `fusedGemKey(key)` →
+  the produced "type:tier" key or `null`); `Storage.fuseGems(key, upKey, count)`
+  is atomic (only proceeds with ≥`count` in the bag, spends `count`, adds one
+  `upKey`); `Game.fuseGem(key)` validates and returns `{ ok, from, to }` or
+  `{ ok:false, reason }` (`"top"` at the top tier, `"count"` below the
+  threshold). On the **🎒 Bag** tab each non-top-tier gem tile renders a
+  **⬆ Fuse 3** button (`.pg-fuse-btn[data-gem="type:tier"]`, disabled below 3 in
+  the bag); clicking it merges and rebuilds the panel in place (the tab/selection
+  state survives the rebuild). Meta/RPG customization
+  — **no tutorial step** (consistent with traits, party & synergies). (Exposed for
   tests via `__bpc.gems`.)
 - **Pet technology tree** (`tech.js`, pure; `storage.js` per-pet `owned[id].tech`;
   `main.js` `pickPetTech`/`petHasPendingTech`; `ui.js`
@@ -1020,7 +1044,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 568 unit tests + 380 E2E
+- **Current baseline (keep growing, never shrink)**: 577 unit tests + 386 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

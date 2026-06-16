@@ -139,10 +139,14 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   **embue/shatter dust economy** (`socketDustCost` 20/60/150 cheaper than
   crafting + fallback, `unsocketDustRefund` 8/24/60 always < the embue cost),
   `gemBuffLabel` human-readable effect strings (`+12% Score`, `+6% all stats`,
-  `-3 move ability cooldown`, junk→""), and
+  `-3 move ability cooldown`, junk→""), **gem fusion**
+  (`FUSE_COUNT`=3, `nextGemTier` ladder chipped→polished→brilliant→null,
+  `canFuseTier`, `fusedGemKey` maps a key one tier up / null at the top or junk),
+  and
   `rollGem` seeded determinism + `tierBias` nudging toward higher tiers. Storage
   coverage adds the gem inventory (`addGem`/`gemCount`/`spendGem`/`getGems`
-  clamp+prune+persist) and per-pet sockets (`getSockets`/`socketGem` with
+  clamp+prune+persist, `fuseGems` atomic 3→1 merge that leaves surplus untouched
+  and no-ops without a target/enough gems) and per-pet sockets (`getSockets`/`socketGem` with
   displaced-gem-returns-to-bag + maxSlots bound/`unsocketGem` **shatters the gem
   (returns the key but does NOT refund it to the bag)**, default Sparky
   `sockets:[]`, persistence); `pets.test.js` adds the socket-fold cases

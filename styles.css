@@ -2343,61 +2343,162 @@ body {
   color: var(--text-dim);
   font-weight: 600;
 }
-.pg-inv {
+
+/* Segmented Bag / Forge tabs. */
+.pg-tabs {
   display: flex;
-  flex-wrap: wrap;
   gap: 6px;
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 999px;
+  padding: 4px;
   margin-bottom: 10px;
 }
-.pg-chip {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 8px;
+.pg-tab {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 6px;
   border-radius: 999px;
-  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.pg-tab.active {
+  background: linear-gradient(135deg, #7b53c9, #b07be8);
+  color: #fff;
+}
+
+/* 🎒 Bag — a grid of owned gem tiles. */
+.pg-bag {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.pg-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 6px 6px;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
   background: rgba(255, 255, 255, 0.06);
+}
+.pg-tile-count {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text);
+}
+.pg-tile-icon {
+  font-size: 26px;
+  line-height: 1.1;
+}
+.pg-tile-name {
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+}
+.pg-tile-buff {
+  font-size: 9px;
+  color: var(--text-dim);
+  text-align: center;
+  min-height: 22px;
+}
+.pg-fuse-btn {
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: none;
+  color: #fff;
+  background: linear-gradient(135deg, #2ec27e, #4d8bff);
+  cursor: pointer;
+}
+.pg-fuse-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 .pg-empty {
   font-size: 11px;
   color: var(--text-dim);
+  grid-column: 1 / -1;
 }
-.pg-craft {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+
+/* ⚒️ Forge — a type selector row + the selected gem's tier craft buttons. */
+.pg-forge-types {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
 }
-.pg-craft-card {
-  background: rgba(255, 255, 255, 0.05);
+.pg-forge-type {
+  flex: 1;
+  font-size: 20px;
+  line-height: 1;
+  padding: 8px 0;
   border-radius: 10px;
-  padding: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.pg-forge-type.active {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+.pg-forge-card {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 10px;
 }
 .pg-cc-head {
   display: flex;
   align-items: center;
   gap: 6px;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 14px;
 }
 .pg-cc-desc {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-dim);
-  margin: 4px 0 6px;
-  min-height: 26px;
+  margin: 4px 0 8px;
 }
 .pg-cc-tiers {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 .pg-craft-btn {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 5px 6px;
-  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 10px;
+  border-radius: 10px;
   border: none;
   color: #fff;
   background: linear-gradient(135deg, #7b53c9, #b07be8);
   cursor: pointer;
+}
+.pg-craft-btn .pg-cb-have {
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.8;
+  margin-left: auto;
+}
+.pg-craft-btn .pg-cb-cost {
+  font-size: 11px;
+  font-weight: 800;
 }
 .pg-craft-btn:disabled {
   opacity: 0.4;

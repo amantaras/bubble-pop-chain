@@ -455,6 +455,33 @@ describe("storage", () => {
       expect(Storage.gemCount("ruby:chipped")).toBe(0);
     });
 
+    it("fuseGems converts 3 of a tier into 1 of the next tier", () => {
+      Storage.addGem("ruby:chipped", 3);
+      expect(Storage.fuseGems("ruby:chipped", "ruby:polished", 3)).toBe(true);
+      expect(Storage.gemCount("ruby:chipped")).toBe(0);
+      expect(Storage.gemCount("ruby:polished")).toBe(1);
+    });
+
+    it("fuseGems leaves surplus gems untouched", () => {
+      Storage.addGem("ruby:chipped", 5);
+      expect(Storage.fuseGems("ruby:chipped", "ruby:polished", 3)).toBe(true);
+      expect(Storage.gemCount("ruby:chipped")).toBe(2);
+      expect(Storage.gemCount("ruby:polished")).toBe(1);
+    });
+
+    it("fuseGems fails (atomically) without enough gems", () => {
+      Storage.addGem("ruby:chipped", 2);
+      expect(Storage.fuseGems("ruby:chipped", "ruby:polished", 3)).toBe(false);
+      expect(Storage.gemCount("ruby:chipped")).toBe(2);
+      expect(Storage.gemCount("ruby:polished")).toBe(0);
+    });
+
+    it("fuseGems with no target key is a no-op", () => {
+      Storage.addGem("ruby:chipped", 3);
+      expect(Storage.fuseGems("ruby:chipped", null, 3)).toBe(false);
+      expect(Storage.gemCount("ruby:chipped")).toBe(3);
+    });
+
     it("persists gems across a fresh read", () => {
       Storage.addGem("diamond:brilliant", 1);
       const raw = JSON.parse(localStorage.getItem("bpc_save_v1"));

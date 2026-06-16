@@ -519,6 +519,16 @@ class StorageManager {
     return true;
   }
 
+  // Fuse `count` identical gems of `key` into a single `upKey` (next tier up).
+  // Atomic: only proceeds when the player holds at least `count`. Returns true
+  // on success. The caller resolves `upKey` (see gems.fusedGemKey).
+  fuseGems(key, upKey, count = 3) {
+    if (!upKey || this.gemCount(key) < count) return false;
+    this.addGem(key, -count);
+    this.addGem(upKey, 1);
+    return true;
+  }
+
   // The socket array for an owned pet (empty slots are null). Always returns a
   // fresh array; never the stored reference.
   getSockets(id) {

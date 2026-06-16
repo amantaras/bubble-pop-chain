@@ -125,6 +125,10 @@ import {
   socketDustCost,
   unsocketDustRefund,
   MAX_SOCKETS,
+  FUSE_COUNT,
+  nextGemTier,
+  canFuseTier,
+  fusedGemKey,
 } from "./gems.js";
 import {
   TECH_TREE,
@@ -258,6 +262,7 @@ class Game {
       equipPet: (id) => this.equipPet(id),
       toggleSupport: (id) => this.toggleSupport(id),
       craftGem: (type, tier) => this.craftGem(type, tier),
+      fuseGem: (key) => this.fuseGem(key),
       socketGem: (petId, slot, key) => this.socketGem(petId, slot, key),
       unsocketGem: (petId, slot) => this.unsocketGem(petId, slot),
       pickPetTech: (petId, nodeId) => this.pickPetTech(petId, nodeId),
@@ -1022,6 +1027,18 @@ class Game {
     const key = gemKey(type, tierId);
     Storage.addGem(key, 1);
     return { ok: true, key, cost };
+  }
+
+  // Fuse FUSE_COUNT identical gems of `key` into one gem of the next tier up
+  // (e.g. 3 chipped rubies → 1 polished ruby). No dust cost — a pure way to
+  // upgrade a pile of weak duplicates. Returns { ok, from, to } or
+  // { ok:false, reason }.
+  fuseGem(key) {
+    const up = fusedGemKey(key);
+    if (!up) return { ok: false, reason: "top" }; // unknown or already top-tier
+    if (Storage.gemCount(key) < FUSE_COUNT) return { ok: false, reason: "count" };
+    if (!Storage.fuseGems(key, up, FUSE_COUNT)) return { ok: false, reason: "count" };
+    return { ok: true, from: key, to: up };
   }
 
   // Slot a gem from inventory into a pet's socket. `slot` is bounded by how many
@@ -3786,7 +3803,7 @@ if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) 
     UI,
     getLevel,
     pets: { petBuffs, petActive, levelForXp, rollCrate, rollLegendaryCrate, getPet, PET_CATALOG, pityRarityFloor, nextPity, dustValue, PITY_EPIC, PITY_LEGENDARY, rollTrait, getTrait, TRAITS, partyBuffs, partyTotalBuffs, activeSynergies, SYNERGIES, SUPPORT_SLOTS },
-    gems: { GEM_CATALOG, GEM_TIERS, socketsForLevel, socketBuffs, socketActiveMods, rollGem, gemKey, parseGemKey, gemDustCost, getGemDef, getGemTier, gemLabel, canSocketGemAtLevel, maxGemTierForLevel, levelForGemTier, socketDustCost, unsocketDustRefund, MAX_SOCKETS },
+    gems: { GEM_CATALOG, GEM_TIERS, socketsForLevel, socketBuffs, socketActiveMods, rollGem, gemKey, parseGemKey, gemDustCost, getGemDef, getGemTier, gemLabel, canSocketGemAtLevel, maxGemTierForLevel, levelForGemTier, socketDustCost, unsocketDustRefund, MAX_SOCKETS, FUSE_COUNT, nextGemTier, canFuseTier, fusedGemKey },
     tech: { TECH_TREE, techNode, techTierOf, pendingTechTier, hasPendingTech, canPickTech, techTiersUnlocked },
     calendar: { calendarStatus, advanceCalendar, todayKey },
     season: { seasonStatus, addSeasonXp, claimTier, tierReward },

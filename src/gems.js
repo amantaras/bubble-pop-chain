@@ -242,6 +242,33 @@ export function unsocketDustRefund(tier) {
   return Math.floor(socketDustCost(tier) * UNSOCKET_REFUND_RATIO);
 }
 
+// Gem FUSION: combine N identical gems of one tier into a single gem of the
+// next tier up (e.g. 3 chipped rubies → 1 polished ruby). A pure, dust-free way
+// to turn a pile of weak duplicates into something useful. The top tier
+// (brilliant) cannot be fused further.
+export const FUSE_COUNT = 3;
+
+// The next tier id up the ladder from `tier`, or null if it's already the top.
+export function nextGemTier(tier) {
+  const idx = gemTierIndex(tier);
+  if (idx < 0 || idx >= GEM_TIERS.length - 1) return null;
+  return GEM_TIERS[idx + 1].id;
+}
+
+// Whether a gem tier can be fused (has a higher tier to fuse into).
+export function canFuseTier(tier) {
+  return nextGemTier(tier) != null;
+}
+
+// The gem key produced by fusing `key` (one tier up, same type), or null if the
+// key is unknown or already top-tier.
+export function fusedGemKey(key) {
+  const g = parseGemKey(key);
+  if (!g) return null;
+  const up = nextGemTier(g.tier);
+  return up ? gemKey(g.type, up) : null;
+}
+
 // Roll a random gem (as a "type:tier" key). `rng` returns [0,1). Lower tiers are
 // far more common; `opts.tierBias` (0..1, default 0) nudges toward better tiers
 // (used by richer sources like the Legendary crate / boss events).

@@ -4366,12 +4366,18 @@ test.describe("lone-bubble rescue", () => {
 test.describe("pet gems & sockets (RPG batch 4)", () => {
   test.beforeEach(({ page }) => openGame(page));
 
-  test("the Pets screen shows the gem panel with craft buttons", async ({ page }) => {
+  test("the Pets screen shows the gem panel with Bag & Forge tabs", async ({ page }) => {
     await page.getByRole("button", { name: "Pets", exact: true }).click();
     await expect(page.locator("#pet-gems")).toBeVisible();
-    // Every gem type offers a chipped-tier craft button.
+    // The panel opens on the Bag tab; Forge holds the crafting UI.
+    await expect(page.locator('.pg-tab[data-tab="bag"].active')).toBeVisible();
+    await page.locator('.pg-tab[data-tab="forge"]').click();
+    // Forge defaults to the first gem type (ruby) and shows just its 3 tiers.
     await expect(page.locator('.pg-craft-btn[data-gem="ruby"][data-tier="chipped"]')).toBeVisible();
+    // Picking a different type swaps the visible tier buttons (no 18-button wall).
+    await page.locator('.pg-forge-type[data-gem="diamond"]').click();
     await expect(page.locator('.pg-craft-btn[data-gem="diamond"][data-tier="brilliant"]')).toBeVisible();
+    await expect(page.locator('.pg-craft-btn[data-gem="ruby"][data-tier="chipped"]')).toHaveCount(0);
   });
 
   test("crafting a gem with dust adds it to inventory and spends dust", async ({ page }) => {
@@ -4641,7 +4647,77 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
     expect(out.inBag).toBe(0); // gem destroyed, not returned
     expect(out.dust).toBe(dustBefore + out.refund); // partial dust refund
   });
+
+  test("fusing 3 same-tier gems yields 1 of the next tier (via the model)", async ({ page }) => {
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    const out = await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      const G = window.__bpc.game;
+      S.addGem("ruby:chipped", 3);
+      const res = G.fuseGem("ruby:chipped");
+      return {
+        res,
+        chipped: S.gemCount("ruby:chipped"),
+        polished: S.gemCount("ruby:polished"),
+      };
+    });
+    expect(out.res.ok).toBe(true);
+    expect(out.res.to).toBe("ruby:polished");
+    expect(out.chipped).toBe(0);
+    expect(out.polished).toBe(1);
+  });
+
+  test("fusing is rejected with fewer than 3 gems and at the top tier", async ({ page }) => {
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    const out = await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      const G = window.__bpc.game;
+      S.addGem("citrine:chipped", 2);
+      S.addGem("diamond:brilliant", 3);
+      const tooFew = G.fuseGem("citrine:chipped");
+      const topTier = G.fuseGem("diamond:brilliant");
+      return {
+        tooFew,
+        topTier,
+        chipped: S.gemCount("citrine:chipped"),
+        brilliant: S.gemCount("diamond:brilliant"),
+      };
+    });
+    expect(out.tooFew.ok).toBe(false);
+    expect(out.tooFew.reason).toBe("count");
+    expect(out.topTier.ok).toBe(false);
+    expect(out.topTier.reason).toBe("top");
+    expect(out.chipped).toBe(2); // untouched
+    expect(out.brilliant).toBe(3); // untouched
+  });
+
+  test("the gem inventory shows a Fuse button that merges through the UI", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.Storage.addGem("sapphire:chipped", 3));
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    const fuse = page.locator('.pg-fuse-btn[data-gem="sapphire:chipped"]');
+    await expect(fuse).toBeVisible();
+    await expect(fuse).toBeEnabled();
+    await fuse.click();
+    const out = await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      return {
+        chipped: S.gemCount("sapphire:chipped"),
+        polished: S.gemCount("sapphire:polished"),
+      };
+    });
+    expect(out.chipped).toBe(0);
+    expect(out.polished).toBe(1);
+  });
+
+  test("the Fuse button is disabled below 3 gems", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.Storage.addGem("amber:chipped", 2));
+    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    const fuse = page.locator('.pg-fuse-btn[data-gem="amber:chipped"]');
+    await expect(fuse).toBeVisible();
+    await expect(fuse).toBeDisabled();
+  });
 });
+
 
 // ---------------------------------------------------------------------------
 // Pet technology tree (RPG batch 5): each level-up unlocks a tier of two

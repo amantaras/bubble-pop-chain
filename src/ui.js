@@ -96,6 +96,9 @@ import {
   gemBuffLabel,
   socketDustCost,
   unsocketDustRefund,
+  FUSE_COUNT,
+  fusedGemKey,
+  canFuseTier,
 } from "./gems.js";
 import {
   TECH_TREE,
@@ -2462,62 +2465,164 @@ class UIManager {
     }
     wrap.classList.remove("pg-picking");
 
-    // Normal mode: inventory chips + crafting cards.
+    // Normal mode: a compact tabbed panel. The old design stacked all 16+
+    // inventory chips above all 18 craft buttons (6 types × 3 tiers) in one
+    // long scroll — overwhelming. We split it into two tabs (🎒 Bag, ⚒️ Forge)
+    // so only one concern shows at a time, like the material/forge screens in
+    // most mobile RPGs.
     const head = document.createElement("div");
     head.className = "pg-title";
     head.innerHTML = `💎 Gems <span class="pg-dust">✨ <b id="gem-dust">${dust}</b> Dust</span>`;
     wrap.appendChild(head);
 
-    const invKeys = Object.keys(gems).filter((k) => gems[k] > 0);
-    const inv = document.createElement("div");
-    inv.className = "pg-inv";
-    if (invKeys.length) {
-      inv.innerHTML = invKeys
-        .map((key) => {
-          const g = parseGemKey(key);
-          return `<span class="pg-chip" style="border-color:${g ? g.def.color : ""}" title="${gemLabel(key)}">${gemIcon(key)} ${gemLabel(key)} ×${gems[key]}</span>`;
-        })
-        .join("");
-    } else {
-      inv.innerHTML = `<span class="pg-empty">No gems yet — craft one below, or find them in crates & gifts.</span>`;
+    const tab = this._gemTab === "forge" ? "forge" : "bag";
+    const tabs = document.createElement("div");
+    tabs.className = "pg-tabs";
+    for (const [id, label] of [["bag", "🎒 Bag"], ["forge", "⚒️ Forge"]]) {
+      const b = document.createElement("button");
+      b.className = "pg-tab" + (tab === id ? " active" : "");
+      b.dataset.tab = id;
+      b.textContent = label;
+      b.addEventListener("click", () => {
+        Audio.click();
+        this._gemTab = id;
+        this._buildPetGems();
+      });
+      tabs.appendChild(b);
     }
-    wrap.appendChild(inv);
+    wrap.appendChild(tabs);
 
-    const craft = document.createElement("div");
-    craft.className = "pg-craft";
-    for (const def of GEM_CATALOG) {
-      const card = document.createElement("div");
-      card.className = "pg-craft-card";
-      card.innerHTML =
-        `<div class="pg-cc-head"><span class="pg-cc-icon">${def.icon}</span><span class="pg-cc-name">${def.name}</span></div>` +
-        `<div class="pg-cc-desc">${def.desc}</div>`;
-      const tiers = document.createElement("div");
-      tiers.className = "pg-cc-tiers";
-      for (const t of GEM_TIERS) {
-        const cost = gemDustCost(t.id);
-        const b = document.createElement("button");
-        b.className = "pg-craft-btn";
-        b.dataset.gem = def.type;
-        b.dataset.tier = t.id;
-        b.textContent = `${t.label} ✨${cost}`;
-        b.disabled = dust < cost;
-        b.addEventListener("click", () => {
+    if (tab === "forge") this._buildGemForge(wrap, gems, dust);
+    else this._buildGemBag(wrap, gems);
+  }
+
+  // 🎒 Bag tab: a tidy grid of only the gems the player actually owns. Each
+  // tile shows the gem, its count and its concrete buff; fusible stacks carry a
+  // ⬆ Fuse button (enabled at FUSE_COUNT+) right on the tile.
+  _buildGemBag(wrap, gems) {
+    const bag = document.createElement("div");
+    bag.className = "pg-bag";
+    const keys = Object.keys(gems).filter((k) => gems[k] > 0);
+    if (!keys.length) {
+      bag.innerHTML = `<span class="pg-empty">No gems yet — forge one in the ⚒️ Forge tab, or find them in crates & gifts.</span>`;
+      wrap.appendChild(bag);
+      return;
+    }
+    // Strongest tier first, then group by type so the bag reads top-down.
+    keys.sort((a, b) => {
+      const ga = parseGemKey(a), gb = parseGemKey(b);
+      const ta = ga ? gemTierIndex(ga.tier) : -1;
+      const tb = gb ? gemTierIndex(gb.tier) : -1;
+      if (tb !== ta) return tb - ta;
+      return (ga ? ga.type : "").localeCompare(gb ? gb.type : "");
+    });
+    for (const key of keys) {
+      const g = parseGemKey(key);
+      const tile = document.createElement("div");
+      tile.className = "pg-tile";
+      tile.dataset.gem = key;
+      if (g) tile.style.borderColor = g.def.color;
+      tile.innerHTML =
+        `<span class="pg-tile-count">×${gems[key]}</span>` +
+        `<span class="pg-tile-icon">${gemIcon(key)}</span>` +
+        `<span class="pg-tile-name">${gemLabel(key)}</span>` +
+        `<span class="pg-tile-buff">${gemBuffLabel(key)}</span>`;
+      // Fusion: combine FUSE_COUNT identical gems into one of the next tier.
+      if (g && canFuseTier(g.tier)) {
+        const up = fusedGemKey(key);
+        const can = gems[key] >= FUSE_COUNT;
+        const fb = document.createElement("button");
+        fb.className = "pg-fuse-btn";
+        fb.dataset.gem = key;
+        fb.disabled = !can;
+        fb.textContent = `⬆ Fuse ${FUSE_COUNT}`;
+        fb.title = can
+          ? `Fuse ${FUSE_COUNT}× ${gemLabel(key)} → 1 ${gemLabel(up)}`
+          : `Need ${FUSE_COUNT}× ${gemLabel(key)} to fuse (have ${gems[key]})`;
+        fb.addEventListener("click", (e) => {
+          e.stopPropagation();
           Audio.click();
-          if (!this.cb.craftGem) return;
-          const res = this.cb.craftGem(def.type, t.id);
+          if (!this.cb.fuseGem) return;
+          const res = this.cb.fuseGem(key);
           if (res && res.ok) {
-            this.toast(`Crafted ${gemLabel(gemKey(def.type, t.id))}!`);
-            this.buildPets();
+            Audio.fever();
+            this.toast(`Fused ${FUSE_COUNT}× ${gemLabel(res.from)} → ${gemLabel(res.to)}!`);
+            this._buildPetGems();
           } else {
-            this.toast("Not enough Dust");
+            this.toast(`Need ${FUSE_COUNT} to fuse`);
           }
         });
-        tiers.appendChild(b);
+        tile.appendChild(fb);
       }
-      card.appendChild(tiers);
-      craft.appendChild(card);
+      bag.appendChild(tile);
     }
-    wrap.appendChild(craft);
+    wrap.appendChild(bag);
+  }
+
+  // ⚒️ Forge tab: pick ONE gem type from a compact icon row, then see just that
+  // gem's description and its three tier craft buttons — 3 buttons at a time
+  // instead of the old wall of 18.
+  _buildGemForge(wrap, gems, dust) {
+    const sel =
+      this._gemForgeType && getGemDef(this._gemForgeType)
+        ? this._gemForgeType
+        : GEM_CATALOG[0].type;
+    this._gemForgeType = sel;
+
+    const types = document.createElement("div");
+    types.className = "pg-forge-types";
+    for (const def of GEM_CATALOG) {
+      const b = document.createElement("button");
+      b.className = "pg-forge-type" + (def.type === sel ? " active" : "");
+      b.dataset.gem = def.type;
+      b.style.borderColor = def.color;
+      b.innerHTML = `<span class="pg-ft-icon">${def.icon}</span>`;
+      b.title = def.name;
+      b.addEventListener("click", () => {
+        Audio.click();
+        this._gemForgeType = def.type;
+        this._buildPetGems();
+      });
+      types.appendChild(b);
+    }
+    wrap.appendChild(types);
+
+    const def = getGemDef(sel);
+    const card = document.createElement("div");
+    card.className = "pg-forge-card";
+    card.innerHTML =
+      `<div class="pg-cc-head"><span class="pg-cc-icon">${def.icon}</span><span class="pg-cc-name">${def.name}</span></div>` +
+      `<div class="pg-cc-desc">${def.desc}</div>`;
+    const tiers = document.createElement("div");
+    tiers.className = "pg-cc-tiers";
+    for (const t of GEM_TIERS) {
+      const cost = gemDustCost(t.id);
+      const have = gems[gemKey(sel, t.id)] || 0;
+      const b = document.createElement("button");
+      b.className = "pg-craft-btn";
+      b.dataset.gem = sel;
+      b.dataset.tier = t.id;
+      b.innerHTML =
+        `<span class="pg-cb-tier">${t.icon} ${t.label}</span>` +
+        `<span class="pg-cb-have">have ${have}</span>` +
+        `<span class="pg-cb-cost">✨${cost}</span>`;
+      b.disabled = dust < cost;
+      b.addEventListener("click", () => {
+        Audio.click();
+        if (!this.cb.craftGem) return;
+        const res = this.cb.craftGem(sel, t.id);
+        if (res && res.ok) {
+          Audio.fever();
+          this.toast(`Crafted ${gemLabel(gemKey(sel, t.id))}!`);
+          this._buildPetGems();
+        } else {
+          this.toast("Not enough Dust");
+        }
+      });
+      tiers.appendChild(b);
+    }
+    card.appendChild(tiers);
+    wrap.appendChild(card);
   }
 
   _buildCosmetics(pet, state) {
