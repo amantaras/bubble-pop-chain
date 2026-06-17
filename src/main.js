@@ -172,6 +172,9 @@ const BOTTOM_INSET = 120;
 const COMBO_WINDOW = 1.6; // seconds before a combo resets
 // Seconds of inactivity before the idle "hint" assist highlights a valid move.
 const HINT_DELAY = 5;
+// Charged-blast cue stays visible while charge is ready so the recommended
+// double-tap target remains obvious until the player spends it.
+const BLAST_CUE_DURATION = Infinity;
 // Magnet gauge: half-width of the green "sweet" band, in gauge units (0..1).
 // Strength tapers from 1 (dead on the sweet spot) to 0 at this distance.
 // Widened from 0.2 → 0.3 so the green zone is more forgiving to lock onto.
@@ -193,6 +196,10 @@ const TIME_ATTACK_SECONDS = 60;
 // Coins dropped per treasure "coin" bubble cleared in a pop (outside the
 // tutorial, which never touches the real economy).
 const COIN_BUBBLE_VALUE = 12;
+
+// Downpour relief: every successful rain tick grants one extra move, regardless
+// of how many bubbles were added in that drop.
+const DOWNPOUR_MOVES_PER_DROP = 1;
 
 class Game {
   constructor() {
@@ -563,6 +570,7 @@ class Game {
     UI.updatePetHud(this.session.mode === "tutorial" ? null : Storage.getEquippedPet());
     this._syncAlienShip();
     this.input.setEnabled(true);
+    if ((this.session.power || 0) >= 1) this._showBlastCue();
     this.refreshHud();
     // Kick off the current theme's background track (no-op if already playing
     // this theme, so it keeps flowing across level restarts).
@@ -1729,6 +1737,37 @@ class Game {
     return best ? { c: best.c, r: best.r } : cell;
   }
 
+  // Resolve an armed-tool tap to the intended visible bubble. During in-flight
+  // animation, a bubble can be drawn offset from its logical cell; this makes
+  // bomb/pick/chain/color-clear follow what the player tapped visually.
+  _toolTargetFromTap(px, py) {
+    const s = this.session;
+    if (!s || !s.board) return null;
+    const b = s.board;
+    const cell = b.cellAtPixel(px, py);
+
+    let best = null;
+    const maxDist = b.cell * 2.5;
+    const maxDist2 = maxDist * maxDist;
+    for (let c = 0; c < b.cols; c++) {
+      for (let r = 0; r < b.rows; r++) {
+        if (b.grid[c][r] === -1) continue;
+        const sp = b.spriteGrid[c] && b.spriteGrid[c][r];
+        const cx = sp ? sp.x : b.targetPixel(c, r).x;
+        const cy = sp ? sp.y : b.targetPixel(c, r).y;
+        const dx = px - cx;
+        const dy = py - cy;
+        const d2 = dx * dx + dy * dy;
+        if (d2 > maxDist2) continue;
+        if (!best || d2 < best.d2) best = { c, r, d2 };
+      }
+    }
+
+    if (best) return { c: best.c, r: best.r };
+    if (cell && b.grid[cell.c][cell.r] !== -1) return cell;
+    return null;
+  }
+
   handleTap(px, py) {
     const s = this.session;
     if (!s || s.ended) return;
@@ -1752,8 +1791,9 @@ class Game {
     }
 
     if (s.armed) {
-      if (!cell) return; // need a valid bubble target
-      this.applyPowerup(s.armed, cell.c, cell.r);
+      const target = this._toolTargetFromTap(px, py);
+      if (!target) return; // need a valid bubble target
+      this.applyPowerup(s.armed, target.c, target.r);
       return;
     }
 
@@ -1845,6 +1885,34 @@ class Game {
     }
   }
 
+  // Expand a cleared set through chained special strikes until it stabilizes:
+  // lightning bubbles add row+column cells, bomb bubbles add 3x3 cells. Newly
+  // included specials can trigger further expansions in later passes.
+  _resolveSpecialStrikes(cells) {
+    const s = this.session;
+    if (!s || !cells || !cells.length) {
+      return { cells: cells || [], hitLightning: false, hitBomb: false };
+    }
+    let out = cells;
+    let hitLightning = false;
+    let hitBomb = false;
+    for (let guard = 0; guard < 64; guard++) {
+      const before = out.length;
+      const hasLightning = out.some((p) => s.board.isLightning(p.c, p.r));
+      const hasBomb = out.some((p) => s.board.isBomb(p.c, p.r));
+      if (hasLightning) {
+        hitLightning = true;
+        out = s.board.lightningStrike(out);
+      }
+      if (hasBomb) {
+        hitBomb = true;
+        out = s.board.bombStrike(out);
+      }
+      if (out.length === before) break;
+    }
+    return { cells: out, hitLightning, hitBomb };
+  }
+
   popAt(c, r) {
     const s = this.session;
     s.preview = null;
@@ -1860,11 +1928,10 @@ class Game {
     // Lightning bubbles discharge along their row + column; Bomb bubbles
     // detonate a 3×3 area. Either expands the cleared set; score reflects
     // everything cleared.
-    const struckBolt = group.some((p) => s.board.isLightning(p.c, p.r));
-    const struckBomb = group.some((p) => s.board.isBomb(p.c, p.r));
-    let cells = group;
-    if (struckBolt) cells = s.board.lightningStrike(cells);
-    if (struckBomb) cells = s.board.bombStrike(cells);
+    const strike = this._resolveSpecialStrikes(group);
+    const struckBolt = strike.hitLightning;
+    const struckBomb = strike.hitBomb;
+    const cells = strike.cells;
     const struck = struckBolt || struckBomb;
 
     // Score with combo multiplier.
@@ -1890,7 +1957,7 @@ class Game {
     s.comboTimer = COMBO_WINDOW;
 
     // Charge the Power meter (from the combo points, independent of Fever).
-    this._addPower(powerGain(comboPoints, s.combo) * s.petBuffs.powerMult);
+    this._addPower(powerGain(comboPoints, s.combo) * s.petBuffs.powerMult, true);
     // Build the Fever gauge — quick chains fill it and trigger double points.
     this._addFever(feverGain(s.combo) * s.petBuffs.feverMult);
 
@@ -1936,6 +2003,7 @@ class Game {
       Audio.powerup();
     }
     this._popCells(cells, finalPoints, cells.length, s.combo, struck ? 1.3 : 1);
+    if (this.isBlastReady()) this._showBlastCue();
 
     // Cascade callout: a distinct, escalating chain-reaction flourish above the
     // pop when the chain pays a cascade bonus (separate from the centre combo
@@ -1990,7 +2058,49 @@ class Game {
     return !!(s && !s.ended && !s.armed && s.power >= 1);
   }
 
-  _addPower(amount) {
+  // Choose the blast target that would clear the most cells right now.
+  _bestBlastTarget() {
+    const s = this.session;
+    if (!s || !s.board) return null;
+    let best = null;
+    let bestCount = -1;
+    for (let c = 0; c < s.board.cols; c++) {
+      for (let r = 0; r < s.board.rows; r++) {
+        if (s.board.grid[c][r] === -1) continue;
+        const strike = this._resolveSpecialStrikes(s.board.blastArea(c, r));
+        const count = strike.cells.length;
+        if (count > bestCount) {
+          bestCount = count;
+          best = { c, r, count };
+        }
+      }
+    }
+    return best;
+  }
+
+  // Surface a short-lived board cue when Charged Blast becomes available so
+  // players can see where a double-tap would do the most immediate damage.
+  _showBlastCue() {
+    const s = this.session;
+    if (!this.isBlastReady()) {
+      if (s) s.blastCue = null;
+      return;
+    }
+    const best = this._bestBlastTarget();
+    if (!best) {
+      s.blastCue = null;
+      return;
+    }
+    s.blastCue = {
+      c: best.c,
+      r: best.r,
+      timer: BLAST_CUE_DURATION,
+      duration: BLAST_CUE_DURATION,
+      count: best.count,
+    };
+  }
+
+  _addPower(amount, deferCue = false) {
     const s = this.session;
     if (!s) return;
     const was = s.power;
@@ -1999,6 +2109,10 @@ class Game {
     if (s.power >= 1 && was < 1) {
       Audio.powerup();
       UI.toast("⚡ Charged! Double-tap to blast");
+      if (deferCue) s.blastCue = null;
+      else this._showBlastCue();
+    } else if (s.power < 1) {
+      s.blastCue = null;
     }
   }
 
@@ -2297,33 +2411,71 @@ class Game {
   chargedBlast(c, r) {
     const s = this.session;
     s.preview = null;
-    const cells = s.board.blastArea(c, r);
+    const strike = this._resolveSpecialStrikes(s.board.blastArea(c, r));
+    const cells = strike.cells;
     if (!cells.length) return;
     // Record an undo snapshot (the spent charge is restored from the snapshot).
     this._pushUndo();
     s.power = 0;
+    s.blastCue = null;
     UI.updatePower(0, false);
-    const points = Math.round(
+    const basePoints = Math.round(
       feverPoints(groupScore(Math.max(2, cells.length)), s.feverActive) *
         s.petBuffs.scoreMult
     );
+    const multCount = cells.filter((p) => s.board.isMultiplier(p.c, p.r)).length;
+    const scoreMult = multCount > 0 ? Math.min(8, Math.pow(2, multCount)) : 1;
+    const points = basePoints * scoreMult;
     s.score += points;
-    this._popCells(cells, points, cells.length, 1, 1.1);
+
+    const coinCount = cells.filter((p) => s.board.isCoin(p.c, p.r)).length;
+    const vinePopped = cells.some((p) => s.board.isVine(p.c, p.r));
+    if (coinCount > 0) {
+      const coinsDropped = coinCount * COIN_BUBBLE_VALUE;
+      if (s.mode !== "tutorial") {
+        Economy.addCoins(coinsDropped);
+        if (s.stats) s.stats.coinBubbles = (s.stats.coinBubbles || 0) + coinCount;
+      }
+      const p = s.board.targetPixel(c, r);
+      this.floating.spawn(p.x, p.y - 28, `🪙 +${coinsDropped}`, "#ffe08a", 30);
+      Audio.powerup();
+    }
+    if (multCount > 0) {
+      const p = s.board.targetPixel(c, r);
+      this.floating.spawn(p.x, p.y - 28, `✨ ×${scoreMult}!`, "#ffd35b", 32);
+      Audio.powerup();
+    }
+
+    this._popCells(
+      cells,
+      points,
+      cells.length,
+      1,
+      strike.hitLightning || strike.hitBomb ? 1.2 : 1.1
+    );
     if (s.stats) s.stats.blasts += 1;
     Audio.blast();
     this.floating.spawn(this.W / 2, this.H / 2, "CHARGED BLAST!", "#ff6ec7", 30);
     this.refreshHud();
     this._tut("blast");
+    if (multCount > 0) this._tut("multiplier");
+    if (coinCount > 0) this._tut("coinbubble");
+    if (vinePopped) this._tut("vine");
     this.afterMove();
   }
 
   applyPowerup(type, c, r) {
     const s = this.session;
+    if (!s || s.ended) return;
     let cells = [];
     if (type === "bomb") cells = s.board.bombArea(c, r);
     else if (type === "colorClear") cells = s.board.colorCells(s.board.grid[c][r]);
     else if (type === "chainBolt") cells = s.board.crossCells(c, r);
     else if (type === "pick") cells = [{ c, r }];
+    const strike = this._resolveSpecialStrikes(cells);
+    const hitLightning = strike.hitLightning;
+    const hitBomb = strike.hitBomb;
+    cells = strike.cells;
     if (cells.length === 0) return;
 
     // Tutorial mode bypasses the economy so it never spends real inventory.
@@ -2331,12 +2483,44 @@ class Game {
     // Record an undo snapshot, refunding the spent tool on undo.
     this._pushUndo(s.mode === "tutorial" ? null : { powerup: type });
     this._markPowerupUsed();
-    const points = Math.round(
+    const basePoints = Math.round(
       feverPoints(groupScore(Math.max(2, cells.length)), s.feverActive) *
         s.petBuffs.scoreMult
     );
+    const multCount = cells.filter((p) => s.board.isMultiplier(p.c, p.r)).length;
+    const scoreMult = multCount > 0 ? Math.min(8, Math.pow(2, multCount)) : 1;
+    const points = basePoints * scoreMult;
     s.score += points;
+
+    const coinCount = cells.filter((p) => s.board.isCoin(p.c, p.r)).length;
+    const vinePopped = cells.some((p) => s.board.isVine(p.c, p.r));
+    if (coinCount > 0) {
+      const coinsDropped = coinCount * COIN_BUBBLE_VALUE;
+      if (s.mode !== "tutorial") {
+        Economy.addCoins(coinsDropped);
+        if (s.stats) s.stats.coinBubbles = (s.stats.coinBubbles || 0) + coinCount;
+      }
+      const p = s.board.targetPixel(c, r);
+      this.floating.spawn(p.x, p.y - 28, `🪙 +${coinsDropped}`, "#ffe08a", 30);
+      Audio.powerup();
+    }
+
     this._popCells(cells, points, cells.length, 1, 0.6);
+    if (hitLightning) {
+      const p = s.board.targetPixel(c, r);
+      this.floating.spawn(p.x, p.y - 28, "⚡ ZAP!", "#9fe8ff", 30);
+      Audio.powerup();
+    }
+    if (hitBomb) {
+      const p = s.board.targetPixel(c, r);
+      this.floating.spawn(p.x, p.y - 28, "💥 BOOM!", "#ffb066", 30);
+      Audio.powerup();
+    }
+    if (multCount > 0) {
+      const p = s.board.targetPixel(c, r);
+      this.floating.spawn(p.x, p.y - 28, `✨ ×${scoreMult}!`, "#ffd35b", 32);
+      Audio.powerup();
+    }
     if (s.stats) s.stats.powerups += 1;
     Audio.powerup();
     s.armed = null;
@@ -2344,6 +2528,11 @@ class Game {
     UI.updatePowerups();
     this.refreshHud();
     this._tut("powerup");
+    if (hitLightning) this._tut("lightning");
+    if (hitBomb) this._tut("bombbubble");
+    if (multCount > 0) this._tut("multiplier");
+    if (coinCount > 0) this._tut("coinbubble");
+    if (vinePopped) this._tut("vine");
     this.afterMove();
   }
 
@@ -3016,11 +3205,10 @@ class Game {
           return;
         }
       } else if (s.movesLeft <= 0 || deadlock) {
-        const won = s.score >= s.level.target;
-        // If the board jammed on un-poppable lone bubbles and the player hasn't
-        // hit the target yet, offer the Pick tool instead of losing outright.
-        if (!won && deadlock && this._offerIsolatedRescue()) return;
-        this._scheduleEnd(won, won ? "target" : "fail");
+        // Reaching the score target is not enough to clear a campaign board:
+        // if bubbles remain, the player must keep clearing/rescue them.
+        if (deadlock && this._offerIsolatedRescue()) return;
+        this._scheduleEnd(false, "fail");
       }
     } else if (s.mode === "endless") {
       if (deadlock) {
@@ -3088,6 +3276,16 @@ class Game {
       Audio.pop(1, 2);
       vibrate(12);
       this.floating.spawn(this.W / 2, TOP_INSET + 18, "🌧️ Downpour!", "#9fd8ff", 24);
+      // Rain relief: one extra move per drop event.
+      const bonusMoves = DOWNPOUR_MOVES_PER_DROP;
+      s.movesLeft = (s.movesLeft || 0) + bonusMoves;
+      this.floating.spawn(
+        this.W / 2,
+        TOP_INSET + 42,
+        `+${bonusMoves} Move${bonusMoves === 1 ? "" : "s"}`,
+        "#c9ff9d",
+        20
+      );
     }
     if (buried && buried.length >= s.board.cols) {
       // Once the score target is already met, downpour should not steal the
@@ -3161,8 +3359,8 @@ class Game {
   }
 
   // "Use Pick" — buy one if needed, then arm it so the next tap clears a lone
-  // bubble. The player stays in the level (rescue mode) until the board clears,
-  // they hit the target, or they give up.
+  // bubble. The player stays in the level (rescue mode) until the board clears
+  // or they give up.
   _rescueWithPick() {
     const s = this.session;
     if (!s) return;
@@ -3321,7 +3519,25 @@ class Game {
     this.finale.cancel();
     this.activeEvent = false;
     clearTimeout(this._endTimer);
-    this._endTimer = setTimeout(() => this._finish(won, reason), 480);
+
+    const start = performance.now();
+    const maxWaitMs = 5600;
+    const waitStepMs = 40;
+    const finishWhenSettled = () => {
+      const cur = this.session;
+      if (!cur) return;
+      const settled = !cur.board || cur.board.isIdle();
+      const timedOut = performance.now() - start >= maxWaitMs;
+      if (settled || timedOut) {
+        this._finish(won, reason);
+        return;
+      }
+      this._endTimer = setTimeout(finishWhenSettled, waitStepMs);
+    };
+
+    // Keep a short baseline pause so the final action still breathes, then
+    // wait for any remaining board animation frames before showing the modal.
+    this._endTimer = setTimeout(finishWhenSettled, 220);
   }
 
   async _finish(won, reason) {
@@ -3718,6 +3934,21 @@ class Game {
       }
       this._updateEvents(dt);
       this._updateHint(dt);
+      if (this.isBlastReady()) {
+        const best = this._bestBlastTarget();
+        if (best) {
+          if (!this.session.blastCue) this._showBlastCue();
+          else {
+            this.session.blastCue.c = best.c;
+            this.session.blastCue.r = best.r;
+            this.session.blastCue.count = best.count;
+          }
+        } else {
+          this.session.blastCue = null;
+        }
+      } else if (this.session.blastCue) {
+        this.session.blastCue = null;
+      }
     }
   }
 
@@ -3899,6 +4130,11 @@ class Game {
       const markColor =
         this.session.bossKind === "color" ? this.session.bossTargetColor : -1;
       this.renderer.drawBubbles(this.session.board, this.theme, aim, markColor);
+      if (this.session.blastCue) {
+        const cue = this.session.blastCue;
+        if (this.session.board.grid[cue.c]?.[cue.r] === -1) this.session.blastCue = null;
+        else this.renderer.drawBlastCue(this.session.board, cue, time);
+      }
       if (this.session.preview) {
         this.renderer.drawPreview(
           this.session.board,

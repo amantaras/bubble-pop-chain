@@ -22,6 +22,11 @@ never re‑discovered the hard way.
   costs 1 move in campaign or a shift token in endless/daily).
 - **Power meter**: fills from points + combos (`scoring.powerGain`); a full
   meter enables a double‑tap Charged Blast (`grid.blastArea`, diamond AoE). The
+  moment charge becomes ready, a persistent on-board **blast target cue**
+  highlights the best double-tap cell while charge remains full, choosing the
+  location that would clear the most bubbles after special lightning/bomb chains;
+  the target visibly shakes with a pulsing bullseye/glow so availability is
+  obvious and actionable by sight.
   blast has its own punchy descending **`Audio.blast()`** SFX (and Fever entry
   its own rising **`Audio.fever()`** fanfare) — distinct from the generic
   `Audio.powerup()` blip so each moment reads by ear.
@@ -102,12 +107,17 @@ never re‑discovered the hard way.
   awards coins (`floor(score/150)·coinMult`) + 30 season XP, and shows a "Time's
   Up!" win modal. Menu **Rush** tile (`#btn-timeattack`). High-score meta mode —
   **no tutorial step**. (Exposed for tests via `__bpc.timeattack`.)
-- **Power-ups** (`economy.js` `POWERUP_INFO`, armed from the HUD): **Bomb** (3×3),
+  **Power-ups** (`economy.js` `POWERUP_INFO`, armed from the HUD): **Bomb** (3×3),
   **Color Clear** (one colour), **Shuffle**, **Chain Bolt** (`grid.crossCells`,
-  full row + column), **Pick** (single bubble), and the premium **Magnet**
+  full row + column), **Pick** (single bubble; when aimed at a special bubble it
+  also triggers that bubble's effect — lightning strike, bomb blast, multiplier,
+  coin payout, vine cue), and the premium **Magnet**
   (`grid.magnetGather`) — arm it, tap a plain bubble, then lock a **circular
   strength dial** that pops up centred over the board (`#magnet-gauge`, a needle
   sweeping a 270° arc, swept in `Game.update`; the overlay is pointer-events:none
+  Any tool-driven clear (bomb/color-clear/chain-bolt/pick) and Charged Blast now
+  applies the full special set in the final cleared cells — lightning and bomb
+  strike expansion plus multiplier score scaling, coin payouts, and vine cue.
   so the locking board tap still registers). The **green sweet spot is
   randomised** each use (`magnet.sweet` ≈ 0.22–0.78; the `.mg-ring` is rotated to
   match) so the player can't just lock dead-centre; strength tapers from full on
@@ -235,6 +245,8 @@ never re‑discovered the hard way.
   **Lightning** (`LIGHTNING`) = a charged coloured bubble — popping a group that
   contains one **discharges along its whole row + column**
   (`grid.lightningStrike` expands the cleared set via `crossCells`, deduped;
+  strike resolution then re-checks the enlarged cleared set so specials hit by
+  the strike can chain (for example lightning↔bomb cascades) before scoring;
   `popAt` scores the full strike and emits `_tut("lightning")`); **Stone**
   (`STONE`) = a **locked** bubble you can't tap (`getGroupAt` returns `[]` on it,
   and it never joins a colour group), but any **orthogonally adjacent pop**
@@ -244,7 +256,9 @@ never re‑discovered the hard way.
   `_popCells` reads that flag to emit `_tut("stone")`. **Bomb** (`BOMB`) = an
   explosive coloured bubble — popping a group that contains one **detonates a
   3×3 area** around each bomb cell (`grid.bombStrike` expands the cleared set via
-  the existing `bombArea` 3×3 square, deduped; `popAt` scores the full blast,
+  the existing `bombArea` 3×3 square, deduped; strike resolution then re-checks
+  the enlarged cleared set so specials hit by the blast can chain (for example
+  bomb→lightning→more blast cells) before scoring; `popAt` scores the full blast,
   shows a `💥 BOOM!` flourish and emits `_tut("bombbubble")`). Like lightning,
   bombs are ordinary colour bubbles that join groups normally. **Multiplier**
   (`MULTIPLIER`, the gold bubble) = popping a group that contains one
@@ -301,15 +315,27 @@ never re‑discovered the hard way.
   `DOWNPOUR_MIN_LEVEL` (30) and returns `null` on boss/treasure milestones
   (`milestoneType` suppresses it), with the cadence tightening from every 6 moves
   to a floor of every 3 as difficulty ramps to the cap (`{interval}`); `getLevel`
-  carries it as `level.downpour`. `grid.dropRow()` places one `NORMAL` bubble of
-  a random colour at the cell above each column's stack (sprites start above the
-  board so they visibly fall in) and returns `{added:[{c,r}], buried:[c,...]}`;
+  carries it as `level.downpour`. `grid.dropRow()` places one `NORMAL` bubble at
+  the cell above each column's stack (sprites start above the board so they
+  visibly fall in), choosing the colour that yields the **largest immediate
+  connected group at that landing cell** (ties resolved by seeded RNG) so rain
+  tends to create playable opportunities instead of pure punishment, and returns
+  `{added:[{c,r}], buried:[c,...]}`. Downpour sprites also use a slower follow
+  multiplier + wider row stagger than normal bubble motion, plus a dedicated
+  slow settle duration, so rain reads as a deliberate hazard beat instead of a
+  sudden, hard-to-react snap;
   `grid.topFilledRow()` (0 = a bubble on the very top edge, `rows` = empty) drives
   the warning cue. `main._downpour()` is called once per move from `afterMove`
   (after the win guard, before deadlock detection; campaign-only, skipped during
   finale), counts `session.movesSinceDrop` and on reaching `interval` resets it
   and calls `dropRow` — playing a `🌧️ Downpour!` cue on a successful rain and
-  `_scheduleEnd(false, "buried")` when any column overflowed. `movesSinceDrop`
+  granting **one extra move per successful rain tick** before checking for loss
+  (`+1` per drop event, regardless of how many balls were added),
+  then `_scheduleEnd(false, "buried")` when any column overflowed.
+  End-of-level modals now wait for pending pop animation frames to settle
+  (with a timeout guard) before `_finish`, so the screen never cuts away while
+  bubbles are still visually exploding.
+  `movesSinceDrop`
   is part of the save/resume snapshot. `renderer.drawDangerLine` paints a pulsing
   dashed red line `dangerRows` (2) cells down from the top once the stack climbs
   into that zone, brightening/quickening with proximity; `main` only draws it
@@ -595,8 +621,9 @@ never re‑discovered the hard way.
   of the score target — `combo` (reach a ×N combo), `group` (pop a single group
   of N+), or `nopowerup` (clear without spending a power-up tool). It is
   **purely additive**: meeting it pays bonus coins on the win screen (a
-  `🎯 Objective` `rewardBit`) but **never changes the win/star outcome** (the
-  score target stays the only win condition). Objectives are deterministic per
+  `🎯 Objective` `rewardBit`) but **never changes the win/star outcome** (ordinary
+  campaign levels must still clear all bubbles; score target alone no longer
+  completes a board with bubbles remaining). Objectives are deterministic per
   level (`objectiveForLevel(n)`, derived from the level number) and are skipped
   on levels 1–2 and on milestone (treasure/boss) beats, which already carry
   their own identity. `getLevel(id).objective` exposes `{ type, goal, bonus,

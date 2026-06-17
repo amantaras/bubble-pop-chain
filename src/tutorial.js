@@ -84,9 +84,9 @@ export const TUTORIAL_STEPS = [
   {
     id: "blast",
     title: "Charged Blast",
-    body: "Great pops fill your CHARGE meter. It's full now — double-tap anywhere to unleash an area-clearing Blast.",
+    body: "Great pops fill your CHARGE meter. It's full now — double-tap the shaking target on the board to blast the best area.",
     advance: "blast",
-    hint: "💥 Double-tap to blast",
+    hint: "💥 Double-tap the shaking target",
     grant: "power",
   },
   {

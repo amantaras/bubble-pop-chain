@@ -37,6 +37,14 @@ describe("tutorial step definitions", () => {
     expect(fever.grant).toBe("fever");
   });
 
+  it("teaches the Charged Blast shaking best-target cue", () => {
+    const blast = TUTORIAL_STEPS.find((s) => s.id === "blast");
+    expect(blast).toBeTruthy();
+    expect(blast.body).toMatch(/shaking target/i);
+    expect(blast.body).toMatch(/best area/i);
+    expect(blast.hint).toMatch(/shaking target/i);
+  });
+
   it("includes a gated undo step that grants an undoable move", () => {
     const undo = TUTORIAL_STEPS.find((s) => s.id === "undo");
     expect(undo).toBeTruthy();

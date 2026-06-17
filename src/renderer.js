@@ -562,6 +562,71 @@ export class Renderer {
     ctx.restore();
   }
 
+  // Charged Blast cue: briefly highlight the best blast center (highest
+  // immediate clear) when double-tap becomes available.
+  drawBlastCue(board, cue, time) {
+    if (!cue) return;
+    const ctx = this.ctx;
+    const p = board.targetPixel(cue.c, cue.r);
+    const life = Number.isFinite(cue.duration) && cue.duration > 0
+      ? Math.max(0, cue.timer / cue.duration)
+      : 1;
+    const t = (time || performance.now()) / 1000;
+    const pulse = 0.5 + 0.5 * Math.sin(t * 12);
+    const snap = 0.5 + 0.5 * Math.sin(t * 28);
+    const alpha = (0.5 + 0.45 * pulse) * Math.max(0.65, life);
+    const r = board.cell * (0.72 + 0.12 * pulse);
+    const j = board.cell * (0.08 + 0.04 * snap);
+    const jx = Math.sin(t * 42) * j + Math.sin(t * 81) * board.cell * 0.025;
+    const jy = Math.cos(t * 39) * j + Math.cos(t * 73) * board.cell * 0.025;
+
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.translate(jx, jy);
+
+    const glow = ctx.createRadialGradient(p.x, p.y, board.cell * 0.1, p.x, p.y, board.cell * 1.25);
+    glow.addColorStop(0, `rgba(255,235,120,${0.28 * alpha})`);
+    glow.addColorStop(0.45, `rgba(255,75,170,${0.22 * alpha})`);
+    glow.addColorStop(1, "rgba(255,75,170,0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, board.cell * (1.12 + 0.1 * pulse), 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = `rgba(255,95,170,${alpha})`;
+    ctx.lineWidth = Math.max(3, board.cell * 0.1);
+    ctx.setLineDash([board.cell * 0.18, board.cell * 0.12]);
+    ctx.lineDashOffset = -t * board.cell * 3.2;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.setLineDash([]);
+    ctx.lineWidth = Math.max(2, board.cell * 0.08);
+    ctx.strokeStyle = `rgba(255,238,130,${Math.min(1, alpha + 0.18)})`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, board.cell * (0.34 + 0.05 * snap), 0, Math.PI * 2);
+    ctx.stroke();
+
+    const tick = board.cell * (0.34 + 0.06 * pulse);
+    const gap = board.cell * 0.58;
+    ctx.lineCap = "round";
+    ctx.lineWidth = Math.max(3, board.cell * 0.09);
+    ctx.strokeStyle = `rgba(255,245,170,${Math.min(1, alpha + 0.1)})`;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      ctx.beginPath();
+      ctx.moveTo(p.x + dx * gap, p.y + dy * gap);
+      ctx.lineTo(p.x + dx * (gap + tick), p.y + dy * (gap + tick));
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = `rgba(255,255,210,${0.75 * alpha})`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, board.cell * (0.1 + 0.03 * snap), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
   _roundRect(ctx, x, y, w, h, r) {
     ctx.moveTo(x + r, y);
     ctx.arcTo(x + w, y, x + w, y + h, r);

@@ -23,6 +23,15 @@ describe("themes", () => {
     }
   });
 
+  it("ships a broad theme catalog", () => {
+    expect(THEMES.length).toBeGreaterThanOrEqual(15);
+  });
+
+  it("uses unique theme ids", () => {
+    const ids = THEMES.map((t) => t.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
   it("owned themes are always unlocked", () => {
     const t = THEMES.find((x) => x.price > 0);
     expect(isThemeUnlocked(t, 0, [t.id])).toBe(true);

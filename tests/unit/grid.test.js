@@ -1,5 +1,20 @@
 import { describe, it, expect } from "vitest";
-import { Board, NORMAL, ICE, RAINBOW, ICE_CRACKED, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN, VINE } from "../../src/grid.js";
+import {
+  Board,
+  NORMAL,
+  ICE,
+  RAINBOW,
+  ICE_CRACKED,
+  LIGHTNING,
+  STONE,
+  BOMB,
+  MULTIPLIER,
+  COIN,
+  VINE,
+  MAGNET_GLIDE,
+  DOWNPOUR_FALL_MULT,
+  DOWNPOUR_FALL_SECONDS,
+} from "../../src/grid.js";
 
 // Helper: overwrite a board's logic grid and clear sprite coupling so we can
 // assert pure grid behaviour deterministically. (settle() guards null sprites.)
@@ -624,6 +639,7 @@ describe("grid / Board", () => {
   it("update removes popped sprites once their animation finishes", () => {
     const b = new Board(2, 2, 3, 1);
     b.layout(400, 800, 100, 80);
+    b.snapToTargets();
     const sprite = b.sprites[0];
     sprite.delay = 0;
     sprite.state = "pop";
@@ -1159,6 +1175,53 @@ describe("grid / Board downpour", () => {
     expect(res.added.length).toBe(2);
     // The stack climbed one row toward the ceiling.
     expect(b.topFilledRow()).toBe(2);
+  });
+
+  it("downpour bubbles are marked to fall slower than normal", () => {
+    const b = makeBoard([
+      [-1, -1, 0, 0],
+      [-1, -1, -1, -1],
+    ]);
+    const res = b.dropRow();
+    expect(res.added.length).toBeGreaterThan(0);
+    for (const p of res.added) {
+      const s = b.spriteGrid[p.c][p.r];
+      expect(s).toBeTruthy();
+      expect(s.fallMult).toBe(DOWNPOUR_FALL_MULT);
+      expect(s.fallDur).toBe(DOWNPOUR_FALL_SECONDS);
+      expect(s.delay).toBeGreaterThanOrEqual(0.12);
+    }
+  });
+
+  it("downpour bubbles are still visibly falling before the slow duration ends", () => {
+    const b = makeBoard([
+      [-1, -1, 0, 0],
+      [-1, -1, -1, -1],
+    ]);
+    const res = b.dropRow();
+    const p = res.added[0];
+    const s = b.spriteGrid[p.c][p.r];
+    const target = b.targetPixel(p.c, p.r);
+    s.delay = 0;
+    b.update(DOWNPOUR_FALL_SECONDS * 0.45);
+    expect(s.fallDur).toBeGreaterThan(0);
+    expect(s.y).toBeLessThan(target.y - b.cell * 0.1);
+    expect(b.isIdle()).toBe(false);
+
+    b.update(DOWNPOUR_FALL_SECONDS);
+    expect(b.isIdle()).toBe(true);
+  });
+
+  it("dropRow prefers colours that create bigger immediate groups", () => {
+    const b = makeBoard([
+      [-1, 2, 0, 0],
+      [-1, -1, 1, 0],
+      [-1, 2, 1, 1],
+    ]);
+    b.dropRow();
+    // The middle column drops into (1,1). Matching colour 2 connects to both
+    // side neighbours on that row (group 3), which beats any other colour.
+    expect(b.grid[1][1]).toBe(2);
   });
 
   it("topFilledRow reports the highest occupied row, or rows when empty", () => {

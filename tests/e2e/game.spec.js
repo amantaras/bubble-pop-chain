@@ -156,6 +156,28 @@ async function findGroupCell(page) {
   });
 }
 
+// Deterministically finish the current campaign-style board by leaving one
+// adjacent pair and clearing it through the real pop/end path. This avoids the
+// old score-target shortcut: wins in campaign now require the board to clear.
+async function clearBoardByFinalPair(page) {
+  await page.evaluate(() => {
+    const g = window.__bpc.game;
+    const s = g.session;
+    const b = s.board;
+    const grid = Array.from({ length: b.cols }, () => Array(b.rows).fill(-1));
+    const types = Array.from({ length: b.cols }, () => Array(b.rows).fill(0));
+    const r = b.rows - 1;
+    grid[0][r] = 0;
+    grid[1][r] = 0;
+    b.restore(grid, types);
+    s.movesLeft = Math.max(s.movesLeft || 0, 3);
+    if (s.level && typeof s.level.target === "number") {
+      s.score = Math.max(s.score || 0, s.level.target);
+    }
+    g.popAt(0, r);
+  });
+}
+
 // ---------------------------------------------------------------------------
 
 test.describe("menu & navigation (UI)", () => {
@@ -390,6 +412,73 @@ test.describe("gestures: long-press preview (real input)", () => {
 
 test.describe("gestures: double-tap Charged Blast (real input)", () => {
   test.beforeEach(({ page }) => openGame(page));
+
+  test("charged blast availability keeps showing the best-target board cue", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(5));
+    await page.waitForTimeout(700);
+
+    const armed = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      g.session.power = 0;
+      g._addPower(1);
+      return {
+        ready: g.isBlastReady(),
+        cue: g.session.blastCue,
+      };
+    });
+    expect(armed.ready).toBe(true);
+    expect(armed.cue).toBeTruthy();
+
+    await page.waitForTimeout(3200);
+    const after = await page.evaluate(() => window.__bpc.game.session.blastCue);
+    expect(after).toBeTruthy();
+  });
+
+  test("charged blast cue is not born on bubbles cleared by the pop that filled charge", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(5));
+    await page.waitForTimeout(700);
+
+    const out = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const s = g.session;
+      const b = s.board;
+      s.petActive = null;
+      s.power = 0.99;
+      s.score = 0;
+      s.blastCue = null;
+
+      for (let c = 0; c < b.cols; c++) {
+        for (let r = 0; r < b.rows; r++) {
+          b.grid[c][r] = (c + r) % Math.max(3, b.colorCount);
+          b.types[c][r] = 0;
+        }
+      }
+
+      const c = Math.floor(b.cols / 2);
+      const r = Math.floor(b.rows / 2);
+      b.grid[c][r] = 0;
+      b.grid[Math.min(b.cols - 1, c + 1)][r] = 0;
+      const cleared = new Set(b.getGroupAt(c, r).map((p) => `${p.c},${p.r}`));
+
+      g.popAt(c, r);
+      const cue = s.blastCue;
+      return {
+        ready: g.isBlastReady(),
+        cue,
+        cueFilled: cue ? b.grid[cue.c][cue.r] !== -1 : false,
+        cueWasCleared: cue ? cleared.has(`${cue.c},${cue.r}`) : false,
+      };
+    });
+
+    expect(out.ready).toBe(true);
+    expect(out.cue).toBeTruthy();
+    expect(out.cueFilled).toBe(true);
+    expect(out.cueWasCleared).toBe(false);
+  });
 
   test("double-tap when charged blasts an area and resets the meter", async ({
     page,
@@ -801,7 +890,7 @@ test.describe("campaign progression", () => {
   }) => {
     await page.evaluate(() => window.__bpc.game.startCampaign(1));
     await page.waitForTimeout(600);
-    await autoPlay(page);
+    await clearBoardByFinalPair(page);
     await expect(page.locator("#win")).toBeVisible();
     await expect(page.locator("#win-stars .star.on")).not.toHaveCount(0);
 
@@ -862,7 +951,7 @@ test.describe("campaign progression", () => {
   test("double coins (rewarded ad) increases the balance", async ({ page }) => {
     await page.evaluate(() => window.__bpc.game.startCampaign(1));
     await page.waitForTimeout(600);
-    await autoPlay(page);
+    await clearBoardByFinalPair(page);
     await expect(page.locator("#win")).toBeVisible();
     // The double-coins offer is revealed only once the chest is opened.
     await page.locator("#win-chest").click();
@@ -881,7 +970,7 @@ test.describe("campaign progression", () => {
   }) => {
     await page.evaluate(() => window.__bpc.game.startCampaign(1));
     await page.waitForTimeout(600);
-    await autoPlay(page);
+    await clearBoardByFinalPair(page);
     await expect(page.locator("#win")).toBeVisible();
 
     // Closed state: chest is shaking, hint is shown, the coin reward is sealed.
@@ -973,7 +1062,7 @@ test.describe("milestone events (every 5 levels)", () => {
     const puBefore = await page.evaluate(() =>
       window.__bpc.Economy.getPowerup("magnet")
     );
-    await autoPlay(page);
+    await clearBoardByFinalPair(page);
     await expect(page.locator("#win")).toBeVisible();
     await expect(page.locator("#win-reward")).toContainText("bonus coins");
     const save1 = await page.evaluate(() =>
@@ -991,7 +1080,7 @@ test.describe("milestone events (every 5 levels)", () => {
     const puReplay = await page.evaluate(() =>
       window.__bpc.Economy.getPowerup("magnet")
     );
-    await autoPlay(page);
+    await clearBoardByFinalPair(page);
     await expect(page.locator("#win")).toBeVisible();
     await expect(page.locator("#win-reward")).not.toContainText("bonus coins");
     const save2 = await page.evaluate(() =>
@@ -1219,8 +1308,9 @@ test.describe("swipe-aware completion (no premature deadlock)", () => {
     expect(afterSwipe.ended).toBe(false);
   });
 
-  // The genuine deadlock (no tap AND no useful swipe) still ends the level.
-  test("a true deadlock with no swipe-move still resolves", async ({ page }) => {
+  // The genuine deadlock (no tap AND no useful swipe) still ends the level, but
+  // a score target alone must not count as a clear while bubbles remain.
+  test("a target-met deadlock with bubbles remaining does not win the level", async ({ page }) => {
     await page.evaluate(() => window.__bpc.game.startCampaign(2));
     await page.waitForTimeout(500);
 
@@ -1240,14 +1330,22 @@ test.describe("swipe-aware completion (no premature deadlock)", () => {
       b.grid[0][br] = 0;
       b.grid[b.cols - 1][br] = 1;
       s.movesLeft = 5;
-      s.score = s.level.target + 1; // already at target → deadlock = win
+      s.score = s.level.target + 1;
+      s.gaveUp = true; // skip rescue prompt; verify final win/loss condition
       const hadShiftMove = b.hasShiftMove();
       g.afterMove();
-      return { hadShiftMove, ended: s.ended };
+      return {
+        hadShiftMove,
+        ended: s.ended,
+        remaining: b.countRemaining(),
+      };
     });
 
     expect(state.hadShiftMove).toBe(false);
-    expect(state.ended).toBe(true); // genuine deadlock resolves the level
+    expect(state.remaining).toBeGreaterThan(0);
+    expect(state.ended).toBe(true); // genuine deadlock still resolves
+    await expect(page.locator("#win")).toBeHidden();
+    await expect(page.locator("#lose")).toBeVisible();
   });
 });
 
@@ -1272,6 +1370,37 @@ test.describe("power-ups (UI arm + apply)", () => {
     );
     expect(before - after).toBeGreaterThanOrEqual(4);
     await expect(page.locator('[data-pu="bomb"] .pu-count')).toHaveText("0");
+  });
+
+  test("bomb power-up chains into lightning struck by the blast", async ({
+    page,
+  }) => {
+    const res = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const E = window.__bpc.Economy;
+
+      function run(withLightning) {
+        g.startCampaign(2);
+        const b = g.session.board;
+        for (let c = 0; c < b.cols; c++) {
+          for (let r = 0; r < b.rows; r++) {
+            b.grid[c][r] = 1;
+            b.types[c][r] = 0;
+          }
+        }
+        const tc = Math.floor(b.cols / 2);
+        const tr = Math.floor(b.rows / 2);
+        if (withLightning) b.types[Math.min(b.cols - 1, tc + 1)][tr] = 4; // LIGHTNING
+        E.addPowerup("bomb", 1);
+        const before = b.countRemaining();
+        g.applyPowerup("bomb", tc, tr);
+        return before - b.countRemaining();
+      }
+
+      return { plain: run(false), chained: run(true) };
+    });
+
+    expect(res.chained).toBeGreaterThan(res.plain);
   });
 
   test("color clear removes an entire colour", async ({ page }) => {
@@ -1328,6 +1457,35 @@ test.describe("power-ups (UI arm + apply)", () => {
     await expect(page.locator('[data-pu="chainBolt"] .pu-count')).toHaveText("0");
   });
 
+  test("chain bolt chains into bomb bubbles it strikes", async ({ page }) => {
+    const res = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const E = window.__bpc.Economy;
+
+      function run(withBomb) {
+        g.startCampaign(2);
+        const b = g.session.board;
+        for (let c = 0; c < b.cols; c++) {
+          for (let r = 0; r < b.rows; r++) {
+            b.grid[c][r] = 1;
+            b.types[c][r] = 0;
+          }
+        }
+        const tc = Math.floor(b.cols / 2);
+        const tr = Math.floor(b.rows / 2);
+        if (withBomb) b.types[tc][tr] = 6; // BOMB
+        E.addPowerup("chainBolt", 1);
+        const before = b.countRemaining();
+        g.applyPowerup("chainBolt", tc, tr);
+        return before - b.countRemaining();
+      }
+
+      return { plain: run(false), chained: run(true) };
+    });
+
+    expect(res.chained).toBeGreaterThan(res.plain);
+  });
+
   test("pick removes exactly one bubble", async ({ page }) => {
     await page.evaluate(() => window.__bpc.game.startCampaign(2));
     await page.waitForTimeout(700);
@@ -1351,6 +1509,147 @@ test.describe("power-ups (UI arm + apply)", () => {
     );
     expect(before - after).toBe(1);
     await expect(page.locator('[data-pu="pick"] .pu-count')).toHaveText("0");
+  });
+
+  test("pick on a lightning bubble triggers the full row+column strike", async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      g.startCampaign(2);
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++) {
+        for (let r = 0; r < b.rows; r++) {
+          b.grid[c][r] = 1;
+          b.types[c][r] = 0; // NORMAL
+        }
+      }
+      const c = Math.floor(b.cols / 2);
+      const r = Math.floor(b.rows / 2);
+      b.types[c][r] = 4; // LIGHTNING
+      window.__bpc.Economy.addPowerup("pick", 1);
+      window.__bpc.UI.assignLoadout(0, "pick");
+    });
+    await page.waitForTimeout(200);
+
+    const before = await page.evaluate(() => {
+      const b = window.__bpc.game.session.board;
+      return { count: b.countRemaining(), cols: b.cols, rows: b.rows };
+    });
+
+    await page.locator('[data-pu="pick"]').click();
+    await tapCell(page, Math.floor(before.cols / 2), Math.floor(before.rows / 2));
+    await page.waitForTimeout(300);
+
+    const after = await page.evaluate(() =>
+      window.__bpc.game.session.board.countRemaining()
+    );
+    expect(before.count - after).toBeGreaterThanOrEqual(before.cols + before.rows - 1);
+  });
+
+  test("pick on a bomb bubble triggers the 3x3 blast", async ({ page }) => {
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      g.startCampaign(2);
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++) {
+        for (let r = 0; r < b.rows; r++) {
+          b.grid[c][r] = 1;
+          b.types[c][r] = 0; // NORMAL
+        }
+      }
+      const c = Math.floor(b.cols / 2);
+      const r = Math.floor(b.rows / 2);
+      b.types[c][r] = 6; // BOMB
+      window.__bpc.Economy.addPowerup("pick", 1);
+      window.__bpc.UI.assignLoadout(0, "pick");
+    });
+    await page.waitForTimeout(200);
+
+    const before = await page.evaluate(() =>
+      window.__bpc.game.session.board.countRemaining()
+    );
+    await page.locator('[data-pu="pick"]').click();
+    await tapCell(page, 3, 4);
+    await page.waitForTimeout(300);
+    const after = await page.evaluate(() =>
+      window.__bpc.game.session.board.countRemaining()
+    );
+    expect(before - after).toBeGreaterThanOrEqual(5);
+  });
+
+  test("pick on multiplier/coin bubbles applies multiplier score and coin payout", async ({
+    page,
+  }) => {
+    const res = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const E = window.__bpc.Economy;
+
+      function setupAndPick(typeAtTarget) {
+        g.startCampaign(2);
+        const s = g.session;
+        const b = s.board;
+        for (let c = 0; c < b.cols; c++) {
+          for (let r = 0; r < b.rows; r++) {
+            b.grid[c][r] = 1;
+            b.types[c][r] = 0; // NORMAL
+          }
+        }
+        const c = Math.floor(b.cols / 2);
+        const r = Math.floor(b.rows / 2);
+        b.types[c][r] = typeAtTarget;
+        s.score = 0;
+        const coins0 = E.coins;
+        E.addPowerup("pick", 1);
+        g.applyPowerup("pick", c, r);
+        return { score: s.score, coinsDelta: E.coins - coins0 };
+      }
+
+      const plain = setupAndPick(0);
+      const mult = setupAndPick(7); // MULTIPLIER
+      const coin = setupAndPick(8); // COIN
+      return { plain, mult, coin };
+    });
+
+    expect(res.mult.score).toBe(res.plain.score * 2);
+    expect(res.coin.coinsDelta).toBeGreaterThanOrEqual(12);
+  });
+
+  test("bomb tool on multiplier/coin bubbles applies multiplier score and coin payout", async ({
+    page,
+  }) => {
+    const res = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const E = window.__bpc.Economy;
+
+      function setupAndBomb(typeAtTarget) {
+        g.startCampaign(2);
+        const s = g.session;
+        const b = s.board;
+        for (let c = 0; c < b.cols; c++) {
+          for (let r = 0; r < b.rows; r++) {
+            b.grid[c][r] = 1;
+            b.types[c][r] = 0; // NORMAL
+          }
+        }
+        const c = Math.floor(b.cols / 2);
+        const r = Math.floor(b.rows / 2);
+        b.types[c][r] = typeAtTarget;
+        s.score = 0;
+        const coins0 = E.coins;
+        E.addPowerup("bomb", 1);
+        g.applyPowerup("bomb", c, r);
+        return { score: s.score, coinsDelta: E.coins - coins0 };
+      }
+
+      const plain = setupAndBomb(0);
+      const mult = setupAndBomb(7); // MULTIPLIER
+      const coin = setupAndBomb(8); // COIN
+      return { plain, mult, coin };
+    });
+
+    expect(res.mult.score).toBe(res.plain.score * 2);
+    expect(res.coin.coinsDelta).toBeGreaterThanOrEqual(12);
   });
 
   test("magnet shows a gauge and pulls a colour into one connected blob", async ({
@@ -1450,8 +1749,8 @@ test.describe("power-ups (UI arm + apply)", () => {
 
     await page.locator('[data-pu="magnet"]').click();
     await expect(page.locator('[data-pu="magnet"]')).toHaveClass(/armed/);
-    const box = await page.locator("#game-canvas").boundingBox();
-    await page.mouse.click(box.x + tap.x, box.y + tap.y);
+  await page.waitForFunction(() => window.__bpc.game.session.armed === "magnet");
+  await page.evaluate(({ x, y }) => window.__bpc.game.handleTap(x, y), tap);
 
     // Regression guard: this used to toast "Aim the magnet at a plain bubble".
     await expect(page.locator("#magnet-gauge")).toBeVisible();
@@ -2642,7 +2941,7 @@ test.describe("per-level best score", () => {
   }) => {
     await page.evaluate(() => window.__bpc.game.startCampaign(1));
     await page.waitForTimeout(600);
-    await autoPlay(page);
+    await clearBoardByFinalPair(page);
     await expect(page.locator("#win")).toBeVisible();
     const best = await page.evaluate(() =>
       window.__bpc.Storage.getLevelScore(1)
@@ -2664,7 +2963,7 @@ test.describe("per-level best score", () => {
     await page.evaluate(() => window.__bpc.Storage.recordLevelScore(1, 1));
     await page.evaluate(() => window.__bpc.game.startCampaign(1));
     await page.waitForTimeout(600);
-    await autoPlay(page);
+    await clearBoardByFinalPair(page);
     await expect(page.locator("#win")).toBeVisible();
     await expect(page.locator("#win-reward")).toContainText("New best score");
   });
@@ -2701,10 +3000,8 @@ test.describe("bonus objectives", () => {
     await page.evaluate(() => {
       const g = window.__bpc.game;
       g.session.objectiveMet = true;
-      g.session.score = g.session.level.target;
-      g.session.movesLeft = 0;
-      g.afterMove();
     });
+    await clearBoardByFinalPair(page);
     await expect(page.locator("#win")).toBeVisible();
     await expect(page.locator("#win-reward")).toContainText("Objective");
     const after = await page.evaluate(() => window.__bpc.Economy.coins);
@@ -2720,10 +3017,8 @@ test.describe("bonus objectives", () => {
     await page.evaluate(() => {
       const g = window.__bpc.game;
       g.session.usedPowerup = true; // spent a tool → objective failed
-      g.session.score = g.session.level.target;
-      g.session.movesLeft = 0;
-      g.afterMove();
     });
+    await clearBoardByFinalPair(page);
     await expect(page.locator("#win")).toBeVisible();
     await expect(page.locator("#win-reward")).not.toContainText("Objective");
   });
@@ -2965,7 +3260,7 @@ test.describe("shop & monetization (UI)", () => {
     // Win a level; the "double coins" rewarded button should be hidden.
     await page.evaluate(() => window.__bpc.game.startCampaign(1));
     await page.waitForTimeout(600);
-    await autoPlay(page);
+    await clearBoardByFinalPair(page);
     await expect(page.locator("#win")).toBeVisible();
     await expect(page.locator("#win-double")).toBeHidden();
   });
@@ -3011,7 +3306,7 @@ test.describe("shop & monetization (UI)", () => {
   }) => {
     await page.evaluate(() => window.__bpc.game.startCampaign(1));
     await page.waitForTimeout(600);
-    await autoPlay(page);
+    await clearBoardByFinalPair(page);
     await expect(page.locator("#win")).toBeVisible();
     // The forced ad overlay must never appear for an early-level win.
     await page.waitForTimeout(300);
@@ -3054,7 +3349,7 @@ test.describe("persistence & PWA", () => {
   test("progress survives a reload", async ({ page }) => {
     await page.evaluate(() => window.__bpc.game.startCampaign(1));
     await page.waitForTimeout(600);
-    await autoPlay(page);
+    await clearBoardByFinalPair(page);
     await expect(page.locator("#win")).toBeVisible();
     const coins = await page.evaluate(() => window.__bpc.Economy.coins);
 
@@ -3168,7 +3463,7 @@ test.describe("resume in-progress level (save & continue)", () => {
   }) => {
     await page.evaluate(() => window.__bpc.game.startCampaign(1));
     await page.waitForTimeout(600);
-    await autoPlay(page);
+    await clearBoardByFinalPair(page);
     await expect(page.locator("#win")).toBeVisible();
     await page.locator("#win-menu").click();
     await expect(page.locator("#menu")).toBeVisible();
@@ -5479,6 +5774,40 @@ test.describe("downpour (advanced levels)", () => {
     expect(result.countAfter).toBeGreaterThan(result.countBefore);
   });
 
+  test("a successful downpour drop grants one extra move", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(31));
+    await page.waitForTimeout(400);
+    const result = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const s = g.session;
+      const bd = s.board;
+      // Keep clear headroom so a rain row can actually land.
+      for (let c = 0; c < bd.cols; c++)
+        for (let r = 0; r < 3; r++) {
+          bd.grid[c][r] = -1;
+          bd.spriteGrid[c][r] = null;
+        }
+      const movesBefore = s.movesLeft;
+      const countBefore = bd.countRemaining();
+      s.movesSinceDrop = 5; // next _downpour call triggers the rain tick
+      const ended = g._downpour();
+      const countAfter = bd.countRemaining();
+      const added = Math.max(0, countAfter - countBefore);
+      const expectedBonus = added > 0 ? 1 : 0;
+      return {
+        ended,
+        movesBefore,
+        movesAfter: s.movesLeft,
+        added,
+        expectedBonus,
+      };
+    });
+    expect(result.ended).toBe(false);
+    expect(result.added).toBeGreaterThan(0);
+    expect(result.expectedBonus).toBe(1);
+    expect(result.movesAfter).toBe(result.movesBefore + result.expectedBonus);
+  });
+
   test("a single blocked column does not instantly bury the player", async ({
     page,
   }) => {
@@ -5555,6 +5884,53 @@ test.describe("downpour (advanced levels)", () => {
     expect(result.ended).toBe(false);
     expect(result.endedFlag).toBe(false);
     await expect(page.locator("#lose")).toBeHidden();
+  });
+
+  test("finish modal waits for remaining pop animation frames", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(31));
+    await page.waitForTimeout(300);
+
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const s = g.session;
+      // Ensure at least one sprite is still in a pop animation state.
+      if (s.board.sprites.length > 0) {
+        const sp = s.board.sprites[0];
+        sp.state = "pop";
+        sp.t = 0;
+      }
+      g._scheduleEnd(false, "buried");
+    });
+
+    // End should not show immediately while the pop frame is still active.
+    await page.waitForTimeout(120);
+    await expect(page.locator("#lose")).toBeHidden();
+
+    // After the animation window settles, end modal appears normally.
+    await expect(page.locator("#lose")).toBeVisible();
+  });
+
+  test("finish modal waits for slow downpour fall animations", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(31));
+    await page.waitForTimeout(300);
+
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const s = g.session;
+      for (let c = 0; c < s.board.cols; c++) {
+        for (let r = 0; r < 3; r++) {
+          s.board.grid[c][r] = -1;
+          s.board.types[c][r] = 0;
+          s.board.spriteGrid[c][r] = null;
+        }
+      }
+      s.board.dropRow();
+      g._scheduleEnd(false, "buried");
+    });
+
+    await page.waitForTimeout(900);
+    await expect(page.locator("#lose")).toBeHidden();
+    await expect(page.locator("#lose")).toBeVisible({ timeout: 7000 });
   });
 });
 

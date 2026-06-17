@@ -28,6 +28,10 @@ export const VINE = 9; // creeping threat — every resolved move it spreads int
 // Deliberately slower than the snappy gravity settle so the player can see the
 // bubbles physically travel and re-locate across the board.
 export const MAGNET_GLIDE = 0.6;
+// Downpour row-in bubbles should be readable and fair: fall slower than the
+// normal snappy board follow so players can react before the stack settles.
+export const DOWNPOUR_FALL_MULT = 0.45;
+export const DOWNPOUR_FALL_SECONDS = 3.8;
 
 export class Board {
   constructor(cols, rows, colorCount, seed, specials = null) {
@@ -199,6 +203,7 @@ export class Board {
       s.t = 0;
       s.delay = 0;
       s.glideDur = 0;
+      s.fallDur = 0;
     }
   }
 
@@ -361,6 +366,32 @@ export class Board {
   }
 
   // ---- Downpour (advanced levels) --------------------------------------
+  // Pick the most player-helpful colour for a downpour bubble at (c,r): try
+  // every available colour and choose the one that creates the largest
+  // immediate connected group at that cell. Ties are broken with board RNG so
+  // behaviour stays deterministic per seed.
+  _bestDownpourColor(c, r) {
+    let bestScore = -1;
+    const best = [];
+    for (let color = 0; color < this.colorCount; color++) {
+      this.grid[c][r] = color;
+      this.types[c][r] = NORMAL;
+      const score = this.getGroupAt(c, r).length;
+      if (score > bestScore) {
+        bestScore = score;
+        best.length = 0;
+        best.push(color);
+      } else if (score === bestScore) {
+        best.push(color);
+      }
+    }
+    // Reset temporary probe cell; caller writes the final choice next.
+    this.grid[c][r] = -1;
+    this.types[c][r] = NORMAL;
+    if (best.length === 0) return 0;
+    return best[Math.floor(this.rng() * best.length)];
+  }
+
   // Tetris-style pressure: drop a fresh row of ordinary bubbles in from the top.
   // Each column gets one new bubble resting directly on top of its stack; the
   // new sprites start above the board so they visibly fall into place. A column
@@ -384,10 +415,11 @@ export class Board {
         buried.push(c); // stack already reaches the top — no room to drop
         continue;
       }
-      const color = Math.floor(this.rng() * this.colorCount);
+      const color = this._bestDownpourColor(c, dest);
       this.grid[c][dest] = color;
       this.types[c][dest] = NORMAL;
       const t = this.targetPixel(c, dest);
+      const rainStartY = t.y - this.boardH * 1.4 - 120;
       const s = {
         id: SPRITE_ID++,
         color,
@@ -395,12 +427,17 @@ export class Board {
         c,
         r: dest,
         x: t.x,
-        y: t.y - this.boardH - 60, // start above the board for a fall-in
+        y: rainStartY, // start well above the board for a longer visible fall
         scale: 1,
         alpha: 1,
         state: "idle",
         t: 0,
-        delay: c * 0.02, // slight per-column stagger so the row patters in
+        // Give rain a gentler cadence so the new row is readable under pressure.
+        delay: 0.2 + c * 0.12,
+        fallMult: DOWNPOUR_FALL_MULT,
+        fallT: 0,
+        fallDur: DOWNPOUR_FALL_SECONDS,
+        fy0: rainStartY,
         glideDur: 0,
       };
       this.spriteGrid[c][dest] = s;
@@ -1409,6 +1446,25 @@ export class Board {
         continue;
       }
 
+      // Downpour row-in: a dedicated slow settle so rain reads as deliberate
+      // board pressure instead of snapping in too quickly.
+      if (s.fallDur > 0) {
+        s.fallT = Math.min(s.fallDur, (s.fallT || 0) + dt);
+        const t = this.targetPixel(s.c, s.r);
+        const k = s.fallT / s.fallDur;
+        const e = 0.5 - Math.cos(Math.PI * k) / 2; // slow, smooth sine ease
+        s.y = (s.fy0 == null ? s.y : s.fy0) + (t.y - (s.fy0 == null ? s.y : s.fy0)) * e;
+        s.x += (t.x - s.x) * (smooth * (s.fallMult || 1));
+        if (s.fallT >= s.fallDur) {
+          s.fallDur = 0;
+          s.x = t.x;
+          s.y = t.y;
+        }
+        if (s.scale < 1) s.scale += (1 - s.scale) * smooth;
+        else s.scale = 1;
+        continue;
+      }
+
       const t = this.targetPixel(s.c, s.r);
       // A magnet glide eases the bubble slowly from where it was grabbed to its
       // new cell, so the relocation reads clearly. Once finished it falls back
@@ -1424,15 +1480,23 @@ export class Board {
         if (s.glideT >= s.glideDur) s.glideDur = 0;
         continue;
       }
-      s.x += (t.x - s.x) * smooth;
-      s.y += (t.y - s.y) * smooth;
+      const follow = smooth * (s.fallMult || 1);
+      s.x += (t.x - s.x) * follow;
+      s.y += (t.y - s.y) * follow;
       if (s.scale < 1) s.scale += (1 - s.scale) * smooth;
       else s.scale = 1;
     }
   }
 
-  // True when no pop animations are still playing.
+  // True when no board sprite animation is still visibly playing.
   isIdle() {
-    return !this.sprites.some((s) => s.state === "pop");
+    return !this.sprites.some((s) => {
+      if (s.state === "pop") return true;
+      if ((s.delay || 0) > 0) return true;
+      if ((s.fallDur || 0) > 0) return true;
+      if ((s.glideDur || 0) > 0) return true;
+      const t = this.targetPixel(s.c, s.r);
+      return Math.abs(s.x - t.x) > 0.75 || Math.abs(s.y - t.y) > 0.75;
+    });
   }
 }
