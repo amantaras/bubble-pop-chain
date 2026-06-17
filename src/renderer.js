@@ -171,55 +171,106 @@ export class Renderer {
       ctx.shadowColor = "transparent";
       ctx.shadowBlur = 0;
 
-      // Body gradient — rainbow bubbles use a multi-hue sweep. The edge stays
-      // saturated (only lightly shaded) so bubbles read as vivid, defined orbs
-      // instead of fading into the dark board.
-      const grad = ctx.createRadialGradient(
-        s.x - rad * 0.35,
-        s.y - rad * 0.4,
-        rad * 0.1,
+      // A tight contact shadow below each orb gives the board more depth
+      // without blurring the bubble itself.
+      ctx.globalAlpha = s.alpha * 0.28;
+      ctx.fillStyle = "rgba(0,0,0,0.45)";
+      ctx.beginPath();
+      ctx.ellipse(
         s.x,
-        s.y,
-        rad
+        s.y + rad * 0.56,
+        rad * 0.7,
+        rad * 0.18,
+        0,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+      ctx.globalAlpha = s.alpha;
+
+      // Body gradient — rainbow bubbles use a multi-hue sweep. Normal bubbles
+      // get a candy-like depth ramp with a bright crown, saturated middle and
+      // darker lower edge so they read less flat while staying crisp.
+      const grad = ctx.createRadialGradient(
+        s.x - rad * 0.38,
+        s.y - rad * 0.44,
+        rad * 0.05,
+        s.x,
+        s.y + rad * 0.08,
+        rad * 1.05
       );
       if (s.type === RAINBOW) {
         grad.addColorStop(0.0, "#ffffff");
-        grad.addColorStop(0.25, "#ff5b8d");
-        grad.addColorStop(0.5, "#ffd35b");
-        grad.addColorStop(0.72, "#5bff9b");
-        grad.addColorStop(1.0, "#6ea8ff");
+        grad.addColorStop(0.2, "#ff7aaa");
+        grad.addColorStop(0.42, "#ffd75f");
+        grad.addColorStop(0.64, "#54f2a0");
+        grad.addColorStop(0.82, "#5f9dff");
+        grad.addColorStop(1.0, "#5d42d6");
         ctx.shadowColor = "#ffffff";
       } else {
-        grad.addColorStop(0, lighten(hex, 0.65));
-        grad.addColorStop(0.5, hex);
-        grad.addColorStop(1, shade(hex, 0.7));
+        grad.addColorStop(0, lighten(hex, 0.82));
+        grad.addColorStop(0.2, lighten(hex, 0.34));
+        grad.addColorStop(0.58, hex);
+        grad.addColorStop(0.86, shade(hex, 0.68));
+        grad.addColorStop(1, shade(hex, 0.36));
       }
       ctx.fillStyle = grad;
       ctx.beginPath();
       ctx.arc(s.x, s.y, rad, 0, Math.PI * 2);
       ctx.fill();
 
+      // A clipped upper wash adds glassy refraction without spilling outside
+      // the orb edge.
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, rad * 0.98, 0, Math.PI * 2);
+      ctx.clip();
+      const wash = ctx.createLinearGradient(s.x, s.y - rad, s.x, s.y + rad);
+      wash.addColorStop(0, "rgba(255,255,255,0.34)");
+      wash.addColorStop(0.38, "rgba(255,255,255,0.05)");
+      wash.addColorStop(0.72, "rgba(255,255,255,0)");
+      ctx.fillStyle = wash;
+      ctx.beginPath();
+      ctx.ellipse(
+        s.x - rad * 0.08,
+        s.y - rad * 0.26,
+        rad * 0.86,
+        rad * 0.5,
+        -0.18,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+      ctx.restore();
+
       // Crisp double rim: a thin dark outer edge sharply separates each bubble
       // from its neighbours, with a bright inner highlight ring for a glossy,
       // high-definition finish.
       ctx.shadowBlur = 0;
       ctx.globalAlpha = s.alpha;
-      ctx.lineWidth = Math.max(1.25, rad * 0.07);
+      ctx.lineWidth = Math.max(1.25, rad * 0.075);
       ctx.strokeStyle =
-        s.type === RAINBOW ? "rgba(255,255,255,0.8)" : shade(hex, 0.42);
+        s.type === RAINBOW ? "rgba(255,255,255,0.85)" : shade(hex, 0.32);
       ctx.beginPath();
       ctx.arc(s.x, s.y, rad - ctx.lineWidth * 0.5, 0, Math.PI * 2);
       ctx.stroke();
 
-      ctx.globalAlpha = s.alpha * 0.5;
-      ctx.lineWidth = Math.max(1, rad * 0.06);
+      ctx.globalAlpha = s.alpha * 0.68;
+      ctx.lineWidth = Math.max(1, rad * 0.055);
       ctx.strokeStyle =
-        s.type === RAINBOW ? "rgba(255,255,255,0.6)" : lighten(hex, 0.5);
+        s.type === RAINBOW ? "rgba(255,255,255,0.7)" : lighten(hex, 0.62);
       ctx.beginPath();
       ctx.arc(s.x, s.y, rad * 0.82, -2.4, -0.2);
       ctx.stroke();
 
-      // Glossy highlight (no shadow)
+      ctx.globalAlpha = s.alpha * 0.34;
+      ctx.lineWidth = Math.max(1, rad * 0.045);
+      ctx.strokeStyle = "rgba(255,255,255,0.72)";
+      ctx.beginPath();
+      ctx.arc(s.x, s.y + rad * 0.1, rad * 0.58, 0.25, 2.55);
+      ctx.stroke();
+
+      // Glossy highlights (no shadow)
       ctx.shadowBlur = 0;
       ctx.globalAlpha = s.alpha * 0.9;
       ctx.fillStyle = "rgba(255,255,255,0.95)";
@@ -230,6 +281,20 @@ export class Renderer {
         rad * 0.24,
         rad * 0.15,
         -0.5,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+
+      ctx.globalAlpha = s.alpha * 0.55;
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      ctx.beginPath();
+      ctx.ellipse(
+        s.x + rad * 0.22,
+        s.y - rad * 0.48,
+        rad * 0.08,
+        rad * 0.055,
+        0.2,
         0,
         Math.PI * 2
       );

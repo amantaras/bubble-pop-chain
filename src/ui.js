@@ -1863,7 +1863,7 @@ class UIManager {
     wrap.innerHTML = "";
     const info = document.createElement("div");
     info.className = "crate-info";
-    info.innerHTML = `<span class="crate-icon">🎁</span><div><div class="crate-title">Pet Crates</div><div class="crate-sub">You have <b id="crate-count">${crates}</b> — open one to win a pet!</div><div class="crate-dust">✨ <b id="dust-count">${dust}</b> Pet Dust — craft & embue gems</div></div>`;
+    info.innerHTML = `<span class="crate-icon crate-art crate-art-pet" aria-hidden="true"><span class="ca-glow"></span><span class="ca-lid"></span><span class="ca-body"></span><span class="ca-band"></span><span class="ca-lock"></span><span class="ca-gem ca-g1"></span><span class="ca-gem ca-g2"></span></span><div><div class="crate-title">Pet Crates</div><div class="crate-sub">You have <b id="crate-count">${crates}</b> — open one to win a pet!</div><div class="crate-dust">✨ <b id="dust-count">${dust}</b> Pet Dust — craft & embue gems</div></div>`;
 
     const openBtn = document.createElement("button");
     openBtn.className = "buy-btn pet-open-btn";
@@ -1932,7 +1932,7 @@ class UIManager {
     const legend = document.createElement("div");
     legend.className = "store-item store-legend";
     legend.innerHTML =
-      `<span class="store-icon">🧰</span>` +
+      `<span class="store-icon crate-art crate-art-legend" aria-hidden="true"><span class="ca-glow"></span><span class="ca-lid"></span><span class="ca-body"></span><span class="ca-band"></span><span class="ca-lock"></span><span class="ca-gem ca-g1"></span><span class="ca-gem ca-g2"></span></span>` +
       `<div class="store-meta"><div class="store-name">Legendary Crate</div>` +
       `<div class="store-sub">Guaranteed legendary — high chance of a premium pet!</div></div>`;
     const legendBtn = document.createElement("button");

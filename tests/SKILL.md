@@ -78,7 +78,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   the colourblind symbol set (distinct glyph per colour, enough for every level),
   the memoized bubble colour helpers (`renderer.js` `hexToRgb`/`shade`/`lighten`
   — outputs pinned byte-for-byte so the per-frame render cache can't drift the
-  on-screen colours, and `hexToRgb` proven to return a stable cached reference),
+  on-screen colours, and `hexToRgb` proven to return a stable cached reference;
+  the base bubble polish is intentionally validated as a renderer smoke/syntax
+  concern because it is procedural Canvas layering over the same helpers),
   the reduced-motion accessibility flags (`ScreenShake.motionScale` gates added
   trauma at the `add()` chokepoint — 0 disables shake entirely; `ParticleSystem.
   motionScale` scales `burst`/`sparkle` counts down and skips shockwave `ring`s
@@ -267,7 +269,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   the pet companions flow (Pets screen with starter Sparky owned/equipped,
   buy + open a crate grants a pet, the Pet Store sells premium pets + a
   Legendary Crate that grants a pet, buying a premium pet unlocks it,
-  duplicate crate pulls grant Pet Dust + the crate panel shows the balance,
+  duplicate crate pulls grant Pet Dust + the crate panel shows the balance and
+  local `.crate-art` CSS graphics (no remote asset dependency),
   the pity timer guarantees rarer pets after dry opens, an equipped pet's trait
   modifies its buffs, the
   Pets screen shows the party panel with a lead slot, adding a support pet folds

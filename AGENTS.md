@@ -375,10 +375,12 @@ never re‑discovered the hard way.
 - **Win-screen reward chest** (`ui.js` `showWin`/`openWinChest`, `#win`): coins
   are credited to `Economy` *before* `showWin`, so the chest is purely
   presentational. On show, the reward block (`#win-reward-reveal`) starts
-  **sealed** (`.is-sealed`, hidden) and a CSS-built treasure chest
+  **sealed** (`.is-sealed`, hidden) and a fully local CSS-built treasure chest
   (`#win-chest-art`) **shakes** (`@keyframes wc-shake` on the inner art, never on
   the clickable `#win-chest` button — transforms on clickable elements flake
-  Playwright clicks) with a "Tap to open!" hint. Tapping the chest →
+  Playwright clicks) with a "Tap to open!" hint. The chest art is layered CSS
+  (wood gradients, metal bands, jewel insets, glow) so it never depends on remote
+  graphics or CDN runtime loads. Tapping the chest →
   `openWinChest` (idempotent via `_winChestOpened`): lid flips
   (`.open` → `rotateX`), `_spawnChestBurst` flings coin/sparkle glyphs, the
   reward reveals (`.revealed`, `wc-reveal` fade-up), the coins count up
@@ -532,9 +534,9 @@ never re‑discovered the hard way.
   unchanged); only runaway storms are bounded, holding worst-case draw cost flat.
 - **Performance — memoized bubble colour helpers** (`renderer.js` `hexToRgb`/
   `shade`/`lighten`): `drawBubbles` runs every frame and computes several derived
-  colour strings **per bubble** (body-gradient stops, rim + highlight shades —
-  `lighten(hex,0.65)`, `shade(hex,0.7)`, `shade(hex,0.42)`, `lighten(hex,0.5)`).
-  Each call previously re-parsed the hex and allocated a fresh `rgb(...)` string,
+  colour strings **per bubble** (body-gradient stops, rim and highlight shades,
+  including the liquid-candy depth ramp added to the base orb rendering). Each
+  call previously re-parsed the hex and allocated a fresh `rgb(...)` string,
   so a busy 56-bubble board churned **thousands of hex-parses + string
   allocations per second** (≈4 calls × bubbles × 60fps). These three helpers are
   **pure** over a tiny finite key space — a theme's palette (~6–8 colours)
@@ -545,6 +547,14 @@ never re‑discovered the hard way.
   tests pin the exact `rgb(...)` strings and prove the cache returns stable
   results), and `hexToRgb`/`shade`/`lighten` are exported so the memoization is
   unit-testable. Behaviour-preserving render optimization → **no tutorial step**.
+- **Base bubble rendering polish** (`renderer.js` `drawBubbles`): the ordinary
+  bubble body is still fully procedural Canvas (no asset files or rendering
+  package), but now layers a tight contact shadow, a brighter crown-to-dark-edge
+  radial fill, a clipped upper wash, crisp double rims, a lower refraction
+  crescent, and two specular highlights. This gives the orbs more depth and
+  shine while avoiding the old blurry halo problem, keeps colourblind symbols and
+  special-bubble overlays on top, and adds no new tutorial step because it is
+  cosmetic only.
 - **Group-pop explosion styles** (`particles.js` `popStyleForGroup` +
   `ParticleSystem.ring`, `main.js` `_popCells`): every group pop plays **one of
   five escalating explosion animations** — the bigger the group, the more
@@ -846,7 +856,8 @@ never re‑discovered the hard way.
   via `rollLegendaryCrate` → always legendary, often premium;
   `game.buyLegendaryCrate`). Cosmetic tints (`COSMETICS`, hue-rotate) are
   coin-bought. The
-  **Pets screen** (`ui.js` `buildPets`, `#pets`, menu button) shows the crate,
+  **Pets screen** (`ui.js` `buildPets`, `#pets`, menu button) shows the crate
+  panel with local layered `.crate-art` CSS (standard and legendary variants),
   the **Pet Store** (`_buildPetStore`, `#pet-store` — premium pets + Legendary
   Crate), the catalog grid (`.pet-card`, locked/owned/equipped), and a detail
   pane (XP bar, equip, premium buy, cosmetics); a HUD badge (`#hud-pet`,

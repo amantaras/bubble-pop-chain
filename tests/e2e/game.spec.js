@@ -976,6 +976,8 @@ test.describe("campaign progression", () => {
     // Closed state: chest is shaking, hint is shown, the coin reward is sealed.
     await expect(page.locator("#win-chest-art")).toHaveClass(/shaking/);
     await expect(page.locator("#win-chest-art")).not.toHaveClass(/open/);
+    await expect(page.locator("#win-chest-art .wc-body")).toBeVisible();
+    await expect(page.locator("#win-chest-art .wc-lid")).toBeVisible();
     await expect(page.locator("#win-reward-reveal")).toBeHidden();
     expect(await page.locator("#win-coins-num").textContent()).toBe("0");
 
@@ -3961,6 +3963,7 @@ test.describe("pet companions (collection & buffs)", () => {
     await page.getByRole("button", { name: "Pets", exact: true }).click();
     await expect(page.locator("#pets")).toBeVisible();
     // Starter state: Sparky owned + equipped, one free crate to open.
+    await expect(page.locator("#pets-crate .crate-art-pet")).toBeVisible();
     await expect(page.locator('.pet-card[data-pet="sparky"]')).toHaveClass(/owned/);
     await expect(page.locator('.pet-card[data-pet="sparky"]')).toHaveClass(/equipped/);
     const state = await page.evaluate(() => window.__bpc.Storage.getPetState());
@@ -4107,6 +4110,7 @@ test.describe("pet companions (collection & buffs)", () => {
     await expect(page.locator('#pet-store .store-buy[data-pet="aurora"]')).toBeVisible();
     await expect(page.locator('#pet-store .store-buy[data-pet="gizmo"]')).toBeVisible();
     // The Legendary Crate is offered for real money.
+    await expect(page.locator("#pet-store .crate-art-legend")).toBeVisible();
     await expect(page.locator("#legend-crate-buy")).toBeVisible();
 
     // Buying the legendary crate (mock provider) grants a pet.
