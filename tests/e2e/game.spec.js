@@ -5432,21 +5432,82 @@ test.describe("downpour (advanced levels)", () => {
     expect(result.countAfter).toBeGreaterThan(result.countBefore);
   });
 
-  test("overflowing the ceiling buries the player", async ({ page }) => {
+  test("a single blocked column does not instantly bury the player", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(31));
+    await page.waitForTimeout(400);
+    const result = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const s = g.session;
+      const bd = s.board;
+      // Ensure there is headroom in most columns, but hard-block one column.
+      for (let c = 0; c < bd.cols; c++) {
+        for (let r = 0; r < 3; r++) {
+          bd.grid[c][r] = -1;
+          bd.spriteGrid[c][r] = null;
+        }
+      }
+      for (let r = 0; r < bd.rows; r++) if (bd.grid[0][r] === -1) bd.grid[0][r] = 0;
+      s.movesSinceDrop = 5; // next tick triggers a drop
+      const ended = g._downpour();
+      return { ended, won: !!s.won, endedFlag: !!s.ended };
+    });
+    expect(result.ended).toBe(false);
+    expect(result.endedFlag).toBe(false);
+    await expect(page.locator("#lose")).toBeHidden();
+  });
+
+  test("a fully blocked ceiling buries the player", async ({ page }) => {
     await page.evaluate(() => window.__bpc.game.startCampaign(31));
     await page.waitForTimeout(400);
     await page.evaluate(() => {
       const g = window.__bpc.game;
       const s = g.session;
       const bd = s.board;
-      // Pack one column solid to the very top so the next rain has nowhere to
-      // land — that column overflows and buries the player.
-      for (let r = 0; r < bd.rows; r++) if (bd.grid[0][r] === -1) bd.grid[0][r] = 0;
+      // Pack every column solid to the top so the next rain has nowhere to land.
+      for (let c = 0; c < bd.cols; c++) {
+        for (let r = 0; r < bd.rows; r++) {
+          if (bd.grid[c][r] === -1) bd.grid[c][r] = 0;
+        }
+      }
       s.movesSinceDrop = 5; // the next tick is the drop tick
       g._downpour();
     });
     await expect(page.locator("#lose")).toBeVisible();
     await expect(page.locator("#lose .modal-title")).toHaveText("Buried!");
+  });
+
+  test("after target is met, downpour no longer causes buried loss", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(41));
+    await page.waitForTimeout(400);
+    const result = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const s = g.session;
+      const bd = s.board;
+      // Simulate a completed objective with a fully blocked ceiling.
+      s.score = s.level.target;
+      for (let c = 0; c < bd.cols; c++) {
+        for (let r = 0; r < bd.rows; r++) {
+          if (bd.grid[c][r] === -1) bd.grid[c][r] = 0;
+        }
+      }
+      s.movesSinceDrop = 5;
+      const ended = g._downpour();
+      return {
+        ended,
+        endedFlag: s.ended,
+        won: s.won,
+        score: s.score,
+        target: s.level.target,
+      };
+    });
+    expect(result.score).toBe(result.target);
+    expect(result.ended).toBe(false);
+    expect(result.endedFlag).toBe(false);
+    await expect(page.locator("#lose")).toBeHidden();
   });
 });
 

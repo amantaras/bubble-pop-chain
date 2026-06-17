@@ -3038,8 +3038,8 @@ class Game {
   // Downpour pressure for advanced campaign levels: tick a per-move counter and,
   // every `interval` resolved moves, drop a fresh row of bubbles in from the top
   // (Board.dropRow animates them falling onto each column's stack). The board
-  // climbs toward the ceiling; if a column has no room left the player is buried
-  // and the level ends. Returns true when it ended the level (caller must stop).
+  // climbs toward the ceiling; the player is buried only when an entire rain
+  // tick finds no room in any column. Returns true when it ended the level.
   _downpour() {
     const s = this.session;
     if (!s || s.ended || s.mode !== "campaign") return false;
@@ -3056,8 +3056,12 @@ class Game {
       vibrate(12);
       this.floating.spawn(this.W / 2, TOP_INSET + 18, "🌧️ Downpour!", "#9fd8ff", 24);
     }
-    if (buried && buried.length) {
-      // A column overflowed the top — the player is buried. End the level.
+    if (buried && buried.length >= s.board.cols) {
+      // Once the score target is already met, downpour should not steal the
+      // win condition; pressure only applies while you're still chasing target.
+      const target = s.level && typeof s.level.target === "number" ? s.level.target : 0;
+      if (target > 0 && s.score >= target) return false;
+      // Every column was blocked at the top — nowhere left to rain.
       this._scheduleEnd(false, "buried");
       return true;
     }

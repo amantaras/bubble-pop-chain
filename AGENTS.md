@@ -287,8 +287,11 @@ never re‑discovered the hard way.
 - **Downpour** (the Tetris-style advanced-level modifier) drops a fresh row of
   ordinary bubbles in from the **top** every N resolved moves; with gravity
   settling **downward**, each column's new bubble rests directly on top of its
-  stack so the board climbs toward the ceiling, and a column whose stack already
-  reaches the top edge **buries** the player (level lost, fail title `"Buried!"`).
+  stack so the board climbs toward the ceiling, and the player is **buried** only
+  when a rain tick finds **every column** already blocked at the top edge **while
+  the score target is still unmet** (level lost, fail title `"Buried!"`). If the
+  score target has already been reached, downpour no longer triggers a buried loss
+  (it remains a pre-target pressure mechanic, not a post-target steal).
   It's **move-driven, not realtime**, so the tap-to-pop core is untouched.
   `levels.downpourForLevel(n)` arms it only on campaign levels ≥
   `DOWNPOUR_MIN_LEVEL` (30) and returns `null` on boss/treasure milestones
