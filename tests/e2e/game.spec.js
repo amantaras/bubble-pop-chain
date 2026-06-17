@@ -1413,6 +1413,53 @@ test.describe("power-ups (UI arm + apply)", () => {
     await expect(page.locator('[data-pu="magnet"] .pu-count')).toHaveText("0");
   });
 
+  test("magnet aim uses the visible plain bubble even during sprite offset", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(700);
+
+    // Pick a NORMAL target that has a left neighbour we can force non-plain.
+    const tap = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      let pick = null;
+      for (let c = 1; c < b.cols; c++) {
+        for (let r = 0; r < b.rows; r++) {
+          if (b.grid[c][r] !== -1 && b.types[c][r] === 0 && b.grid[c - 1][r] !== -1) {
+            pick = { c, r };
+            break;
+          }
+        }
+        if (pick) break;
+      }
+      if (!pick) return null;
+
+      // Make the neighbour non-plain (stone), so a raw cell-at-pixel lookup at
+      // the displaced position would be rejected without the visual fallback.
+      b.types[pick.c - 1][pick.r] = 5;
+
+      const sp = b.spriteGrid[pick.c][pick.r];
+      const dst = b.targetPixel(pick.c - 1, pick.r);
+      sp.x = dst.x;
+      sp.y = dst.y;
+      sp.delay = 0.8; // keep it visually offset long enough for the tap
+      return { x: dst.x, y: dst.y };
+    });
+    expect(tap).not.toBeNull();
+
+    await page.locator('[data-pu="magnet"]').click();
+    await expect(page.locator('[data-pu="magnet"]')).toHaveClass(/armed/);
+    const box = await page.locator("#game-canvas").boundingBox();
+    await page.mouse.click(box.x + tap.x, box.y + tap.y);
+
+    // Regression guard: this used to toast "Aim the magnet at a plain bubble".
+    await expect(page.locator("#magnet-gauge")).toBeVisible();
+    expect(
+      await page.evaluate(() => !!window.__bpc.game.session.magnet?.aiming)
+    ).toBe(true);
+  });
+
   test("long-pressing a slot opens the picker and swaps the equipped power-up", async ({
     page,
   }) => {

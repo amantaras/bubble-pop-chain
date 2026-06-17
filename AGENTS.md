@@ -120,6 +120,10 @@ never re‑discovered the hard way.
   across the board and the displaced ones drift out. Gravity/collapse cancel any
   in-flight glide (`glideDur = 0`) so settling stays snappy. The grid/colour
   model ends up identical to before, so the blob is immediately poppable.
+  Magnet aiming resolves taps against the **visible bubble position** too (not
+  just the static grid cell): if a bubble is mid-animation and drawn offset,
+  the target picker snaps to the nearest visible plain bubble near the tap,
+  avoiding false "aim at a plain bubble" rejects.
   While aiming, the **target-colour bubbles shake** harder the nearer
   the needle is to green (`Renderer.drawBubbles` `aim` jitter). The Magnet is the
   dearest power-up (500 coins) and also drops from the treasure rotation.

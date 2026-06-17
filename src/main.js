@@ -1,5 +1,5 @@
 // Game orchestrator: canvas loop, state machine, and all session logic.
-import { Board, RAINBOW, ICE, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN, VINE } from "./grid.js";
+import { Board, NORMAL, RAINBOW, ICE, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN, VINE } from "./grid.js";
 import { Renderer } from "./renderer.js";
 import { ParticleSystem, popStyleForGroup } from "./particles.js";
 import {
@@ -1697,6 +1697,38 @@ class Game {
   }
 
   // ---- Input handling ---------------------------------------------------
+  // Resolve a magnet tap to the intended visible plain bubble. Normally the
+  // grid cell under the tap is enough, but during in-flight sprite animation a
+  // bubble's drawn position can be offset from its logical cell. In that case,
+  // snap to the nearest visible NORMAL bubble close to the tap.
+  _magnetTargetFromTap(px, py) {
+    const s = this.session;
+    if (!s || !s.board) return null;
+    const b = s.board;
+    const cell = b.cellAtPixel(px, py);
+    if (cell && b.types[cell.c][cell.r] === NORMAL && !b.isRainbow(cell.c, cell.r)) {
+      return cell;
+    }
+
+    let best = null;
+    const maxDist = b.cell * 0.65;
+    const maxDist2 = maxDist * maxDist;
+    for (let c = 0; c < b.cols; c++) {
+      for (let r = 0; r < b.rows; r++) {
+        if (b.grid[c][r] === -1 || b.types[c][r] !== NORMAL || b.isRainbow(c, r)) continue;
+        const sp = b.spriteGrid[c] && b.spriteGrid[c][r];
+        const cx = sp ? sp.x : b.targetPixel(c, r).x;
+        const cy = sp ? sp.y : b.targetPixel(c, r).y;
+        const dx = px - cx;
+        const dy = py - cy;
+        const d2 = dx * dx + dy * dy;
+        if (d2 > maxDist2) continue;
+        if (!best || d2 < best.d2) best = { c, r, d2 };
+      }
+    }
+    return best ? { c: best.c, r: best.r } : cell;
+  }
+
   handleTap(px, py) {
     const s = this.session;
     if (!s || s.ended) return;
@@ -1713,8 +1745,9 @@ class Game {
     // Arming the magnet: the first tap picks the target bubble and starts the
     // strength gauge (a second tap then locks it — handled above).
     if (s.armed === "magnet") {
-      if (!cell) return;
-      this.beginMagnet(cell.c, cell.r);
+      const target = this._magnetTargetFromTap(px, py);
+      if (!target) return;
+      this.beginMagnet(target.c, target.r);
       return;
     }
 
@@ -2322,7 +2355,7 @@ class Game {
     const s = this.session;
     if (!s || s.ended) return;
     const b = s.board;
-    if (b.grid[c][r] === -1 || b.isRainbow(c, r) || b.types[c][r] !== 0) {
+    if (b.grid[c][r] === -1 || b.isRainbow(c, r) || b.types[c][r] !== NORMAL) {
       UI.toast("Aim the magnet at a plain bubble");
       return;
     }
@@ -2363,7 +2396,7 @@ class Game {
     let anchor = { c, r };
     if (
       s.board.grid[c][r] !== color ||
-      s.board.types[c][r] !== 0
+      s.board.types[c][r] !== NORMAL
     ) {
       anchor = s.board.firstCellOfColor(color);
     }
