@@ -230,12 +230,15 @@ never re‑discovered the hard way.
   teaches it with a gated **undo** step (after **combo**) whose `grant: "undo"`
   ensures a snapshot exists, and the game emits `_tut("undo")` on a successful
   undo.
-- **Hold-to-buy** (`ui.js` `_attachHoldRepeat`/`_buyHoldMs`): power-up buy
+- **Hold-to-buy** (`ui.js` `_attachHoldRepeat`/`_buyHoldMs`/`_buyHoldMax`): power-up buy
   buttons buy once on a tap and **keep buying while held** at a configurable
   rate — `settings.buyRepeatMs` (default **500ms = 2/sec**; override at runtime
-  via `UI.buyHoldInterval`). The repeat fires immediately on `pointerdown`, then
-  on an interval, and stops on `pointerup`/`pointerleave`/`pointercancel` or when
-  a purchase fails (out of coins). To survive a hold, the buy updates the item's
+  via `UI.buyHoldInterval`) — and a per-held-press safety cap,
+  `settings.buyBatchMax` (default **10**, hard-clamped to 10; override at runtime
+  via `UI.buyHoldMax`). Both preferences are exposed on the Themes/settings
+  screen as segmented controls. The repeat fires immediately on `pointerdown`, then
+  on an interval, and stops on `pointerup`/`pointerleave`/`pointercancel`, when
+  the batch cap is reached, or when a purchase fails (out of coins). To survive a hold, the buy updates the item's
   `.si-owned` count + coin balance **in place** (it must NOT call `buildShop`,
   which would tear down the held button). IAP/coin-pack/remove-ads/theme buttons
   stay single-press (real-money or one-time buys never auto-repeat). Keyboard

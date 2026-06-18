@@ -1238,6 +1238,64 @@ body {
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
   color: #fff;
 }
+.pref-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--glass-brd);
+  background: rgba(255, 255, 255, 0.055);
+}
+.pref-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.pref-title {
+  font-weight: 800;
+  font-size: 15px;
+}
+.pref-sub {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.pref-segments {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(42px, 1fr));
+  gap: 5px;
+  padding: 4px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.075);
+}
+.pref-segments.speed {
+  grid-template-columns: repeat(3, minmax(58px, 1fr));
+}
+.pref-seg {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-dim);
+  font-weight: 900;
+  cursor: pointer;
+}
+.pref-seg.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
+}
+
+@media (max-width: 520px) {
+  .pref-card {
+    grid-template-columns: 1fr;
+  }
+}
 
 /* Achievements screen */
 .achv-count {

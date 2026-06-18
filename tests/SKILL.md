@@ -202,7 +202,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   navigation, popping via real taps, scoring, win/lose, revive and double-coins
   rewarded-ad flows, endless refill, daily streak, all three power-ups, shop
   purchases, hold-to-buy auto-repeat (a held buy button keeps purchasing at the
-  configured rate and stops when coins run out), "remove ads", theme buy/apply,
+  configured rate, respects the visible hold-purchase limit preference, and
+  stops when coins run out), "remove ads", theme buy/apply,
   sound toggle, PWA service-worker
   registration, manifest reachability, local special-bubble SVG asset
   reachability, progress persistence across reloads,

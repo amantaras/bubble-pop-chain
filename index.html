@@ -334,6 +334,29 @@
         </span>
         <span class="cb-toggle-state" id="rm-toggle-state">Off</span>
       </button>
+      <div class="pref-card" id="buy-batch-pref">
+        <div class="pref-copy">
+          <span class="pref-title">Hold purchase limit</span>
+          <span class="pref-sub">Maximum items bought by one held shop button</span>
+        </div>
+        <div class="pref-segments" role="radiogroup" aria-label="Hold purchase limit">
+          <button class="pref-seg" data-buy-max="1" role="radio" aria-checked="false">1</button>
+          <button class="pref-seg" data-buy-max="3" role="radio" aria-checked="false">3</button>
+          <button class="pref-seg" data-buy-max="5" role="radio" aria-checked="false">5</button>
+          <button class="pref-seg" data-buy-max="10" role="radio" aria-checked="true">10</button>
+        </div>
+      </div>
+      <div class="pref-card" id="buy-speed-pref">
+        <div class="pref-copy">
+          <span class="pref-title">Hold purchase speed</span>
+          <span class="pref-sub">How quickly held in-game currency buys repeat</span>
+        </div>
+        <div class="pref-segments speed" role="radiogroup" aria-label="Hold purchase speed">
+          <button class="pref-seg" data-buy-ms="750" role="radio" aria-checked="false">Slow</button>
+          <button class="pref-seg" data-buy-ms="500" role="radio" aria-checked="true">Normal</button>
+          <button class="pref-seg" data-buy-ms="250" role="radio" aria-checked="false">Fast</button>
+        </div>
+      </div>
       <div class="theme-list" id="theme-list"></div>
     </div>
 

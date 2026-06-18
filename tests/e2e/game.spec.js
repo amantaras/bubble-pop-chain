@@ -1963,6 +1963,56 @@ test.describe("hold-to-buy (auto-repeat purchase)", () => {
     expect(after - before).toBe(4);
   });
 
+  test("the Themes purchase preferences update hold-buy behavior", async ({
+    page,
+  }) => {
+    await page.locator("#btn-themes").click();
+    await expect(page.locator("#themes")).toBeVisible();
+    await expect(page.locator('[data-buy-max="10"]')).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await expect(page.locator('[data-buy-ms="500"]')).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+
+    await page.locator('[data-buy-max="3"]').click();
+    await page.locator('[data-buy-ms="250"]').click();
+    await expect(page.locator('[data-buy-max="3"]')).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await expect(page.locator('[data-buy-ms="250"]')).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(
+      await page.evaluate(() => window.__bpc.Storage.get("settings").buyBatchMax),
+    ).toBe(3);
+    expect(
+      await page.evaluate(() => window.__bpc.Storage.get("settings").buyRepeatMs),
+    ).toBe(250);
+
+    await page.locator("#themes-back").click();
+    await page.evaluate(() => window.__bpc.Economy.addCoins(100000));
+    await page.locator("#btn-shop").click();
+    await expect(page.locator("#shop")).toBeVisible();
+
+    const buy = page.locator('#shop-list .shop-item[data-pu="pick"] .buy-btn');
+    const before = await page.evaluate(() =>
+      window.__bpc.Economy.getPowerup("pick"),
+    );
+    await buy.dispatchEvent("pointerdown");
+    await page.waitForTimeout(900);
+    await buy.dispatchEvent("pointerup");
+    const after = await page.evaluate(() =>
+      window.__bpc.Economy.getPowerup("pick"),
+    );
+
+    expect(after - before).toBe(3);
+  });
+
   test("hold-buy never exceeds ten purchases per held press", async ({
     page,
   }) => {

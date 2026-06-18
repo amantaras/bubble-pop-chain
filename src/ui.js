@@ -140,6 +140,7 @@ class UIManager {
       "cb-toggle", "cb-toggle-state",
       "hints-toggle", "hints-toggle-state",
       "rm-toggle", "rm-toggle-state",
+      "buy-batch-pref", "buy-speed-pref",
       "pets", "pets-coins", "pets-crate", "pet-party", "pet-gems", "pet-store", "pet-list", "pet-detail",
       "gem-forge", "gemforge-body", "gemforge-dust", "gemforge-back",
       "pet-confirm", "pet-confirm-sub", "pet-confirm-ok", "pet-confirm-cancel",
@@ -272,6 +273,25 @@ class UIManager {
       this._refreshReducedMotionToggle();
     });
 
+    document.querySelectorAll("[data-buy-max]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        Audio.click();
+        const settings = { ...(Storage.get("settings") || {}) };
+        settings.buyBatchMax = Number(btn.dataset.buyMax) || 10;
+        Storage.set("settings", settings);
+        this._refreshBuyPrefs();
+      });
+    });
+    document.querySelectorAll("[data-buy-ms]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        Audio.click();
+        const settings = { ...(Storage.get("settings") || {}) };
+        settings.buyRepeatMs = Number(btn.dataset.buyMs) || 500;
+        Storage.set("settings", settings);
+        this._refreshBuyPrefs();
+      });
+    });
+
     // Sound
     click("btn-sound", () => {
       const muted = Audio.toggleMute();
@@ -389,6 +409,7 @@ class UIManager {
       this._refreshColorblindToggle();
       this._refreshHintsToggle();
       this._refreshReducedMotionToggle();
+      this._refreshBuyPrefs();
     }
     if (name === "achievements") this.buildAchievements();
     if (name === "calendar") this.buildCalendar();
@@ -1157,6 +1178,22 @@ class UIManager {
     }
     if (this.el["rm-toggle-state"])
       this.el["rm-toggle-state"].textContent = on ? "On" : "Off";
+  }
+
+  _refreshBuyPrefs() {
+    const settings = Storage.get("settings") || {};
+    const max = this._buyHoldMax();
+    const ms = Number(settings.buyRepeatMs) > 0 ? Number(settings.buyRepeatMs) : 500;
+    document.querySelectorAll("[data-buy-max]").forEach((btn) => {
+      const on = Number(btn.dataset.buyMax) === max;
+      btn.classList.toggle("active", on);
+      btn.setAttribute("aria-checked", on ? "true" : "false");
+    });
+    document.querySelectorAll("[data-buy-ms]").forEach((btn) => {
+      const on = Number(btn.dataset.buyMs) === ms;
+      btn.classList.toggle("active", on);
+      btn.setAttribute("aria-checked", on ? "true" : "false");
+    });
   }
 
   // True when motion should be dialled down — either the in-game reduced-motion
