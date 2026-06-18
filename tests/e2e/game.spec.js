@@ -1981,7 +1981,7 @@ test.describe("hold-to-buy (auto-repeat purchase)", () => {
       window.__bpc.Economy.getPowerup("pick"),
     );
     await buy.dispatchEvent("pointerdown");
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(1200);
     await buy.dispatchEvent("pointerup");
     const after = await page.evaluate(() =>
       window.__bpc.Economy.getPowerup("pick"),
