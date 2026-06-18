@@ -180,6 +180,7 @@ describe("storage", () => {
       hints: true,
       reducedMotion: false,
       buyRepeatMs: 500,
+      buyBatchMax: 10,
     });
     Storage.set("settings", { colorblind: true });
     expect(Storage.get("settings").colorblind).toBe(true);
@@ -201,6 +202,13 @@ describe("storage", () => {
     const s = { ...Storage.get("settings"), buyRepeatMs: 250 };
     Storage.set("settings", s);
     expect(Storage.get("settings").buyRepeatMs).toBe(250);
+  });
+
+  it("hold-to-buy batch max defaults to 10 and round-trips", () => {
+    expect(Storage.get("settings").buyBatchMax).toBe(10);
+    const s = { ...Storage.get("settings"), buyBatchMax: 4 };
+    Storage.set("settings", s);
+    expect(Storage.get("settings").buyBatchMax).toBe(4);
   });
 
   it("grantTheme adds a theme to ownership only once", () => {

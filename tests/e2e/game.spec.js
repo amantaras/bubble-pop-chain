@@ -1936,6 +1936,88 @@ test.describe("hold-to-buy (auto-repeat purchase)", () => {
     ).toHaveText(`×${after}`);
   });
 
+  test("holding a buy button is capped to the configured batch size", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.Economy.addCoins(100000));
+    await page.locator("#btn-shop").click();
+    await expect(page.locator("#shop")).toBeVisible();
+
+    await page.evaluate(() => {
+      const settings = { ...window.__bpc.Storage.get("settings"), buyBatchMax: 4 };
+      window.__bpc.Storage.set("settings", settings);
+      window.__bpc.UI.buyHoldInterval = 20;
+    });
+
+    const buy = page.locator('#shop-list .shop-item[data-pu="pick"] .buy-btn');
+    const before = await page.evaluate(() =>
+      window.__bpc.Economy.getPowerup("pick"),
+    );
+    await buy.dispatchEvent("pointerdown");
+    await page.waitForTimeout(260);
+    await buy.dispatchEvent("pointerup");
+    const after = await page.evaluate(() =>
+      window.__bpc.Economy.getPowerup("pick"),
+    );
+
+    expect(after - before).toBe(4);
+  });
+
+  test("hold-buy never exceeds ten purchases per held press", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.Economy.addCoins(100000));
+    await page.locator("#btn-shop").click();
+    await expect(page.locator("#shop")).toBeVisible();
+
+    await page.evaluate(() => {
+      const settings = { ...window.__bpc.Storage.get("settings"), buyBatchMax: 99 };
+      window.__bpc.Storage.set("settings", settings);
+      window.__bpc.UI.buyHoldInterval = 15;
+    });
+
+    const buy = page.locator('#shop-list .shop-item[data-pu="pick"] .buy-btn');
+    const before = await page.evaluate(() =>
+      window.__bpc.Economy.getPowerup("pick"),
+    );
+    await buy.dispatchEvent("pointerdown");
+    await page.waitForTimeout(300);
+    await buy.dispatchEvent("pointerup");
+    const after = await page.evaluate(() =>
+      window.__bpc.Economy.getPowerup("pick"),
+    );
+
+    expect(after - before).toBe(10);
+  });
+
+  test("repeatable pet crate buys use the same capped hold behavior", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.Economy.addCoins(100000));
+    await page.locator("#btn-pets").click();
+    await expect(page.locator("#pets")).toBeVisible();
+
+    await page.evaluate(() => {
+      const settings = { ...window.__bpc.Storage.get("settings"), buyBatchMax: 3 };
+      window.__bpc.Storage.set("settings", settings);
+      window.__bpc.UI.buyHoldInterval = 20;
+    });
+
+    const buy = page.locator("#crate-buy");
+    const before = await page.evaluate(() =>
+      window.__bpc.Storage.getPetState().crates,
+    );
+    await buy.dispatchEvent("pointerdown");
+    await page.waitForTimeout(220);
+    await buy.dispatchEvent("pointerup");
+    const after = await page.evaluate(() =>
+      window.__bpc.Storage.getPetState().crates,
+    );
+
+    expect(after - before).toBe(3);
+    await expect(page.locator("#crate-count")).toHaveText(String(after));
+  });
+
   test("the hold-buy stops automatically when coins run out", async ({
     page,
   }) => {

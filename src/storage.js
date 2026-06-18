@@ -23,10 +23,11 @@ const DEFAULT_SAVE = {
   // Accessibility / display settings.
   // buyRepeatMs: how often a held shop buy button repeats a purchase
   // (default 500ms = 2 per second).
+  // buyBatchMax: max items bought by one held press, hard-capped to 10.
   // reducedMotion: when on, screen shake is disabled, particle volume is cut,
   // and large CSS animations are neutralised (also auto-honoured from the OS
   // `prefers-reduced-motion` setting via CSS).
-  settings: { colorblind: false, hints: true, reducedMotion: false, buyRepeatMs: 500 },
+  settings: { colorblind: false, hints: true, reducedMotion: false, buyRepeatMs: 500, buyBatchMax: 10 },
   powerups: { bomb: 1, colorClear: 1, shuffle: 1, chainBolt: 0, pick: 0, magnet: 1 },
   // The three power-ups shown in the HUD's quick-access slots. Players swap
   // them via a long-press picker so the bar never overflows as we add tools.

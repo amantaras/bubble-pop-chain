@@ -119,6 +119,7 @@ class UIManager {
     // Optional override (ms) for the hold-to-buy repeat rate. When null, the
     // rate comes from the persisted `buyRepeatMs` setting (default 500ms = 2/s).
     this.buyHoldInterval = null;
+    this.buyHoldMax = null;
   }
 
   init() {
@@ -758,25 +759,59 @@ class UIManager {
     return ms > 0 ? ms : 500;
   }
 
+  _buyHoldMax() {
+    const override = Number(this.buyHoldMax);
+    const s = Storage.get("settings");
+    const saved = s && Number(s.buyBatchMax);
+    const requested = override > 0 ? override : saved > 0 ? saved : 10;
+    return Math.max(1, Math.min(10, Math.floor(requested)));
+  }
+
   // Wire a buy button so a single tap buys once and holding it keeps buying at
-  // the configured interval. `action()` performs one purchase and returns
-  // `false` to stop the repeat (e.g. out of coins / sold out).
+  // the configured interval, capped to the configured batch size (max 10).
+  // `action()` performs one purchase and returns `false` to stop the repeat
+  // (e.g. out of coins / sold out).
   _attachHoldRepeat(btn, action) {
     let timer = null;
-    const stop = () => {
+    let holdCount = 0;
+    let keyHeld = false;
+    let blockedUntilRelease = false;
+    const clearTimer = () => {
       if (timer) {
         clearInterval(timer);
         timer = null;
       }
     };
+    const stop = () => {
+      clearTimer();
+      holdCount = 0;
+      blockedUntilRelease = false;
+    };
     const fire = () => {
-      if (action() === false) stop();
+      if (btn.disabled || blockedUntilRelease) return false;
+      const max = this._buyHoldMax();
+      if (holdCount >= max) {
+        blockedUntilRelease = true;
+        clearTimer();
+        return false;
+      }
+      holdCount += 1;
+      if (action() === false) {
+        blockedUntilRelease = true;
+        clearTimer();
+        return false;
+      }
+      if (holdCount >= max) {
+        blockedUntilRelease = true;
+        clearTimer();
+        return false;
+      }
+      return true;
     };
     btn.addEventListener("pointerdown", (e) => {
       e.preventDefault();
       stop();
-      fire();
-      timer = setInterval(fire, this._buyHoldMs());
+      if (fire()) timer = setInterval(fire, this._buyHoldMs());
     });
     ["pointerup", "pointerleave", "pointercancel"].forEach((ev) =>
       btn.addEventListener(ev, stop),
@@ -786,7 +821,17 @@ class UIManager {
     btn.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
+        if (!keyHeld) {
+          stop();
+          keyHeld = true;
+        }
         fire();
+      }
+    });
+    btn.addEventListener("keyup", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        keyHeld = false;
+        stop();
       }
     });
   }
@@ -1893,14 +1938,18 @@ class UIManager {
     buyBtn.className = "buy-btn pet-buy-crate";
     buyBtn.id = "crate-buy";
     buyBtn.innerHTML = `<span class="coin-dot"></span>${CRATE_COST}`;
-    buyBtn.addEventListener("click", () => {
+    this._attachHoldRepeat(buyBtn, () => {
       if (this.cb.buyCrate && this.cb.buyCrate()) {
         Audio.coin();
         this.toast("Crate purchased!");
+        const count = wrap.querySelector("#crate-count");
+        if (count) count.textContent = Storage.getPetState().crates;
+        openBtn.disabled = false;
         this.refreshCoins();
-        this.buildPets();
+        return true;
       } else {
         this.toast("Not enough coins");
+        return false;
       }
     });
 
