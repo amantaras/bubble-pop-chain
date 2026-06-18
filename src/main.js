@@ -33,7 +33,14 @@ import {
   feverPoints,
   FEVER_DURATION,
 } from "./scoring.js";
-import { Economy, POWERUP_INFO, STARTER_PACK } from "./economy.js";
+import {
+  Economy,
+  POWERUP_INFO,
+  STARTER_PACK,
+  isPowerupUnlocked,
+  powerupUnlockLevel,
+  powerupsUnlockedBetween,
+} from "./economy.js";
 import { Monetization } from "./monetization.js";
 import { UI } from "./ui.js";
 import {
@@ -231,6 +238,7 @@ class Game {
     // Falling gift/problem events.
     this.eventTimer = 0; // seconds until the next spawn
     this.activeEvent = false; // a token is currently on screen
+    this._pendingToolUnlock = null;
   }
 
   init() {
@@ -254,6 +262,7 @@ class Game {
       startTutorial: () => this.startTutorial(),
       tutorialNext: () => this.tutorial && this.tutorial.next(),
       tutorialSkip: () => this.tutorial && this.tutorial.skip(),
+      toolUnlockContinue: () => this._continueAfterToolUnlock(),
       undoMove: () => this.undoMove(),
       onThemeChange: (t) => {
         this.theme = t;
@@ -555,6 +564,7 @@ class Game {
   // Shared UI/state setup used by both fresh and resumed sessions.
   _enterSession() {
     const board = this.session.board;
+    this._pendingToolUnlock = null;
     this.session.magnet = null;
     this.paused = false;
     board.layout(this.W, this.H, TOP_INSET, this._bottomInset());
@@ -563,6 +573,7 @@ class Game {
     this.floating.items.length = 0;
     UI.hideScreens();
     UI.hideModals();
+    UI.clearRescueTool();
     UI.hideMagnetGauge();
     UI.clearFallingEvents();
     this.activeEvent = false;
@@ -3123,7 +3134,13 @@ class Game {
   // ---- Power-up arming --------------------------------------------------
   armPowerup(type, btn) {
     const s = this.session;
+    if (!s || s.ended) return;
     const inTutorial = s.mode === "tutorial";
+    const rescuePick = s.rescuing && type === "pick";
+    if (!inTutorial && !rescuePick && !isPowerupUnlocked(type)) {
+      UI.toast(`${(POWERUP_INFO[type] || {}).name || "Tool"} unlocks at Level ${powerupUnlockLevel(type)}`);
+      return;
+    }
     if (!inTutorial && Economy.getPowerup(type) <= 0) {
       // Out of this tool — take the player straight to the shop with it already
       // highlighted so they can stock up, then return to the level.
@@ -3444,7 +3461,7 @@ class Game {
     const s = this.session;
     if (!s) return;
     if (Economy.getPowerup("pick") <= 0) {
-      if (!Economy.buyPowerup("pick")) {
+      if (!Economy.buyPowerup("pick", { ignoreUnlock: true })) {
         UI.toast("Not enough coins for a Pick");
         return;
       }
@@ -3452,7 +3469,7 @@ class Game {
       UI.refreshCoins();
     }
     this._ensureToolInLoadout("pick");
-    UI.updatePowerups();
+    UI.showRescueTool("pick");
     UI.hideIsolatedHelp();
     UI.showHud(true);
     this.input.setEnabled(true);
@@ -3466,6 +3483,7 @@ class Game {
     if (!s) return;
     s.gaveUp = true;
     s.rescuing = false;
+    UI.clearRescueTool();
     UI.hideIsolatedHelp();
     this.afterMove(); // re-evaluate: rescue is declined, so the level ends
   }
@@ -3631,7 +3649,10 @@ class Game {
     if (s.mode === "campaign") {
       if (won) {
         const stars = Math.max(1, starsForScore(s.level, s.score));
+        const unlockedBefore = Storage.get("maxUnlockedLevel");
         Storage.recordLevelResult(s.level.id, stars);
+        const unlockedAfter = Storage.get("maxUnlockedLevel");
+        const toolUnlocks = powerupsUnlockedBetween(unlockedBefore, unlockedAfter);
         // Per-level personal best: celebrate when the player beats their prior
         // best for this level (first clears don't count as a "new best").
         const bestInfo = Storage.recordLevelScore(s.level.id, s.score);
@@ -3664,6 +3685,7 @@ class Game {
           }
           if (bonusCoins) Economy.addCoins(bonusCoins);
         }
+        if (toolUnlocks.length) this._grantToolUnlock(toolUnlocks[0]);
 
         // Bonus objective: pay extra coins if the level's optional challenge
         // was met. "nopowerup" resolves from the usedPowerup flag at finish;
@@ -3883,9 +3905,29 @@ class Game {
 
   // ---- Modal actions ----------------------------------------------------
   nextLevel() {
+    if (this._pendingToolUnlock) {
+      UI.showToolUnlock(this._pendingToolUnlock);
+      return;
+    }
     const s = this.session;
     if (s && s.mode === "campaign") this.startCampaign(s.level.id + 1);
     else if (s && s.mode === "puzzle") this.startPuzzle(s.level.puzzleIndex + 1);
+  }
+
+  _grantToolUnlock(unlock) {
+    const info = POWERUP_INFO[unlock.type];
+    if (!info) return;
+    if (Economy.getPowerup(unlock.type) <= 0) Economy.addPowerup(unlock.type, 1);
+    this._ensureToolInLoadout(unlock.type);
+    this._pendingToolUnlock = unlock;
+  }
+
+  _continueAfterToolUnlock() {
+    const s = this.session;
+    this._pendingToolUnlock = null;
+    UI.hideModals();
+    if (s && s.mode === "campaign") this.startCampaign(s.level.id + 1);
+    else this.quitToMenu();
   }
 
   retryLevel() {
@@ -3943,10 +3985,12 @@ class Game {
     // Keep the in-progress campaign snapshot so the player can resume it;
     // it is only cleared when the level is actually finished.
     this._persistSession();
+    this._pendingToolUnlock = null;
     this.session = null;
     this.input.setEnabled(false);
     UI.clearFallingEvents();
     this.alienShip.stop();
+    UI.clearRescueTool();
     // Drop any in-flight pet/finale flourish so its async onDone can't fire
     // afterMove on the now-null session (or the next level's fresh one).
     this.petAnim.clear();

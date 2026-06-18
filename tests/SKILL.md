@@ -209,8 +209,10 @@ npm run serve               # preview the game at http://127.0.0.1:4173
 - **E2E tests** load the real page, click real DOM buttons, and dispatch real
   pointer taps on the `<canvas>`. They cover: grouped menu/level-map/shop/themes
   navigation, popping via real taps, scoring, win/lose, revive and double-coins
-  rewarded-ad flows, endless refill, daily streak, all three power-ups, shop
-  purchases, shop affordability affordances (`.cannot-afford`/`.need-coins`),
+  rewarded-ad flows, endless refill, daily streak, the full power-up/tool set,
+  progressive tool unlocks (fresh players see no HUD/shop/loadout tools, Level
+  5→6 shows the **New Tool Unlocked!** mini-tutorial before starting the next
+  level), shop purchases, shop affordability affordances (`.cannot-afford`/`.need-coins`),
   the in-game pause overlay (`#pause`) freezing the level, resuming, and routing
   to Menu, HUD status chips, hold-to-buy auto-repeat (a held buy button keeps purchasing at the
   configured rate, shows live buying/limit feedback, respects the visible

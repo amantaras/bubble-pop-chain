@@ -606,6 +606,24 @@
       </div>
     </div>
 
+    <!-- Tool unlock celebration: campaign progression introduces power-ups one
+         at a time, with a tiny lesson before the next level starts. -->
+    <div id="tool-unlock" class="overlay modal hidden" role="dialog" aria-modal="true" aria-label="New tool unlocked">
+      <div class="modal-card tool-unlock-card">
+        <div class="tu-burst" aria-hidden="true"></div>
+        <div class="tu-kicker">New Tool Unlocked!</div>
+        <div class="tu-stage"><span class="tu-icon" id="tool-unlock-icon">💥</span></div>
+        <h2 class="modal-title" id="tool-unlock-name">Tool</h2>
+        <div class="tu-level" id="tool-unlock-level">Unlocked</div>
+        <p class="tu-desc" id="tool-unlock-desc"></p>
+        <div class="tu-lesson">
+          <span class="tu-lesson-label">How to use it</span>
+          <p id="tool-unlock-lesson"></p>
+        </div>
+        <button class="btn btn-primary" id="tool-unlock-ok">Try it next level</button>
+      </div>
+    </div>
+
     <!-- Achievement chest reveal: shows everything a collected chest dropped -->
     <div id="chest" class="overlay modal hidden" role="dialog" aria-modal="true" aria-label="Reward chest">
       <div class="modal-card chest-card">

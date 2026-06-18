@@ -221,37 +221,43 @@ describe("storage", () => {
   });
 
   describe("power-up loadout (quick-access HUD slots)", () => {
-    it("defaults to three distinct power-ups", () => {
+    it("defaults to three empty slots before tools unlock", () => {
       const lo = Storage.getLoadout();
       expect(lo).toHaveLength(3);
-      expect(new Set(lo).size).toBe(3);
-      expect(lo).toEqual(["bomb", "colorClear", "magnet"]);
+      expect(lo).toEqual([null, null, null]);
     });
 
     it("getLoadout returns a copy, not the live array", () => {
       const lo = Storage.getLoadout();
       lo[0] = "shuffle";
-      expect(Storage.getLoadout()[0]).toBe("bomb");
+      expect(Storage.getLoadout()[0]).toBeNull();
     });
 
     it("setLoadoutSlot places a new power-up in a slot and persists it", () => {
       expect(Storage.setLoadoutSlot(1, "shuffle")).toBe(true);
-      expect(Storage.getLoadout()).toEqual(["bomb", "shuffle", "magnet"]);
+      expect(Storage.getLoadout()).toEqual([null, "shuffle", null]);
       const raw = JSON.parse(localStorage.getItem("bpc_save_v1"));
-      expect(raw.loadout).toEqual(["bomb", "shuffle", "magnet"]);
+      expect(raw.loadout).toEqual([null, "shuffle", null]);
     });
 
     it("swaps when the chosen power-up already occupies another slot", () => {
+      Storage.set("loadout", ["bomb", "colorClear", "magnet"]);
       // magnet is in slot 2; assigning it to slot 0 swaps slot 0's bomb into 2.
       Storage.setLoadoutSlot(0, "magnet");
       expect(Storage.getLoadout()).toEqual(["magnet", "colorClear", "bomb"]);
       expect(new Set(Storage.getLoadout()).size).toBe(3);
     });
 
+    it("clears a slot with a null assignment", () => {
+      Storage.set("loadout", ["bomb", "colorClear", "magnet"]);
+      expect(Storage.setLoadoutSlot(1, null)).toBe(true);
+      expect(Storage.getLoadout()).toEqual(["bomb", null, "magnet"]);
+    });
+
     it("rejects out-of-range slot indices", () => {
       expect(Storage.setLoadoutSlot(-1, "bomb")).toBe(false);
       expect(Storage.setLoadoutSlot(3, "bomb")).toBe(false);
-      expect(Storage.getLoadout()).toEqual(["bomb", "colorClear", "magnet"]);
+      expect(Storage.getLoadout()).toEqual([null, null, null]);
     });
   });
 

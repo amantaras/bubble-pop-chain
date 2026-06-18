@@ -13,9 +13,10 @@
 
 export const MILESTONE_EVERY = 5;
 
-// Free power-ups handed out by treasure levels, rotating in this order. The
-// premium Magnet leads the rotation so it is earned (rarely) through play.
-const FREE_POWERUPS = ["magnet", "bomb", "colorClear", "shuffle"];
+// Free power-ups handed out by treasure levels, rotating in a gentle order that
+// mirrors the campaign tool ramp. Advanced tools are stockpiled only after they
+// have had their own unlock moment.
+const FREE_POWERUPS = ["shuffle", "bomb", "colorClear", "chainBolt"];
 
 // Cosmetic themes awarded by each boss, in order of boss number.
 const BOSS_THEMES = ["sunset", "forest", "candy", "mono"];

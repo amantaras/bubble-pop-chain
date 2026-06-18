@@ -3870,6 +3870,23 @@ body {
 .shop-item.bought {
   box-shadow: 0 0 0 1px rgba(91, 255, 155, 0.24), 0 0 18px rgba(91, 255, 155, 0.18);
 }
+.shop-empty-tools,
+.loadout-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px dashed rgba(91, 227, 255, 0.34);
+  background: rgba(91, 227, 255, 0.08);
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.35;
+}
+.shop-empty-tools b {
+  color: var(--text);
+  font-size: 15px;
+}
 .buy-btn.need-coins {
   background: rgba(255, 255, 255, 0.08);
   color: var(--text-dim);
@@ -3932,6 +3949,111 @@ body {
   line-height: 1.45;
   color: var(--muted, rgba(255, 255, 255, 0.7));
   margin-bottom: 22px;
+}
+.tool-unlock-card {
+  position: relative;
+  overflow: hidden;
+  width: min(90vw, 390px);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 211, 91, 0.28), transparent 42%),
+    radial-gradient(circle at 50% 28%, rgba(91, 227, 255, 0.24), transparent 38%),
+    linear-gradient(160deg, #26335f, #101731 78%);
+}
+.tu-burst {
+  position: absolute;
+  inset: -20%;
+  background:
+    conic-gradient(from 0deg, transparent 0 14deg, rgba(255, 211, 91, 0.22) 14deg 18deg, transparent 18deg 34deg),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.18), transparent 34%);
+  animation: tu-spin 5s linear infinite;
+  pointer-events: none;
+}
+@keyframes tu-spin {
+  to { transform: rotate(360deg); }
+}
+.tu-kicker {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-self: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 211, 91, 0.18);
+  border: 1px solid rgba(255, 211, 91, 0.42);
+  color: var(--gold);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.tu-stage {
+  position: relative;
+  z-index: 1;
+  width: 118px;
+  height: 118px;
+  margin: 14px auto 10px;
+  display: grid;
+  place-items: center;
+  border-radius: 32px;
+  background:
+    radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.55), transparent 20%),
+    linear-gradient(135deg, var(--accent), var(--gold));
+  box-shadow: 0 0 34px rgba(255, 211, 91, 0.36), inset 0 2px 0 rgba(255, 255, 255, 0.35);
+  animation: tu-pop 0.7s cubic-bezier(0.2, 1.35, 0.3, 1);
+}
+@keyframes tu-pop {
+  0% { transform: scale(0.45) rotate(-8deg); opacity: 0; }
+  70% { transform: scale(1.08) rotate(3deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); }
+}
+.tu-icon {
+  font-size: 58px;
+  filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.22));
+}
+.tool-unlock-card .modal-title,
+.tu-level,
+.tu-desc,
+.tu-lesson,
+.tool-unlock-card .btn {
+  position: relative;
+  z-index: 1;
+}
+.tu-level {
+  margin: -6px auto 12px;
+  color: var(--good);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.tu-desc {
+  margin: 0 auto 14px;
+  color: rgba(234, 240, 255, 0.76);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.tu-lesson {
+  margin: 0 0 18px;
+  padding: 13px 14px;
+  border-radius: 18px;
+  background: rgba(6, 10, 24, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  text-align: left;
+}
+.tu-lesson-label {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.tu-lesson p {
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.42;
 }
 .win-title {
   color: var(--good);

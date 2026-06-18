@@ -11,6 +11,44 @@ export const POWERUP_INFO = {
   magnet: { name: "Magnet", icon: "🧲", desc: "Pull same-color bubbles together — time the gauge!", price: 500 },
 };
 
+export const POWERUP_UNLOCKS = [
+  { type: "shuffle", level: 6, lesson: "Tap Shuffle when the board feels stuck. It spends one charge and immediately reshuffles the bubbles into a fresh, playable board." },
+  { type: "bomb", level: 8, lesson: "Tap Bomb, then tap the board. It clears a 3×3 area, which is perfect for breaking crowded corners or opening space near the bottom." },
+  { type: "colorClear", level: 11, lesson: "Tap Color Clear, then tap a bubble colour. Every bubble of that colour disappears, setting up huge cascades and emergency clears." },
+  { type: "pick", level: 14, lesson: "Tap Pick, then tap one bubble. Use it to remove a lone blocker, trigger a special bubble, or rescue a board that is almost solved." },
+  { type: "chainBolt", level: 18, lesson: "Tap Chain Bolt, then tap a cell. It clears that whole row and column, and any special bubbles in the strike can chain for extra impact." },
+  { type: "magnet", level: 24, lesson: "Tap Magnet, choose a plain bubble, then tap again when the dial hits green. A strong lock pulls that colour into one giant poppable cluster." },
+];
+
+const UNLOCK_BY_TYPE = Object.fromEntries(POWERUP_UNLOCKS.map((u) => [u.type, u]));
+
+export function powerupUnlock(type) {
+  return UNLOCK_BY_TYPE[type] || null;
+}
+
+export function powerupUnlockLevel(type) {
+  return powerupUnlock(type)?.level || Infinity;
+}
+
+export function isPowerupUnlocked(type, level = Storage.get("maxUnlockedLevel")) {
+  return !!POWERUP_INFO[type] && Math.max(1, Number(level) || 1) >= powerupUnlockLevel(type);
+}
+
+export function unlockedPowerups(level = Storage.get("maxUnlockedLevel")) {
+  return POWERUP_UNLOCKS.filter((u) => isPowerupUnlocked(u.type, level)).map((u) => u.type);
+}
+
+export function nextPowerupUnlock(level = Storage.get("maxUnlockedLevel")) {
+  const current = Math.max(1, Number(level) || 1);
+  return POWERUP_UNLOCKS.find((u) => u.level > current) || null;
+}
+
+export function powerupsUnlockedBetween(fromLevel, toLevel) {
+  const from = Math.max(1, Number(fromLevel) || 1);
+  const to = Math.max(1, Number(toLevel) || 1);
+  return POWERUP_UNLOCKS.filter((u) => u.level > from && u.level <= to);
+}
+
 // Coin packs purchasable with real money (mock IAP). The free "watch an ad
 // for coins" reward is handled separately by the daily-capped ad reward below
 // so it can never be farmed for unlimited coins.
@@ -73,9 +111,10 @@ class EconomyManager {
   }
 
   // Buy one power-up with coins. Returns true on success.
-  buyPowerup(type) {
+  buyPowerup(type, opts = {}) {
     const info = POWERUP_INFO[type];
     if (!info) return false;
+    if (!opts.ignoreUnlock && !isPowerupUnlocked(type)) return false;
     if (!this.spendCoins(info.price)) return false;
     this.addPowerup(type, 1);
     return true;

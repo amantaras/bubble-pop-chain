@@ -28,10 +28,10 @@ const DEFAULT_SAVE = {
   // and large CSS animations are neutralised (also auto-honoured from the OS
   // `prefers-reduced-motion` setting via CSS).
   settings: { colorblind: false, hints: true, reducedMotion: false, buyRepeatMs: 500, buyBatchMax: 10 },
-  powerups: { bomb: 1, colorClear: 1, shuffle: 1, chainBolt: 0, pick: 0, magnet: 1 },
+  powerups: { bomb: 0, colorClear: 0, shuffle: 0, chainBolt: 0, pick: 0, magnet: 0 },
   // The three power-ups shown in the HUD's quick-access slots. Players swap
   // them via a long-press picker so the bar never overflows as we add tools.
-  loadout: ["bomb", "colorClear", "magnet"],
+  loadout: [null, null, null],
   daily: {
     lastDate: null,
     streak: 0,
@@ -280,6 +280,11 @@ class StorageManager {
   setLoadoutSlot(index, type) {
     const lo = this.getLoadout();
     if (index < 0 || index >= lo.length) return false;
+    if (!type) {
+      lo[index] = null;
+      this.set("loadout", lo);
+      return true;
+    }
     const existing = lo.indexOf(type);
     if (existing !== -1 && existing !== index) {
       lo[existing] = lo[index];

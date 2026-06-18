@@ -136,7 +136,24 @@ never re‑discovered the hard way.
   avoiding false "aim at a plain bubble" rejects.
   While aiming, the **target-colour bubbles shake** harder the nearer
   the needle is to green (`Renderer.drawBubbles` `aim` jitter). The Magnet is the
-  dearest power-up (500 coins) and also drops from the treasure rotation.
+  dearest power-up (500 coins) and is deliberately saved for the late tool ramp.
+- **Progressive tool unlocks** (`economy.js` `POWERUP_UNLOCKS`/
+  `powerupsUnlockedBetween`, `ui.js` `showToolUnlock`, `main.js`
+  `_grantToolUnlock`): new players start with **no tools at all** — the first
+  five campaign levels keep the HUD/tool shop quiet. Tools then unlock one at a
+  time as campaign progress opens the next level: Shuffle at Level 6, Bomb at 8,
+  Color Clear at 11, Pick at 14, Chain Bolt at 18, and Magnet at 24. The shop and
+  loadout picker only list unlocked tools; before Level 6 they show a small
+  "Tools unlock after Level 5" empty state, and the Starter Pack describes its
+  locked contents as a future tool stash instead of spoiling the full toolbox.
+  When a campaign clear crosses an unlock threshold, the game grants a starter
+  charge if the player does not already own that newly unlocked tool, auto-slots
+  it into the first empty HUD slot, and queues the dedicated **New Tool
+  Unlocked!** modal (`#tool-unlock`) with the tool icon, unlock level, and a
+  short use lesson. Pressing Next on the win screen shows that modal first;
+  pressing **Try it next level** starts the next campaign level. Normal shop
+  purchases and HUD arming are blocked while locked, but the lone-bubble rescue
+  may still buy/arm Pick as an emergency-only escape hatch.
 - **Lone-bubble rescue** (`main.js` `_offerIsolatedRescue`/`_canRescue`/
   `_showIsolatedHelp`/`_rescueWithPick`/`_giveUpRescue`; `ui.js`
   `showIsolatedHelp`/`hideIsolatedHelp`, `#isolated` modal): single bubbles of
@@ -194,10 +211,11 @@ never re‑discovered the hard way.
 - **HUD loadout** (`ui.js`, `storage.js` `loadout`): the HUD shows **three
   quick-access slots** instead of one button per power-up (so it never grows as
   tools are added). A short **tap** arms that slot's power-up; a **long-press**
-  (>450ms) opens the loadout picker (`#loadout`) listing every `POWERUP_INFO`
-  entry — choosing one assigns it to the held slot via
+  (>450ms) opens the loadout picker (`#loadout`) listing every currently
+  unlocked tool — choosing one assigns it to the held slot via
   `Storage.setLoadoutSlot`, which keeps the three slots distinct (swapping if
-  the tool is already equipped). The loadout deep-merges into existing saves.
+  the tool is already equipped). New saves start with `[null,null,null]` until
+  progression unlocks a tool. The loadout deep-merges into existing saves.
   Tapping a slot the player has **no charges of** (`armPowerup` sees
   `Economy.getPowerup(type) <= 0`) doesn't just toast — it opens the shop
   focused on that tool (`UI.openShopForPowerup`: pauses the live level, scrolls
@@ -522,7 +540,8 @@ never re‑discovered the hard way.
   tutorial step**. Also tightened core ARIA: the `#game-canvas` is `role="img"`
   with an `aria-label`, `#toast` is an `aria-live="polite"` `role="status"` region,
   and key overlays (`#win`/`#lose`/`#pause`/`#pet-confirm`/`#pet-reveal`/
-  `#isolated`/`#loadout`/`#chest`) are `role="dialog" aria-modal="true"`.
+  `#isolated`/`#loadout`/`#tool-unlock`/`#chest`) are `role="dialog"
+  aria-modal="true"`.
 - **Idle move hint** (`grid.js` `findHint`, `renderer.js` `drawHint`, `main.js`
   `_updateHint`/`_noteActivity`/`HINT_DELAY`, `storage.js` `settings.hints`): a
   player-friendly assist that nudges a stuck player. After `HINT_DELAY` (5s) of
@@ -1222,7 +1241,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 605 unit tests + 456 E2E
+- **Current baseline (keep growing, never shrink)**: 609 unit tests + 460 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

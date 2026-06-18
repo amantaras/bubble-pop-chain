@@ -8,7 +8,16 @@ import {
   isThemeUnlocked,
   applyThemeCss,
 } from "./themes.js";
-import { Economy, POWERUP_INFO, COIN_PACKS, STARTER_PACK } from "./economy.js";
+import {
+  Economy,
+  POWERUP_INFO,
+  COIN_PACKS,
+  STARTER_PACK,
+  isPowerupUnlocked,
+  nextPowerupUnlock,
+  powerupUnlockLevel,
+  unlockedPowerups,
+} from "./economy.js";
 import { Monetization } from "./monetization.js";
 import { Audio } from "./audio.js";
 import {
@@ -159,6 +168,8 @@ class UIManager {
       "fever-meter", "fever-fill", "fever-label",
       "powerups", "pu-slot-0", "pu-slot-1", "pu-slot-2",
       "loadout", "loadout-list", "loadout-sub", "loadout-close",
+      "tool-unlock", "tool-unlock-icon", "tool-unlock-name", "tool-unlock-level",
+      "tool-unlock-desc", "tool-unlock-lesson", "tool-unlock-ok",
       "magnet-gauge", "mg-needle",
       "events-layer",
       "combo-banner", "toast",      "win-stars", "win-score", "win-reward", "win-double", "win-next", "win-menu",
@@ -349,6 +360,7 @@ class UIManager {
 
     // Loadout picker: close button + tap-outside dismiss.
     click("loadout-close", () => this.closeLoadoutPicker());
+    click("tool-unlock-ok", () => this.cb.toolUnlockContinue && this.cb.toolUnlockContinue());
     if (this.el["loadout"]) {
       this.el["loadout"].addEventListener("click", (e) => {
         if (e.target === this.el["loadout"]) this.closeLoadoutPicker();
@@ -995,9 +1007,14 @@ class UIManager {
     const item = document.createElement("div");
     item.className = "shop-item shop-starter";
     item.dataset.pack = "starter";
-    const puText = Object.entries(STARTER_PACK.powerups)
-      .map(([type, n]) => `${POWERUP_INFO[type].icon}×${n}`)
-      .join(" ");
+    const unlocked = unlockedPowerups();
+    const visibleTools = Object.entries(STARTER_PACK.powerups)
+      .filter(([type]) => unlocked.includes(type))
+      .map(([type, n]) => `${POWERUP_INFO[type].icon}×${n}`);
+    const lockedCount = Object.keys(STARTER_PACK.powerups).length - visibleTools.length;
+    const puText = visibleTools.length
+      ? `${visibleTools.join(" ")}${lockedCount ? ` · ${lockedCount} future tool stash` : ""}`
+      : "tool stash unlocks as you progress";
     item.innerHTML = `
       <span class="si-icon">🎁</span>
       <div class="si-body">
@@ -1086,9 +1103,18 @@ class UIManager {
     this._buildStarterPackItem(list);
     // Piggy Bank — coins banked passively from play, unlocked by cracking it.
     this._buildPiggyItem(list);
-    this._shopSection(list, "Power-ups", "Tap once or hold to buy a capped batch");
+    this._shopSection(list, "Power-ups", "New tools unlock as the campaign opens up");
     // Power-ups
-    Object.entries(POWERUP_INFO).forEach(([type, info]) => {
+    const available = unlockedPowerups();
+    if (!available.length) {
+      const next = nextPowerupUnlock();
+      const empty = document.createElement("div");
+      empty.className = "shop-empty-tools";
+      empty.innerHTML = `<b>Tools unlock after Level 5</b><span>${next ? `First up: ${POWERUP_INFO[next.type].icon} ${POWERUP_INFO[next.type].name} at Level ${next.level}.` : "All tools are unlocked."}</span>`;
+      list.appendChild(empty);
+    }
+    available.forEach((type) => {
+      const info = POWERUP_INFO[type];
       const owned = Economy.getPowerup(type);
       const affordable = Economy.coins >= info.price;
       const item = document.createElement("div");
@@ -3264,33 +3290,58 @@ class UIManager {
     const loadout = Storage.getLoadout();
     (this._slots || []).forEach((btn, i) => {
       const type = loadout[i];
-      const info = POWERUP_INFO[type];
+      const unlocked = type && (isPowerupUnlocked(type) || type === this._rescueTool);
+      const info = unlocked ? POWERUP_INFO[type] : null;
       const owned = type ? Economy.getPowerup(type) : 0;
-      btn.dataset.pu = type || "";
-      btn.dataset.stock = type ? String(owned) : "";
-      btn.classList.toggle("empty", !type);
-      btn.classList.toggle("no-stock", !!type && owned <= 0);
-      btn.classList.toggle("has-stock", !!type && owned > 0);
+      btn.dataset.pu = unlocked ? type : "";
+      btn.dataset.stock = unlocked ? String(owned) : "";
+      btn.classList.toggle("empty", !unlocked);
+      btn.classList.toggle("no-stock", !!unlocked && owned <= 0);
+      btn.classList.toggle("has-stock", !!unlocked && owned > 0);
       const icon = btn.querySelector(".pu-icon");
       const count = btn.querySelector(".pu-count");
       if (icon) icon.textContent = info ? info.icon : "＋";
-      if (count) count.textContent = type ? owned : "";
+      if (count) count.textContent = unlocked ? owned : "";
       btn.setAttribute("aria-label", info ? `${info.name} (hold to change)` : "Empty slot");
     });
   }
 
+  showRescueTool(type) {
+    this._rescueTool = type;
+    this.updatePowerups();
+  }
+
+  clearRescueTool() {
+    if (!this._rescueTool) return;
+    this._rescueTool = null;
+    this.updatePowerups();
+  }
+
   // ---- Loadout picker ---------------------------------------------------
-  // Long-pressing a HUD slot opens this list of EVERY power-up so the player
-  // can choose which one occupies that quick-access slot.
+  // Long-pressing a HUD slot opens the tools unlocked so far so the player can
+  // choose which one occupies that quick-access slot.
   openLoadoutPicker(slot) {
     this._loadoutSlot = slot;
     const loadout = Storage.getLoadout();
     const list = this.el["loadout-list"];
     if (!list) return;
+    const available = unlockedPowerups();
     if (this.el["loadout-sub"])
-      this.el["loadout-sub"].textContent = `Choose the power-up for slot ${slot + 1}.`;
+      this.el["loadout-sub"].textContent = available.length
+        ? `Choose the power-up for slot ${slot + 1}.`
+        : "Tools unlock after Level 5.";
     list.innerHTML = "";
-    Object.entries(POWERUP_INFO).forEach(([type, info]) => {
+    if (!available.length) {
+      const next = nextPowerupUnlock();
+      const empty = document.createElement("div");
+      empty.className = "loadout-empty";
+      empty.textContent = next
+        ? `${POWERUP_INFO[next.type].icon} ${POWERUP_INFO[next.type].name} unlocks at Level ${next.level}.`
+        : "No tools are available yet.";
+      list.appendChild(empty);
+    }
+    available.forEach((type) => {
+      const info = POWERUP_INFO[type];
       const where = loadout.indexOf(type);
       const row = document.createElement("button");
       row.type = "button";
@@ -3318,8 +3369,14 @@ class UIManager {
   }
 
   assignLoadout(slot, type) {
-    Storage.setLoadoutSlot(slot, type);
-    this.updatePowerups();
+    if (type && !isPowerupUnlocked(type)) {
+      const info = POWERUP_INFO[type];
+      this.toast(`${info ? info.name : "Tool"} unlocks at Level ${powerupUnlockLevel(type)}`);
+      return false;
+    }
+    const ok = Storage.setLoadoutSlot(slot, type);
+    if (ok) this.updatePowerups();
+    return ok;
   }
 
   closeLoadoutPicker() {
@@ -3400,6 +3457,7 @@ class UIManager {
     if (this.el["pause"]) this.el["pause"].classList.add("hidden");
     if (this.el["isolated"]) this.el["isolated"].classList.add("hidden");
     if (this.el["loadout"]) this.el["loadout"].classList.add("hidden");
+    if (this.el["tool-unlock"]) this.el["tool-unlock"].classList.add("hidden");
     if (this.el["chest"]) this.el["chest"].classList.add("hidden");
     if (this.el["pet-confirm"]) this.el["pet-confirm"].classList.add("hidden");
     if (this.el["pet-reveal"]) this.el["pet-reveal"].classList.add("hidden");
@@ -3454,6 +3512,19 @@ class UIManager {
     // Count the score up from zero immediately (the score is the achievement);
     // the coin payout is revealed only once the chest is opened.
     this._animateNumber(this.el["win-score"], score, 700);
+  }
+
+  showToolUnlock(unlock) {
+    const info = POWERUP_INFO[unlock.type];
+    if (!info || !this.el["tool-unlock"]) return;
+    this.hideModals();
+    this.showHud(false);
+    this.el["tool-unlock-icon"].textContent = info.icon;
+    this.el["tool-unlock-name"].textContent = info.name;
+    this.el["tool-unlock-level"].textContent = `Unlocked at Level ${unlock.level}`;
+    this.el["tool-unlock-desc"].textContent = info.desc;
+    this.el["tool-unlock-lesson"].textContent = unlock.lesson;
+    this.el["tool-unlock"].classList.remove("hidden");
   }
 
   // Burst the reward chest open: stop the shake, flip the lid, fling a shower

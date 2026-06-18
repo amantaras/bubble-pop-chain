@@ -3,10 +3,16 @@ import { Storage } from "../../src/storage.js";
 import {
   Economy,
   POWERUP_INFO,
+  POWERUP_UNLOCKS,
   COIN_PACKS,
   STARTER_PACK,
   AD_COIN_REWARDS,
   AD_COIN_DAILY_CAP,
+  isPowerupUnlocked,
+  nextPowerupUnlock,
+  powerupUnlockLevel,
+  powerupsUnlockedBetween,
+  unlockedPowerups,
 } from "../../src/economy.js";
 
 describe("economy", () => {
@@ -41,6 +47,7 @@ describe("economy", () => {
   });
 
   it("buyPowerup deducts the correct price and grants one", () => {
+    Storage.set("maxUnlockedLevel", powerupUnlockLevel("bomb"));
     const price = POWERUP_INFO.bomb.price;
     Economy.addCoins(price + 10);
     const startCount = Economy.getPowerup("bomb");
@@ -59,6 +66,43 @@ describe("economy", () => {
     expect(Economy.buyPowerup("nope")).toBe(false);
   });
 
+  it("locks all tools for the first five campaign levels", () => {
+    for (let level = 1; level <= 5; level++) {
+      expect(unlockedPowerups(level)).toEqual([]);
+      for (const type of Object.keys(POWERUP_INFO)) {
+        expect(isPowerupUnlocked(type, level)).toBe(false);
+      }
+    }
+    expect(nextPowerupUnlock(5)).toMatchObject({ type: "shuffle", level: 6 });
+  });
+
+  it("unlocks tools gradually in a fixed campaign order", () => {
+    expect(POWERUP_UNLOCKS.map((u) => u.type)).toEqual([
+      "shuffle",
+      "bomb",
+      "colorClear",
+      "pick",
+      "chainBolt",
+      "magnet",
+    ]);
+    expect(unlockedPowerups(6)).toEqual(["shuffle"]);
+    expect(unlockedPowerups(14)).toEqual(["shuffle", "bomb", "colorClear", "pick"]);
+    expect(unlockedPowerups(24)).toEqual(POWERUP_UNLOCKS.map((u) => u.type));
+    expect(powerupsUnlockedBetween(5, 8).map((u) => u.type)).toEqual(["shuffle", "bomb"]);
+  });
+
+  it("does not sell locked power-ups even when the player has enough coins", () => {
+    Economy.addCoins(9999);
+    const start = Economy.getPowerup("magnet");
+    expect(Economy.buyPowerup("magnet")).toBe(false);
+    expect(Economy.getPowerup("magnet")).toBe(start);
+    expect(Economy.coins).toBe(9999);
+
+    Storage.set("maxUnlockedLevel", powerupUnlockLevel("magnet"));
+    expect(Economy.buyPowerup("magnet")).toBe(true);
+    expect(Economy.getPowerup("magnet")).toBe(start + 1);
+  });
+
   it("catalogs the Magnet, Chain Bolt and Pick with the Magnet most expensive", () => {
     for (const t of ["magnet", "chainBolt", "pick"]) {
       expect(POWERUP_INFO[t]).toBeTruthy();
@@ -71,6 +115,7 @@ describe("economy", () => {
   });
 
   it("buys and uses a Magnet like any other power-up", () => {
+    Storage.set("maxUnlockedLevel", powerupUnlockLevel("magnet"));
     Economy.addCoins(POWERUP_INFO.magnet.price);
     const start = Economy.getPowerup("magnet");
     expect(Economy.buyPowerup("magnet")).toBe(true);

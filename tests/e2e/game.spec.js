@@ -22,6 +22,22 @@ async function openGame(page) {
   await page.waitForFunction(() => !window.__bpc.game.tutorial);
 }
 
+async function unlockAllTools(page) {
+  await page.evaluate(() => {
+    window.__bpc.Storage.set("maxUnlockedLevel", 999);
+    window.__bpc.Storage.set("powerups", {
+      bomb: 1,
+      colorClear: 1,
+      shuffle: 1,
+      chainBolt: 1,
+      pick: 1,
+      magnet: 1,
+    });
+    window.__bpc.Storage.set("loadout", ["bomb", "colorClear", "magnet"]);
+    window.__bpc.UI.updatePowerups();
+  });
+}
+
 // Pop the largest available group repeatedly until the session ends.
 async function autoPlay(page) {
   await page.evaluate(async () => {
@@ -368,6 +384,8 @@ test.describe("undo last move (real input)", () => {
 
   test("a spent power-up is refunded on undo", async ({ page }) => {
     await page.evaluate(() => {
+      window.__bpc.Storage.set("maxUnlockedLevel", 999);
+      window.__bpc.Storage.set("loadout", ["bomb", null, null]);
       window.__bpc.Economy.addPowerup("bomb", 3);
       window.__bpc.game.startCampaign(1);
     });
@@ -1118,7 +1136,7 @@ test.describe("milestone events (every 5 levels)", () => {
     await page.evaluate(() => window.__bpc.game.startCampaign(5));
     await page.waitForTimeout(600);
     const puBefore = await page.evaluate(() =>
-      window.__bpc.Economy.getPowerup("magnet")
+      window.__bpc.Economy.getPowerup("shuffle")
     );
     await clearBoardByFinalPair(page);
     await expect(page.locator("#win")).toBeVisible();
@@ -1128,15 +1146,15 @@ test.describe("milestone events (every 5 levels)", () => {
     );
     expect(save1.milestonesCleared).toContain(5);
     const puAfter = await page.evaluate(() =>
-      window.__bpc.Economy.getPowerup("magnet")
+      window.__bpc.Economy.getPowerup("shuffle")
     );
-    expect(puAfter).toBe(puBefore + 1); // treasure #1 grants a free magnet
+    expect(puAfter).toBe(puBefore + 1); // treasure #1 grants a free shuffle
 
     // Replaying the same level must NOT pay the milestone reward again.
     await page.evaluate(() => window.__bpc.game.startCampaign(5));
     await page.waitForTimeout(600);
     const puReplay = await page.evaluate(() =>
-      window.__bpc.Economy.getPowerup("magnet")
+      window.__bpc.Economy.getPowerup("shuffle")
     );
     await clearBoardByFinalPair(page);
     await expect(page.locator("#win")).toBeVisible();
@@ -1146,7 +1164,7 @@ test.describe("milestone events (every 5 levels)", () => {
     );
     expect(save2.milestonesCleared.filter((id) => id === 5)).toHaveLength(1);
     const puReplayAfter = await page.evaluate(() =>
-      window.__bpc.Economy.getPowerup("magnet")
+      window.__bpc.Economy.getPowerup("shuffle")
     );
     expect(puReplayAfter).toBe(puReplay); // no second free power-up
   });
@@ -1409,7 +1427,10 @@ test.describe("swipe-aware completion (no premature deadlock)", () => {
 
 
 test.describe("power-ups (UI arm + apply)", () => {
-  test.beforeEach(({ page }) => openGame(page));
+  test.beforeEach(async ({ page }) => {
+    await openGame(page);
+    await unlockAllTools(page);
+  });
 
 
   test("bomb clears a 3x3 area and consumes one charge", async ({ page }) => {
@@ -1497,8 +1518,13 @@ test.describe("power-ups (UI arm + apply)", () => {
   test("chain bolt clears a full row and column", async ({ page }) => {
     await page.evaluate(() => window.__bpc.game.startCampaign(2));
     await page.waitForTimeout(700);
-    await page.evaluate(() => window.__bpc.Economy.addPowerup("chainBolt", 1));
-    await page.evaluate(() => window.__bpc.UI.assignLoadout(0, "chainBolt"));
+    await page.evaluate(() => {
+      window.__bpc.Storage.set("powerups", {
+        ...window.__bpc.Storage.get("powerups"),
+        chainBolt: 1,
+      });
+      window.__bpc.UI.assignLoadout(0, "chainBolt");
+    });
     const { before, cols, rows } = await page.evaluate(() => {
       const b = window.__bpc.game.session.board;
       return { before: b.countRemaining(), cols: b.cols, rows: b.rows };
@@ -1547,8 +1573,13 @@ test.describe("power-ups (UI arm + apply)", () => {
   test("pick removes exactly one bubble", async ({ page }) => {
     await page.evaluate(() => window.__bpc.game.startCampaign(2));
     await page.waitForTimeout(700);
-    await page.evaluate(() => window.__bpc.Economy.addPowerup("pick", 1));
-    await page.evaluate(() => window.__bpc.UI.assignLoadout(0, "pick"));
+    await page.evaluate(() => {
+      window.__bpc.Storage.set("powerups", {
+        ...window.__bpc.Storage.get("powerups"),
+        pick: 1,
+      });
+      window.__bpc.UI.assignLoadout(0, "pick");
+    });
     const before = await page.evaluate(() =>
       window.__bpc.game.session.board.countRemaining()
     );
@@ -1883,7 +1914,13 @@ test.describe("power-ups (UI arm + apply)", () => {
     await page.waitForTimeout(700);
 
     // Put a tool the player owns NONE of into slot 0.
-    await page.evaluate(() => window.__bpc.UI.assignLoadout(0, "chainBolt"));
+    await page.evaluate(() => {
+      window.__bpc.Storage.set("powerups", {
+        ...window.__bpc.Storage.get("powerups"),
+        chainBolt: 0,
+      });
+      window.__bpc.UI.assignLoadout(0, "chainBolt");
+    });
     expect(
       await page.evaluate(() => window.__bpc.Economy.getPowerup("chainBolt"))
     ).toBe(0);
@@ -1914,8 +1951,63 @@ test.describe("power-ups (UI arm + apply)", () => {
   });
 });
 
-test.describe("hold-to-buy (auto-repeat purchase)", () => {
+test.describe("progressive tool unlocks", () => {
   test.beforeEach(({ page }) => openGame(page));
+
+  test("fresh players see no tools in the HUD, shop, or loadout picker", async ({
+    page,
+  }) => {
+    await page.locator("#btn-shop").click();
+    await expect(page.locator("#shop")).toBeVisible();
+    await expect(page.locator(".shop-empty-tools")).toContainText("Tools unlock after Level 5");
+    await expect(page.locator('#shop-list .shop-item[data-pu]')).toHaveCount(0);
+    await expect(page.locator(".shop-starter .si-desc")).toContainText("tool stash unlocks as you progress");
+    await page.locator("#shop-back").click();
+
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await page.waitForTimeout(300);
+    for (let i = 0; i < 3; i++) {
+      await expect(page.locator(`#pu-slot-${i}`)).toHaveClass(/empty/);
+      await expect(page.locator(`#pu-slot-${i}`)).toHaveAttribute("data-pu", "");
+    }
+
+    const box = await page.locator("#pu-slot-0").boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(650);
+    await page.mouse.up();
+    await expect(page.locator("#loadout")).toBeVisible();
+    await expect(page.locator("#loadout-list .loadout-item")).toHaveCount(0);
+    await expect(page.locator(".loadout-empty")).toContainText("Shuffle unlocks at Level 6");
+  });
+
+  test("clearing into a tool unlock shows a celebratory mini tutorial", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(5));
+    await page.waitForTimeout(600);
+    await clearBoardByFinalPair(page);
+    await expect(page.locator("#win")).toBeVisible();
+
+    await page.locator("#win-next").click();
+    await expect(page.locator("#tool-unlock")).toBeVisible();
+    await expect(page.locator("#tool-unlock-name")).toHaveText("Shuffle");
+    await expect(page.locator("#tool-unlock-level")).toContainText("Level 6");
+    await expect(page.locator("#tool-unlock-lesson")).toContainText("reshuffles");
+
+    await page.locator("#tool-unlock-ok").click();
+    await expect(page.locator("#tool-unlock")).toBeHidden();
+    await expect.poll(() => page.evaluate(() => window.__bpc.game.session?.level?.id)).toBe(6);
+    await expect(page.locator("#pu-slot-0")).toHaveAttribute("data-pu", "shuffle");
+    await expect(page.locator("#pu-slot-0 .pu-count")).toHaveText("1");
+  });
+});
+
+test.describe("hold-to-buy (auto-repeat purchase)", () => {
+  test.beforeEach(async ({ page }) => {
+    await openGame(page);
+    await unlockAllTools(page);
+  });
 
   test("a single tap on a power-up buy button purchases exactly one", async ({
     page,
@@ -3293,6 +3385,7 @@ test.describe("falling events (gift & problem tokens)", () => {
     // Put a bomb in the first quick-slot so the HUD shows its live count, then
     // record how many bombs the player owns right now.
     const before = await page.evaluate(() => {
+      window.__bpc.Storage.set("maxUnlockedLevel", 999);
       window.__bpc.Storage.setLoadoutSlot(0, "bomb");
       window.__bpc.UI.updatePowerups();
       return window.__bpc.Economy.getPowerup("bomb");
@@ -3472,6 +3565,7 @@ test.describe("shop & monetization (UI)", () => {
   test("buying a power-up deducts coins; insufficient funds is blocked", async ({
     page,
   }) => {
+    await unlockAllTools(page);
     await page.locator("#btn-shop").click();
     // With 0 coins, buying the bomb (150) must fail with a toast.
     await page.locator("#shop-list button", { hasText: /^150$/ }).click();
@@ -3504,6 +3598,7 @@ test.describe("shop & monetization (UI)", () => {
     await page.waitForTimeout(300);
     // Put the bomb in the first HUD slot so its count is on screen.
     await page.evaluate(() => {
+      window.__bpc.Storage.set("maxUnlockedLevel", 999);
       window.__bpc.Storage.setLoadoutSlot(0, "bomb");
       window.__bpc.UI.updatePowerups();
     });
