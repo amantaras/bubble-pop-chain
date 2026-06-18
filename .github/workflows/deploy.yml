@@ -32,6 +32,13 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Build static web artifact
+        run: npm run build:web
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
@@ -41,9 +48,9 @@ jobs:
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # The whole repo is the static site (no build step). Tests live in
-          # tests/ and are harmless to publish, but we exclude dev files.
-          path: "."
+          # Publish only the generated web bundle so native platform projects
+          # and development files never become part of the Pages artifact.
+          path: "dist/web"
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4

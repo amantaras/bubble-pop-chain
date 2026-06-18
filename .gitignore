@@ -12,6 +12,14 @@ Thumbs.db
 # Dependencies (none currently, but future-proofing)
 node_modules/
 
+# Generated web/native build outputs
+dist/
+android/.gradle/
+android/app/build/
+android/build/
+ios/App/Pods/
+ios/App/DerivedData/
+
 # Test artifacts
 test-results/
 playwright-report/

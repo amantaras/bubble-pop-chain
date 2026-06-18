@@ -1124,6 +1124,9 @@ index.html          # markup: menu, level map, shop, themes, HUD, modals
 styles.css          # all styling (neon-on-dark theme)
 manifest.json       # PWA manifest (RELATIVE paths — see §7)
 sw.js               # service worker, NETWORK-FIRST strategy
+capacitor.config.json # Capacitor native wrapper config (Android/iOS use dist/web)
+scripts/
+  copy-web.mjs      # copies the static web app into dist/web for Pages + native sync
 icons/              # icon.svg, maskable.svg (procedural SVG)
 src/
   main.js           # Game orchestrator: canvas loop, state machine, sessions
@@ -1158,7 +1161,10 @@ tests/
   SKILL.md          # testing + CI/CD reference doc
 .github/workflows/
   ci.yml            # unit + e2e on every push/PR
-  deploy.yml        # deploys to GitHub Pages ONLY after CI success on master
+  deploy.yml        # builds dist/web, then deploys to GitHub Pages ONLY after CI success on master
+  mobile.yml        # manual/PR native Android APK + unsigned iOS build validation
+android/            # Capacitor Android project (run npm run native:sync before building)
+ios/                # Capacitor iOS project (requires Xcode for local/device/App Store builds)
 ```
 
 ## 3. THE GOLDEN RULE — features, tests and CI/CD move together
@@ -1205,11 +1211,18 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
   npm run test:e2e         # Playwright (real browser, mobile + desktop)
   npm test                 # full gate: unit then e2e
   npm run serve            # preview at http://127.0.0.1:4173
+  npm run build:web        # generate dist/web from the static app
+  npm run native:sync      # sync dist/web into Android/iOS Capacitor projects
+  npm run android:sync     # sync only Android; does not require Xcode
+  npm run ios:sync         # sync only iOS; requires full Xcode + CocoaPods
+  npm run android:build    # local debug APK
+  npm run android:bundle   # release AAB; signing configured in Android Studio/Play Console
+  npm run ios:build        # unsigned iOS build; requires full Xcode install
   ```
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 577 unit tests + 386 E2E
+- **Current baseline (keep growing, never shrink)**: 605 unit tests + 456 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests
@@ -1218,8 +1231,13 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
   Chromium) on every push and PR; uploads the Playwright HTML report.
 - `.github/workflows/deploy.yml`: triggered by `workflow_run` on **completion of
   CI for `master`** and only proceeds when `conclusion == 'success'`, then
-  publishes to GitHub Pages. **A red test suite means no deploy — keep it that
-  way.** The deploy workflow self-enables Pages; do not remove that step.
+  runs `npm run build:web` and publishes only `dist/web` to GitHub Pages.
+  **A red test suite means no deploy — keep it that way.** The deploy workflow
+  self-enables Pages; do not remove that step.
+- `.github/workflows/mobile.yml`: native target validation, run manually or on
+  PRs that touch mobile files. Android builds a debug APK artifact; iOS performs
+  an unsigned Xcode build on macOS. Store signing/distribution still happens in
+  Android Studio / Play Console and Xcode / App Store Connect.
 - Node 20 in current workflows. (GitHub deprecation warning about Node 20
   actions is non-blocking; bump action versions only when asked.)
 
@@ -1251,6 +1269,16 @@ return 200. If CI is red, the deploy is correctly skipped — fix CI first.
   gameplay but won't register the service worker. Use the Pages HTTPS URL (or a
   tunnel) to test PWA install on a phone.
 - Works on modern Android (Chrome/Edge/Firefox/Samsung) and iOS (Safari).
+- **Native targets**: Capacitor wraps the same static app for Android/iOS.
+  Always run `npm run native:sync` after changing web files and before opening
+  native IDEs or producing store builds. The generated web bundle lives in
+  `dist/web` and is intentionally ignored; the native platform directories are
+  committed project targets. Use `android:sync` when validating Android on a
+  machine without Xcode; iOS sync/build requires full Xcode selected with
+  `xcode-select`, not only Command Line Tools.
+- **Native local prerequisites**: Android builds require JDK 21 plus Android SDK
+  platform 35 with `ANDROID_HOME`/`ANDROID_SDK_ROOT` set. iOS builds require full
+  Xcode, CocoaPods, and an Apple Developer signing team for devices/TestFlight.
 
 ## 8. Persistence & save format (`bpc_save_v1`)
 

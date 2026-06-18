@@ -1,5 +1,5 @@
 ---
-name: bubble-pop-chain-testing
+name: tests
 description: >-
   Full end-to-end and unit testing workflow for the Bubble Pop Chain game, plus
   the CI/CD gate that must pass before shipping to production. WHEN: "test the
@@ -27,7 +27,8 @@ running game in a real Chromium browser.
 | `vitest.config.js` | Vitest config (jsdom env, coverage) |
 | `playwright.config.js` | Playwright config (mobile + desktop projects, webServer) |
 | `.github/workflows/ci.yml` | Test gate — runs on every push/PR |
-| `.github/workflows/deploy.yml` | Deploys to GitHub Pages only after CI passes |
+| `.github/workflows/deploy.yml` | Builds `dist/web` and deploys it to GitHub Pages only after CI passes |
+| `.github/workflows/mobile.yml` | Native Android/iOS validation workflow, manual and PR-scoped |
 
 ## Commands
 
@@ -38,6 +39,14 @@ npm run test:install        # install Playwright Chromium (first time / CI)
 npm run test:unit           # Vitest unit + integration (fast)
 npm run test:e2e            # Playwright E2E (real browser)
 npm test                    # unit then e2e — the full gate
+
+npm run build:web           # copy the static app into dist/web
+npm run native:sync         # copy dist/web into Android/iOS Capacitor projects
+npm run android:sync        # sync only Android; does not require Xcode
+npm run ios:sync            # sync only iOS; requires full Xcode + CocoaPods
+npm run android:build       # build a local Android debug APK
+npm run android:bundle      # build a release Android App Bundle (signing still required)
+npm run ios:build           # unsigned iOS build via xcodebuild (requires Xcode)
 
 npm run test:unit:watch     # TDD watch mode
 npm run test:e2e:ui         # Playwright interactive UI mode
@@ -368,8 +377,19 @@ flowchart LR
   uploaded as a build artifact. If anything fails, the build is red.
 - **`deploy.yml`** is triggered by `workflow_run` on **completion of CI for the
   `master` branch** and only proceeds when `conclusion == 'success'`. This is
-  the production gate: a failing test suite means no deploy. It publishes the
-  static site to GitHub Pages.
+  the production gate: a failing test suite means no deploy. It runs
+  `npm run build:web` and publishes only `dist/web` to GitHub Pages so native
+  Android/iOS project files are never uploaded as site content.
+- **`mobile.yml`** validates the native deployment targets when mobile files
+  change in a PR, or by manual dispatch: Android produces a debug APK artifact;
+  iOS performs an unsigned Xcode build on macOS.
+
+### Native local prerequisites
+- Android: Android Studio or command-line SDK installed, `ANDROID_HOME` pointing
+  at that SDK, platform `android-35`, and JDK 21 on the path (or `JAVA_HOME`).
+- iOS: full Xcode selected with `xcode-select`, CocoaPods installed, and an
+  Apple Developer team configured in Xcode for device/TestFlight/App Store
+  signing. Command Line Tools alone are not enough for `ios:sync`/`ios:build`.
 
 ### One-time repo setup for deploys
 1. Repo **Settings → Pages → Build and deployment → Source: GitHub Actions**.
