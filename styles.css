@@ -171,10 +171,11 @@ body {
 
 /* ---------- Menu ---------- */
 #menu {
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
   gap: 18px;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding-top: calc(var(--safe-top) + 18px);
   padding-bottom: calc(var(--safe-bottom) + 22px);
   background:
@@ -485,6 +486,7 @@ body {
 
 @media (min-width: 720px) {
   #menu {
+    justify-content: center;
     gap: 16px;
   }
   .menu-primary,

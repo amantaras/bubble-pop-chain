@@ -211,6 +211,21 @@ test.describe("menu & navigation (UI)", () => {
     await expect(page.locator(".menu-tiles .tile")).toHaveCount(13);
   });
 
+  test("short phone menu can scroll all the way back to the top", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 520 });
+    await page.locator("#menu").evaluate((el) => {
+      el.scrollTop = 0;
+    });
+
+    const top = await page.locator(".logo h1").evaluate((el) =>
+      el.getBoundingClientRect().top
+    );
+    expect(top).toBeGreaterThanOrEqual(0);
+    await expect(page.locator("#btn-play")).toBeVisible();
+  });
+
   test("Play opens the level map with level 1 unlocked", async ({ page }) => {
     await page.locator("#btn-play").click();
     await expect(page.locator("#levelmap")).toBeVisible();
