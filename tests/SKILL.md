@@ -198,12 +198,12 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   `localStorage` is a real spec-compliant store
   (`tests/setup.js`), reset before each test.
 - **E2E tests** load the real page, click real DOM buttons, and dispatch real
-  pointer taps on the `<canvas>`. They cover: menu/level-map/shop/themes
+  pointer taps on the `<canvas>`. They cover: grouped menu/level-map/shop/themes
   navigation, popping via real taps, scoring, win/lose, revive and double-coins
   rewarded-ad flows, endless refill, daily streak, all three power-ups, shop
   purchases, hold-to-buy auto-repeat (a held buy button keeps purchasing at the
-  configured rate, respects the visible hold-purchase limit preference, and
-  stops when coins run out), "remove ads", theme buy/apply,
+  configured rate, shows live buying/limit feedback, respects the visible
+  hold-purchase limit preference, and stops when coins run out), "remove ads", theme buy/apply,
   sound toggle, PWA service-worker
   registration, manifest reachability, local special-bubble SVG asset
   reachability, progress persistence across reloads,
@@ -275,6 +275,7 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   finale with a random style 0–4, suspends input, and clears the board to win
   the level),
   the pet companions flow (Pets screen with starter Sparky owned/equipped,
+  guided pet-detail chips/actions,
   buy + open a crate grants a pet, the Pet Store sells premium pets + a
   Legendary Crate that grants a pet, buying a premium pet unlocks it,
   duplicate crate pulls grant Pet Dust + the crate panel shows the balance and

@@ -209,6 +209,16 @@ test.describe("menu & navigation (UI)", () => {
     await expect(page.locator("#btn-tournament .tile-sub")).toHaveText("Weekly ladder");
     await expect(page.locator("#btn-timeattack .tile-sub")).toHaveText("60 sec sprint");
     await expect(page.locator(".menu-tiles .tile")).toHaveCount(13);
+    await expect(page.locator(".menu-group-title")).toHaveText([
+      "Play",
+      "Events",
+      "Progress",
+      "Shop & Settings",
+    ]);
+    await expect(page.locator('.menu-group[aria-label="Play"] .tile')).toHaveCount(3);
+    await expect(page.locator('.menu-group[aria-label="Events"] .tile')).toHaveCount(4);
+    await expect(page.locator('.menu-group[aria-label="Progress"] .tile')).toHaveCount(4);
+    await expect(page.locator('.menu-group[aria-label="Shop & Settings"] .tile')).toHaveCount(2);
   });
 
   test("short phone menu can scroll all the way back to the top", async ({
@@ -236,6 +246,11 @@ test.describe("menu & navigation (UI)", () => {
   test("Shop and Themes open and Back returns to menu", async ({ page }) => {
     await page.locator("#btn-shop").click();
     await expect(page.locator("#shop")).toBeVisible();
+    await expect(page.locator(".shop-section-title")).toHaveText([
+      "Featured",
+      "Power-ups",
+      "Coins & Upgrades",
+    ]);
     await page.locator("#shop-back").click();
     await expect(page.locator("#menu")).toBeVisible();
 
@@ -1954,7 +1969,9 @@ test.describe("hold-to-buy (auto-repeat purchase)", () => {
       window.__bpc.Economy.getPowerup("pick"),
     );
     await buy.dispatchEvent("pointerdown");
+    await expect(buy).toContainText(/Buying|Limit/);
     await page.waitForTimeout(260);
+    await expect(buy).toContainText("Limit 4/4");
     await buy.dispatchEvent("pointerup");
     const after = await page.evaluate(() =>
       window.__bpc.Economy.getPowerup("pick"),
@@ -4248,6 +4265,14 @@ test.describe("pet companions (collection & buffs)", () => {
     await expect(page.locator("#pets-crate .crate-art-pet")).toBeVisible();
     await expect(page.locator('.pet-card[data-pet="sparky"]')).toHaveClass(/owned/);
     await expect(page.locator('.pet-card[data-pet="sparky"]')).toHaveClass(/equipped/);
+    await expect(page.locator("#pet-detail .pd-guide-chip")).toHaveText([
+      "Owned",
+      "Passive",
+      "Socket gems",
+      "Lead pet",
+    ]);
+    await expect(page.locator("#pet-detail .pd-action-row")).toBeVisible();
+    await expect(page.locator("#pet-detail .pd-forge-btn")).toBeVisible();
     const state = await page.evaluate(() => window.__bpc.Storage.getPetState());
     expect(state.equipped).toBe("sparky");
     expect(state.crates).toBeGreaterThanOrEqual(1);

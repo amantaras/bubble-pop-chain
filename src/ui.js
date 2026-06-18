@@ -174,6 +174,7 @@ class UIManager {
     ];
     ids.forEach((id) => (this.el[id] = $(id)));
     this._wireStaticButtons();
+    this._organizeMenuSections();
   }
 
   bind(callbacks) {
@@ -376,6 +377,41 @@ class UIManager {
       this.el["btn-sound"].textContent = "♪̸";
       this.el["btn-sound"].style.opacity = "0.5";
     }
+  }
+
+  _organizeMenuSections() {
+    const menu = document.querySelector(".menu-tiles");
+    if (!menu || menu.dataset.grouped === "true") return;
+    const groups = [
+      ["Play", ["btn-endless", "btn-timeattack", "btn-puzzle"]],
+      ["Events", ["btn-daily", "btn-tournament", "btn-quests", "btn-calendar"]],
+      ["Progress", ["btn-pets", "btn-achievements", "btn-season", "btn-stats"]],
+      ["Shop & Settings", ["btn-shop", "btn-themes"]],
+    ];
+    const buttons = new Map();
+    groups.flatMap(([, ids]) => ids).forEach((id) => {
+      const btn = this.el[id] || $(id);
+      if (btn) buttons.set(id, btn);
+    });
+    menu.innerHTML = "";
+    groups.forEach(([title, ids]) => {
+      const section = document.createElement("section");
+      section.className = "menu-group";
+      section.setAttribute("aria-label", title);
+      const heading = document.createElement("h3");
+      heading.className = "menu-group-title";
+      heading.textContent = title;
+      const grid = document.createElement("div");
+      grid.className = "menu-group-grid";
+      ids.forEach((id) => {
+        const btn = buttons.get(id);
+        if (btn) grid.appendChild(btn);
+      });
+      section.appendChild(heading);
+      section.appendChild(grid);
+      menu.appendChild(section);
+    });
+    menu.dataset.grouped = "true";
   }
 
   // ---- Screen switching -------------------------------------------------
@@ -792,11 +828,14 @@ class UIManager {
   // the configured interval, capped to the configured batch size (max 10).
   // `action()` performs one purchase and returns `false` to stop the repeat
   // (e.g. out of coins / sold out).
-  _attachHoldRepeat(btn, action) {
+  _attachHoldRepeat(btn, action, feedback = {}) {
     let timer = null;
     let holdCount = 0;
     let keyHeld = false;
     let blockedUntilRelease = false;
+    const setFeedback = (state) => {
+      if (feedback.update) feedback.update(state);
+    };
     const clearTimer = () => {
       if (timer) {
         clearInterval(timer);
@@ -805,6 +844,7 @@ class UIManager {
     };
     const stop = () => {
       clearTimer();
+      if (holdCount > 0) setFeedback({ phase: "idle", count: holdCount, max: this._buyHoldMax() });
       holdCount = 0;
       blockedUntilRelease = false;
     };
@@ -814,17 +854,21 @@ class UIManager {
       if (holdCount >= max) {
         blockedUntilRelease = true;
         clearTimer();
+        setFeedback({ phase: "capped", count: holdCount, max });
         return false;
       }
       holdCount += 1;
-      if (action() === false) {
+      setFeedback({ phase: "buying", count: holdCount, max });
+      if (action({ count: holdCount, max }) === false) {
         blockedUntilRelease = true;
         clearTimer();
+        setFeedback({ phase: "blocked", count: holdCount, max });
         return false;
       }
       if (holdCount >= max) {
         blockedUntilRelease = true;
         clearTimer();
+        setFeedback({ phase: "capped", count: holdCount, max });
         return false;
       }
       return true;
@@ -950,10 +994,12 @@ class UIManager {
     const list = this.el["shop-list"];
     list.innerHTML = "";
 
+    this._shopSection(list, "Featured", "Limited bundles and banked rewards");
     // One-time Starter Pack — a prominent value bundle at the very top.
     this._buildStarterPackItem(list);
     // Piggy Bank — coins banked passively from play, unlocked by cracking it.
     this._buildPiggyItem(list);
+    this._shopSection(list, "Power-ups", "Tap once or hold to buy a capped batch");
     // Power-ups
     Object.entries(POWERUP_INFO).forEach(([type, info]) => {
       const owned = Economy.getPowerup(type);
@@ -969,6 +1015,18 @@ class UIManager {
       const buy = document.createElement("button");
       buy.className = "buy-btn";
       buy.innerHTML = `<span class="coin-dot"></span>${info.price}`;
+      const normalLabel = buy.innerHTML;
+      const feedback = ({ phase, count, max }) => {
+        buy.classList.toggle("buying", phase === "buying");
+        buy.classList.toggle("capped", phase === "capped");
+        if (phase === "buying" || phase === "capped") {
+          buy.textContent = phase === "capped" ? `Limit ${count}/${max}` : `Buying ${count}/${max}`;
+        } else if (phase === "blocked") {
+          buy.textContent = "Stopped";
+        } else {
+          buy.innerHTML = normalLabel;
+        }
+      };
       // Hold to keep buying at the configured rate (default 2/sec). The owned
       // count + coin balance update in place so the held button is never torn
       // down mid-repeat (a full rebuildShop would cancel the hold).
@@ -984,11 +1042,12 @@ class UIManager {
         }
         this.toast("Not enough coins");
         return false;
-      });
+      }, { update: feedback });
       item.appendChild(buy);
       list.appendChild(item);
     });
 
+    this._shopSection(list, "Coins & Upgrades", "Daily coin grants, packs and ad removal");
     // Free coins via an opt-in rewarded ad — daily-capped with an escalating
     // payout, so watching a few ads a day is worthwhile but never unlimited.
     const ad = Economy.adCoinState();
@@ -1071,6 +1130,13 @@ class UIManager {
     }
     adsItem.appendChild(adsBtn);
     list.appendChild(adsItem);
+  }
+
+  _shopSection(list, title, sub) {
+    const section = document.createElement("div");
+    section.className = "shop-section-head";
+    section.innerHTML = `<span class="shop-section-title">${title}</span><span class="shop-section-sub">${sub}</span>`;
+    list.appendChild(section);
   }
 
   // ---- Themes -----------------------------------------------------------
@@ -1975,6 +2041,18 @@ class UIManager {
     buyBtn.className = "buy-btn pet-buy-crate";
     buyBtn.id = "crate-buy";
     buyBtn.innerHTML = `<span class="coin-dot"></span>${CRATE_COST}`;
+    const crateLabel = buyBtn.innerHTML;
+    const crateFeedback = ({ phase, count, max }) => {
+      buyBtn.classList.toggle("buying", phase === "buying");
+      buyBtn.classList.toggle("capped", phase === "capped");
+      if (phase === "buying" || phase === "capped") {
+        buyBtn.textContent = phase === "capped" ? `Limit ${count}/${max}` : `Buying ${count}/${max}`;
+      } else if (phase === "blocked") {
+        buyBtn.textContent = "Stopped";
+      } else {
+        buyBtn.innerHTML = crateLabel;
+      }
+    };
     this._attachHoldRepeat(buyBtn, () => {
       if (this.cb.buyCrate && this.cb.buyCrate()) {
         Audio.coin();
@@ -1988,7 +2066,7 @@ class UIManager {
         this.toast("Not enough coins");
         return false;
       }
-    });
+    }, { update: crateFeedback });
 
     const btns = document.createElement("div");
     btns.className = "crate-btns";
@@ -2142,6 +2220,7 @@ class UIManager {
       `<div class="pd-desc">${pet.desc}</div>` +
       `<div class="pd-ability">${this._petAbilityText(pet, has ? lvl : 1)}</div></div>`;
     panel.appendChild(head);
+    panel.appendChild(this._buildPetGuide(pet, has, equipped === pet.id));
 
     if (has) {
       // XP / level bar.
@@ -2186,7 +2265,9 @@ class UIManager {
           this._requestEquip(pet);
         });
       }
-      panel.appendChild(equip);
+      const actions = document.createElement("div");
+      actions.className = "pd-action-row";
+      actions.appendChild(equip);
 
       // Support-slot toggle (only for owned pets that aren't the current lead).
       if (equipped !== pet.id) {
@@ -2212,8 +2293,17 @@ class UIManager {
           if (this.cb.toggleSupport) this.cb.toggleSupport(pet.id);
           this.buildPets();
         });
-        panel.appendChild(sup);
+        actions.appendChild(sup);
       }
+      const forge = document.createElement("button");
+      forge.className = "buy-btn pd-forge-btn";
+      forge.textContent = "Gem Forge";
+      forge.addEventListener("click", () => {
+        Audio.click();
+        this.openGemForge();
+      });
+      actions.appendChild(forge);
+      panel.appendChild(actions);
 
       // Cosmetics row.
       panel.appendChild(this._buildCosmetics(pet, owned[pet.id]));
@@ -2242,6 +2332,20 @@ class UIManager {
       hint.textContent = `Open Pet Crates to win ${pet.name}. Duplicate pulls turn into ✨ Pet Dust you can spend on gems.`;
       panel.appendChild(hint);
     }
+  }
+
+  _buildPetGuide(pet, has, equipped) {
+    const guide = document.createElement("div");
+    guide.className = "pd-guide";
+    const mode = pet.active ? "Active" : "Passive";
+    const gems = has ? "Socket gems" : "Win in crates";
+    const party = equipped ? "Lead pet" : "Party option";
+    guide.innerHTML =
+      `<span class="pd-guide-chip">${has ? "Owned" : "Locked"}</span>` +
+      `<span class="pd-guide-chip">${mode}</span>` +
+      `<span class="pd-guide-chip">${gems}</span>` +
+      `<span class="pd-guide-chip">${party}</span>`;
+    return guide;
   }
 
   _petAbilityText(pet, level) {

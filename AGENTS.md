@@ -236,7 +236,9 @@ never re‑discovered the hard way.
   via `UI.buyHoldInterval`) — and a per-held-press safety cap,
   `settings.buyBatchMax` (default **10**, hard-clamped to 10; override at runtime
   via `UI.buyHoldMax`). Both preferences are exposed on the Themes/settings
-  screen as segmented controls. The repeat fires immediately on `pointerdown`, then
+  screen as segmented controls. During a held repeat, the shop/crate buy button
+  shows live `Buying N / max` feedback and then `Limit N/max` when the safety cap
+  is reached. The repeat fires immediately on `pointerdown`, then
   on an interval, and stops on `pointerup`/`pointerleave`/`pointercancel`, when
   the batch cap is reached, or when a purchase fails (out of coins). To survive a hold, the buy updates the item's
   `.si-owned` count + coin balance **in place** (it must NOT call `buildShop`,
