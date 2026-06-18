@@ -6,6 +6,54 @@ import { RAINBOW, ICE, ICE_CRACKED, NORMAL, LIGHTNING, STONE, BOMB, MULTIPLIER, 
 // always at least as many symbols as a level has colours.
 export const CB_SYMBOLS = ["●", "▲", "■", "◆", "★", "✚", "▼", "⬢"];
 
+export const SPECIAL_ICON_ASSETS = {
+  [LIGHTNING]: "./assets/icons/game-icons/lightning-bolt.svg",
+  [STONE]: "./assets/icons/game-icons/padlock.svg",
+  [BOMB]: "./assets/icons/game-icons/bomb.svg",
+  [MULTIPLIER]: "./assets/icons/game-icons/multiplication.svg",
+  [COIN]: "./assets/icons/game-icons/coin.svg",
+  [VINE]: "./assets/icons/game-icons/vine-leaf.svg",
+  [ICE]: "./assets/icons/game-icons/snowflake.svg",
+  [ICE_CRACKED]: "./assets/icons/game-icons/snowflake.svg",
+};
+
+const THEME_MOTIFS = {
+  aurora: { kind: "ribbons", count: 5, alpha: 0.15 },
+  sunset: { kind: "arcs", count: 7, alpha: 0.13 },
+  forest: { kind: "leaves", count: 26, alpha: 0.12 },
+  candy: { kind: "sprinkles", count: 42, alpha: 0.13 },
+  mono: { kind: "prism", count: 8, alpha: 0.15 },
+  ember: { kind: "embers", count: 34, alpha: 0.14 },
+  tidal: { kind: "waves", count: 6, alpha: 0.14 },
+  glacier: { kind: "shards", count: 18, alpha: 0.13 },
+  voltage: { kind: "bolts", count: 12, alpha: 0.16 },
+  orchard: { kind: "petals", count: 30, alpha: 0.13 },
+  horizon: { kind: "scanlines", count: 12, alpha: 0.11 },
+  prism: { kind: "facets", count: 16, alpha: 0.14 },
+  sandstorm: { kind: "dunes", count: 7, alpha: 0.12 },
+  petal: { kind: "petals", count: 38, alpha: 0.15 },
+  nova: { kind: "stars", count: 62, alpha: 0.18 },
+};
+
+export function themeMotif(themeId) {
+  return THEME_MOTIFS[themeId] || THEME_MOTIFS.aurora;
+}
+
+const _iconImageCache = new Map();
+
+function specialIconImage(path) {
+  if (_iconImageCache.has(path)) return _iconImageCache.get(path);
+  if (typeof Image === "undefined") {
+    _iconImageCache.set(path, null);
+    return null;
+  }
+  const img = new Image();
+  img.decoding = "async";
+  img.src = path;
+  _iconImageCache.set(path, img);
+  return img;
+}
+
 // The colour helpers below are pure functions of (hex, factor) and are called
 // several times per bubble, every frame, from `drawBubbles`. The set of inputs
 // is tiny and finite — a theme's palette (≈6–8 colours) crossed with the
@@ -58,6 +106,8 @@ export class Renderer {
     // When true, each colour gets a distinct symbol drawn on its bubbles so
     // players who can't easily tell hues apart can still read the board.
     this.colorblind = false;
+    this.reducedMotion = false;
+    for (const path of Object.values(SPECIAL_ICON_ASSETS)) specialIconImage(path);
   }
 
   drawBackground(w, h, theme, time) {
@@ -85,6 +135,123 @@ export class Renderer {
       rg.addColorStop(1, "rgba(0,0,0,0)");
       ctx.fillStyle = rg;
       ctx.fillRect(0, 0, w, h);
+    }
+    ctx.restore();
+    this._drawThemeMotif(w, h, theme, time);
+  }
+
+  _drawThemeMotif(w, h, theme, time) {
+    const motif = themeMotif(theme.id);
+    const ctx = this.ctx;
+    const t = this.reducedMotion ? 0 : time * 0.001;
+    const max = Math.max(w, h);
+    const colors = theme.bubbles;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = motif.alpha;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    if (motif.kind === "ribbons") {
+      for (let i = 0; i < motif.count; i++) {
+        const y = h * (0.12 + i * 0.16) + Math.sin(t * 0.55 + i) * 18;
+        ctx.strokeStyle = colors[i % colors.length];
+        ctx.lineWidth = 2 + i * 0.5;
+        ctx.beginPath();
+        ctx.moveTo(-w * 0.1, y);
+        ctx.bezierCurveTo(w * 0.18, y - 80, w * 0.48, y + 90, w * 1.08, y - 24);
+        ctx.stroke();
+      }
+    } else if (motif.kind === "arcs") {
+      ctx.strokeStyle = colors[2] || "#ffd35b";
+      for (let i = 0; i < motif.count; i++) {
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(w * 0.76, h * 0.2, 48 + i * 34 + Math.sin(t + i) * 3, 0.08, Math.PI * 1.15);
+        ctx.stroke();
+      }
+    } else if (motif.kind === "waves") {
+      for (let i = 0; i < motif.count; i++) {
+        const y = h * (0.18 + i * 0.13);
+        ctx.strokeStyle = colors[i % colors.length];
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let x = -20; x <= w + 20; x += 24) {
+          const yy = y + Math.sin(x * 0.018 + t * 0.8 + i) * 18;
+          if (x === -20) ctx.moveTo(x, yy);
+          else ctx.lineTo(x, yy);
+        }
+        ctx.stroke();
+      }
+    } else if (motif.kind === "dunes") {
+      ctx.globalAlpha = motif.alpha * 0.9;
+      for (let i = 0; i < motif.count; i++) {
+        const y = h * (0.55 + i * 0.07);
+        ctx.strokeStyle = colors[i % colors.length];
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(-20, y);
+        ctx.quadraticCurveTo(w * 0.25, y - 42, w * 0.52, y + 6);
+        ctx.quadraticCurveTo(w * 0.78, y + 50, w + 20, y - 8);
+        ctx.stroke();
+      }
+    } else if (motif.kind === "scanlines") {
+      ctx.globalCompositeOperation = "source-over";
+      ctx.strokeStyle = "rgba(190,220,255,0.16)";
+      ctx.lineWidth = 1;
+      for (let i = 0; i < motif.count; i++) {
+        const y = ((i + 1) / (motif.count + 1)) * h;
+        ctx.beginPath();
+        ctx.moveTo(w * 0.08, y);
+        ctx.lineTo(w * 0.92, y + Math.sin(t + i) * 4);
+        ctx.stroke();
+      }
+    } else {
+      for (let i = 0; i < motif.count; i++) {
+        const seed = i * 97.13;
+        const x = ((Math.sin(seed) * 43758.5453) % 1 + 1) % 1 * w;
+        const baseY = ((Math.sin(seed * 1.37) * 24634.6345) % 1 + 1) % 1 * h;
+        const drift = this.reducedMotion ? 0 : ((t * (8 + (i % 5) * 2) + i * 17) % (h + 80));
+        const y = (baseY + drift) % (h + 80) - 40;
+        ctx.strokeStyle = colors[i % colors.length];
+        ctx.fillStyle = colors[(i + 1) % colors.length];
+        const r = 4 + (i % 5) * 2;
+        if (motif.kind === "leaves" || motif.kind === "petals") {
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(seed + t * 0.12);
+          ctx.beginPath();
+          ctx.ellipse(0, 0, r * 0.65, r * 1.6, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        } else if (motif.kind === "embers" || motif.kind === "stars") {
+          ctx.beginPath();
+          ctx.arc(x, y, motif.kind === "stars" ? Math.max(1, r * 0.28) : r * 0.45, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (motif.kind === "shards" || motif.kind === "facets" || motif.kind === "prism") {
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(x, y - r * 1.5);
+          ctx.lineTo(x + r, y);
+          ctx.lineTo(x, y + r * 1.5);
+          ctx.lineTo(x - r, y);
+          ctx.closePath();
+          ctx.stroke();
+        } else if (motif.kind === "bolts") {
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.moveTo(x + r * 0.4, y - r * 1.5);
+          ctx.lineTo(x - r * 0.4, y);
+          ctx.lineTo(x + r * 0.25, y);
+          ctx.lineTo(x - r * 0.5, y + r * 1.6);
+          ctx.stroke();
+        } else if (motif.kind === "sprinkles") {
+          ctx.lineWidth = 2.2;
+          ctx.beginPath();
+          ctx.moveTo(x - r, y - r * 0.3);
+          ctx.lineTo(x + r, y + r * 0.3);
+          ctx.stroke();
+        }
+      }
     }
     ctx.restore();
   }
@@ -340,6 +507,11 @@ export class Renderer {
           ctx.lineTo(s.x + rad * 0.55, s.y - rad * 0.45);
           ctx.stroke();
         }
+        this._drawSpecialIcon(s.type, s.x, s.y, rad, s.alpha, {
+          size: 0.78,
+          shadow: "rgba(150,230,255,0.95)",
+          glow: 0.28,
+        });
       }
 
       // Lightning overlay: a glowing yellow bolt glyph that pulses, marking a
@@ -363,6 +535,11 @@ export class Renderer {
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
+        this._drawSpecialIcon(s.type, s.x, s.y, rad, s.alpha, {
+          size: 0.9,
+          shadow: "rgba(255,232,90,0.98)",
+          glow: 0.5,
+        });
       }
 
       // Stone overlay: a locked grey shell with a padlock mark, signalling a
@@ -403,6 +580,11 @@ export class Renderer {
         ctx.beginPath();
         ctx.arc(s.x, s.y - bh * 0.1, bw * 0.34, Math.PI, 0);
         ctx.stroke();
+        this._drawSpecialIcon(s.type, s.x, s.y + rad * 0.05, rad, s.alpha, {
+          size: 0.72,
+          shadow: "rgba(40,44,52,0.85)",
+          glow: 0.15,
+        });
       }
 
       // Bomb overlay: a dark explosive shell with a lit fuse spark, marking a
@@ -451,6 +633,11 @@ export class Renderer {
         ctx.beginPath();
         ctx.arc(s.x + rad * 0.42, s.y - rad * 0.78, rad * 0.13 * spark, 0, Math.PI * 2);
         ctx.fill();
+        this._drawSpecialIcon(s.type, s.x, s.y + rad * 0.06, rad, s.alpha, {
+          size: 0.96,
+          shadow: "rgba(255,150,60,0.95)",
+          glow: 0.42,
+        });
       }
 
       if (s.type === MULTIPLIER) {
@@ -472,6 +659,11 @@ export class Renderer {
         ctx.textBaseline = "middle";
         ctx.fillText("×2", s.x, s.y + rad * 0.04);
         ctx.shadowBlur = 0;
+        this._drawSpecialIcon(s.type, s.x, s.y, rad, s.alpha, {
+          size: 0.72,
+          shadow: "rgba(255,210,70,0.95)",
+          glow: 0.3,
+        });
       }
 
       if (s.type === COIN) {
@@ -506,6 +698,11 @@ export class Renderer {
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText("$", s.x, s.y + rad * 0.04);
+        this._drawSpecialIcon(s.type, s.x, s.y, rad, s.alpha, {
+          size: 0.74,
+          shadow: "rgba(255,200,50,0.95)",
+          glow: 0.28,
+        });
       }
 
       if (s.type === VINE) {
@@ -540,6 +737,11 @@ export class Renderer {
         };
         leaf(s.x + rad * 0.32, s.y - rad * 0.34);
         leaf(s.x - rad * 0.34, s.y + rad * 0.3);
+        this._drawSpecialIcon(s.type, s.x, s.y, rad, s.alpha, {
+          size: 0.88,
+          shadow: "rgba(70,210,100,0.95)",
+          glow: 0.34,
+        });
       }
 
       // Boss "Colour Purge" marker: a crisp target pip on every plain bubble of
@@ -699,6 +901,22 @@ export class Renderer {
     ctx.arcTo(x, y + h, x, y, r);
     ctx.arcTo(x, y, x + w, y, r);
     ctx.closePath();
+  }
+
+  _drawSpecialIcon(type, x, y, rad, alpha = 1, opts = {}) {
+    const path = SPECIAL_ICON_ASSETS[type];
+    if (!path) return false;
+    const img = specialIconImage(path);
+    if (!img || !img.complete || !img.naturalWidth) return false;
+    const ctx = this.ctx;
+    const size = rad * 2 * (opts.size || 0.82);
+    ctx.save();
+    ctx.globalAlpha = alpha * (opts.alpha || 0.9);
+    ctx.shadowColor = opts.shadow || "rgba(255,255,255,0.8)";
+    ctx.shadowBlur = rad * (opts.glow || 0.24);
+    ctx.drawImage(img, x - size / 2, y - size / 2, size, size);
+    ctx.restore();
+    return true;
   }
 }
 

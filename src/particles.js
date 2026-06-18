@@ -12,6 +12,48 @@ const MAX_PARTICLES = 600;
 // storm can still queue a lot, so bound them the same way as particles.
 const MAX_RINGS = 48;
 
+// Asset-backed VFX trial: a small, local subset of Kenney's CC0 Particle Pack.
+// These sprites layer over the procedural circles/rings so the current effects
+// remain a fallback if an image has not finished loading yet.
+const MAX_SPRITES = 180;
+export const SPRITE_PARTICLE_ASSETS = [
+  "./assets/vfx/kenney-particles/star_01.png",
+  "./assets/vfx/kenney-particles/star_02.png",
+  "./assets/vfx/kenney-particles/star_03.png",
+  "./assets/vfx/kenney-particles/star_04.png",
+  "./assets/vfx/kenney-particles/circle_01.png",
+  "./assets/vfx/kenney-particles/circle_02.png",
+  "./assets/vfx/kenney-particles/circle_03.png",
+  "./assets/vfx/kenney-particles/flare_01.png",
+  "./assets/vfx/kenney-particles/light_01.png",
+  "./assets/vfx/kenney-particles/magic_01.png",
+  "./assets/vfx/kenney-particles/magic_02.png",
+  "./assets/vfx/kenney-particles/twirl_01.png",
+];
+
+const SPRITE_BY_STYLE = [
+  [0, 4, 5],
+  [0, 1, 4, 5, 7],
+  [1, 2, 5, 6, 8, 9],
+  [2, 3, 6, 7, 8, 9, 10],
+  [2, 3, 7, 8, 9, 10, 11],
+];
+
+const SPRITE_IMAGES = new Map();
+
+function spriteImage(path) {
+  if (SPRITE_IMAGES.has(path)) return SPRITE_IMAGES.get(path);
+  if (typeof Image === "undefined") {
+    SPRITE_IMAGES.set(path, null);
+    return null;
+  }
+  const img = new Image();
+  img.decoding = "async";
+  img.src = path;
+  SPRITE_IMAGES.set(path, img);
+  return img;
+}
+
 // Pure: pick one of FIVE escalating explosion styles by the popped group's size.
 // The bigger the group, the more impactful the animation — more particles, more
 // shockwave rings, then a white flash bloom and a sparkle shower at the top end.
@@ -34,10 +76,12 @@ export class ParticleSystem {
   constructor() {
     this.particles = [];
     this.rings = [];
+    this.sprites = [];
     // Scales emitted particle volume. The reduced-motion accessibility setting
     // lowers this so bursts throw far fewer particles (and shockwave rings are
     // skipped); default 1 leaves emission exactly as before.
     this.motionScale = 1;
+    for (const path of SPRITE_PARTICLE_ASSETS) spriteImage(path);
   }
 
   burst(x, y, color, count = 12, power = 1) {
@@ -80,6 +124,34 @@ export class ParticleSystem {
     this._cap();
   }
 
+  spriteBurst(x, y, styleIndex = 0, power = 1) {
+    if (this.motionScale <= 0) return;
+    const choices = SPRITE_BY_STYLE[Math.max(0, Math.min(SPRITE_BY_STYLE.length - 1, styleIndex | 0))];
+    const n = Math.max(1, Math.round((1 + styleIndex) * this.motionScale));
+    for (let i = 0; i < n; i++) {
+      const assetIndex = choices[(Math.random() * choices.length) | 0];
+      const path = SPRITE_PARTICLE_ASSETS[assetIndex];
+      const angle = Math.random() * Math.PI * 2;
+      const speed = (34 + Math.random() * 130) * power;
+      const size = (18 + Math.random() * 34 + styleIndex * 5) * Math.min(1.45, 0.7 + power * 0.45);
+      this.sprites.push({
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 26 * power,
+        size,
+        rot: Math.random() * Math.PI * 2,
+        vr: (Math.random() - 0.5) * 5,
+        life: 0,
+        max: 0.36 + Math.random() * 0.26 + styleIndex * 0.035,
+        gravity: 150,
+        path,
+      });
+    }
+    const over = this.sprites.length - MAX_SPRITES;
+    if (over > 0) this.sprites.splice(0, over);
+  }
+
   // Expanding shockwave ring used by the bigger pop-explosion styles. `fill`
   // makes it a soft white flash bloom instead of a hollow ring.
   ring(x, y, color, { maxRadius = 60, width = 4, life = 0.5, fill = false } = {}) {
@@ -115,6 +187,18 @@ export class ParticleSystem {
       ring.life += dt;
       if (ring.life >= ring.max) this.rings.splice(i, 1);
     }
+    for (let i = this.sprites.length - 1; i >= 0; i--) {
+      const s = this.sprites[i];
+      s.life += dt;
+      if (s.life >= s.max) {
+        this.sprites.splice(i, 1);
+        continue;
+      }
+      s.vy += s.gravity * dt;
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+      s.rot += s.vr * dt;
+    }
   }
 
   draw(ctx) {
@@ -144,10 +228,26 @@ export class ParticleSystem {
         ctx.stroke();
       }
     }
+    for (const s of this.sprites) {
+      const img = spriteImage(s.path);
+      if (!img || !img.complete || !img.naturalWidth) continue;
+      const t = s.life / s.max;
+      const size = s.size * (1 - t * 0.22);
+      ctx.globalAlpha = Math.max(0, (1 - t) * 0.92);
+      ctx.save();
+      ctx.translate(s.x, s.y);
+      ctx.rotate(s.rot);
+      ctx.drawImage(img, -size / 2, -size / 2, size, size);
+      ctx.restore();
+    }
     ctx.restore();
   }
 
   get count() {
     return this.particles.length;
+  }
+
+  get spriteCount() {
+    return this.sprites.length;
   }
 }

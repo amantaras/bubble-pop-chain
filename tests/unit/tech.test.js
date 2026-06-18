@@ -18,15 +18,15 @@ import {
 describe("tech tree — structure", () => {
   it("has MAX_TECH_TIERS tiers, each with exactly two options", () => {
     expect(TECH_TREE).toHaveLength(MAX_TECH_TIERS);
-    expect(MAX_TECH_TIERS).toBe(4);
+    expect(MAX_TECH_TIERS).toBe(10);
     for (const tier of TECH_TREE) {
       expect(tier.options).toHaveLength(2);
     }
   });
 
-  it("tiers unlock at strictly increasing levels 2..5", () => {
+  it("tiers unlock at milestone levels across the 12-level pet arc", () => {
     const mins = TECH_TREE.map((t) => t.minLevel);
-    expect(mins).toEqual([2, 3, 4, 5]);
+    expect(mins).toEqual([2, 3, 4, 5, 6, 7, 8, 9, 10, 12]);
   });
 
   it("has unique node ids across the whole tree", () => {
@@ -71,7 +71,9 @@ describe("tech tree — unlock + pending logic", () => {
     expect(techTiersUnlocked(3)).toBe(2);
     expect(techTiersUnlocked(4)).toBe(3);
     expect(techTiersUnlocked(5)).toBe(4);
-    expect(techTiersUnlocked(99)).toBe(4);
+    expect(techTiersUnlocked(11)).toBe(9);
+    expect(techTiersUnlocked(12)).toBe(10);
+    expect(techTiersUnlocked(99)).toBe(10);
   });
 
   it("pendingTechTier is the first unlocked tier with no chosen node", () => {

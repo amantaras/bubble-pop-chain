@@ -79,7 +79,7 @@ export function socketsForLevel(level) {
 // fresh low-level pet can only wear weak (chipped) gems and must grow before it
 // can hold the strongest (brilliant) ones. This mirrors socketsForLevel — the
 // first socket (Lv.2) accepts chipped, the second (Lv.4) accepts polished, and
-// the max level (Lv.5) unlocks brilliant. Keyed by tier id.
+// Lv.5 unlocks brilliant within the broader Lv.12 pet progression. Keyed by tier id.
 export const GEM_TIER_MIN_LEVEL = { chipped: 2, polished: 4, brilliant: 5 };
 
 // The index of a tier in the weakest→strongest ladder (0 = chipped).

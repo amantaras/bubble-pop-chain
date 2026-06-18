@@ -1169,6 +1169,36 @@ export class Board {
     return affected;
   }
 
+  // Pet "paint": recolour the nearest different-colour NORMAL bubbles to match
+  // the anchor. This creates a fresh connected cluster for the player to pop;
+  // it never clears bubbles directly.
+  paintArea(c, r, count = 4) {
+    const target = this.grid[c]?.[r];
+    if (target === -1 || target === undefined || this.types[c]?.[r] !== NORMAL) return [];
+    const cand = [];
+    for (let cc = 0; cc < this.cols; cc++)
+      for (let rr = 0; rr < this.rows; rr++) {
+        if (cc === c && rr === r) continue;
+        if (this.grid[cc][rr] === -1 || this.types[cc][rr] !== NORMAL) continue;
+        if (this.grid[cc][rr] === target) continue;
+        const d = Math.max(Math.abs(cc - c), Math.abs(rr - r));
+        cand.push({ c: cc, r: rr, d });
+      }
+    cand.sort((a, b) => a.d - b.d);
+    const pick = cand.slice(0, Math.max(0, count));
+    const affected = [];
+    for (const p of pick) {
+      this.grid[p.c][p.r] = target;
+      const sp = this.spriteGrid[p.c][p.r];
+      if (sp) {
+        sp.color = target;
+        sp.scale = 0.6;
+      }
+      affected.push({ c: p.c, r: p.r });
+    }
+    return affected;
+  }
+
   // Chain Bolt clears the full row and full column that cross at (c,r).
   crossCells(c, r) {
     const cells = [];

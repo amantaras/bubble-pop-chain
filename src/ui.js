@@ -2970,11 +2970,16 @@ class UIManager {
     (this._slots || []).forEach((btn, i) => {
       const type = loadout[i];
       const info = POWERUP_INFO[type];
+      const owned = type ? Economy.getPowerup(type) : 0;
       btn.dataset.pu = type || "";
+      btn.dataset.stock = type ? String(owned) : "";
+      btn.classList.toggle("empty", !type);
+      btn.classList.toggle("no-stock", !!type && owned <= 0);
+      btn.classList.toggle("has-stock", !!type && owned > 0);
       const icon = btn.querySelector(".pu-icon");
       const count = btn.querySelector(".pu-count");
       if (icon) icon.textContent = info ? info.icon : "＋";
-      if (count) count.textContent = type ? Economy.getPowerup(type) : "";
+      if (count) count.textContent = type ? owned : "";
       btn.setAttribute("aria-label", info ? `${info.name} (hold to change)` : "Empty slot");
     });
   }

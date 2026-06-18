@@ -134,6 +134,32 @@ describe("pets catalog", () => {
     }
   });
 
+  it("adds long-progression pets with distinct passive goals and Luma paint setup", () => {
+    const expected = [
+      { id: "mochi", key: "scoreMult", rarity: "common" },
+      { id: "sprout", key: "feverMult", rarity: "common" },
+      { id: "amp", key: "powerMult", rarity: "epic" },
+      { id: "prism", key: "startCharge", rarity: "epic" },
+      { id: "midas", key: "coinMult", rarity: "legendary" },
+    ];
+    for (const item of expected) {
+      const pet = getPet(item.id);
+      expect(pet).toBeTruthy();
+      expect(pet.premium).toBe(false);
+      expect(pet.rarity).toBe(item.rarity);
+      expect(pet.ability.key).toBe(item.key);
+    }
+    const luma = getPet("luma");
+    expect(luma.premium).toBe(false);
+    expect(luma.rarity).toBe("rare");
+    expect(luma.active.type).toBe("paint");
+    const early = petActive("luma", 1);
+    const late = petActive("luma", MAX_PET_LEVEL);
+    expect(early.count).toBe(3);
+    expect(late.count).toBeGreaterThan(early.count);
+    expect(late.cooldown).toBeLessThan(early.cooldown);
+  });
+
   it("Magma clears more lanes as it levels up, on a longer cooldown", () => {
     const l1 = petActive("magma", 1);
     const l5 = petActive("magma", MAX_PET_LEVEL);
@@ -154,6 +180,13 @@ describe("pet leveling", () => {
       expect(x).toBeGreaterThan(prev);
       prev = x;
     }
+  });
+
+  it("uses a long-form 12-level XP curve", () => {
+    expect(MAX_PET_LEVEL).toBe(12);
+    expect(xpForLevel(2)).toBeGreaterThan(PET_XP_PER_LEVEL);
+    expect(xpForLevel(5)).toBeGreaterThan(500);
+    expect(xpForLevel(MAX_PET_LEVEL)).toBeGreaterThan(5000);
   });
 
   it("levelForXp maps xp onto the right level and caps at MAX", () => {
@@ -188,13 +221,14 @@ describe("pet buffs", () => {
   });
 
   it("passive buffs scale with level", () => {
-    // Sparky: powerMult +0.08 / level.
+    // Sparky grows across the longer curve without exploding balance mid-game.
     expect(petBuffs("sparky", 1).powerMult).toBeCloseTo(1.08);
-    expect(petBuffs("sparky", 5).powerMult).toBeCloseTo(1.4);
+    expect(petBuffs("sparky", 5).powerMult).toBeCloseTo(1.2144);
+    expect(petBuffs("sparky", MAX_PET_LEVEL).powerMult).toBeCloseTo(1.4496);
     // Clover: coinMult.
-    expect(petBuffs("clover", 2).coinMult).toBeCloseTo(1.1);
+    expect(petBuffs("clover", 2).coinMult).toBeCloseTo(1.071);
     // Gizmo: startCharge is additive (capped at 1).
-    expect(petBuffs("gizmo", 5).startCharge).toBeCloseTo(0.5);
+    expect(petBuffs("gizmo", MAX_PET_LEVEL).startCharge).toBeCloseTo(0.562);
   });
 
   it("active-only pets return neutral passive buffs", () => {
@@ -226,10 +260,10 @@ describe("pet active actions", () => {
 
   it("cleanse clears more bubbles at higher level", () => {
     const lo = petActive("whiskers", 1);
-    const hi = petActive("whiskers", 5);
+    const hi = petActive("whiskers", MAX_PET_LEVEL);
     expect(lo.type).toBe("cleanse");
     expect(lo.count).toBe(1);
-    expect(hi.count).toBe(5);
+    expect(hi.count).toBe(6);
     expect(hi.cooldown).toBeLessThanOrEqual(lo.cooldown);
   });
 });
@@ -483,7 +517,7 @@ describe("shooterStats progression", () => {
   });
 
   it("gets strictly stronger as it levels: faster, more cannons, then nukes", () => {
-    const levels = [1, 2, 3, 4, 5].map(shooterStats);
+    const levels = [1, 4, 7, 10, MAX_PET_LEVEL].map(shooterStats);
     // Fire interval never increases (it gets faster or holds).
     for (let i = 1; i < levels.length; i++) {
       expect(levels[i].fireInterval).toBeLessThanOrEqual(levels[i - 1].fireInterval);

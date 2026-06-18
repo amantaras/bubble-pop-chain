@@ -1,6 +1,6 @@
 // Game orchestrator: canvas loop, state machine, and all session logic.
 import { Board, NORMAL, RAINBOW, ICE, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN, VINE } from "./grid.js";
-import { Renderer } from "./renderer.js";
+import { Renderer, themeMotif } from "./renderer.js";
 import { ParticleSystem, popStyleForGroup } from "./particles.js";
 import {
   ScreenShake,
@@ -64,8 +64,14 @@ import {
   EVENT_FIRST_DELAY,
   DEFUSE_REWARD,
   SCATTER_COUNT,
+  PROBLEM_EFFECT_FREEZE,
+  PROBLEM_EFFECT_MOVES,
+  PROBLEM_EFFECT_SCATTER,
+  PROBLEM_EFFECT_SHUFFLE,
+  PROBLEM_EFFECT_VINE,
   nextEventDelay,
   pickEventType,
+  rollProblemEffect,
   rollGiftReward,
 } from "./events.js";
 import {
@@ -346,6 +352,7 @@ class Game {
     this.reducedMotion = !!on;
     this.shake.motionScale = this.reducedMotion ? 0 : 1;
     this.particles.motionScale = this.reducedMotion ? 0.45 : 1;
+    this.renderer.reducedMotion = this.reducedMotion;
     if (typeof document !== "undefined" && document.body)
       document.body.classList.toggle("reduced-motion", this.reducedMotion);
     UI.reducedMotion = this.reducedMotion;
@@ -2646,6 +2653,7 @@ class Game {
     else if (act.type === "gather") this._petGather(act);
     else if (act.type === "diagonal") this._petDiagonal(act);
     else if (act.type === "pick") this._petPick(act);
+    else if (act.type === "paint") this._petPaint(act);
     else if (act.type === "quake") this._petQuake(act);
     else if (act.type === "cyclone") this._petCyclone(act);
     else if (act.type === "magma") this._petMagma(act);
@@ -2655,27 +2663,43 @@ class Game {
   // 🐱 Whiskers: pounce on lone, hard-to-match bubbles and clear them.
   _petCleanse(act) {
     const s = this.session;
-    const cells = s.board.isolatedCells().slice(0, Math.max(1, act.count));
+    const cells = s.board.mostIsolatedCells(Math.max(1, act.count));
     if (!cells.length) return;
+    const pixels = cells.map((cell) => s.board.targetPixel(cell.c, cell.r));
+    const palette = this.theme.bubbles;
+    const hexes = cells.map((cell) => {
+      const ci = s.board.grid[cell.c][cell.r];
+      const idx = ((ci % palette.length) + palette.length) % palette.length;
+      return palette[idx] || "#9be7ff";
+    });
     const raw = cells.length * 14;
     const points = Math.round(
       feverPoints(raw, s.feverActive) * s.petBuffs.scoreMult
     );
     s.score += points;
     // Pet ability flourish over the cleared bubbles.
-    const targets = cells.map((cell) => s.board.targetPixel(cell.c, cell.r));
-    const anchor = targets.reduce(
-      (a, t) => ({ x: a.x + t.x / targets.length, y: a.y + t.y / targets.length }),
+    const anchor = pixels.reduce(
+      (a, t) => ({ x: a.x + t.x / pixels.length, y: a.y + t.y / pixels.length }),
       { x: 0, y: 0 }
     );
     this.petAnim.play({
       kind: "cleanse",
       icon: this._equippedPetIcon("🐱"),
       anchor,
-      targets,
+      targets: pixels,
       color: "#9be7ff",
     });
-    this._popCells(cells, points, cells.length, 1, 0.6);
+    for (let i = 0; i < cells.length; i++) {
+      const cell = cells[i];
+      const t = pixels[i];
+      const fx = s.board.forceRemove(cell.c, cell.r);
+      if (!fx) continue;
+      if (s.stats) s.stats.cleared += 1;
+      this.particles.burst(t.x, t.y, hexes[i] || "#9be7ff", 12, 0.7);
+      this.particles.sparkle(t.x, t.y, "#ffffff", 6);
+    }
+    s.board.settle();
+    this.shake.add(0.14 + cells.length * 0.03);
     Audio.powerup();
     this.floating.spawn(anchor.x, anchor.y - 36, "Pounce!", "#9be7ff", 26);
     this.refreshHud();
@@ -2811,6 +2835,29 @@ class Game {
       },
     });
     this.floating.spawn(anchor.x, anchor.y - 36, "Pick!", "#ffd35b", 26);
+    this.refreshHud();
+  }
+
+  // 🖌️ Luma: recolour nearby awkward bubbles to match one anchor, creating a
+  // fresh cluster the player can pop next.
+  _petPaint(act) {
+    const s = this.session;
+    const anchor = s.board.mostIsolatedCells(1)[0] || s.board.randomFilledCell(s.board.rng);
+    if (!anchor) return;
+    const cells = s.board.paintArea(anchor.c, anchor.r, Math.max(1, act.count));
+    if (!cells.length) return;
+    const anchorPx = s.board.targetPixel(anchor.c, anchor.r);
+    const targets = [anchor, ...cells].map((cell) => s.board.targetPixel(cell.c, cell.r));
+    this.petAnim.play({
+      kind: "gather",
+      icon: this._equippedPetIcon("🖌️"),
+      anchor: anchorPx,
+      targets,
+      color: "#ff8bd1",
+    });
+    this.shake.add(0.12 + cells.length * 0.02);
+    Audio.powerup();
+    this.floating.spawn(anchorPx.x, anchorPx.y - 36, "Paint!", "#ff8bd1", 26);
     this.refreshHud();
   }
 
@@ -3011,6 +3058,7 @@ class Game {
       const hex = this.theme.bubbles[f.colorIndex % this.theme.bubbles.length];
       centreHex = hex;
       this.particles.burst(f.x, f.y, hex, style.perCell, style.power * shakePower);
+      this.particles.spriteBurst(f.x, f.y, style.style, style.power * shakePower);
       cx += f.x;
       cy += f.y;
     }
@@ -3085,7 +3133,8 @@ class Game {
         UI.hideMagnetGauge();
       }
       UI.clearArmedPowerups();
-      if (btn) btn.classList.add("armed");
+      const armedBtn = btn || document.querySelector(`.powerup-btn[data-pu="${type}"]`);
+      if (armedBtn) armedBtn.classList.add("armed");
       const hint = {
         bomb: "Tap to drop bomb",
         colorClear: "Tap a color to clear it",
@@ -3358,6 +3407,13 @@ class Game {
     });
   }
 
+  _ensureToolInLoadout(type) {
+    const loadout = Storage.getLoadout();
+    if (loadout.includes(type)) return;
+    const slot = loadout.findIndex((item) => !item);
+    Storage.setLoadoutSlot(slot === -1 ? 0 : slot, type);
+  }
+
   // "Use Pick" — buy one if needed, then arm it so the next tap clears a lone
   // bubble. The player stays in the level (rescue mode) until the board clears
   // or they give up.
@@ -3372,6 +3428,8 @@ class Game {
       UI.updatePowerups();
       UI.refreshCoins();
     }
+    this._ensureToolInLoadout("pick");
+    UI.updatePowerups();
     UI.hideIsolatedHelp();
     UI.showHud(true);
     this.input.setEnabled(true);
@@ -4004,6 +4062,7 @@ class Game {
     const type = forced || pickEventType();
     const desc = { type };
     if (type === EVENT_GIFT) desc.reward = rollGiftReward();
+    if (type === EVENT_PROBLEM) desc.effect = rollProblemEffect();
     // Kept as a handle so deterministic tests can pin the reward before a tap.
     this._activeEventDesc = desc;
     UI.spawnFallingEvent(
@@ -4078,22 +4137,97 @@ class Game {
   _onEventMiss(desc) {
     const s = this.session;
     if (s && !s.ended && desc.type === EVENT_PROBLEM) {
-      // A problem left to fall scatters nearby bubbles, breaking up groups.
-      const board = s.board;
-      const anchor = board.randomFilledCell();
-      if (anchor) {
-        const cells = board.scatterArea(anchor.c, anchor.r, SCATTER_COUNT);
-        for (const cell of cells) {
-          const t = board.targetPixel(cell.c, cell.r);
-          this.particles.burst(t.x, t.y, "#ff4d63", 10, 0.7);
-        }
-        this.shake.add(0.3);
-        UI.toast("⚠️ Bubbles scattered!");
-        Audio.lose();
-        vibrate(40);
-      }
+      this._applyProblemEffect(desc.effect || rollProblemEffect());
     }
     this._resolveEvent();
+  }
+
+  _applyProblemEffect(effect) {
+    const s = this.session;
+    if (!s || s.ended) return false;
+    const board = s.board;
+    let cells = [];
+    let toast = "⚠️ Problem landed!";
+    let color = "#ff4d63";
+    if (effect === PROBLEM_EFFECT_SHUFFLE) {
+      board.shuffle();
+      cells = this._sampleFilledCells(10);
+      toast = "⚠️ Board scrambled!";
+      color = "#ffb347";
+    } else if (effect === PROBLEM_EFFECT_MOVES) {
+      const penalty = s.mode === "timeattack" ? 5 : 2;
+      if (s.mode === "timeattack") {
+        s.timeLeft = Math.max(0, (s.timeLeft || 0) - penalty);
+        toast = `⚠️ -${penalty}s penalty!`;
+      } else if (Number.isFinite(s.movesLeft)) {
+        s.movesLeft = Math.max(0, s.movesLeft - penalty);
+        toast = `⚠️ -${penalty} moves!`;
+      }
+      cells = this._sampleFilledCells(6);
+      color = "#ffd35b";
+    } else if (effect === PROBLEM_EFFECT_FREEZE) {
+      cells = this._freezeRandomCells(3);
+      toast = "⚠️ Bubbles frozen!";
+      color = "#9be7ff";
+    } else if (effect === PROBLEM_EFFECT_VINE) {
+      cells = this._seedProblemVine();
+      toast = "⚠️ Vine sprouted!";
+      color = "#68d66b";
+    } else {
+      const anchor = board.randomFilledCell();
+      if (anchor) cells = board.scatterArea(anchor.c, anchor.r, SCATTER_COUNT);
+      toast = "⚠️ Bubbles scattered!";
+    }
+    for (const cell of cells) {
+      const t = board.targetPixel(cell.c, cell.r);
+      this.particles.burst(t.x, t.y, color, 10, 0.7);
+    }
+    this.shake.add(0.3);
+    UI.toast(toast);
+    Audio.lose();
+    vibrate(40);
+    this.refreshHud();
+    return true;
+  }
+
+  _sampleFilledCells(count = 6) {
+    const s = this.session;
+    const out = [];
+    if (!s || !s.board) return out;
+    for (let c = 0; c < s.board.cols; c++)
+      for (let r = 0; r < s.board.rows; r++)
+        if (s.board.grid[c][r] !== -1) out.push({ c, r });
+    return out.slice(0, Math.max(0, count));
+  }
+
+  _freezeRandomCells(count = 3) {
+    const s = this.session;
+    const board = s && s.board;
+    if (!board) return [];
+    const cells = [];
+    for (let c = 0; c < board.cols; c++)
+      for (let r = 0; r < board.rows; r++)
+        if (board.grid[c][r] !== -1 && board.types[c][r] === NORMAL)
+          cells.push({ c, r });
+    const chosen = cells.slice(0, Math.max(0, count));
+    for (const cell of chosen) {
+      board.types[cell.c][cell.r] = ICE;
+      const sp = board.spriteGrid[cell.c][cell.r];
+      if (sp) sp.scale = 0.6;
+    }
+    return chosen;
+  }
+
+  _seedProblemVine() {
+    const s = this.session;
+    const board = s && s.board;
+    if (!board) return [];
+    const cell = board.randomFilledCell();
+    if (!cell || board.types[cell.c][cell.r] !== NORMAL) return [];
+    board.types[cell.c][cell.r] = VINE;
+    const sp = board.spriteGrid[cell.c][cell.r];
+    if (sp) sp.scale = 0.6;
+    return [cell];
   }
 
   render(time) {
@@ -4187,6 +4321,7 @@ if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) 
     cascade: { cascadeBonus, cascadeTier },
     tournament: { getTournamentLevel, getTournamentGoals, tournamentRank, getTournamentBest },
     timeattack: { seconds: TIME_ATTACK_SECONDS },
+    themeMotif,
     Audio,
   };
 }

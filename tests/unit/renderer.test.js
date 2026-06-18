@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { CB_SYMBOLS, hexToRgb, shade, lighten } from "../../src/renderer.js";
+import { CB_SYMBOLS, Renderer, SPECIAL_ICON_ASSETS, hexToRgb, shade, lighten, themeMotif } from "../../src/renderer.js";
+import { THEMES } from "../../src/themes.js";
 import { getLevel, LEVEL_COUNT } from "../../src/levels.js";
 
 describe("colourblind symbols", () => {
@@ -19,6 +20,70 @@ describe("colourblind symbols", () => {
       maxColors = Math.max(maxColors, getLevel(i).colors);
     }
     expect(CB_SYMBOLS.length).toBeGreaterThanOrEqual(maxColors);
+  });
+});
+
+describe("special bubble icon assets", () => {
+  it("uses only local vendored SVG icons", () => {
+    const values = Object.values(SPECIAL_ICON_ASSETS);
+    expect(values.length).toBeGreaterThanOrEqual(7);
+    for (const asset of values) {
+      expect(asset).toMatch(/^\.\/assets\/icons\/game-icons\/.+\.svg$/);
+      expect(asset).not.toMatch(/^https?:/);
+    }
+  });
+});
+
+describe("theme background motifs", () => {
+  it("assigns every visual theme a motif profile", () => {
+    const kinds = new Set();
+    for (const theme of THEMES) {
+      const motif = themeMotif(theme.id);
+      expect(motif).toBeTruthy();
+      expect(motif.count).toBeGreaterThan(0);
+      expect(motif.alpha).toBeGreaterThan(0);
+      kinds.add(motif.kind);
+    }
+    expect(kinds.size).toBeGreaterThan(6);
+  });
+
+  it("drawBackground handles motifs in normal and reduced-motion modes", () => {
+    const calls = [];
+    const gradient = { addColorStop: (...args) => calls.push(["addColorStop", ...args]) };
+    const ctx = new Proxy(
+      {},
+      {
+        get: (_t, prop) => {
+          if (prop === "createLinearGradient" || prop === "createRadialGradient") return () => gradient;
+          if (
+            [
+              "save",
+              "restore",
+              "fillRect",
+              "beginPath",
+              "moveTo",
+              "lineTo",
+              "bezierCurveTo",
+              "quadraticCurveTo",
+              "stroke",
+              "fill",
+              "arc",
+              "ellipse",
+              "translate",
+              "rotate",
+              "closePath",
+            ].includes(prop)
+          ) return (...args) => calls.push([prop, ...args]);
+          return undefined;
+        },
+        set: () => true,
+      }
+    );
+    const renderer = new Renderer(ctx);
+    expect(() => renderer.drawBackground(360, 640, THEMES[0], 1234)).not.toThrow();
+    renderer.reducedMotion = true;
+    expect(() => renderer.drawBackground(360, 640, THEMES[6], 5678)).not.toThrow();
+    expect(calls.some(([name]) => name === "stroke" || name === "fill")).toBe(true);
   });
 });
 

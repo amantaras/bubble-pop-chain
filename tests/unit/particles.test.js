@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ParticleSystem, popStyleForGroup } from "../../src/particles.js";
+import { ParticleSystem, SPRITE_PARTICLE_ASSETS, popStyleForGroup } from "../../src/particles.js";
 
 describe("ParticleSystem", () => {
   it("burst and sparkle add the requested number of particles", () => {
@@ -53,6 +53,21 @@ describe("ParticleSystem", () => {
     expect(ps.rings.length).toBe(0);
   });
 
+  it("spriteBurst adds asset-backed particles that expire", () => {
+    const ps = new ParticleSystem();
+    ps.spriteBurst(20, 30, 3, 1.2);
+    expect(ps.spriteCount).toBe(4);
+    expect(ps.sprites.every((s) => SPRITE_PARTICLE_ASSETS.includes(s.path))).toBe(true);
+    ps.update(2);
+    expect(ps.spriteCount).toBe(0);
+  });
+
+  it("caps the sprite particle pool", () => {
+    const ps = new ParticleSystem();
+    for (let i = 0; i < 100; i++) ps.spriteBurst(i, i, 4, 1);
+    expect(ps.spriteCount).toBe(180);
+  });
+
   it("caps the live ring pool the same way as particles", () => {
     const ps = new ParticleSystem();
     for (let i = 0; i < 200; i++) ps.ring(0, 0, "#fff", { life: 5 });
@@ -89,7 +104,9 @@ describe("ParticleSystem", () => {
       ps.motionScale = 0;
       ps.burst(0, 0, "#f00", 20, 1);
       ps.sparkle(0, 0, "#fff", 10);
+      ps.spriteBurst(0, 0, 4, 1);
       expect(ps.count).toBe(0);
+      expect(ps.spriteCount).toBe(0);
     });
 
     it("skips expanding shockwave rings below the motion threshold", () => {
@@ -125,6 +142,17 @@ describe("ParticleSystem", () => {
     expect(() => ps.draw(ctx)).not.toThrow();
     expect(calls).toContain("fill"); // particle + flash fill
     expect(calls).toContain("stroke"); // hollow ring
+  });
+});
+
+describe("sprite particle assets", () => {
+  it("uses local vendored Kenney particle sprites only", () => {
+    expect(SPRITE_PARTICLE_ASSETS.length).toBe(12);
+    expect(new Set(SPRITE_PARTICLE_ASSETS).size).toBe(SPRITE_PARTICLE_ASSETS.length);
+    for (const asset of SPRITE_PARTICLE_ASSETS) {
+      expect(asset).toMatch(/^\.\/assets\/vfx\/kenney-particles\/.+\.png$/);
+      expect(asset).not.toMatch(/^https?:/);
+    }
   });
 });
 

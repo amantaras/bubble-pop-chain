@@ -290,7 +290,12 @@ never re‑discovered the hard way.
   lightning/bomb/multiplier/coin). Lightning draws a glowing pulsing bolt glyph,
   Stone a grey padlock shell, Bomb a dark fused shell with a pulsing lit spark,
   Multiplier a pulsing gold ring with a "×2" glyph, Coin a shiny gold disc with a
-  "$" glyph, and Vine curling green tendrils + leaf dots (`renderer.js`). All
+  "$" glyph, and Vine curling green tendrils + leaf dots (`renderer.js`). These
+  procedural marks are now reinforced with local white SVG overlays from
+  **Game-icons.net** (`assets/icons/game-icons/`, CC BY 3.0 attribution recorded
+  in that folder's `README.txt`; no remote runtime loading) so special bubbles
+  read more clearly on mobile while retaining a fallback if an icon is still
+  decoding. All
   types are part of the save/resume snapshot. The tutorial
   teaches Lightning (`grant: "lightning"` → `Game._placeTutorialLightning`),
   Stone (`grant: "stone"` → `Game._placeTutorialStone`, advancing on
@@ -417,9 +422,10 @@ never re‑discovered the hard way.
   coins (`GIFT_COIN_MIN..MAX`) or, ~40% of the time (`GIFT_POWERUP_CHANCE`), a
   free power-up (`GIFT_POWERUP_POOL`, excludes magnet) — tools land often enough
   to feel like a real drop, not just coins. Tap a problem to **defuse** it for a
-  small coin reward; if it falls off-screen untouched it calls
-  `board.scatterArea`, recolouring the nearest `SCATTER_COUNT` bubbles to break
-  apart connected clusters. Suspended during the tutorial (auto-spawns gated)
+  small coin reward; if it falls off-screen untouched it rolls one of five
+  `PROBLEM_EFFECTS`: scatter nearby bubbles (`board.scatterArea`), scramble the
+  board (`board.shuffle`), drain moves/seconds, freeze a few normal bubbles, or
+  seed a creeping vine threat. Suspended during the tutorial (auto-spawns gated)
   and once a session ends. Also **paused** while the player is off the playing
   window: `pauseForOverlay`/`resumeFromOverlay` (used by the pet manager and the
   mid-level shop) call `UI.pauseFallingEvents`/`resumeFallingEvents`, which add a
@@ -556,16 +562,20 @@ never re‑discovered the hard way.
   special-bubble overlays on top, and adds no new tutorial step because it is
   cosmetic only.
 - **Group-pop explosion styles** (`particles.js` `popStyleForGroup` +
-  `ParticleSystem.ring`, `main.js` `_popCells`): every group pop plays **one of
+  `ParticleSystem.ring`/`spriteBurst`, `main.js` `_popCells`): every group pop plays **one of
   five escalating explosion animations** — the bigger the group, the more
   impactful the effect. The pure `popStyleForGroup(size)` returns a style
   descriptor `{ style: 0-4, name, perCell, power, rings, flash, sparkle }` keyed
   by group size (2-3 `fizz` → 4-5 `pop` → 6-7 `burst` → 8-11 `blast` → 12+
   `supernova`); higher tiers throw **more particles per cell**, then **expanding
   shockwave rings** at the group centre, and at the top a **white flash bloom**
-  plus a **sparkle shower** (shake is also boosted on flash tiers). `_popCells`
-  picks the style by `groupSize`, bursts per cleared cell, then emits the
-  centroid rings/flash/sparkle. `ParticleSystem.ring(x,y,color,{maxRadius,width,
+  plus a **sparkle shower** (shake is also boosted on flash tiers). A small local
+  sprite layer from the **Kenney Particle Pack** (CC0; selected PNGs vendored in
+  `assets/vfx/kenney-particles/`, no remote loading) rides on top of the
+  procedural particles via `ParticleSystem.spriteBurst`, with `MAX_SPRITES = 180`
+  and reduced-motion scaling just like the base particle lane. `_popCells`
+  picks the style by `groupSize`, bursts per cleared cell, emits sprite particles
+  per cleared cell, then emits the centroid rings/flash/sparkle. `ParticleSystem.ring(x,y,color,{maxRadius,width,
   life,fill})` is an expanding additively-blended arc (`fill` = soft flash);
   rings live in `this.rings`, self-expire in `update`, draw in `draw`, and are
   bounded by `MAX_RINGS = 48` (same anti-storm cap as particles) and cleared on
@@ -729,7 +739,7 @@ never re‑discovered the hard way.
   toast states the goal).
 - **Pet companions** (`pets.js`, pure; `storage.js` `pets`): collectible helper
   pets that support the player both **passively** and with **active board
-  powers**. `PET_CATALOG` holds 15 pets across four rarities
+  powers**. `PET_CATALOG` holds 21 pets across four rarities
   (`common`/`rare`/`epic`/`legendary`). **Passive pets** carry an `ability`
   (`scoreMult`/`coinMult`/`powerMult`/`feverMult`/`startCharge`) that scales per
   level (`petBuffs`/`abilityValue`). **Active pets** carry an `active` config and
@@ -752,7 +762,10 @@ never re‑discovered the hard way.
   return` **first thing** and both `quitToMenu`/`_scheduleEnd` call
   `petAnim.clear()` + `finale.cancel()` — so a flourish still in flight when the
   player quits or the level ends can never re-enter `afterMove` on a null/next
-  session. Its `count` scales 2→6 by level. Four **elemental** active board pets round out the free roster:
+  session. Its `count` scales 2→6 across the longer level curve. **Luma 🖌️**
+  (`paint`, rare) recolours nearby awkward bubbles to match a tricky anchor,
+  creating a new cluster for the player's next pop (`grid.paintArea` →
+  `_petPaint`) without clearing anything directly. Four **elemental** active board pets round out the free roster:
   **Quake 🌍** (`quake`, rare) is a *match-maker* — a board-wide tremor that
   resettles every bubble so identical colours land together in big connected
   groups (`grid.quakeRegroup` → `_petQuake`; colours are conserved, it creates
@@ -769,8 +782,9 @@ never re‑discovered the hard way.
   bounces off the walls and auto-blasts the lowest bubble in its column(s) via
   `grid.bottomBubble`/`bottomBlock` → game hooks `_shipHitColumn`/`_shipNuke`
   (which destroy through the normal pop/score path). Its firepower scales with
-  pet level through the pure `shooterStats(level)` table — faster cannons →
-  parallel fire → board-clearing **nukes**. The ship is deployed/retired by
+  pet level through pure `shooterStats(level)` milestone anchors, interpolated
+  across Lv.1→12 — faster cannons → parallel fire → board-clearing **nukes**.
+  The ship is deployed/retired by
   `_syncAlienShip` in `_enterSession`, ticked in `update(dt)` and drawn in
   `render`; it never flies in the tutorial and stops on level end/quit. The
   companion
@@ -792,8 +806,12 @@ never re‑discovered the hard way.
   immediately when triggered (the animation is cosmetic); Talon's pick is the
   exception — it removes each bubble in step with the peck so nothing is pecked
   after it has already vanished.
-  Pets gain XP each level clear (`_awardPetXp`, `PET_XP_PER_LEVEL`, cap
-  `MAX_PET_LEVEL`). **Not pay-to-win**: pets are won from **crates**
+  Pets gain XP each level clear (`_awardPetXp`, `PET_XP_PER_LEVEL`) and follow a
+  long-form `MAX_PET_LEVEL = 12` curve (`xpForLevel`): early levels arrive
+  quickly, while late levels require sustained play instead of maxing in a few
+  clears. Passive and active scaling is normalized across that arc
+  (`abilityValue`, `petActive`), and active `count` is rounded at the source so
+  UI labels and board targeting stay integer. **Not pay-to-win**: pets are won from **crates**
   (`rollCrate`, seeded; `buyCrate` for `CRATE_COST` coins, treasure milestones
   drop a free crate, falling 🎁 gifts can drop a crate `GIFT_CRATE_CHANCE`,
   starter save grants Sparky + 1 crate); duplicates convert
@@ -1025,13 +1043,12 @@ never re‑discovered the hard way.
   `_buildPetTech`/`refreshPetsBadge`): an RPG **ability tree** that lets the
   player permanently customize a pet by spending the **level-up picks** it earns
   as it grows (purely XP-driven — no currency, no IAP, deliberately **not**
-  pay-to-win). `TECH_TREE` is `MAX_TECH_TIERS` (**4**) tiers, each unlocked at a
-  level-up (`minLevel` 2/3/4/5) and offering a **choice of two nodes** that is a
-  genuine trade-off, not a strict upgrade — T1 (Lv.2) Power Core ⚔️ +6% score |
-  Fortune 💰 +8% coins; T2 (Lv.3) Charged ⚡ +8% charge | Frenzy 🔥 +8% fever;
-  T3 (Lv.4) Sharp Focus 🎯 +10% score | Haste 🌀 −1 ability cooldown +5% charge;
-  T4 (Lv.5 capstone) Overdrive 🌟 +10% all passives | Mastery ⚙️ +1 active count,
-  ×1.15 strength, +6% score. Each node's `mods` fold into the pet exactly like
+  pay-to-win). `TECH_TREE` is `MAX_TECH_TIERS` (**10**) tiers, each unlocked at a
+  milestone level (`minLevel` 2/3/4/5/6/7/8/9/10/12) and offering a **choice of
+  two nodes** that is a genuine trade-off, not a strict upgrade. Early tiers keep
+  the score/coins/charge/fever/cooldown choices; later tiers add specialization
+  nodes like Combo Instinct, Treasure Sense, Wide Arc, Overcharge, Patron,
+  Reflex Loop, Force Bloom, Ascendant, and Legend Bond. Each node's `mods` fold into the pet exactly like
   traits/gems: `techBuffs(chosen)` aggregates the **passive** axes (`scoreMult`/
   `coinMult`/`powerMult`/`feverMult` as `1+sum`, `startCharge` additive) and
   `techActiveMods(chosen)` the **active** mods (`cooldownDelta`/`countDelta` summed,
@@ -1142,8 +1159,10 @@ in the **same** change. A feature is not "done" until every box is checked:
    ```
 6. **Update docs** — keep `tests/SKILL.md` test-coverage list and this
    `AGENTS.md` accurate when behaviour or structure changes.
-7. **Commit & push** to `master`, then **verify CI and the deploy both pass**
-   (see §6). Production is gated on CI — never bypass it.
+7. **Release automation is part of the task**: commit, push to `master`, then
+  **verify CI and the deploy both pass** (see §6). Do not stop after local
+  tests when the user asked for implementation unless they explicitly say not
+  to push/deploy. Production is gated on CI — never bypass it.
 
 If you cannot make the tests pass, do not commit. Fix the root cause.
 
@@ -1186,11 +1205,13 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 
 ```bash
 gh run list --limit 6                       # see CI + Deploy status
+gh run watch <ci_run_id> --exit-status      # wait for CI first
+gh run list --limit 6                       # find the Deploy run triggered by CI
 gh run watch <deploy_run_id> --exit-status  # wait for the deploy to finish
 curl -s -o /dev/null -w "%{http_code}\n" https://amantaras.github.io/bubble-pop-chain/
 ```
-The deploy run must end in **success** and the live URL must return 200. If CI
-is red, the deploy is correctly skipped — fix CI first.
+The CI run and deploy run must both end in **success**, and the live URL must
+return 200. If CI is red, the deploy is correctly skipped — fix CI first.
 
 ## 7. Platform / PWA gotchas (already handled — keep them handled)
 
@@ -1293,7 +1314,7 @@ defines the campaign's reward/challenge rhythm. It must stay in sync with
 - [ ] `npm test` is 100% green locally.
 - [ ] `tests/SKILL.md` and `AGENTS.md` updated if behaviour/structure changed.
 - [ ] Committed and pushed to `master`.
-- [ ] CI passed AND the production deploy succeeded; live URL returns 200.
+- [ ] CI passed, the production deploy succeeded, and the live URL returns 200.
 
 ## 11. Tutorial — KEEP IT IN SYNC WITH EVERY FEATURE CHANGE
 

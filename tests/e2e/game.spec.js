@@ -189,6 +189,8 @@ test.describe("menu & navigation (UI)", () => {
       "btn-play",
       "btn-endless",
       "btn-daily",
+      "btn-tournament",
+      "btn-timeattack",
       "btn-shop",
       "btn-themes",
       "btn-achievements",
@@ -202,6 +204,11 @@ test.describe("menu & navigation (UI)", () => {
     ]) {
       await expect(page.locator(`#${id}`)).toBeVisible();
     }
+    await expect(page.locator("#btn-play .cta-sub")).toHaveText("Campaign levels");
+    await expect(page.locator("#btn-daily .tile-sub")).toHaveText("One run today");
+    await expect(page.locator("#btn-tournament .tile-sub")).toHaveText("Weekly ladder");
+    await expect(page.locator("#btn-timeattack .tile-sub")).toHaveText("60 sec sprint");
+    await expect(page.locator(".menu-tiles .tile")).toHaveCount(13);
   });
 
   test("Play opens the level map with level 1 unlocked", async ({ page }) => {
@@ -1796,6 +1803,30 @@ test.describe("power-ups (UI arm + apply)", () => {
     expect(new Set(loadout).size).toBe(3);
   });
 
+  test("HUD tool slots mark stocked and empty tools for visual states", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(300);
+
+    await page.evaluate(() => {
+      window.__bpc.Storage.set("powerups", {
+        ...window.__bpc.Storage.get("powerups"),
+        bomb: 2,
+        chainBolt: 0,
+      });
+      window.__bpc.Storage.setLoadoutSlot(0, "bomb");
+      window.__bpc.Storage.setLoadoutSlot(1, "chainBolt");
+      window.__bpc.UI.updatePowerups();
+    });
+
+    await expect(page.locator("#pu-slot-0")).toHaveClass(/has-stock/);
+    await expect(page.locator("#pu-slot-0")).toHaveAttribute("data-stock", "2");
+    await expect(page.locator("#pu-slot-0 .pu-count")).toHaveText("2");
+    await expect(page.locator("#pu-slot-1")).toHaveClass(/no-stock/);
+    await expect(page.locator("#pu-slot-1")).toHaveAttribute("data-stock", "0");
+  });
+
   test("tapping an empty tool slot opens the shop with that tool highlighted and pauses the level", async ({
     page,
   }) => {
@@ -1952,12 +1983,14 @@ test.describe("group-pop explosion animations (5 escalating styles)", () => {
             const size = grp.length;
             const expected = window.__bpc.popStyle(size);
             g.particles.rings.length = 0; // isolate this pop's rings
+            g.particles.sprites.length = 0;
             g.popAt(c, r);
             return {
               size,
               style: g._lastPopStyle,
               expStyle: expected.style,
               rings: g.particles.rings.length,
+              sprites: g.particles.spriteCount,
               // rings[] holds the shockwave rings plus (for big pops) a flash bloom
               expRings: expected.rings + (expected.flash ? 1 : 0),
             };
@@ -1970,6 +2003,7 @@ test.describe("group-pop explosion animations (5 escalating styles)", () => {
     // match that style (so the animation really does escalate with group size).
     expect(res.style).toBe(res.expStyle);
     expect(res.rings).toBe(res.expRings);
+    expect(res.sprites).toBeGreaterThan(0);
   });
 
   test("a large group fires the top 'supernova' style with rings + flash", async ({
@@ -2003,13 +2037,15 @@ test.describe("group-pop explosion animations (5 escalating styles)", () => {
       }
       const size = b.getGroupAt(target.c, target.r).length;
       g.particles.rings.length = 0;
+      g.particles.sprites.length = 0;
       g.popAt(target.c, target.r);
-      return { size, style: g._lastPopStyle, rings: g.particles.rings.length };
+      return { size, style: g._lastPopStyle, rings: g.particles.rings.length, sprites: g.particles.spriteCount };
     });
     expect(res.size).toBeGreaterThanOrEqual(12);
     expect(res.style).toBe(4);
     // Three escalating shockwave rings plus the white flash bloom.
     expect(res.rings).toBe(4);
+    expect(res.sprites).toBeGreaterThanOrEqual(res.size);
   });
 });
 
@@ -2708,7 +2744,7 @@ test.describe("colorblind mode (accessibility)", () => {
   test("toggle on the Themes screen flips the renderer flag and persists", async ({
     page,
   }) => {
-    await page.getByRole("button", { name: "Themes", exact: true }).click();
+    await page.locator("#btn-themes").click();
     await expect(page.locator("#themes")).toBeVisible();
 
     // Off by default.
@@ -2742,7 +2778,7 @@ test.describe("colorblind mode (accessibility)", () => {
   });
 
   test("the saved colorblind setting is applied on reload", async ({ page }) => {
-    await page.getByRole("button", { name: "Themes", exact: true }).click();
+    await page.locator("#btn-themes").click();
     await page.locator("#cb-toggle").click();
     await expect(page.locator("#cb-toggle-state")).toHaveText("On");
 
@@ -2761,7 +2797,7 @@ test.describe("reduced motion (accessibility)", () => {
   test("toggle on the Themes screen dials down motion and persists", async ({
     page,
   }) => {
-    await page.getByRole("button", { name: "Themes", exact: true }).click();
+    await page.locator("#btn-themes").click();
     await expect(page.locator("#themes")).toBeVisible();
 
     // Off by default: full screen shake / particles, no body class.
@@ -2810,7 +2846,7 @@ test.describe("reduced motion (accessibility)", () => {
   test("the saved reduced-motion setting is applied on reload", async ({
     page,
   }) => {
-    await page.getByRole("button", { name: "Themes", exact: true }).click();
+    await page.locator("#btn-themes").click();
     await page.locator("#rm-toggle").click();
     await expect(page.locator("#rm-toggle-state")).toHaveText("On");
 
@@ -2906,7 +2942,7 @@ test.describe("idle move hint (assist)", () => {
     page,
   }) => {
     // On by default.
-    await page.getByRole("button", { name: "Themes", exact: true }).click();
+    await page.locator("#btn-themes").click();
     await expect(page.locator("#themes")).toBeVisible();
     await expect(page.locator("#hints-toggle-state")).toHaveText("On");
     expect(await page.evaluate(() => window.__bpc.game.hintsEnabled)).toBe(true);
@@ -3104,7 +3140,7 @@ test.describe("falling events (gift & problem tokens)", () => {
       // Trigger the miss path directly (no need to wait ~4s for the fall).
       const token = document.getElementById("falling-event");
       token.remove();
-      g._onEventMiss({ type: "problem" });
+      g._onEventMiss({ type: "problem", effect: "scatter" });
     });
 
     const changed = await page.evaluate((before) => {
@@ -3119,6 +3155,58 @@ test.describe("falling events (gift & problem tokens)", () => {
     expect(
       await page.evaluate(() => !window.__bpc.game.activeEvent)
     ).toBe(true);
+  });
+
+  test("missed problem tokens can trigger five different hazards", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(500);
+
+    const out = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const s = g.session;
+      const b = s.board;
+      function gridSnap() {
+        return b.grid.map((col) => col.slice());
+      }
+      function diff(before) {
+        let n = 0;
+        for (let c = 0; c < b.cols; c++)
+          for (let r = 0; r < b.rows; r++) if (b.grid[c][r] !== before[c][r]) n++;
+        return n;
+      }
+      function typeCount(type) {
+        let n = 0;
+        for (let c = 0; c < b.cols; c++)
+          for (let r = 0; r < b.rows; r++) if (b.types[c][r] === type) n++;
+        return n;
+      }
+      const beforeScatter = gridSnap();
+      g._applyProblemEffect("scatter");
+      const scatter = diff(beforeScatter);
+
+      const beforeShuffle = gridSnap();
+      g._applyProblemEffect("shuffle");
+      const shuffle = diff(beforeShuffle);
+
+      s.movesLeft = 10;
+      g._applyProblemEffect("moves");
+      const moves = s.movesLeft;
+
+      const iceBefore = typeCount(1);
+      g._applyProblemEffect("freeze");
+      const iceAfter = typeCount(1);
+
+      const vineBefore = typeCount(9);
+      g._applyProblemEffect("vine");
+      const vineAfter = typeCount(9);
+
+      return { scatter, shuffle, moves, iceBefore, iceAfter, vineBefore, vineAfter };
+    });
+    expect(out.scatter).toBeGreaterThan(0);
+    expect(out.shuffle).toBeGreaterThan(0);
+    expect(out.moves).toBe(8);
+    expect(out.iceAfter).toBeGreaterThan(out.iceBefore);
+    expect(out.vineAfter).toBeGreaterThan(out.vineBefore);
   });
 
   test("tapping a problem defuses it without scattering bubbles", async ({ page }) => {
@@ -3172,7 +3260,7 @@ test.describe("shop & monetization (UI)", () => {
   test.beforeEach(({ page }) => openGame(page));
 
   test("daily free-coins ad reward escalates and caps at 3/day", async ({ page }) => {
-    await page.getByRole("button", { name: "Shop", exact: true }).click();
+    await page.locator("#btn-shop").click();
     const claim = async () => {
       await page.locator("#shop-free-coins").click();
       await expect(page.locator("#ad-overlay")).toBeVisible();
@@ -3192,7 +3280,7 @@ test.describe("shop & monetization (UI)", () => {
   test("buying a power-up deducts coins; insufficient funds is blocked", async ({
     page,
   }) => {
-    await page.getByRole("button", { name: "Shop", exact: true }).click();
+    await page.locator("#btn-shop").click();
     // With 0 coins, buying the bomb (150) must fail with a toast.
     await page.locator("#shop-list button", { hasText: /^150$/ }).click();
     await expect(page.locator("#toast")).toContainText("Not enough");
@@ -3253,7 +3341,7 @@ test.describe("shop & monetization (UI)", () => {
   test("remove ads disables interstitials and hides double-coins", async ({
     page,
   }) => {
-    await page.getByRole("button", { name: "Shop", exact: true }).click();
+    await page.locator("#btn-shop").click();
     await page.locator("#shop-list button", { hasText: "$2.99" }).click();
     await expect(page.locator("#shop-list button", { hasText: "Owned" })).toBeVisible();
     const removed = await page.evaluate(() => window.__bpc.Monetization.isAdsRemoved());
@@ -3270,7 +3358,7 @@ test.describe("shop & monetization (UI)", () => {
   test("starter pack shows in the shop and grants the bundle once", async ({
     page,
   }) => {
-    await page.getByRole("button", { name: "Shop", exact: true }).click();
+    await page.locator("#btn-shop").click();
     // The bundle is the first shop item.
     await expect(page.locator('#shop-list .shop-starter')).toBeVisible();
     await expect(page.locator("#shop-starter-buy")).toContainText("$1.99");
@@ -3324,7 +3412,7 @@ test.describe("themes (UI)", () => {
   }) => {
     // Grant enough coins for a priced theme.
     await page.evaluate(() => window.__bpc.Economy.addCoins(2000));
-    await page.getByRole("button", { name: "Themes", exact: true }).click();
+    await page.locator("#btn-themes").click();
 
     // Buy "Candy Pop" (600).
     await page.locator("#theme-list button", { hasText: "600" }).click();
@@ -3342,6 +3430,35 @@ test.describe("themes (UI)", () => {
       getComputedStyle(document.documentElement).getPropertyValue("--bg-0").trim()
     );
     expect(bg.length).toBeGreaterThan(0);
+  });
+
+  test("themes resolve distinct live background motifs and reduced motion reaches the renderer", async ({
+    page,
+  }) => {
+    const before = await page.evaluate(() => ({
+      theme: window.__bpc.game.theme.id,
+      motif: window.__bpc.themeMotif(window.__bpc.game.theme.id).kind,
+      reduced: window.__bpc.game.renderer.reducedMotion,
+    }));
+    expect(before.theme).toBe("aurora");
+    expect(before.motif).toBe("ribbons");
+    expect(before.reduced).toBe(false);
+
+    await page.evaluate(() => window.__bpc.Economy.addCoins(2000));
+    await page.locator("#btn-themes").click();
+    await page.locator("#theme-list button", { hasText: "600" }).click();
+    await page.locator(".theme-item", { hasText: "Candy Pop" })
+      .getByRole("button", { name: "Use" })
+      .click();
+    const themed = await page.evaluate(() => ({
+      theme: window.__bpc.game.theme.id,
+      motif: window.__bpc.themeMotif(window.__bpc.game.theme.id).kind,
+    }));
+    expect(themed.theme).toBe("candy");
+    expect(themed.motif).toBe("sprinkles");
+
+    await page.locator("#rm-toggle").click();
+    expect(await page.evaluate(() => window.__bpc.game.renderer.reducedMotion)).toBe(true);
   });
 });
 
@@ -3388,6 +3505,24 @@ test.describe("persistence & PWA", () => {
     expect(resp.ok()).toBe(true);
     const json = await resp.json();
     expect(json.name).toBe("Bubble Pop Chain");
+  });
+
+  test("special bubble icon assets are local and reachable", async ({ page }) => {
+    const icons = [
+      "/assets/icons/game-icons/lightning-bolt.svg",
+      "/assets/icons/game-icons/bomb.svg",
+      "/assets/icons/game-icons/padlock.svg",
+      "/assets/icons/game-icons/snowflake.svg",
+      "/assets/icons/game-icons/vine-leaf.svg",
+      "/assets/icons/game-icons/coin.svg",
+      "/assets/icons/game-icons/multiplication.svg",
+    ];
+    for (const icon of icons) {
+      expect(icon).not.toMatch(/^https?:/);
+      const resp = await page.request.get(icon);
+      expect(resp.ok()).toBe(true);
+      expect(resp.headers()["content-type"] || "").toContain("image/svg");
+    }
   });
 });
 
@@ -3960,7 +4095,7 @@ test.describe("pet companions (collection & buffs)", () => {
   test("Pets screen opens with Sparky owned, equipped, and a starter crate", async ({
     page,
   }) => {
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     await expect(page.locator("#pets")).toBeVisible();
     // Starter state: Sparky owned + equipped, one free crate to open.
     await expect(page.locator("#pets-crate .crate-art-pet")).toBeVisible();
@@ -3975,7 +4110,7 @@ test.describe("pet companions (collection & buffs)", () => {
 
   test("buying then opening a crate grants a pet", async ({ page }) => {
     await page.evaluate(() => window.__bpc.Economy.addCoins(1000));
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
 
     // Buy a crate, then open everything we have.
     await page.locator("#crate-buy").click();
@@ -4004,7 +4139,7 @@ test.describe("pet companions (collection & buffs)", () => {
   });
 
   test("duplicate crate pulls grant Pet Dust", async ({ page }) => {
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     const dust = await page.evaluate(() => {
       const g = window.__bpc.game;
       const S = window.__bpc.Storage;
@@ -4027,7 +4162,7 @@ test.describe("pet companions (collection & buffs)", () => {
   });
 
   test("the pity timer guarantees rarer pets after dry opens", async ({ page }) => {
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     const result = await page.evaluate(() => {
       const S = window.__bpc.Storage;
       const { pityRarityFloor, nextPity, PITY_EPIC } = window.__bpc.pets;
@@ -4040,7 +4175,7 @@ test.describe("pet companions (collection & buffs)", () => {
   });
 
   test("an equipped pet's trait modifies its buffs", async ({ page }) => {
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     const out = await page.evaluate(() => {
       const S = window.__bpc.Storage;
       const { petBuffs, levelForXp } = window.__bpc.pets;
@@ -4058,14 +4193,14 @@ test.describe("pet companions (collection & buffs)", () => {
   });
 
   test("the Pets screen shows the party panel with a lead slot", async ({ page }) => {
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     await expect(page.locator("#pet-party")).toBeVisible();
     // The equipped pet appears in the lead slot.
     await expect(page.locator("#pet-party .pp-lead")).toBeVisible();
   });
 
   test("adding a support pet folds its buffs into the equipped party", async ({ page }) => {
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     const out = await page.evaluate(() => {
       const S = window.__bpc.Storage;
       const G = window.__bpc.game;
@@ -4082,7 +4217,7 @@ test.describe("pet companions (collection & buffs)", () => {
   });
 
   test("a matching party grants a set synergy bonus", async ({ page }) => {
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     const out = await page.evaluate(() => {
       const S = window.__bpc.Storage;
       const G = window.__bpc.game;
@@ -4104,7 +4239,7 @@ test.describe("pet companions (collection & buffs)", () => {
 
   test("Pet Store sells premium pets and a legendary crate", async ({ page }) => {
     await page.evaluate(() => window.__bpc.Economy.addCoins(1000));
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     await expect(page.locator("#pet-store")).toBeVisible();
     // The premium pets (aurora/gizmo) are listed with real-money buy buttons.
     await expect(page.locator('#pet-store .store-buy[data-pet="aurora"]')).toBeVisible();
@@ -4128,7 +4263,7 @@ test.describe("pet companions (collection & buffs)", () => {
   });
 
   test("buying a premium pet from the store unlocks it", async ({ page }) => {
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     await expect(page.locator("#pet-store")).toBeVisible();
     await page.locator('#pet-store .store-buy[data-pet="aurora"]').click();
     await expect
@@ -4139,7 +4274,7 @@ test.describe("pet companions (collection & buffs)", () => {
   });
 
   test("winning a new pet shows the big celebration reveal", async ({ page }) => {
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     // Own rover so it can be equipped, then fire the reveal deterministically.
     await page.evaluate(() => {
       window.__bpc.Storage.grantPet("rover");
@@ -4165,7 +4300,7 @@ test.describe("pet companions (collection & buffs)", () => {
   test("buying a premium pet fires the new-companion celebration", async ({
     page,
   }) => {
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     await page.locator('#pet-store .store-buy[data-pet="aurora"]').click();
     await expect(page.locator("#pet-reveal")).toBeVisible();
     await expect(page.locator("#pet-reveal-name")).toHaveText("Aurora");
@@ -4271,6 +4406,68 @@ test.describe("pet companions (collection & buffs)", () => {
     expect(result.afterCount).toBeLessThanOrEqual(result.beforeCount - 3);
     expect(result.busy).toBe(true);
     expect(result.kind).toBe("diagonal");
+  });
+
+  test("the cleanse pet (Whiskers) pops isolated bubbles immediately", async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      window.__bpc.Storage.grantPet("whiskers");
+      window.__bpc.game.equipPet("whiskers");
+    });
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    const active = await page.evaluate(() => window.__bpc.game.session.petActive);
+    expect(active).not.toBeNull();
+    expect(active.type).toBe("cleanse");
+
+    const result = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          b.grid[c][r] = 0;
+          b.types[c][r] = 0;
+          const sp = b.spriteGrid[c][r];
+          if (sp) {
+            sp.color = 0;
+            sp.type = 0;
+          }
+        }
+      const lone = [
+        { c: 1, r: 1, col: 1 },
+        { c: 2, r: 2, col: 2 },
+      ];
+      for (const { c, r, col } of lone) {
+        b.grid[c][r] = col;
+        const sp = b.spriteGrid[c][r];
+        if (sp) sp.color = col;
+      }
+      const targets = b.mostIsolatedCells(2);
+      const countOffColour = () => {
+        let n = 0;
+        for (let c = 0; c < b.cols; c++)
+          for (let r = 0; r < b.rows; r++)
+            if (b.grid[c][r] !== -1 && b.grid[c][r] !== 0) n++;
+        return n;
+      };
+      const before = countOffColour();
+      g._petCleanse({ ...g.session.petActive, count: 2 });
+      const after = countOffColour();
+      return {
+        targets,
+        before,
+        after,
+        busy: g.petAnim.busy,
+        kind: g.petAnim.items[0] && g.petAnim.items[0].kind,
+        particles: g.particles.count,
+      };
+    });
+    expect(result.targets).toHaveLength(2);
+    expect(result.before).toBe(2);
+    expect(result.after).toBe(0);
+    expect(result.busy).toBe(true);
+    expect(result.kind).toBe("cleanse");
+    expect(result.particles).toBeGreaterThan(0);
   });
 
   test("the pick pet (Talon) picks off the most isolated bubbles", async ({
@@ -4621,7 +4818,7 @@ test.describe("pet companions (collection & buffs)", () => {
     page,
   }) => {
     await page.evaluate(() => window.__bpc.Storage.grantPet("clover"));
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     await expect(page.locator("#pets")).toBeVisible();
     await page.locator('.pet-card[data-pet="clover"]').click();
     await page.locator("#pet-equip").click();
@@ -4768,6 +4965,26 @@ test.describe("lone-bubble rescue", () => {
     expect(armed).toBe("pick");
   });
 
+  test("buying the recommended Pick equips it in a visible armed HUD slot", async ({
+    page,
+  }) => {
+    await openGame(page);
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.evaluate(() => window.__bpc.Economy.addCoins(1000));
+    await jamBoardWithLoneBubbles(page);
+    await expect(page.locator("#isolated")).toBeVisible();
+
+    await page.locator("#iso-pick").click();
+    await expect(page.locator("#isolated")).toBeHidden();
+    const pickSlot = page.locator('[data-pu="pick"]');
+    await expect(pickSlot).toBeVisible();
+    await expect(pickSlot).toHaveClass(/armed/);
+    await expect(pickSlot.locator(".pu-count")).toHaveText("1");
+    expect(
+      await page.evaluate(() => window.__bpc.Storage.getLoadout().includes("pick"))
+    ).toBe(true);
+  });
+
   test("Give Up lets the level end normally", async ({ page }) => {
     await openGame(page);
     await page.evaluate(() => window.__bpc.game.startCampaign(2));
@@ -4786,7 +5003,7 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
   test.beforeEach(({ page }) => openGame(page));
 
   test("the Pets screen launches a dedicated Gem Forge with Bag & Forge tabs", async ({ page }) => {
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     // The Pets screen now shows a compact launcher card, not the full panel.
     await expect(page.locator("#gem-launch")).toBeVisible();
     await page.locator("#gem-launch").click();
@@ -4816,7 +5033,7 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
   });
 
   test("crafting a gem with dust adds it to inventory and spends dust", async ({ page }) => {
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     const out = await page.evaluate(() => {
       const S = window.__bpc.Storage;
       const G = window.__bpc.game;
@@ -4834,7 +5051,7 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
   });
 
   test("crafting rejects an unaffordable gem", async ({ page }) => {
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     const res = await page.evaluate(() => {
       window.__bpc.Storage.addDust(0);
       return window.__bpc.game.craftGem("diamond", "brilliant");
@@ -4844,7 +5061,7 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
   });
 
   test("forgeTier fuses 3 of the tier below when available, else spends dust", async ({ page }) => {
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     const out = await page.evaluate(() => {
       const S = window.__bpc.Storage;
       const G = window.__bpc.game;
@@ -4885,7 +5102,7 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
   });
 
   test("sockets unlock with pet level (0 at L1, up to 2 at L4)", async ({ page }) => {
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     const out = await page.evaluate(() => {
       const { socketsForLevel } = window.__bpc.gems;
       return { l1: socketsForLevel(1), l2: socketsForLevel(2), l4: socketsForLevel(4) };
@@ -4938,7 +5155,7 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
   });
 
   test("unsocketing a gem shatters it for a partial dust refund", async ({ page }) => {
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     const out = await page.evaluate(() => {
       const S = window.__bpc.Storage;
       const G = window.__bpc.game;
@@ -4976,7 +5193,7 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
   });
 
   test("a crate open can drop a loose gem into inventory", async ({ page }) => {
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     const dropped = await page.evaluate(() => {
       const S = window.__bpc.Storage;
       const G = window.__bpc.game;
@@ -4994,12 +5211,12 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
   });
 
   test("a low-level pet can only socket low-tier gems", async ({ page }) => {
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     const out = await page.evaluate(() => {
       const S = window.__bpc.Storage;
       const G = window.__bpc.game;
       S.grantPet("rover");
-      S.addPetXp("rover", 50); // → Lv.2 (1 socket, chipped tier only)
+      S.addPetXp("rover", 56); // → Lv.2 (1 socket, chipped tier only)
       S.addGem("ruby:chipped", 1);
       S.addGem("ruby:brilliant", 1);
       S.addDust(500); // enough dust either way — the gate is tier, not cost
@@ -5020,7 +5237,7 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
       S.addGem("citrine:chipped", 1);
       S.addDust(500); // affordable → the gem is socketable + flagged BEST
     });
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     await page.locator('.pet-card[data-pet="rover"]').click();
     await page.locator("#pet-detail .socket-slot.empty").first().click();
     // The picker is promoted to a centered overlay (it lives above the detail in
@@ -5034,7 +5251,7 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
   });
 
   test("socketing a gem costs dust and is rejected when too poor", async ({ page }) => {
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     const out = await page.evaluate(() => {
       const S = window.__bpc.Storage;
       const G = window.__bpc.game;
@@ -5063,7 +5280,7 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
       S.addGem("ruby:brilliant", 1);
       S.addDust(500);
     });
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     await page.locator('.pet-card[data-pet="draco"]').click();
     await page.locator("#pet-detail .socket-slot.empty").first().click();
     // The single gem is auto-selected; the detail panel shows its exact buff and
@@ -5086,7 +5303,7 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
       S.set("settings", s);
       window.__bpc.UI.reducedMotion = false;
     });
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     await page.locator('.pet-card[data-pet="draco"]').click();
     await page.locator("#pet-detail .socket-slot.empty").first().click();
     // Pre-selected gem → confirm the embue via the Embue button.
@@ -5108,7 +5325,7 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
       S.addGem("citrine:chipped", 1); // +5% coins, weaker tier
       S.addDust(500);
     });
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     await page.locator('.pet-card[data-pet="draco"]').click();
     await page.locator("#pet-detail .socket-slot.empty").first().click();
     // The strongest socketable gem leads, is auto-selected, and is the embue target.
@@ -5141,7 +5358,7 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
       S.addDust(500);
       G.socketGem("draco", 0, "ruby:brilliant");
     });
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     await page.locator('.pet-card[data-pet="draco"]').click();
     const dustBefore = await page.evaluate(() => window.__bpc.Storage.getDust());
     // Tapping a filled socket asks for confirmation (the gem will be destroyed).
@@ -5164,7 +5381,7 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
   });
 
   test("fusing 3 same-tier gems yields 1 of the next tier (via the model)", async ({ page }) => {
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     const out = await page.evaluate(() => {
       const S = window.__bpc.Storage;
       const G = window.__bpc.game;
@@ -5183,7 +5400,7 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
   });
 
   test("fusing is rejected with fewer than 3 gems and at the top tier", async ({ page }) => {
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     const out = await page.evaluate(() => {
       const S = window.__bpc.Storage;
       const G = window.__bpc.game;
@@ -5208,7 +5425,7 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
 
   test("the gem inventory shows a Fuse button that merges through the UI", async ({ page }) => {
     await page.evaluate(() => window.__bpc.Storage.addGem("sapphire:chipped", 3));
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     await page.locator("#gem-launch").click();
     const fuse = page.locator('.pg-fuse-btn[data-gem="sapphire:chipped"]');
     await expect(fuse).toBeVisible();
@@ -5227,7 +5444,7 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
 
   test("the Fuse button is disabled below 3 gems", async ({ page }) => {
     await page.evaluate(() => window.__bpc.Storage.addGem("amber:chipped", 2));
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     await page.locator("#gem-launch").click();
     const fuse = page.locator('.pg-fuse-btn[data-gem="amber:chipped"]');
     await expect(fuse).toBeVisible();
@@ -5240,7 +5457,7 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
       S.addGem("diamond:brilliant", 1);
       S.addGem("ruby:chipped", 2);
     });
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     await page.locator("#gem-launch").click();
     // Two owned gems => two compact cells in the grid.
     await expect(page.locator(".pg-grid2 .pg-cell")).toHaveCount(2);
@@ -5271,7 +5488,7 @@ test.describe("pet technology tree (RPG batch 5)", () => {
       S.grantPet("draco");
       S.addPetXp("draco", 60); // → Lv.2 (unlocks tier 1)
     });
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     await page.locator('.pet-card[data-pet="draco"]').click();
     await expect(page.locator("#pet-detail .pd-tech")).toBeVisible();
     // Tier 1 is pending: both options are clickable.
@@ -5279,7 +5496,7 @@ test.describe("pet technology tree (RPG batch 5)", () => {
     await expect(page.locator('#pet-detail .pd-tech-node.opt[data-node="t1_power"]')).toBeVisible();
     await expect(page.locator('#pet-detail .pd-tech-node.opt[data-node="t1_fortune"]')).toBeVisible();
     // Locked future tiers show the level required.
-    await expect(page.locator("#pet-detail .pd-tech-tier.locked")).toHaveCount(3);
+    await expect(page.locator("#pet-detail .pd-tech-tier.locked")).toHaveCount(9);
   });
 
   test("picking a node records it and raises the pet's buff", async ({ page }) => {
@@ -5294,7 +5511,7 @@ test.describe("pet technology tree (RPG batch 5)", () => {
       const lvl = levelForXp(S.getPetState().owned.draco.xp);
       return petBuffs("draco", lvl, S.getPetTrait("draco"), S.getSockets("draco"), S.getPetTech("draco")).scoreMult;
     });
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     await page.locator('.pet-card[data-pet="draco"]').click();
     await page.locator('#pet-detail .pd-tech-node.opt[data-node="t1_power"]').click();
     const out = await page.evaluate(() => {
@@ -5336,12 +5553,12 @@ test.describe("pet technology tree (RPG batch 5)", () => {
       S.addPetXp("draco", 60); // Lv.2 → pending tier
     });
     // Re-show the menu so the badge refreshes.
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     await page.locator("#pets-back").click();
     await expect(page.locator("#pets-badge")).toBeVisible();
     // Once picked, the badge clears.
     await page.evaluate(() => window.__bpc.game.pickPetTech("draco", "t1_power"));
-    await page.getByRole("button", { name: "Pets", exact: true }).click();
+    await page.locator("#btn-pets").click();
     await page.locator("#pets-back").click();
     await expect(page.locator("#pets-badge")).toBeHidden();
   });

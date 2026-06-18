@@ -14,7 +14,7 @@
 import { socketBuffs, socketActiveMods } from "./gems.js";
 import { techBuffs, techActiveMods } from "./tech.js";
 
-export const MAX_PET_LEVEL = 5;
+export const MAX_PET_LEVEL = 12;
 // XP granted to the equipped pet each time a level is cleared.
 export const PET_XP_PER_LEVEL = 12;
 // Bonus XP when a crate rolls a pet you already own (so dupes aren't wasted).
@@ -101,7 +101,8 @@ export const RARITY_WEIGHTS = {
 //      scoreMult   — multiplies points scored
 //      coinMult    — multiplies coins earned per level
 //      startCharge — starts each level with this fraction of the Charge meter
-//    declared as `ability: { key, per, label }` (value = `per` × pet level).
+//    declared as `ability: { key, per, label }` and scaled by `abilityValue`
+//    across the longer 12-level curve.
 //
 //  • ACTIVE board action — the pet physically helps on the board every few
 //    moves (a cooldown that shortens as the pet levels up):
@@ -121,6 +122,8 @@ export const RARITY_WEIGHTS = {
 //                 vertical columns of bubbles
 //      tidal    — (🌊 Tidal) a flood that wipes every bubble of the board's
 //                 current dominant colour
+//      paint    — recolours nearby bubbles to match a difficult anchor,
+//                 creating a fresh cluster without clearing anything directly
 //      shooter  — (PREMIUM "Nova") an alien gunship that patrols the bottom of
 //                 the board in real time and auto-blasts the lowest bubbles.
 //                 Its firepower grows with the pet's level: faster cannons →
@@ -145,6 +148,16 @@ export const PET_CATALOG = [
     ability: { key: "coinMult", per: 0.05, label: "More coins per level" },
   },
   {
+    id: "mochi", name: "Mochi", icon: "🍡", rarity: "common", premium: false,
+    desc: "A sweet little charm that keeps your score streaks tasting better.",
+    ability: { key: "scoreMult", per: 0.035, label: "More score per pop" },
+  },
+  {
+    id: "sprout", name: "Sprout", icon: "🌱", rarity: "common", premium: false,
+    desc: "A tiny green helper that warms up your Fever gauge over long runs.",
+    ability: { key: "feverMult", per: 0.045, label: "Fever fills faster" },
+  },
+  {
     id: "rover", name: "Rover", icon: "🐶", rarity: "rare", premium: false,
     desc: "A loyal pup that fetches a whole colour together for you.",
     active: {
@@ -158,6 +171,14 @@ export const PET_CATALOG = [
     active: {
       type: "cleanse", baseCooldown: 5, minCooldown: 3, baseCount: 1, countPer: 1,
       label: "Clears isolated bubbles every few moves",
+    },
+  },
+  {
+    id: "luma", name: "Luma", icon: "🖌️", rarity: "rare", premium: false,
+    desc: "A bright brush spirit that paints nearby bubbles to match a tricky anchor, setting up a new cluster for your next pop.",
+    active: {
+      type: "paint", baseCooldown: 6, minCooldown: 3, baseCount: 3, countPer: 0.5,
+      label: "Paints nearby bubbles into a match every few moves",
     },
   },
   {
@@ -201,14 +222,29 @@ export const PET_CATALOG = [
     },
   },
   {
+    id: "amp", name: "Amp", icon: "🔋", rarity: "epic", premium: false,
+    desc: "A humming battery buddy that turns every good pop into more Charge.",
+    ability: { key: "powerMult", per: 0.1, label: "Charge surges faster" },
+  },
+  {
     id: "blaze", name: "Blaze", icon: "🔥", rarity: "epic", premium: false,
     desc: "A fiery friend that whips your Fever gauge into shape.",
     ability: { key: "feverMult", per: 0.08, label: "Fever fills faster" },
   },
   {
+    id: "prism", name: "Prism", icon: "🔮", rarity: "epic", premium: false,
+    desc: "A glassy focus stone that starts each level with a useful Charge spark.",
+    ability: { key: "startCharge", per: 0.055, label: "Start partly charged" },
+  },
+  {
     id: "draco", name: "Draco", icon: "🐉", rarity: "legendary", premium: false,
     desc: "A rare dragon hatchling — the mightiest score booster you can win.",
     ability: { key: "scoreMult", per: 0.05, label: "Big score boost" },
+  },
+  {
+    id: "midas", name: "Midas", icon: "👑", rarity: "legendary", premium: false,
+    desc: "A golden patron that turns patient progression into bigger coin hauls.",
+    ability: { key: "coinMult", per: 0.085, label: "Massive coin boost" },
   },
   {
     id: "tidal", name: "Tidal", icon: "🌊", rarity: "legendary", premium: false,
@@ -245,9 +281,12 @@ export const PET_CATALOG = [
   },
 ];
 
-// Real-time firepower for the premium "Nova" gunship at each pet level. The
-// shooter is autonomous (driven by the game loop, not by moves), so its
-// progression lives here as a pure table rather than in `petActive`:
+// Real-time firepower for the premium "Nova" gunship at milestone pet levels.
+// `shooterStats` interpolates between these anchors across the longer 12-level
+// progression, so Nova keeps gaining power without needing a bespoke stat row
+// for every single level. The shooter is autonomous (driven by the game loop,
+// not by moves), so its progression lives here as a pure table rather than in
+// `petActive`:
 //   • fireInterval — seconds between volleys (lower = faster)
 //   • shots        — parallel cannons per volley (covers adjacent columns)
 //   • nuke         — whether periodic area-clearing nukes are unlocked
@@ -255,16 +294,38 @@ export const PET_CATALOG = [
 //   • moveSpeed    — patrol speed across the bottom (px/sec)
 export const SHOOTER_LEVELS = {
   1: { fireInterval: 1.5, shots: 1, nuke: false, nukeInterval: 0, moveSpeed: 95 },
-  2: { fireInterval: 1.2, shots: 1, nuke: false, nukeInterval: 0, moveSpeed: 110 },
-  3: { fireInterval: 1.0, shots: 2, nuke: false, nukeInterval: 0, moveSpeed: 125 },
-  4: { fireInterval: 0.82, shots: 3, nuke: false, nukeInterval: 0, moveSpeed: 140 },
-  5: { fireInterval: 0.66, shots: 3, nuke: true, nukeInterval: 7, moveSpeed: 155 },
+  4: { fireInterval: 1.15, shots: 1, nuke: false, nukeInterval: 0, moveSpeed: 115 },
+  7: { fireInterval: 0.92, shots: 2, nuke: false, nukeInterval: 0, moveSpeed: 135 },
+  10: { fireInterval: 0.76, shots: 3, nuke: false, nukeInterval: 0, moveSpeed: 150 },
+  12: { fireInterval: 0.66, shots: 3, nuke: true, nukeInterval: 7, moveSpeed: 160 },
 };
 
 // The Nova gunship's stats at a given pet level (clamped to 1..MAX_PET_LEVEL).
 export function shooterStats(level) {
   const lvl = Math.max(1, Math.min(MAX_PET_LEVEL, Math.floor(level || 1)));
-  return { level: lvl, ...SHOOTER_LEVELS[lvl] };
+  const anchors = Object.keys(SHOOTER_LEVELS).map(Number).sort((a, b) => a - b);
+  let low = anchors[0];
+  let high = anchors[anchors.length - 1];
+  for (const anchor of anchors) {
+    if (anchor <= lvl) low = anchor;
+    if (anchor >= lvl) {
+      high = anchor;
+      break;
+    }
+  }
+  const from = SHOOTER_LEVELS[low];
+  const to = SHOOTER_LEVELS[high];
+  const span = Math.max(1, high - low);
+  const t = high === low ? 0 : (lvl - low) / span;
+  const mix = (a, b) => a + (b - a) * t;
+  return {
+    level: lvl,
+    fireInterval: Number(mix(from.fireInterval, to.fireInterval).toFixed(2)),
+    shots: Math.max(from.shots, Math.floor(mix(from.shots, to.shots))),
+    nuke: lvl >= 12,
+    nukeInterval: lvl >= 12 ? to.nukeInterval : 0,
+    moveSpeed: Math.round(mix(from.moveSpeed, to.moveSpeed)),
+  };
 }
 
 // Cosmetic tints applicable to any owned pet. Stored per-pet; applied in the UI
@@ -284,11 +345,14 @@ export function getCosmetic(id) {
   return COSMETICS.find((c) => c.id === id) || COSMETICS[0];
 }
 
-// Cumulative XP needed to REACH a given level. Level 1 starts at 0.
-//   1:0  2:50  3:150  4:300  5:500
+// Cumulative XP needed to REACH a given level. Level 1 starts at 0. The curve is
+// deliberately long-form: early levels arrive quickly, but the final levels ask
+// for sustained play across many sessions instead of maxing a pet in a handful
+// of clears.
 export function xpForLevel(level) {
   const l = Math.max(1, Math.min(MAX_PET_LEVEL, Math.floor(level)));
-  return ((l - 1) * (l - 1) + (l - 1)) * 25;
+  const n = l - 1;
+  return n === 0 ? 0 : Math.round(35 * n + 18 * n * n + 2.5 * n * n * n);
 }
 
 // The level a pet is at given its total XP (capped at MAX_PET_LEVEL).
@@ -321,7 +385,7 @@ export function levelProgress(xp) {
 export function abilityValue(pet, level) {
   if (!pet || !pet.ability) return 0;
   const lvl = Math.max(1, Math.min(MAX_PET_LEVEL, Math.floor(level)));
-  return pet.ability.per * lvl;
+  return pet.ability.per * (1 + (lvl - 1) * 0.42);
 }
 
 // ---- Traits (RNG personality rolled on acquisition) ------------------------
@@ -447,24 +511,29 @@ export function petActive(petId, level, traitId, sockets, tech) {
   const m = getTrait(traitId).mods || {};
   const gm = socketActiveMods(sockets);
   const tm = techActiveMods(tech);
+  const progress = (lvl - 1) / Math.max(1, MAX_PET_LEVEL - 1);
+  const cooldownSteps = Math.floor(progress * 4);
+  const countLevel = 1 + (lvl - 1) * 0.42;
   const cooldown = Math.max(
     1,
-    Math.max(a.minCooldown, a.baseCooldown - (lvl - 1)) +
+    Math.max(a.minCooldown, a.baseCooldown - cooldownSteps) +
       (m.cooldownDelta || 0) +
       (gm.cooldownDelta || 0) +
       (tm.cooldownDelta || 0)
   );
   const count = Math.max(
     0,
-    (a.baseCount || 0) +
-      (lvl - 1) * (a.countPer || 0) +
+    Math.round(
+      (a.baseCount || 0) +
+      (countLevel - 1) * (a.countPer || 0) +
       (m.countDelta || 0) +
       (gm.countDelta || 0) +
       (tm.countDelta || 0)
+    )
   );
   const strength = Math.min(
     1,
-    (0.45 + lvl * 0.12) * (m.strengthMult || 1) * (gm.strengthMult || 1) * (tm.strengthMult || 1)
+    (0.45 + countLevel * 0.12) * (m.strengthMult || 1) * (gm.strengthMult || 1) * (tm.strengthMult || 1)
   );
   return {
     type: a.type,

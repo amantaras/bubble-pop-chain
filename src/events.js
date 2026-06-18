@@ -1,6 +1,6 @@
 // Ambient falling events: a gift (reward) or a problem (hazard) occasionally
 // drifts down over the board. Tap a gift to collect it; tap a problem to
-// defuse it. A problem left to fall off-screen scatters nearby bubbles.
+// defuse it. A problem left to fall off-screen triggers one of several hazards.
 //
 // Everything here is pure and deterministic when a seeded `rand` is supplied,
 // so the timing/type/reward logic is unit-testable.
@@ -45,6 +45,18 @@ export const GIFT_POWERUP_POOL = [
 // problem scatters.
 export const DEFUSE_REWARD = 12;
 export const SCATTER_COUNT = 4;
+export const PROBLEM_EFFECT_SCATTER = "scatter";
+export const PROBLEM_EFFECT_SHUFFLE = "shuffle";
+export const PROBLEM_EFFECT_MOVES = "moves";
+export const PROBLEM_EFFECT_FREEZE = "freeze";
+export const PROBLEM_EFFECT_VINE = "vine";
+export const PROBLEM_EFFECTS = [
+  PROBLEM_EFFECT_SCATTER,
+  PROBLEM_EFFECT_SHUFFLE,
+  PROBLEM_EFFECT_MOVES,
+  PROBLEM_EFFECT_FREEZE,
+  PROBLEM_EFFECT_VINE,
+];
 
 // Seconds before the first event of a session (a bit shorter than the regular
 // cadence so players meet the mechanic early without being overwhelmed).
@@ -56,6 +68,11 @@ export function nextEventDelay(rand = Math.random) {
 
 export function pickEventType(rand = Math.random) {
   return rand() < GIFT_CHANCE ? EVENT_GIFT : EVENT_PROBLEM;
+}
+
+export function rollProblemEffect(rand = Math.random) {
+  const i = Math.floor(rand() * PROBLEM_EFFECTS.length);
+  return PROBLEM_EFFECTS[Math.max(0, Math.min(PROBLEM_EFFECTS.length - 1, i))];
 }
 
 // Decide a gift's payload: { type:"crate" }, { type:"gem" },

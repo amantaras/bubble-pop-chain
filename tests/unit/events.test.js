@@ -10,8 +10,10 @@ import {
   GIFT_POWERUP_CHANCE,
   GIFT_CRATE_CHANCE,
   GIFT_GEM_CHANCE,
+  PROBLEM_EFFECTS,
   nextEventDelay,
   pickEventType,
+  rollProblemEffect,
   rollGiftReward,
 } from "../../src/events.js";
 
@@ -27,6 +29,15 @@ describe("events / falling gift & problem logic", () => {
   it("pickEventType splits gifts and problems by chance", () => {
     expect(pickEventType(() => 0)).toBe(EVENT_GIFT);
     expect(pickEventType(() => 0.99)).toBe(EVENT_PROBLEM);
+  });
+
+  it("rollProblemEffect can choose at least five distinct missed-problem hazards", () => {
+    expect(PROBLEM_EFFECTS.length).toBeGreaterThanOrEqual(5);
+    const seen = new Set();
+    for (let i = 0; i < PROBLEM_EFFECTS.length; i++) {
+      seen.add(rollProblemEffect(() => (i + 0.01) / PROBLEM_EFFECTS.length));
+    }
+    expect([...seen].sort()).toEqual([...PROBLEM_EFFECTS].sort());
   });
 
   it("rollGiftReward returns coins in range when no power-up rolls", () => {

@@ -802,6 +802,28 @@ describe("grid / Board", () => {
     expect(b.scatterArea(1, 1, 4, () => 0.5)).toEqual([]);
   });
 
+  it("paintArea recolours nearby bubbles to match the anchor without clearing", () => {
+    const b = new Board(3, 3, 3, 5);
+    const filled = () => {
+      let n = 0;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) if (b.grid[c][r] !== -1) n += 1;
+      return n;
+    };
+    for (let c = 0; c < b.cols; c++)
+      for (let r = 0; r < b.rows; r++) b.grid[c][r] = (c + r) % 3;
+    b.grid[1][1] = 2;
+    const beforeFilled = filled();
+    const affected = b.paintArea(1, 1, 3);
+    expect(affected).toHaveLength(3);
+    expect(affected).not.toContainEqual({ c: 1, r: 1 });
+    for (const cell of affected) {
+      expect(b.grid[cell.c][cell.r]).toBe(2);
+      expect(b.spriteGrid[cell.c][cell.r].color).toBe(2);
+    }
+    expect(filled()).toBe(beforeFilled);
+  });
+
   it("randomFilledCell returns a normal filled cell", () => {
     const b = new Board(3, 3, 3, 5);
     const cell = b.randomFilledCell(() => 0);

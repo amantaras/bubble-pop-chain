@@ -117,7 +117,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   puzzle mode (`puzzle.js`: ladder integrity, getPuzzle shape/clamp, puzzleStars
   thresholds + 1..3 bounds, isPuzzleUnlocked gating, puzzlesSolved count),
   the pet companion system (catalog integrity + premium flags, XP/level curve,
-  passive buff scaling, active-pet cooldown/strength/count scaling, seeded
+  passive buff scaling, active-pet cooldown/strength/count scaling, expanded
+  long-progression catalog coverage (Mochi/Sprout/Luma/Amp/Prism/Midas), seeded
   crate rolls including the rare premium drop chance + the boosted Legendary
   Crate roll, premium-pet catalog filter, the pity timer (`pityRarityFloor`/
   `nextPity` thresholds + dry-streak guarantee) + Pet Dust economy
@@ -132,7 +133,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
 - **gems** (`tests/unit/gems.test.js`): the gems & sockets RPG module — gem
   catalog/tier integrity, `socketsForLevel` level-gating (0/1/2), the tier power
   ladder (`gemTierIndex`/`levelForGemTier`/`maxGemTierForLevel`/
-  `canSocketGemAtLevel` so chipped/polished/brilliant unlock at Lv.2/4/5 and a
+  `canSocketGemAtLevel` so chipped/polished/brilliant unlock at Lv.2/4/5 within
+  the broader Lv.12 pet progression and a
   too-strong gem is rejected on a low-level pet),
   `gemKey`/`parseGemKey`/`gemLabel`/`gemIcon`/`gemValue` key round-trips,
   `socketBuffs` passive aggregation (ruby single-axis, diamond `allMult`
@@ -154,9 +156,10 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   `sockets:[]`, persistence); `pets.test.js` adds the socket-fold cases
   (a ruby raises `petBuffs.scoreMult`, a diamond lifts all axes, an emerald
   shortens `petActive.cooldown` clamped ≥1, undefined-sockets backward compat);
-  `events.test.js` adds the `{type:"gem"}` gift reward slice.
+  `events.test.js` adds the `{type:"gem"}` gift reward slice and the
+  `PROBLEM_EFFECTS` roll coverage for the five missed-problem hazards.
 - **tech** (`tests/unit/tech.test.js`): the pet technology tree module — tree
-  structure (4 tiers × 2 options, `minLevel` 2/3/4/5, unique node ids, every
+  structure (10 tiers × 2 options, `minLevel` 2/3/4/5/6/7/8/9/10/12, unique node ids, every
   node has icon/name/desc/non-empty mods), `techNode`/`techTierOf`/`techTierAt`/
   `techTierOptions` lookups, `techTiersUnlocked` level-gating, `pendingTechTier`
   (first unlocked unpicked tier, -1 when none), `hasPendingTech`, `canPickTech`
@@ -176,7 +179,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   strike + bomb 3×3 detonation + multiplier gold-score-boost + coin
   treasure-drop + vine creeping-threat spread + stone
   locked-bubble: never tappable, shattered
-  only by an adjacent pop, and excluded from `hasMoves`) with type round-trip, the
+  only by an adjacent pop, and excluded from `hasMoves`) with type round-trip,
+  plus renderer coverage that special-bubble SVG overlays use local vendored
+  Game-icons assets only, the
   last-bubble finale animator (`BubbleFinale`: variant clamping to 0–4,
   onExplode fires exactly once at the glow→blast boundary, onDone fires once at
   completion, cancel, and draw in both phases) plus the grid helpers it relies
@@ -185,7 +190,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   daily retention engine (modifiers, tiered goals/stars, weekly rewards,
   streak-freeze rescue), the interactive tutorial (step-table invariants,
   deterministic teaching-board generation, and gated step advancement), and the
-  particle system (burst/sparkle spawn counts, update-driven expiry, and the
+  particle system (burst/sparkle spawn counts, update-driven expiry, local-only
+  Kenney sprite particle assets, sprite lifecycle/reduced-motion/capping, and the
   capped pool that trims the oldest particles so a pop storm can't grow the
   per-frame draw cost without bound; plus `popStyleForGroup`'s five escalating
   group-pop explosion styles and the expanding shockwave `ring` lifecycle/cap).
@@ -198,7 +204,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   purchases, hold-to-buy auto-repeat (a held buy button keeps purchasing at the
   configured rate and stops when coins run out), "remove ads", theme buy/apply,
   sound toggle, PWA service-worker
-  registration, manifest reachability, progress persistence across reloads,
+  registration, manifest reachability, local special-bubble SVG asset
+  reachability, progress persistence across reloads,
   resuming an in-progress campaign level (save & Continue), real-input
   gestures (long-press Preview, double-tap Charged Blast, swipe row-shift),
   undo last move (the `#btn-undo` button restores the board/score/moves, a
@@ -226,8 +233,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   Time Attack (starting it runs a 60s, full, refilling board with a Time
   countdown HUD; the clock running out ends the run and banks a personal best),
   the group-pop explosion styles (a popped group selects the style + shockwave
-  rings matching its size, and a forced big group fires the top "supernova"
-  tier with rings + flash),
+  rings + local sprite VFX matching its size, and a forced big group fires the
+  top "supernova" tier with rings + flash + sprite particles),
   the achievements flow
   (badge unlock + coin reward, the Achievements screen, tutorial play excluded,
   and the Collect All button which batch-collects every ready chest in one tap
@@ -301,14 +308,14 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   merges 3 same-tier gems through the UI, and the Fuse button is disabled below
   3 gems),
   the pet technology tree flow (the pet detail shows the `#pet-detail .pd-tech`
-  tree with a pending pick at Lv.2 and three locked future tiers, picking a node
+  tree with a pending pick at Lv.2 and locked future tiers, picking a node
   records it and raises the pet's live buff (chosen node shown locked-in), a
   higher tier can't be picked before its level is reached, and the menu Pets tile
   badges a pet with a pending upgrade then clears once picked),
   the daily retention flow (summary, streak reward),
   buying a power-up refreshing the HUD tool-slot count,
   a performance guard (a heavy pop storm keeps the particle pool capped and it
-  still drains to empty afterwards), and the gated
+  still drains to empty afterwards, with sprite particles separately capped), and the gated
   step-by-step tutorial (first-run auto-open, How to Play replay, skip, the
   practice board auto-refilling so the player never runs out of bubbles, and a
   full walkthrough that performs each real gesture to advance). Both a mobile

@@ -1,6 +1,6 @@
 // Pet Technology Tree — a per-pet upgrade tree the player advances by spending
-// the level-up picks a pet earns as it grows. Each level-up (Lv.2→5) unlocks
-// one tier; the player picks ONE of that tier's two nodes, permanently
+// the level-up picks a pet earns as it grows. Milestone levels unlock one tier;
+// the player picks ONE of that tier's two nodes, permanently
 // customizing the pet. Pure & deterministic so every rule is unit-testable.
 //
 // Design notes (intentionally FAIR / additive, never pay-to-win):
@@ -17,8 +17,10 @@
 // tech.js has NO dependency on pets.js (pets.js imports tech.js — one-way), so
 // it stays a leaf module.
 
-// The number of tiers in the tree (one per level-up from Lv.2 to Lv.5).
-export const MAX_TECH_TIERS = 4;
+// The number of tiers in the tree. Pets have a long 12-level arc; tech tiers
+// unlock from Lv.2 through Lv.12, with the last two tiers reserved for late-game
+// specialization.
+export const MAX_TECH_TIERS = 10;
 
 // The tree: four tiers, each unlocked at a pet level and offering a choice of
 // two nodes. A node's `mods` fold into the pet's buffs/active:
@@ -103,6 +105,126 @@ export const TECH_TREE = [
         name: "Mastery",
         desc: "Active ability hits +1 bubble & 15% harder, +6% points.",
         mods: { countDelta: 1, strengthMult: 1.15, scoreMult: 0.06 },
+      },
+    ],
+  },
+  {
+    tier: 5,
+    minLevel: 6,
+    options: [
+      {
+        id: "t5_combo",
+        icon: "🔗",
+        name: "Combo Instinct",
+        desc: "+12% points and +5% faster Fever meter.",
+        mods: { scoreMult: 0.12, feverMult: 0.05 },
+      },
+      {
+        id: "t5_treasure",
+        icon: "💎",
+        name: "Treasure Sense",
+        desc: "+14% coins and +4% faster Charge meter.",
+        mods: { coinMult: 0.14, powerMult: 0.04 },
+      },
+    ],
+  },
+  {
+    tier: 6,
+    minLevel: 7,
+    options: [
+      {
+        id: "t6_quickdraw",
+        icon: "⏱️",
+        name: "Quickdraw",
+        desc: "Active ability charges 1 move sooner, +6% Fever.",
+        mods: { cooldownDelta: -1, feverMult: 0.06 },
+      },
+      {
+        id: "t6_wide_arc",
+        icon: "📡",
+        name: "Wide Arc",
+        desc: "Active ability reaches +1 bubble and hits 10% harder.",
+        mods: { countDelta: 1, strengthMult: 1.1 },
+      },
+    ],
+  },
+  {
+    tier: 7,
+    minLevel: 8,
+    options: [
+      {
+        id: "t7_overcharge",
+        icon: "⚡",
+        name: "Overcharge",
+        desc: "+12% faster Charge and start with +8% Charge.",
+        mods: { powerMult: 0.12, startCharge: 0.08 },
+      },
+      {
+        id: "t7_heatwave",
+        icon: "🔥",
+        name: "Heatwave",
+        desc: "+12% faster Fever and +6% points.",
+        mods: { feverMult: 0.12, scoreMult: 0.06 },
+      },
+    ],
+  },
+  {
+    tier: 8,
+    minLevel: 9,
+    options: [
+      {
+        id: "t8_specialist",
+        icon: "🎯",
+        name: "Specialist",
+        desc: "+16% points scored while equipped.",
+        mods: { scoreMult: 0.16 },
+      },
+      {
+        id: "t8_patron",
+        icon: "🏦",
+        name: "Patron",
+        desc: "+18% coins earned while equipped.",
+        mods: { coinMult: 0.18 },
+      },
+    ],
+  },
+  {
+    tier: 9,
+    minLevel: 10,
+    options: [
+      {
+        id: "t9_reflex",
+        icon: "🌀",
+        name: "Reflex Loop",
+        desc: "Active ability charges 1 move sooner, +8% Charge and Fever.",
+        mods: { cooldownDelta: -1, powerMult: 0.08, feverMult: 0.08 },
+      },
+      {
+        id: "t9_force",
+        icon: "💥",
+        name: "Force Bloom",
+        desc: "Active ability reaches +2 bubbles and hits 12% harder.",
+        mods: { countDelta: 2, strengthMult: 1.12 },
+      },
+    ],
+  },
+  {
+    tier: 10,
+    minLevel: 12,
+    options: [
+      {
+        id: "t10_ascendant",
+        icon: "🌌",
+        name: "Ascendant",
+        desc: "+14% to score, coins, Charge, and Fever.",
+        mods: { scoreMult: 0.14, coinMult: 0.14, powerMult: 0.14, feverMult: 0.14 },
+      },
+      {
+        id: "t10_legend",
+        icon: "👑",
+        name: "Legend Bond",
+        desc: "Active ability charges 1 move sooner, reaches +1 bubble, and starts +10% charged.",
+        mods: { cooldownDelta: -1, countDelta: 1, strengthMult: 1.1, startCharge: 0.1 },
       },
     ],
   },
