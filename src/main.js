@@ -1623,6 +1623,7 @@ class Game {
   refreshHud() {
     const s = this.session;
     if (!s) return;
+    const status = this._hudStatus();
     // Undo control: show the remaining budget; enabled only when a move can be
     // taken back right now.
     UI.updateUndo(s.undosLeft || 0, this.canUndo());
@@ -1646,6 +1647,7 @@ class Game {
           targetLabel: (s.level.boss && s.level.boss.hudLabel) || "Core",
           target: remaining,
           progress: 1 - remaining / total,
+          status,
         });
         return;
       }
@@ -1658,6 +1660,7 @@ class Game {
         targetLabel: "Target",
         target: s.level.target,
         progress: s.score / s.level.target,
+        status,
       });
     } else if (s.mode === "tutorial") {
       UI.updateHud({
@@ -1667,6 +1670,7 @@ class Game {
         moves: "",
         showTarget: false,
         progress: 0,
+        status,
       });
     } else if (s.mode === "endless") {
       UI.updateHud({
@@ -1676,6 +1680,7 @@ class Game {
         moves: Storage.get("highScoreEndless"),
         showTarget: false,
         progress: 1 - s.board.countRemaining() / (s.board.cols * s.board.rows),
+        status,
       });
     } else if (s.mode === "timeattack") {
       UI.updateHud({
@@ -1685,6 +1690,7 @@ class Game {
         moves: Math.ceil(s.timeLeft) + "s",
         showTarget: false,
         progress: Math.max(0, s.timeLeft / TIME_ATTACK_SECONDS),
+        status,
       });
     } else if (s.mode === "puzzle") {
       const left = s.board.countRemaining();
@@ -1698,6 +1704,7 @@ class Game {
         targetLabel: "Left",
         target: left,
         progress: total > 0 ? 1 - left / total : 0,
+        status,
       });
     } else {
       UI.updateHud({
@@ -1707,8 +1714,24 @@ class Game {
         moves: getStreak(),
         showTarget: false,
         progress: 1 - s.board.countRemaining() / (s.board.cols * s.board.rows),
+        status,
       });
     }
+  }
+
+  _hudStatus() {
+    const s = this.session;
+    if (!s) return [];
+    const items = [];
+    if ((s.power || 0) >= 1) items.push({ icon: "⚡", text: "Blast ready", kind: "ready" });
+    else if ((s.power || 0) >= 0.65) items.push({ icon: "⚡", text: "Charge close", kind: "charge" });
+    if (s.feverActive) items.push({ icon: "🔥", text: "Fever x2", kind: "fever" });
+    else if ((s.fever || 0) >= 0.75) items.push({ icon: "🔥", text: "Fever close", kind: "fever" });
+    if (s.hint) items.push({ icon: "◎", text: "Hint on", kind: "hint" });
+    if ((s.undosLeft || 0) > 0) items.push({ icon: "↶", text: `${s.undosLeft} undo`, kind: "undo" });
+    if (s.shiftTokens > 0) items.push({ icon: "↔", text: `${s.shiftTokens} shift`, kind: "shift" });
+    if (s.petActive && s.petTimer <= 1) items.push({ icon: "✦", text: "Pet soon", kind: "pet" });
+    return items.slice(0, 4);
   }
 
   // ---- Input handling ---------------------------------------------------

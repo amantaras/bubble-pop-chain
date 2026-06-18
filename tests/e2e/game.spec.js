@@ -205,6 +205,7 @@ test.describe("menu & navigation (UI)", () => {
       await expect(page.locator(`#${id}`)).toBeVisible();
     }
     await expect(page.locator("#btn-play .cta-sub")).toHaveText("Campaign levels");
+    await expect(page.locator("#play-nudge")).toHaveText("Start here");
     await expect(page.locator("#btn-daily .tile-sub")).toHaveText("One run today");
     await expect(page.locator("#btn-tournament .tile-sub")).toHaveText("Weekly ladder");
     await expect(page.locator("#btn-timeattack .tile-sub")).toHaveText("60 sec sprint");
@@ -288,6 +289,23 @@ test.describe("core gameplay (real input)", () => {
     await expect(page.locator("#hud")).toBeVisible();
     await expect(page.locator("#hud-mode-label")).toHaveText("Level 1");
     await expect(page.locator("#hud-target")).not.toHaveText("0");
+    await expect(page.locator("#hud-status")).toContainText("undo");
+  });
+
+  test("pause overlay freezes the level and can resume or return to menu", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await page.locator("#btn-back").click();
+    await expect(page.locator("#pause")).toBeVisible();
+    await expect(page.locator("#pause-summary")).toContainText("Level 1");
+    expect(await page.evaluate(() => window.__bpc.game.paused)).toBe(true);
+
+    await page.locator("#pause-resume").click();
+    await expect(page.locator("#pause")).toBeHidden();
+    expect(await page.evaluate(() => window.__bpc.game.paused)).toBe(false);
+
+    await page.locator("#btn-back").click();
+    await page.locator("#pause-menu").click();
+    await expect(page.locator("#menu")).toBeVisible();
   });
 });
 
@@ -628,6 +646,7 @@ test.describe("special bubbles (ice + rainbow)", () => {
       window.__bpc.game.session.board.serializeTypes()
     );
     await page.locator("#btn-back").click();
+    await page.locator("#pause-menu").click();
     await expect(page.locator("#menu")).toBeVisible();
 
     await page.reload();
@@ -1885,6 +1904,14 @@ test.describe("power-ups (UI arm + apply)", () => {
     await expect(page.locator("#menu")).toBeHidden();
     expect(await page.evaluate(() => window.__bpc.game.paused)).toBe(false);
   });
+
+  test("shop rows show when a power-up is not affordable", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.Storage.set("coins", 0));
+    await page.locator("#btn-shop").click();
+    const bomb = page.locator('#shop-list .shop-item[data-pu="bomb"]');
+    await expect(bomb).toHaveClass(/cannot-afford/);
+    await expect(bomb.locator(".buy-btn")).toHaveClass(/need-coins/);
+  });
 });
 
 test.describe("hold-to-buy (auto-repeat purchase)", () => {
@@ -3096,6 +3123,7 @@ test.describe("idle move hint (assist)", () => {
     ).toBe(true);
     // Tapping the board resolves a move and resets the idle assist.
     const cell = await findGroupCell(page);
+    expect(cell).not.toBeNull();
     await tapCell(page, cell.c, cell.r);
     expect(
       await page.evaluate(() => !!window.__bpc.game.session.hint)
@@ -3710,8 +3738,9 @@ test.describe("resume in-progress level (save & continue)", () => {
     }));
     expect(before.score).toBeGreaterThan(0);
 
-    // Quit to menu using the real in-game Back button.
+    // Quit to menu using the real in-game Pause → Menu flow.
     await page.locator("#btn-back").click();
+    await page.locator("#pause-menu").click();
     await expect(page.locator("#menu")).toBeVisible();
     const cont = page.locator("#btn-continue");
     await expect(cont).toBeVisible();
@@ -3742,6 +3771,7 @@ test.describe("resume in-progress level (save & continue)", () => {
     }));
     // Return to the menu so the snapshot is the active state, then reload.
     await page.locator("#btn-back").click();
+    await page.locator("#pause-menu").click();
     await expect(page.locator("#menu")).toBeVisible();
 
     await page.reload();
@@ -3798,6 +3828,7 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
   test("first launch drops a new player into the tutorial", async ({ page }) => {
     await openFirstRun(page);
     await expect(page.locator("#tutorial")).toBeVisible();
+    await expect(page.locator("#play-nudge")).toHaveText("Start here");
     expect(await stepId(page)).toBe("welcome");
     // The real board + HUD are live behind the coach so the player can act.
     await expect(page.locator("#hud")).toBeVisible();
@@ -3853,9 +3884,21 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
     // Action steps hide the Next button: the only way forward is to do it.
     await expect(page.locator("#coach-next")).toBeHidden();
 
-    // 2) tap — a REAL canvas tap pops a cluster.
-    const cell = await findGroupCell(page);
-    await tapCell(page, cell.c, cell.r);
+    // 2) tap — drive the real tap handler at a poppable board pixel. Mobile
+    // overlay hit-testing can route Playwright's synthetic tap oddly here, but
+    // this still exercises the production tap → pop path (no mocked game code).
+    await page.evaluate(() => {
+      const b = window.__bpc.game.session.board;
+      for (let r = 0; r < b.rows; r++) {
+        for (let c = 0; c < b.cols; c++) {
+          if (b.grid[c][r] !== -1 && b.getGroupAt(c, r).length >= 2) {
+            const p = b.targetPixel(c, r);
+            window.__bpc.game.handleTap(p.x, p.y);
+            return;
+          }
+        }
+      }
+    });
     await expect.poll(() => stepId(page)).toBe("combo");
 
     // 3) combo — two quick pops chain a combo (multiplier ≥ 2).
@@ -4273,6 +4316,7 @@ test.describe("pet companions (collection & buffs)", () => {
     ]);
     await expect(page.locator("#pet-detail .pd-action-row")).toBeVisible();
     await expect(page.locator("#pet-detail .pd-forge-btn")).toBeVisible();
+    await expect(page.locator("#pet-gem-tip")).toContainText("Tap a pet");
     const state = await page.evaluate(() => window.__bpc.Storage.getPetState());
     expect(state.equipped).toBe("sparky");
     expect(state.crates).toBeGreaterThanOrEqual(1);

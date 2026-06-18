@@ -24,7 +24,7 @@
     <!-- In-game HUD -->
     <div id="hud" class="overlay hidden">
       <div class="hud-top">
-        <button class="icon-btn" id="btn-back" aria-label="Back">‹</button>
+        <button class="icon-btn" id="btn-back" aria-label="Pause">Ⅱ</button>
         <div class="hud-info">
           <div class="hud-stat">
             <span class="hud-label" id="hud-mode-label">Level 1</span>
@@ -44,6 +44,7 @@
       <div class="hud-progress">
         <div class="hud-progress-fill" id="hud-progress-fill"></div>
       </div>
+      <div class="hud-status" id="hud-status" aria-label="Run status"></div>
       <button class="hud-undo hidden" id="btn-undo" type="button" aria-label="Undo last move">
         <span class="hud-undo-glyph">↶</span>
         <span class="hud-undo-text">Undo</span>
@@ -126,6 +127,7 @@
             <span class="cta-title">Play</span>
             <span class="cta-sub">Campaign levels</span>
           </span>
+          <span class="cta-badge" id="play-nudge">Start here</span>
         </button>
       </div>
       <div class="menu-tiles">
@@ -283,6 +285,23 @@
         <div class="coins-pill big"><span class="coin-dot"></span><span id="menu-coins">0</span></div>
         <div class="daily-summary" id="daily-summary"></div>
         <div class="daily-summary" id="tournament-summary"></div>
+      </div>
+    </div>
+
+    <!-- Pause overlay: keeps live-game navigation and settings close to play
+         without forcing the player through the main menu. -->
+    <div id="pause" class="overlay modal hidden" role="dialog" aria-modal="true" aria-label="Paused">
+      <div class="modal-card pause-card">
+        <h2 class="modal-title">Paused</h2>
+        <p class="modal-sub" id="pause-sub">Take a breath. Your board is frozen.</p>
+        <div class="pause-summary" id="pause-summary"></div>
+        <div class="pause-actions">
+          <button class="btn btn-primary" id="pause-resume">Resume</button>
+          <button class="btn" id="pause-shop">Shop</button>
+          <button class="btn" id="pause-themes">Settings</button>
+          <button class="btn" id="pause-retry">Retry</button>
+          <button class="btn btn-ghost" id="pause-menu">Menu</button>
+        </div>
       </div>
     </div>
 
@@ -446,6 +465,7 @@
       <div class="pets-crate" id="pets-crate"></div>
       <div class="pet-party" id="pet-party"></div>
       <div class="pet-gems" id="pet-gems"></div>
+      <div class="pet-gem-tip" id="pet-gem-tip">Tap a pet, then tap an empty socket to embue your best available gem.</div>
       <div class="pet-store" id="pet-store"></div>
       <div class="pet-list" id="pet-list"></div>
       <div class="pet-detail" id="pet-detail"></div>

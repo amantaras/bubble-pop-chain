@@ -291,6 +291,20 @@ body {
   font-weight: 600;
   opacity: 0.78;
 }
+.cta-badge {
+  margin-left: auto;
+  flex: 0 0 auto;
+  align-self: flex-start;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #08122a;
+  background: var(--gold);
+  box-shadow: 0 0 14px rgba(255, 211, 91, 0.45);
+}
 
 /* Secondary feature tiles */
 .menu-tiles {
@@ -641,6 +655,47 @@ body {
   background: linear-gradient(90deg, var(--accent), var(--gold), var(--accent-2));
   box-shadow: 0 0 14px rgba(91, 227, 255, 0.45);
   transition: width 0.3s ease;
+}
+.hud-status {
+  display: flex;
+  gap: 6px;
+  margin: 7px 4px 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.hud-status::-webkit-scrollbar {
+  display: none;
+}
+.hud-status-chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 850;
+  color: rgba(234, 240, 255, 0.86);
+  background: rgba(6, 10, 24, 0.56);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.hud-status-chip b {
+  font-size: 12px;
+  line-height: 1;
+}
+.hud-status-chip.ready,
+.hud-status-chip.fever {
+  color: #fff;
+  border-color: rgba(255, 211, 91, 0.44);
+  background: linear-gradient(90deg, rgba(255, 211, 91, 0.25), rgba(255, 91, 138, 0.2));
+}
+.hud-status-chip.hint {
+  border-color: rgba(91, 227, 255, 0.36);
+  background: rgba(91, 227, 255, 0.14);
 }
 /* Bonus-objective chip: an optional per-level challenge for extra coins. */
 .hud-objective {
@@ -2717,6 +2772,16 @@ body {
   padding: 12px;
   margin-bottom: 12px;
 }
+.pet-gem-tip {
+  margin: -4px 0 12px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 750;
+  color: rgba(234, 240, 255, 0.82);
+  background: rgba(91, 227, 255, 0.1);
+  border: 1px solid rgba(91, 227, 255, 0.22);
+}
 
 /* Compact launcher card on the Pets screen → opens the dedicated Gem Forge. */
 .gem-launch {
@@ -3793,6 +3858,23 @@ body {
   border: 1px solid rgba(255, 211, 91, 0.42);
   min-width: 116px;
 }
+.shop-item.cannot-afford {
+  border-color: rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.035);
+}
+.shop-item.cannot-afford .si-desc::after {
+  content: " · need coins";
+  color: var(--gold);
+  font-weight: 800;
+}
+.shop-item.bought {
+  box-shadow: 0 0 0 1px rgba(91, 255, 155, 0.24), 0 0 18px rgba(91, 255, 155, 0.18);
+}
+.buy-btn.need-coins {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-dim);
+  border: 1px solid rgba(255, 211, 91, 0.22);
+}
 .buy-btn.owned {
   background: rgba(91, 255, 155, 0.18);
   color: var(--good);
@@ -3885,6 +3967,48 @@ body {
 .modal-score b {
   color: var(--text);
   font-size: 22px;
+}
+.pause-card {
+  width: min(92vw, 390px);
+  text-align: left;
+}
+.pause-card .modal-title,
+.pause-card .modal-sub {
+  text-align: left;
+}
+.pause-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 16px 0 18px;
+}
+.pause-summary div {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.pause-summary span {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.pause-summary b {
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.pause-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.pause-actions .btn:first-child,
+.pause-actions .btn:last-child {
+  grid-column: 1 / -1;
 }
 .win-stats {
   display: grid;

@@ -201,7 +201,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   pointer taps on the `<canvas>`. They cover: grouped menu/level-map/shop/themes
   navigation, popping via real taps, scoring, win/lose, revive and double-coins
   rewarded-ad flows, endless refill, daily streak, all three power-ups, shop
-  purchases, hold-to-buy auto-repeat (a held buy button keeps purchasing at the
+  purchases, shop affordability affordances (`.cannot-afford`/`.need-coins`),
+  the in-game pause overlay (`#pause`) freezing the level, resuming, and routing
+  to Menu, HUD status chips, hold-to-buy auto-repeat (a held buy button keeps purchasing at the
   configured rate, shows live buying/limit feedback, respects the visible
   hold-purchase limit preference, and stops when coins run out), "remove ads", theme buy/apply,
   sound toggle, PWA service-worker
@@ -275,7 +277,7 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   finale with a random style 0–4, suspends input, and clears the board to win
   the level),
   the pet companions flow (Pets screen with starter Sparky owned/equipped,
-  guided pet-detail chips/actions,
+  guided pet-detail chips/actions and the `#pet-gem-tip` socket guidance strip,
   buy + open a crate grants a pet, the Pet Store sells premium pets + a
   Legendary Crate that grants a pet, buying a premium pet unlocks it,
   duplicate crate pulls grant Pet Dust + the crate panel shows the balance and

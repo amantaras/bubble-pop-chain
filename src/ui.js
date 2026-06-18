@@ -141,8 +141,9 @@ class UIManager {
       "hints-toggle", "hints-toggle-state",
       "rm-toggle", "rm-toggle-state",
       "buy-batch-pref", "buy-speed-pref",
-      "pets", "pets-coins", "pets-crate", "pet-party", "pet-gems", "pet-store", "pet-list", "pet-detail",
+      "pets", "pets-coins", "pets-crate", "pet-party", "pet-gems", "pet-gem-tip", "pet-store", "pet-list", "pet-detail",
       "gem-forge", "gemforge-body", "gemforge-dust", "gemforge-back",
+      "pause", "pause-sub", "pause-summary", "pause-resume", "pause-shop", "pause-themes", "pause-retry", "pause-menu",
       "pet-confirm", "pet-confirm-sub", "pet-confirm-ok", "pet-confirm-cancel",
       "gem-remove", "gem-remove-sub", "gem-remove-ok", "gem-remove-cancel",
       "pet-reveal", "pet-reveal-confetti", "pet-reveal-congrats", "pet-reveal-glow",
@@ -151,7 +152,7 @@ class UIManager {
       "btn-pets", "pets-back", "hud-pet", "hud-pet-icon", "hud-pet-buff", "pets-badge",
       "btn-continue", "daily-summary",
       "hud-mode-label", "hud-score", "hud-target", "hud-target-wrap", "hud-target-label",
-      "hud-moves", "hud-moves-label", "hud-progress-fill",
+      "hud-moves", "hud-moves-label", "hud-progress-fill", "hud-status",
       "hud-objective", "hud-objective-text",
       "btn-undo", "hud-undo-count",
       "power-meter", "power-fill", "power-label",
@@ -211,7 +212,7 @@ class UIManager {
     // player taps an empty tool slot. In the latter case, returning resumes the
     // paused level instead of dropping back to the menu.
     click("shop-back", () => this.closeShop());
-    click("themes-back", () => this.showScreen("menu"));
+    click("themes-back", () => this.closeThemes());
     click("achv-back", () => this.showScreen("menu"));
     click("achv-collect-all", () => this._claimAllAchievements());
     click("cal-back", () => this.showScreen("menu"));
@@ -224,7 +225,12 @@ class UIManager {
     click("pets-back", () => this.closePetOverlay());
     click("gemforge-back", () => this.closeGemForge());
     click("chest-ok", () => this.showScreen("achievements"));
-    click("btn-back", () => this.cb.quitToMenu && this.cb.quitToMenu());
+    click("btn-back", () => this.openPauseOverlay());
+    click("pause-resume", () => this.closePauseOverlay(true));
+    click("pause-shop", () => this._pauseGoShop());
+    click("pause-themes", () => this._pauseGoThemes());
+    click("pause-retry", () => this._pauseRetry());
+    click("pause-menu", () => this._pauseMenu());
 
     // Undo last move (HUD). Disabled state is reflected by `updateUndo`.
     click("btn-undo", () => this.cb.undoMove && this.cb.undoMove());
@@ -421,6 +427,69 @@ class UIManager {
     );
   }
 
+  openPauseOverlay() {
+    if (!(this.cb.isLevelActive && this.cb.isLevelActive())) {
+      if (this.cb.quitToMenu) this.cb.quitToMenu();
+      return;
+    }
+    if (this.cb.pauseGame) this.cb.pauseGame();
+    this._pauseOpen = true;
+    this._renderPauseSummary();
+    if (this.el["pause"]) this.el["pause"].classList.remove("hidden");
+  }
+
+  closePauseOverlay(resume = true) {
+    if (this.el["pause"]) this.el["pause"].classList.add("hidden");
+    const wasOpen = !!this._pauseOpen;
+    this._pauseOpen = false;
+    if (resume && wasOpen && this.cb.resumeGame) {
+      this.cb.resumeGame();
+      this.showHud(true);
+    }
+  }
+
+  _renderPauseSummary() {
+    const wrap = this.el["pause-summary"];
+    if (!wrap) return;
+    const mode = this.el["hud-mode-label"] ? this.el["hud-mode-label"].textContent : "Run";
+    const score = this.el["hud-score"] ? this.el["hud-score"].textContent : "0";
+    const movesLabel = this.el["hud-moves-label"] ? this.el["hud-moves-label"].textContent : "Moves";
+    const moves = this.el["hud-moves"] ? this.el["hud-moves"].textContent : "0";
+    const targetLabel = this.el["hud-target-label"] ? this.el["hud-target-label"].textContent : "Target";
+    const target = this.el["hud-target"] ? this.el["hud-target"].textContent : "0";
+    wrap.innerHTML =
+      `<div><span>Run</span><b>${mode}</b></div>` +
+      `<div><span>Score</span><b>${score}</b></div>` +
+      `<div><span>${movesLabel}</span><b>${moves}</b></div>` +
+      `<div><span>${targetLabel}</span><b>${target}</b></div>`;
+  }
+
+  _pauseGoShop() {
+    this.closePauseOverlay(false);
+    this._shopOverGame = true;
+    this.hideScreens();
+    this.hideModals();
+    this.showScreen("shop");
+  }
+
+  _pauseGoThemes() {
+    this.closePauseOverlay(false);
+    this._themesOverGame = true;
+    this.hideScreens();
+    this.hideModals();
+    this.showScreen("themes");
+  }
+
+  _pauseRetry() {
+    this.closePauseOverlay(false);
+    if (this.cb.retryLevel) this.cb.retryLevel();
+  }
+
+  _pauseMenu() {
+    this.closePauseOverlay(false);
+    if (this.cb.quitToMenu) this.cb.quitToMenu();
+  }
+
   showScreen(name) {
     this.hideScreens();
     this.hideModals();
@@ -471,6 +540,18 @@ class UIManager {
   closeShop() {
     if (this._shopOverGame) {
       this._shopOverGame = false;
+      this.hideScreens();
+      this.hideModals();
+      if (this.cb.resumeGame) this.cb.resumeGame();
+      this.showHud(true);
+      return;
+    }
+    this.showScreen("menu");
+  }
+
+  closeThemes() {
+    if (this._themesOverGame) {
+      this._themesOverGame = false;
       this.hideScreens();
       this.hideModals();
       if (this.cb.resumeGame) this.cb.resumeGame();
@@ -687,15 +768,21 @@ class UIManager {
     const btn = this.el["btn-continue"];
     if (!btn) return;
     const play = $("btn-play");
+    const nudge = $("play-nudge");
     const snap = Storage.get("activeSession");
     if (snap && snap.mode === "campaign" && !snap.ended) {
       const sub = btn.querySelector(".cta-sub");
       if (sub) sub.textContent = `Resume Level ${snap.levelId}`;
       btn.classList.remove("hidden");
       if (play) play.classList.remove("btn-primary");
+      if (nudge) nudge.textContent = "Map";
     } else {
       btn.classList.add("hidden");
       if (play) play.classList.add("btn-primary");
+      if (nudge) {
+        const fresh = Storage.get("maxUnlockedLevel") <= 1 && !Storage.get("tutorialDone");
+        nudge.textContent = fresh ? "Start here" : "Next level";
+      }
     }
   }
 
@@ -1003,8 +1090,9 @@ class UIManager {
     // Power-ups
     Object.entries(POWERUP_INFO).forEach(([type, info]) => {
       const owned = Economy.getPowerup(type);
+      const affordable = Economy.coins >= info.price;
       const item = document.createElement("div");
-      item.className = "shop-item";
+      item.className = "shop-item" + (affordable ? "" : " cannot-afford");
       item.dataset.pu = type;
       item.innerHTML = `
         <span class="si-icon">${info.icon}</span>
@@ -1013,8 +1101,9 @@ class UIManager {
           <div class="si-desc">${info.desc}</div>
         </div>`;
       const buy = document.createElement("button");
-      buy.className = "buy-btn";
+      buy.className = "buy-btn" + (affordable ? "" : " need-coins");
       buy.innerHTML = `<span class="coin-dot"></span>${info.price}`;
+      buy.title = affordable ? `Buy ${info.name}` : `Need ${info.price - Economy.coins} more coins`;
       const normalLabel = buy.innerHTML;
       const feedback = ({ phase, count, max }) => {
         buy.classList.toggle("buying", phase === "buying");
@@ -1034,10 +1123,15 @@ class UIManager {
         if (Economy.buyPowerup(type)) {
           Audio.coin();
           this.toast(`${info.name} purchased!`);
+          item.classList.toggle("bought", true);
           const ownedEl = item.querySelector(".si-owned");
           if (ownedEl) ownedEl.textContent = `×${Economy.getPowerup(type)}`;
           this.refreshCoins();
           this.updatePowerups();
+          const canStillBuy = Economy.coins >= info.price;
+          item.classList.toggle("cannot-afford", !canStillBuy);
+          buy.classList.toggle("need-coins", !canStillBuy);
+          buy.title = canStillBuy ? `Buy ${info.name}` : `Need ${info.price - Economy.coins} more coins`;
           return true;
         }
         this.toast("Not enough coins");
@@ -3137,7 +3231,18 @@ class UIManager {
     if (s.target !== undefined) this.el["hud-target"].textContent = s.target;
     if (s.progress !== undefined)
       this.el["hud-progress-fill"].style.width = `${Math.min(100, s.progress * 100)}%`;
+    if (s.status !== undefined) this.updateHudStatus(s.status);
     this.refreshCoins();
+  }
+
+  updateHudStatus(items) {
+    const wrap = this.el["hud-status"];
+    if (!wrap) return;
+    const chips = (items || []).filter((it) => it && it.text);
+    wrap.classList.toggle("hidden", chips.length === 0);
+    wrap.innerHTML = chips
+      .map((it) => `<span class="hud-status-chip ${it.kind || ""}">${it.icon ? `<b>${it.icon}</b>` : ""}${it.text}</span>`)
+      .join("");
   }
 
   // Show/hide the bonus-objective chip in the HUD. `obj` is the level objective
@@ -3292,6 +3397,7 @@ class UIManager {
   hideModals() {
     this.el["win"].classList.add("hidden");
     this.el["lose"].classList.add("hidden");
+    if (this.el["pause"]) this.el["pause"].classList.add("hidden");
     if (this.el["isolated"]) this.el["isolated"].classList.add("hidden");
     if (this.el["loadout"]) this.el["loadout"].classList.add("hidden");
     if (this.el["chest"]) this.el["chest"].classList.add("hidden");

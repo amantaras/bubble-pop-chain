@@ -816,6 +816,13 @@ export class Renderer {
     const dash = board.cell * 0.22;
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
+    ctx.fillStyle = "rgba(25,245,255,0.08)";
+    for (const cell of cells) {
+      const p = board.targetPixel(cell.c, cell.r);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, radius * 0.92, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.strokeStyle = `rgba(120,240,255,${pulse})`;
     ctx.lineWidth = Math.max(2, board.cell * 0.08);
     ctx.setLineDash([dash, dash * 0.7]);
@@ -824,6 +831,16 @@ export class Renderer {
       const p = board.targetPixel(cell.c, cell.r);
       ctx.beginPath();
       ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.globalCompositeOperation = "source-over";
+    ctx.strokeStyle = "rgba(255,255,255,0.78)";
+    ctx.lineWidth = Math.max(1, board.cell * 0.025);
+    for (const cell of cells) {
+      const p = board.targetPixel(cell.c, cell.r);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, radius * 0.64, 0, Math.PI * 2);
       ctx.stroke();
     }
     ctx.restore();
@@ -851,6 +868,11 @@ export class Renderer {
     ctx.globalCompositeOperation = "lighter";
     ctx.translate(jx, jy);
 
+    ctx.fillStyle = "rgba(10,6,20,0.5)";
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, board.cell * 0.86, 0, Math.PI * 2);
+    ctx.fill();
+
     const glow = ctx.createRadialGradient(p.x, p.y, board.cell * 0.1, p.x, p.y, board.cell * 1.25);
     glow.addColorStop(0, `rgba(255,235,120,${0.28 * alpha})`);
     glow.addColorStop(0.45, `rgba(255,75,170,${0.22 * alpha})`);
@@ -866,6 +888,12 @@ export class Renderer {
     ctx.lineDashOffset = -t * board.cell * 3.2;
     ctx.beginPath();
     ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = `rgba(255,255,255,${0.65 * alpha})`;
+    ctx.lineWidth = Math.max(2, board.cell * 0.045);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, board.cell * 0.56, 0, Math.PI * 2);
     ctx.stroke();
 
     ctx.setLineDash([]);

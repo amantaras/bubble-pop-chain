@@ -204,6 +204,17 @@ never re‑discovered the hard way.
   to + glows the matching `.shop-item[data-pu]`). `shop-back` routes through
   `UI.closeShop`, which resumes the paused level when the shop was opened
   mid-game (`_shopOverGame`) instead of dropping to the menu.
+- **In-game pause + HUD status** (`ui.js` `openPauseOverlay`/`closePauseOverlay`/
+  `updateHudStatus`, `main.js` `_hudStatus`): the HUD back button is now a
+  **Pause** button (`#btn-back`, labelled `Ⅱ`) rather than an immediate quit.
+  Opening `#pause` calls the existing `pauseForOverlay()` path (input disabled,
+  falling events frozen), shows a compact run summary, and offers Resume, Shop,
+  Settings, Retry, and Menu. Shop/Settings opened from pause remember that they
+  are over a live level (`_shopOverGame`/`_themesOverGame`) so their Back button
+  resumes the board instead of returning to the main menu. `refreshHud()` also
+  feeds a compact `#hud-status` strip with existing session facts (Blast ready /
+  charge close, Fever, hint on, undo count, shift tokens, pet soon). Display
+  polish only — no save field, no tutorial step.
 - **Undo last move** (`main.js` `UNDO_BUDGET`/`_pushUndo`/`canUndo`/`undoMove`,
   `ui.js` `updateUndo`, `#btn-undo`): a per-level safety net that lets the
   player take back their last committed move. Each session starts with
@@ -242,9 +253,12 @@ never re‑discovered the hard way.
   on an interval, and stops on `pointerup`/`pointerleave`/`pointercancel`, when
   the batch cap is reached, or when a purchase fails (out of coins). To survive a hold, the buy updates the item's
   `.si-owned` count + coin balance **in place** (it must NOT call `buildShop`,
-  which would tear down the held button). IAP/coin-pack/remove-ads/theme buttons
-  stay single-press (real-money or one-time buys never auto-repeat). Keyboard
-  Enter/Space buys once.
+  which would tear down the held button). Power-up rows now expose affordability
+  visually with `.cannot-afford` on the row and `.need-coins` on the buy button,
+  updating those classes in place after each successful purchase so a held buy
+  can naturally stop when the player runs out of coins. IAP/coin-pack/remove-ads/
+  theme buttons stay single-press (real-money or one-time buys never auto-repeat).
+  Keyboard Enter/Space buys once.
 - **Special bubbles** (`grid.js` `types` layer): **Rainbow** = colour wildcard
   that bridges regions; **Ice** = needs two hits (cracks, then clears);
   **Lightning** (`LIGHTNING`) = a charged coloured bubble — popping a group that
@@ -507,16 +521,17 @@ never re‑discovered the hard way.
   it is a **settings/accessibility toggle, not a gesture**, so it gets **no
   tutorial step**. Also tightened core ARIA: the `#game-canvas` is `role="img"`
   with an `aria-label`, `#toast` is an `aria-live="polite"` `role="status"` region,
-  and key overlays (`#win`/`#lose`/`#pet-confirm`/`#pet-reveal`/`#isolated`/
-  `#loadout`/`#chest`) are `role="dialog" aria-modal="true"`.
+  and key overlays (`#win`/`#lose`/`#pause`/`#pet-confirm`/`#pet-reveal`/
+  `#isolated`/`#loadout`/`#chest`) are `role="dialog" aria-modal="true"`.
 - **Idle move hint** (`grid.js` `findHint`, `renderer.js` `drawHint`, `main.js`
   `_updateHint`/`_noteActivity`/`HINT_DELAY`, `storage.js` `settings.hints`): a
   player-friendly assist that nudges a stuck player. After `HINT_DELAY` (5s) of
   **inactivity** the largest poppable group (`Board.findHint`, a pure scan that
   mirrors the autoplay flood-fill: dedup via a `seen` set, keep the longest
   `getGroupAt` group ≥ 2, or `null` when there's no tap-move) is promoted into
-  `session.hint` and drawn as a **marching-ants cyan ring** (`Renderer.drawHint`,
-  purely cosmetic) around those cells. `_updateHint(dt)` (ticked from
+  `session.hint` and drawn as a **marching-ants cyan ring** plus a subtle fill
+  and inner white contrast ring (`Renderer.drawHint`, purely cosmetic) around
+  those cells. `_updateHint(dt)` (ticked from
   `update(dt)` inside the live-session block) accrues `session.idleTime` but
   **suppresses** the hint while the player is mid-gesture (`armed`/`preview`/
   magnet `aiming`/`combo > 0`), when hints are off, in the tutorial, or once the
@@ -995,8 +1010,10 @@ never re‑discovered the hard way.
   visuals** (`_gemVis(type, tier)` → `.gemv[data-tier]`, also used in the Bag
   grid/detail) so they read clearly differently — a small matte **chip**
   (chipped), a glossy rounded **gem** (polished), and a faceted sparkling
-  **diamond** (brilliant) — rather than the same emoji with stars. The pet
-  detail renders a clickable socket row;
+  **diamond** (brilliant) — rather than the same emoji with stars. The Pets
+  screen also shows a compact `#pet-gem-tip` guidance strip so the socket flow is
+  visible before the player opens a pet detail. The pet detail renders a
+  clickable socket row;
   each gem advertises its concrete effect via `gemBuffLabel(key)`
   (e.g. `+12% Score`, `+6% all stats`, `-3 move ability cooldown`), shown both on
   the picker's selection detail (`.pg-pd-buff`) and as a buff caption under filled
