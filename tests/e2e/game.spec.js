@@ -26,6 +26,7 @@ async function unlockAllTools(page) {
   await page.evaluate(() => {
     window.__bpc.Storage.set("maxUnlockedLevel", 999);
     window.__bpc.Storage.set("powerups", {
+      undo: 1,
       bomb: 1,
       colorClear: 1,
       shuffle: 1,
@@ -301,7 +302,10 @@ test.describe("core gameplay (real input)", () => {
   });
 
   test("HUD shows level, target and moves", async ({ page }) => {
-    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await page.evaluate(() => {
+      window.__bpc.Economy.addPowerup("undo", 1);
+      window.__bpc.game.startCampaign(1);
+    });
     await expect(page.locator("#hud")).toBeVisible();
     await expect(page.locator("#hud-mode-label")).toHaveText("Level 1");
     await expect(page.locator("#hud-target")).not.toHaveText("0");
@@ -325,11 +329,16 @@ test.describe("core gameplay (real input)", () => {
   });
 });
 
-test.describe("undo last move (real input)", () => {
+test.describe("undo tool (real input)", () => {
   test.beforeEach(({ page }) => openGame(page));
 
-  test("the Undo button restores the board, score and moves", async ({ page }) => {
-    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+  test("the Undo tool restores the board, score and moves", async ({ page }) => {
+    await page.evaluate(() => {
+      window.__bpc.Storage.set("maxUnlockedLevel", 6);
+      window.__bpc.Storage.set("loadout", ["undo", null, null]);
+      window.__bpc.Economy.addPowerup("undo", 2);
+      window.__bpc.game.startCampaign(1);
+    });
     await page.waitForTimeout(700);
 
     // Snapshot the pre-move state.
@@ -339,15 +348,12 @@ test.describe("undo last move (real input)", () => {
         score: s.score,
         moves: s.movesLeft,
         remaining: s.board.countRemaining(),
-        undos: s.undosLeft,
+        undos: window.__bpc.Economy.getPowerup("undo"),
       };
     });
 
-    // The Undo button is visible (budget available) but disabled (nothing yet).
-    await expect(page.locator("#btn-undo")).toBeVisible();
-    expect(
-      await page.evaluate(() => document.getElementById("btn-undo").disabled)
-    ).toBe(true);
+    await expect(page.locator('#pu-slot-0[data-pu="undo"]')).toBeVisible();
+    await expect(page.locator('#pu-slot-0[data-pu="undo"]')).toHaveClass(/has-stock/);
 
     // Make a real move.
     const cell = await findGroupCell(page);
@@ -362,9 +368,8 @@ test.describe("undo last move (real input)", () => {
     expect(moved.score).toBeGreaterThan(before.score);
     expect(moved.moves).toBe(before.moves - 1);
 
-    // Undo is now enabled; tap it.
-    await expect(page.locator("#btn-undo")).toBeEnabled();
-    await page.locator("#btn-undo").click();
+    // Undo is now available through the tool slot.
+    await page.locator('#pu-slot-0[data-pu="undo"]').click();
     await page.waitForTimeout(150);
 
     const after = await page.evaluate(() => {
@@ -373,7 +378,7 @@ test.describe("undo last move (real input)", () => {
         score: s.score,
         moves: s.movesLeft,
         remaining: s.board.countRemaining(),
-        undos: s.undosLeft,
+        undos: window.__bpc.Economy.getPowerup("undo"),
       };
     });
     expect(after.score).toBe(before.score);
@@ -385,7 +390,8 @@ test.describe("undo last move (real input)", () => {
   test("a spent power-up is refunded on undo", async ({ page }) => {
     await page.evaluate(() => {
       window.__bpc.Storage.set("maxUnlockedLevel", 999);
-      window.__bpc.Storage.set("loadout", ["bomb", null, null]);
+      window.__bpc.Storage.set("loadout", ["bomb", "undo", null]);
+      window.__bpc.Economy.addPowerup("undo", 1);
       window.__bpc.Economy.addPowerup("bomb", 3);
       window.__bpc.game.startCampaign(1);
     });
@@ -414,32 +420,37 @@ test.describe("undo last move (real input)", () => {
     ).toBe(beforeBombs - 1);
 
     // Undo refunds the bomb.
-    await page.locator("#btn-undo").click();
+    await page.locator('#pu-slot-1[data-pu="undo"]').click();
     await page.waitForTimeout(150);
     expect(
       await page.evaluate(() => window.__bpc.Economy.getPowerup("bomb"))
     ).toBe(beforeBombs);
   });
 
-  test("the undo budget is limited", async ({ page }) => {
-    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+  test("undo stock is limited", async ({ page }) => {
+    await page.evaluate(() => {
+      window.__bpc.Storage.set("maxUnlockedLevel", 6);
+      window.__bpc.Storage.set("loadout", ["undo", null, null]);
+      window.__bpc.Economy.addPowerup("undo", 2);
+      window.__bpc.game.startCampaign(1);
+    });
     await page.waitForTimeout(700);
-    const budget = await page.evaluate(() => window.__bpc.game.session.undosLeft);
-    expect(budget).toBeGreaterThan(0);
+    const stock = await page.evaluate(() => window.__bpc.Economy.getPowerup("undo"));
+    expect(stock).toBeGreaterThan(0);
 
     // Spend every undo charge: pop, then undo, repeatedly.
-    for (let i = 0; i < budget; i++) {
+    for (let i = 0; i < stock; i++) {
       const cell = await findGroupCell(page);
       if (!cell) break;
       await tapCell(page, cell.c, cell.r);
       await page.waitForTimeout(150);
-      await page.locator("#btn-undo").click();
+      await page.locator('#pu-slot-0[data-pu="undo"]').click();
       await page.waitForTimeout(120);
     }
 
-    // Budget exhausted → the control is hidden and no further undo is possible.
-    expect(await page.evaluate(() => window.__bpc.game.session.undosLeft)).toBe(0);
-    await expect(page.locator("#btn-undo")).toBeHidden();
+    // Stock exhausted → the slot remains equipped but shows no stock.
+    expect(await page.evaluate(() => window.__bpc.Economy.getPowerup("undo"))).toBe(0);
+    await expect(page.locator('#pu-slot-0[data-pu="undo"]')).toHaveClass(/no-stock/);
   });
 });
 
@@ -1868,7 +1879,7 @@ test.describe("power-ups (UI arm + apply)", () => {
 
     // The picker lists every power-up, including ones not in the loadout.
     await expect(page.locator('#loadout-list [data-pu="shuffle"]')).toBeVisible();
-    await expect(page.locator("#loadout-list .loadout-item")).toHaveCount(6);
+    await expect(page.locator("#loadout-list .loadout-item")).toHaveCount(7);
 
     // Choosing Shuffle equips it in slot 0 and closes the picker.
     await page.locator('#loadout-list [data-pu="shuffle"]').click();
@@ -1978,7 +1989,7 @@ test.describe("progressive tool unlocks", () => {
     await page.mouse.up();
     await expect(page.locator("#loadout")).toBeVisible();
     await expect(page.locator("#loadout-list .loadout-item")).toHaveCount(0);
-    await expect(page.locator(".loadout-empty")).toContainText("Shuffle unlocks at Level 6");
+    await expect(page.locator(".loadout-empty")).toContainText("Undo unlocks at Level 6");
   });
 
   test("clearing into a tool unlock shows a celebratory mini tutorial", async ({
@@ -1991,14 +2002,14 @@ test.describe("progressive tool unlocks", () => {
 
     await page.locator("#win-next").click();
     await expect(page.locator("#tool-unlock")).toBeVisible();
-    await expect(page.locator("#tool-unlock-name")).toHaveText("Shuffle");
+    await expect(page.locator("#tool-unlock-name")).toHaveText("Undo");
     await expect(page.locator("#tool-unlock-level")).toContainText("Level 6");
-    await expect(page.locator("#tool-unlock-lesson")).toContainText("reshuffles");
+    await expect(page.locator("#tool-unlock-lesson")).toContainText("restores the board");
 
     await page.locator("#tool-unlock-ok").click();
     await expect(page.locator("#tool-unlock")).toBeHidden();
     await expect.poll(() => page.evaluate(() => window.__bpc.game.session?.level?.id)).toBe(6);
-    await expect(page.locator("#pu-slot-0")).toHaveAttribute("data-pu", "shuffle");
+    await expect(page.locator("#pu-slot-0")).toHaveAttribute("data-pu", "undo");
     await expect(page.locator("#pu-slot-0 .pu-count")).toHaveText("1");
   });
 });
@@ -3652,6 +3663,7 @@ test.describe("shop & monetization (UI)", () => {
 
     const before = await page.evaluate(() => ({
       coins: window.__bpc.Economy.coins,
+      undo: window.__bpc.Economy.getPowerup("undo"),
       bomb: window.__bpc.Economy.getPowerup("bomb"),
       crates: window.__bpc.Storage.get("pets").crates,
     }));
@@ -3659,11 +3671,13 @@ test.describe("shop & monetization (UI)", () => {
     expect(res.ok).toBe(true);
     const after = await page.evaluate(() => ({
       coins: window.__bpc.Economy.coins,
+      undo: window.__bpc.Economy.getPowerup("undo"),
       bomb: window.__bpc.Economy.getPowerup("bomb"),
       crates: window.__bpc.Storage.get("pets").crates,
       owned: window.__bpc.Storage.get("starterPack"),
     }));
     expect(after.coins).toBe(before.coins + 2000);
+    expect(after.undo).toBe(before.undo + 3);
     expect(after.bomb).toBe(before.bomb + 3);
     expect(after.crates).toBe(before.crates + 1);
     expect(after.owned).toBe(true);
@@ -4014,9 +4028,9 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
     });
     await expect.poll(() => stepId(page)).toBe("undo");
 
-    // 3a) undo — tapping the ↶ Undo button takes back the last move.
-    await expect(page.locator("#btn-undo")).toBeVisible();
-    await page.locator("#btn-undo").click();
+    // 3a) undo — tapping the ↶ Undo tool takes back the last move.
+    await expect(page.locator('#pu-slot-0[data-pu="undo"]')).toBeVisible();
+    await page.locator('#pu-slot-0[data-pu="undo"]').click();
     await expect.poll(() => stepId(page)).toBe("fever");
 
     // 3b) fever (informational) — the grant fires Fever; advance on the button.
@@ -4270,6 +4284,7 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
     const real = await page.evaluate(() => {
       const { Storage } = window.__bpc;
       Storage.set("powerups", {
+        undo: 2,
         bomb: 42,
         colorClear: 0,
         shuffle: 3,
@@ -4291,7 +4306,7 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
 
     // Every tool is stocked to AT LEAST 10, the bigger real stash is never
     // reduced, and every catalog pet is loaded to experiment with.
-    const TOOLS = ["bomb", "colorClear", "shuffle", "chainBolt", "pick", "magnet"];
+    const TOOLS = ["undo", "bomb", "colorClear", "shuffle", "chainBolt", "pick", "magnet"];
     const loaded = await page.evaluate((tools) => {
       const { Storage, Economy } = window.__bpc;
       const counts = {};
@@ -4332,6 +4347,7 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
     const real = await page.evaluate(() => {
       const { Storage } = window.__bpc;
       Storage.set("powerups", {
+        undo: 0,
         bomb: 2,
         colorClear: 1,
         shuffle: 0,

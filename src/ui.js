@@ -163,7 +163,6 @@ class UIManager {
       "hud-mode-label", "hud-score", "hud-target", "hud-target-wrap", "hud-target-label",
       "hud-moves", "hud-moves-label", "hud-progress-fill", "hud-status",
       "hud-objective", "hud-objective-text",
-      "btn-undo", "hud-undo-count",
       "power-meter", "power-fill", "power-label",
       "fever-meter", "fever-fill", "fever-label",
       "powerups", "pu-slot-0", "pu-slot-1", "pu-slot-2",
@@ -242,9 +241,6 @@ class UIManager {
     click("pause-themes", () => this._pauseGoThemes());
     click("pause-retry", () => this._pauseRetry());
     click("pause-menu", () => this._pauseMenu());
-
-    // Undo last move (HUD). Disabled state is reflected by `updateUndo`.
-    click("btn-undo", () => this.cb.undoMove && this.cb.undoMove());
 
     // In-game pet badge doubles as a shortcut to the companion manager.
     click("hud-pet", () => this.openPetOverlay());
@@ -3229,20 +3225,6 @@ class UIManager {
   // ---- HUD --------------------------------------------------------------
   showHud(show) {
     this.el["hud"].classList.toggle("hidden", !show);
-    if (!show) this.updateUndo(0, false);
-  }
-
-  // Reflect the Undo control: `count` is the remaining budget, `enabled`
-  // whether a move can be taken back right now. Hidden once the budget is gone.
-  updateUndo(count, enabled) {
-    const btn = this.el["btn-undo"];
-    if (!btn) return;
-    const show = (count || 0) > 0;
-    btn.classList.toggle("hidden", !show);
-    btn.classList.toggle("disabled", !enabled);
-    btn.disabled = !enabled;
-    const num = this.el["hud-undo-count"];
-    if (num) num.textContent = count || 0;
   }
 
   updateHud(s) {
@@ -3288,9 +3270,10 @@ class UIManager {
 
   updatePowerups() {
     const loadout = Storage.getLoadout();
+    const tutorial = this.cb.isTutorial && this.cb.isTutorial();
     (this._slots || []).forEach((btn, i) => {
       const type = loadout[i];
-      const unlocked = type && (isPowerupUnlocked(type) || type === this._rescueTool);
+      const unlocked = type && (tutorial || isPowerupUnlocked(type) || type === this._rescueTool);
       const info = unlocked ? POWERUP_INFO[type] : null;
       const owned = type ? Economy.getPowerup(type) : 0;
       btn.dataset.pu = unlocked ? type : "";
@@ -3325,7 +3308,9 @@ class UIManager {
     const loadout = Storage.getLoadout();
     const list = this.el["loadout-list"];
     if (!list) return;
-    const available = unlockedPowerups();
+    const available = this.cb.isTutorial && this.cb.isTutorial()
+      ? Object.keys(POWERUP_INFO)
+      : unlockedPowerups();
     if (this.el["loadout-sub"])
       this.el["loadout-sub"].textContent = available.length
         ? `Choose the power-up for slot ${slot + 1}.`

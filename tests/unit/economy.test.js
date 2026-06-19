@@ -73,11 +73,12 @@ describe("economy", () => {
         expect(isPowerupUnlocked(type, level)).toBe(false);
       }
     }
-    expect(nextPowerupUnlock(5)).toMatchObject({ type: "shuffle", level: 6 });
+    expect(nextPowerupUnlock(5)).toMatchObject({ type: "undo", level: 6 });
   });
 
   it("unlocks tools gradually in a fixed campaign order", () => {
     expect(POWERUP_UNLOCKS.map((u) => u.type)).toEqual([
+      "undo",
       "shuffle",
       "bomb",
       "colorClear",
@@ -85,10 +86,10 @@ describe("economy", () => {
       "chainBolt",
       "magnet",
     ]);
-    expect(unlockedPowerups(6)).toEqual(["shuffle"]);
-    expect(unlockedPowerups(14)).toEqual(["shuffle", "bomb", "colorClear", "pick"]);
+    expect(unlockedPowerups(6)).toEqual(["undo"]);
+    expect(unlockedPowerups(16)).toEqual(["undo", "shuffle", "bomb", "colorClear", "pick"]);
     expect(unlockedPowerups(24)).toEqual(POWERUP_UNLOCKS.map((u) => u.type));
-    expect(powerupsUnlockedBetween(5, 8).map((u) => u.type)).toEqual(["shuffle", "bomb"]);
+    expect(powerupsUnlockedBetween(5, 10).map((u) => u.type)).toEqual(["undo", "shuffle", "bomb"]);
   });
 
   it("does not sell locked power-ups even when the player has enough coins", () => {

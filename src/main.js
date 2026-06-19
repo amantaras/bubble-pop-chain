@@ -196,11 +196,9 @@ const MAGNET_HALF = 0.3;
 // experiment freely with each tool. The player's real, larger stashes are
 // never reduced (we top up to at least this many) and are restored afterwards.
 const TUTORIAL_TOOL_STOCK = 10;
-// "Undo last move" budget: how many times a player may take back a move per
-// level, and how deep the rewind history goes. Limited so it's a safety net,
-// not a way to brute-force a level. Undo state is per-session and ephemeral
-// (it is NOT persisted across reloads — a resumed level starts fresh).
-const UNDO_BUDGET = 3;
+// Undo keeps only a small recent rewind history. The number of times a player
+// can use it comes from the Undo tool stock in the economy.
+const UNDO_STACK_LIMIT = 3;
 
 // Time Attack: a fast score-rush mode where the board refills endlessly and the
 // only limit is the clock. Players chase a personal best within the window.
@@ -264,6 +262,7 @@ class Game {
       tutorialSkip: () => this.tutorial && this.tutorial.skip(),
       toolUnlockContinue: () => this._continueAfterToolUnlock(),
       undoMove: () => this.undoMove(),
+      isTutorial: () => this.session && this.session.mode === "tutorial",
       onThemeChange: (t) => {
         this.theme = t;
         // Swap the backing track live when the theme changes mid-session.
@@ -549,7 +548,7 @@ class Game {
       objectiveMet: false,
       usedPowerup: false,
       undoStack: [],
-      undosLeft: UNDO_BUDGET,
+      undosLeft: 0,
       // Downpour (advanced campaign levels): a fresh row drops from the top
       // every `interval` resolved moves; `movesSinceDrop` paces that cadence.
       downpour: (mode === "campaign" && level.downpour) || null,
@@ -693,7 +692,7 @@ class Game {
       objectiveMet: !!snap.objectiveMet,
       usedPowerup: !!snap.usedPowerup,
       undoStack: [],
-      undosLeft: UNDO_BUDGET,
+      undosLeft: 0,
       downpour: level.downpour || null,
       movesSinceDrop: snap.movesSinceDrop || 0,
     };
@@ -852,7 +851,7 @@ class Game {
       petPicking: false,
       shiftTokens: 99,
       undoStack: [],
-      undosLeft: UNDO_BUDGET,
+      undosLeft: 0,
     };
     this._enterSession();
     this.tutorial = new Tutorial({
@@ -1376,8 +1375,11 @@ class Game {
       this._spawnTutorialEvent();
     } else if (kind === "undo") {
       // Guarantee there is a move to take back so the player can try Undo, and
-      // refill the undo budget for the demo.
-      s.undosLeft = UNDO_BUDGET;
+      // grant practice Undo stock for the demo.
+      Economy.addPowerup("undo", Math.max(0, 1 - Economy.getPowerup("undo")));
+      s.undosLeft = Economy.getPowerup("undo");
+      this._ensureToolInLoadout("undo");
+      UI.updatePowerups();
       if (!Array.isArray(s.undoStack) || s.undoStack.length === 0) {
         this._pushUndo();
       }
@@ -1525,13 +1527,12 @@ class Game {
   // ---- Undo last move ---------------------------------------------------
   // Snapshot the move-reversible session state BEFORE a committed move so the
   // player can take it back. `refund` optionally records a consumable to give
-  // back on undo ({ powerup: type }). The stack is capped at UNDO_BUDGET to
+  // back on undo ({ powerup: type }). The stack is capped at UNDO_STACK_LIMIT to
   // bound memory; the oldest snapshot is dropped when it overflows.
   _pushUndo(refund = null) {
     const s = this.session;
     if (!s || s.ended) return;
     if (!Array.isArray(s.undoStack)) s.undoStack = [];
-    if ((s.undosLeft || 0) <= 0) return; // no budget — don't bother recording
     s.undoStack.push({
       grid: s.board.serialize(),
       types: s.board.serializeTypes(),
@@ -1550,17 +1551,17 @@ class Game {
       stats: s.stats ? { ...s.stats } : null,
       refund: refund || null,
     });
-    if (s.undoStack.length > UNDO_BUDGET) s.undoStack.shift();
+    if (s.undoStack.length > UNDO_STACK_LIMIT) s.undoStack.shift();
   }
 
   // Can the player undo right now? Needs an active, idle (non-animating)
-  // session, a remaining budget, and at least one recorded snapshot.
+  // session and at least one recorded snapshot. Stock is checked when the Undo
+  // tool is used so the shop can open from the loadout when the player is out.
   canUndo() {
     const s = this.session;
     if (!s || s.ended) return false;
     if (s.finishing || s.petPicking) return false; // mid-animation
     if (s.magnet && s.magnet.aiming) return false; // mid magnet aim
-    if ((s.undosLeft || 0) <= 0) return false;
     return Array.isArray(s.undoStack) && s.undoStack.length > 0;
   }
 
@@ -1571,6 +1572,11 @@ class Game {
     const s = this.session;
     if (!this.canUndo()) {
       if (s && !s.ended) UI.toast("Nothing to undo");
+      return false;
+    }
+    const inTutorial = s.mode === "tutorial";
+    if (!inTutorial && !Economy.usePowerup("undo")) {
+      UI.openShopForPowerup("undo");
       return false;
     }
     const snap = s.undoStack.pop();
@@ -1599,7 +1605,7 @@ class Game {
     s.magnet = null;
     s.hint = null;
     s.idleTime = 0;
-    s.undosLeft = Math.max(0, (s.undosLeft || 0) - 1);
+    s.undosLeft = Economy.getPowerup("undo");
 
     UI.clearArmedPowerups();
     UI.hideMagnetGauge();
@@ -1610,7 +1616,7 @@ class Game {
     if (s.mode === "campaign") this._persistSession();
     Audio.click();
     vibrate(12);
-    UI.toast(`↶ Undo (${s.undosLeft} left)`);
+    UI.toast(`↶ Undo (${inTutorial ? "practice" : `${s.undosLeft} left`})`);
     this._noteActivity();
     this._tut("undo");
     return true;
@@ -1635,9 +1641,6 @@ class Game {
     const s = this.session;
     if (!s) return;
     const status = this._hudStatus();
-    // Undo control: show the remaining budget; enabled only when a move can be
-    // taken back right now.
-    UI.updateUndo(s.undosLeft || 0, this.canUndo());
     // Bonus objective chip (campaign non-boss levels only).
     UI.updateObjective(
       s.mode === "campaign" && s.level.milestone !== "boss" ? s.objective : null,
@@ -1739,7 +1742,8 @@ class Game {
     if (s.feverActive) items.push({ icon: "🔥", text: "Fever x2", kind: "fever" });
     else if ((s.fever || 0) >= 0.75) items.push({ icon: "🔥", text: "Fever close", kind: "fever" });
     if (s.hint) items.push({ icon: "◎", text: "Hint on", kind: "hint" });
-    if ((s.undosLeft || 0) > 0) items.push({ icon: "↶", text: `${s.undosLeft} undo`, kind: "undo" });
+    const undoStock = Economy.getPowerup("undo");
+    if (undoStock > 0) items.push({ icon: "↶", text: `${undoStock} undo`, kind: "undo" });
     if (s.shiftTokens > 0) items.push({ icon: "↔", text: `${s.shiftTokens} shift`, kind: "shift" });
     if (s.petActive && s.petTimer <= 1) items.push({ icon: "✦", text: "Pet soon", kind: "pet" });
     return items.slice(0, 4);
@@ -3145,6 +3149,12 @@ class Game {
       // Out of this tool — take the player straight to the shop with it already
       // highlighted so they can stock up, then return to the level.
       UI.openShopForPowerup(type);
+      return;
+    }
+    if (type === "undo") {
+      this.undoMove();
+      UI.updatePowerups();
+      this.refreshHud();
       return;
     }
     if (type === "shuffle") {

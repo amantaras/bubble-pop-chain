@@ -141,8 +141,8 @@ never re‑discovered the hard way.
   `powerupsUnlockedBetween`, `ui.js` `showToolUnlock`, `main.js`
   `_grantToolUnlock`): new players start with **no tools at all** — the first
   five campaign levels keep the HUD/tool shop quiet. Tools then unlock one at a
-  time as campaign progress opens the next level: Shuffle at Level 6, Bomb at 8,
-  Color Clear at 11, Pick at 14, Chain Bolt at 18, and Magnet at 24. The shop and
+  time as campaign progress opens the next level: Undo at Level 6, Shuffle at 8,
+  Bomb at 10, Color Clear at 13, Pick at 16, Chain Bolt at 20, and Magnet at 24. The shop and
   loadout picker only list unlocked tools; before Level 6 they show a small
   "Tools unlock after Level 5" empty state, and the Starter Pack describes its
   locked contents as a future tool stash instead of spoiling the full toolbox.
@@ -233,13 +233,13 @@ never re‑discovered the hard way.
   feeds a compact `#hud-status` strip with existing session facts (Blast ready /
   charge close, Fever, hint on, undo count, shift tokens, pet soon). Display
   polish only — no save field, no tutorial step.
-- **Undo last move** (`main.js` `UNDO_BUDGET`/`_pushUndo`/`canUndo`/`undoMove`,
-  `ui.js` `updateUndo`, `#btn-undo`): a per-level safety net that lets the
-  player take back their last committed move. Each session starts with
-  `UNDO_BUDGET = 3` undos (`undosLeft`) and a bounded `undoStack` (capped at
-  `UNDO_BUDGET`, oldest shifted out). Both live on the session and are
-  **ephemeral** — they are deliberately **not** part of `_persistSession`, so a
-  resumed level starts fresh with a full budget. `_pushUndo(refund)` snapshots
+- **Undo tool** (`economy.js` `POWERUP_INFO.undo`, `main.js` `_pushUndo`/
+  `canUndo`/`undoMove`): Undo is now a normal loadout tool, unlocked at Level 6
+  and consumed from the player's power-up inventory (`Economy.usePowerup("undo")`).
+  It lets the player take back their last committed move. Each session keeps a
+  bounded `undoStack` (capped at `UNDO_STACK_LIMIT = 3`, oldest shifted out), but
+  the available uses come from owned Undo charges rather than a separate per-level
+  budget. `_pushUndo(refund)` snapshots
   the full board + scoring state (`board.serialize()`/`serializeTypes()`,
   `score`, `movesLeft`, `combo`/`comboTimer`, `power`, `fever`/`feverActive`/
   `feverTimer`, `shiftTokens`, `petTimer`, `objectiveMet`, `usedPowerup`, a copy
@@ -247,18 +247,16 @@ never re‑discovered the hard way.
   into `popAt`, `handleSwipe` (snapshot discarded if the row shift is a no-op),
   `chargedBlast`, `applyPowerup`, `lockMagnet`, and the shuffle branch of
   `armPowerup`. `undoMove()` (no-op + "Nothing to undo" toast when `canUndo()`
-  is false — i.e. no session, ended, finishing, magnet aiming, pet picking,
-  empty stack, or `undosLeft <= 0`) pops the snapshot, restores the board and
+  is false — i.e. no session, ended, finishing, magnet aiming, pet picking, or
+  empty stack) pops the snapshot, restores the board and
   every scalar/stat, **refunds** a consumed power-up/magnet/shuffle charge
   (`snap.refund.powerup` → `Economy.addPowerup(type, 1)`; refunds are `null` in
   the tutorial so practice stock is untouched), clears any preview/armed/magnet/
-  hint state, decrements `undosLeft`, refreshes the HUD, re-persists the session
-  (campaign), and toasts `↶ Undo (N left)`. The HUD shows a `#btn-undo` button
-  (top-right, hidden when no undos remain, disabled when `canUndo()` is false —
-  `UI.updateUndo(count, enabled)`, refreshed from `refreshHud`). The tutorial
-  teaches it with a gated **undo** step (after **combo**) whose `grant: "undo"`
-  ensures a snapshot exists, and the game emits `_tut("undo")` on a successful
-  undo.
+  hint state, updates the tool stock display, refreshes the HUD, re-persists the
+  session (campaign), and toasts the remaining Undo stock. The tutorial teaches
+  it with a gated **undo** step (after **combo**) whose `grant: "undo"` ensures a
+  snapshot exists and equips practice Undo stock, and the game emits `_tut("undo")`
+  on a successful undo.
 - **Hold-to-buy** (`ui.js` `_attachHoldRepeat`/`_buyHoldMs`/`_buyHoldMax`): power-up buy
   buttons buy once on a tap and **keep buying while held** at a configurable
   rate — `settings.buyRepeatMs` (default **500ms = 2/sec**; override at runtime

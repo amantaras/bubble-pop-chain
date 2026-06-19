@@ -54,9 +54,9 @@ export const TUTORIAL_STEPS = [
   {
     id: "undo",
     title: "Undo a Move",
-    body: "Made a mistake? Tap the ↶ Undo button up top to take back your last move. You get a few undos each level — a handy safety net. Try it now!",
+    body: "Made a mistake? Tap the ↶ Undo tool in your loadout to take back your last move. It spends one charge, just like your other tools. Try it now!",
     advance: "undo",
-    hint: "↶ Tap the Undo button",
+    hint: "↶ Tap the Undo tool",
     grant: "undo",
   },
   {

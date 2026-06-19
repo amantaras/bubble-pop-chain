@@ -3,6 +3,7 @@ import { Storage } from "./storage.js";
 import { todayKey } from "./rng.js";
 
 export const POWERUP_INFO = {
+  undo: { name: "Undo", icon: "↶", desc: "Takes back your last move", price: 90 },
   bomb: { name: "Bomb", icon: "💥", desc: "Clears a 3×3 area", price: 150 },
   colorClear: { name: "Color Clear", icon: "🌈", desc: "Removes one whole color", price: 250 },
   shuffle: { name: "Shuffle", icon: "🔀", desc: "Reshuffles the board", price: 100 },
@@ -12,11 +13,12 @@ export const POWERUP_INFO = {
 };
 
 export const POWERUP_UNLOCKS = [
-  { type: "shuffle", level: 6, lesson: "Tap Shuffle when the board feels stuck. It spends one charge and immediately reshuffles the bubbles into a fresh, playable board." },
-  { type: "bomb", level: 8, lesson: "Tap Bomb, then tap the board. It clears a 3×3 area, which is perfect for breaking crowded corners or opening space near the bottom." },
-  { type: "colorClear", level: 11, lesson: "Tap Color Clear, then tap a bubble colour. Every bubble of that colour disappears, setting up huge cascades and emergency clears." },
-  { type: "pick", level: 14, lesson: "Tap Pick, then tap one bubble. Use it to remove a lone blocker, trigger a special bubble, or rescue a board that is almost solved." },
-  { type: "chainBolt", level: 18, lesson: "Tap Chain Bolt, then tap a cell. It clears that whole row and column, and any special bubbles in the strike can chain for extra impact." },
+  { type: "undo", level: 6, lesson: "Tap Undo after a move goes wrong. It spends one charge and restores the board, score, moves, and any tool you spent on that move." },
+  { type: "shuffle", level: 8, lesson: "Tap Shuffle when the board feels stuck. It spends one charge and immediately reshuffles the bubbles into a fresh, playable board." },
+  { type: "bomb", level: 10, lesson: "Tap Bomb, then tap the board. It clears a 3×3 area, which is perfect for breaking crowded corners or opening space near the bottom." },
+  { type: "colorClear", level: 13, lesson: "Tap Color Clear, then tap a bubble colour. Every bubble of that colour disappears, setting up huge cascades and emergency clears." },
+  { type: "pick", level: 16, lesson: "Tap Pick, then tap one bubble. Use it to remove a lone blocker, trigger a special bubble, or rescue a board that is almost solved." },
+  { type: "chainBolt", level: 20, lesson: "Tap Chain Bolt, then tap a cell. It clears that whole row and column, and any special bubbles in the strike can chain for extra impact." },
   { type: "magnet", level: 24, lesson: "Tap Magnet, choose a plain bubble, then tap again when the dial hits green. A strong lock pulls that colour into one giant poppable cluster." },
 ];
 
@@ -66,7 +68,7 @@ export const STARTER_PACK = {
   name: "Starter Pack",
   price: "$1.99",
   coins: 2000,
-  powerups: { bomb: 3, colorClear: 2, shuffle: 2, magnet: 1 },
+  powerups: { undo: 3, bomb: 3, colorClear: 2, shuffle: 2, magnet: 1 },
   crates: 1,
 };
 

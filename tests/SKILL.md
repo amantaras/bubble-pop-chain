@@ -222,9 +222,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   reachability, progress persistence across reloads,
   resuming an in-progress campaign level (save & Continue), real-input
   gestures (long-press Preview, double-tap Charged Blast, swipe row-shift),
-  undo last move (the `#btn-undo` button restores the board/score/moves, a
-  consumed power-up is refunded on undo, and the per-level undo budget is
-  capped),
+  undo tool use (the loadout Undo charge restores the board/score/moves, a
+  consumed power-up is refunded on undo, and the rewind stack is capped),
   special-bubble spawning + reload persistence, lightning row/column discharge,
   bomb-bubble 3×3 detonation on pop, multiplier gold-bubble score boost,
   coin treasure-bubble bonus-coin drop,
