@@ -39,6 +39,32 @@ async function unlockAllTools(page) {
   });
 }
 
+async function unlockAllPetFeatures(page) {
+  await page.evaluate(() => {
+    window.__bpc.Storage.set("maxUnlockedLevel", 999);
+    if (!window.__bpc.Storage.ownsPet("sparky")) {
+      window.__bpc.Storage.grantPet("sparky", "balanced");
+    }
+    window.__bpc.Storage.equipPet("sparky");
+    if (window.__bpc.Storage.getPetState().crates <= 0) {
+      window.__bpc.Storage.addCrates(1);
+    }
+    window.__bpc.UI.refreshPetAccess();
+    window.__bpc.UI.updatePetHud(window.__bpc.Storage.getEquippedPet());
+  });
+}
+
+async function unlockPetIntro(page) {
+  await page.evaluate(() => {
+    window.__bpc.Storage.set("maxUnlockedLevel", 12);
+    if (!window.__bpc.Storage.ownsPet("sparky")) {
+      window.__bpc.Storage.grantPet("sparky", "balanced");
+    }
+    window.__bpc.Storage.equipPet("sparky");
+    window.__bpc.UI.refreshPetAccess();
+  });
+}
+
 // Pop the largest available group repeatedly until the session ends.
 async function autoPlay(page) {
   await page.evaluate(async () => {
@@ -211,7 +237,6 @@ test.describe("menu & navigation (UI)", () => {
       "btn-shop",
       "btn-themes",
       "btn-achievements",
-      "btn-pets",
       "btn-calendar",
       "btn-season",
       "btn-quests",
@@ -221,12 +246,13 @@ test.describe("menu & navigation (UI)", () => {
     ]) {
       await expect(page.locator(`#${id}`)).toBeVisible();
     }
+    await expect(page.locator("#btn-pets")).toBeHidden();
     await expect(page.locator("#btn-play .cta-sub")).toHaveText("Campaign levels");
     await expect(page.locator("#play-nudge")).toHaveText("Start here");
     await expect(page.locator("#btn-daily .tile-sub")).toHaveText("One run today");
     await expect(page.locator("#btn-tournament .tile-sub")).toHaveText("Weekly ladder");
     await expect(page.locator("#btn-timeattack .tile-sub")).toHaveText("60 sec sprint");
-    await expect(page.locator(".menu-tiles .tile")).toHaveCount(13);
+    await expect(page.locator(".menu-tiles .tile:not(.hidden)")).toHaveCount(12);
     await expect(page.locator(".menu-group-title")).toHaveText([
       "Play",
       "Events",
@@ -235,8 +261,15 @@ test.describe("menu & navigation (UI)", () => {
     ]);
     await expect(page.locator('.menu-group[aria-label="Play"] .tile')).toHaveCount(3);
     await expect(page.locator('.menu-group[aria-label="Events"] .tile')).toHaveCount(4);
-    await expect(page.locator('.menu-group[aria-label="Progress"] .tile')).toHaveCount(4);
+    await expect(page.locator('.menu-group[aria-label="Progress"] .tile:not(.hidden)')).toHaveCount(3);
     await expect(page.locator('.menu-group[aria-label="Shop & Settings"] .tile')).toHaveCount(2);
+  });
+
+  test("Pets menu entry appears when the campaign reaches the pet intro", async ({ page }) => {
+    await unlockPetIntro(page);
+    await page.evaluate(() => window.__bpc.UI.showScreen("menu"));
+    await expect(page.locator("#btn-pets")).toBeVisible();
+    await expect(page.locator("#btn-pets .tile-sub")).toHaveText("Companions");
   });
 
   test("short phone menu can scroll all the way back to the top", async ({
@@ -2012,6 +2045,31 @@ test.describe("progressive tool unlocks", () => {
     await expect(page.locator("#pu-slot-0")).toHaveAttribute("data-pu", "undo");
     await expect(page.locator("#pu-slot-0 .pu-count")).toHaveText("1");
   });
+
+  test("clearing into the pet intro shows a feature unlock and grants Sparky", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.Storage.set("maxUnlockedLevel", 11));
+    await page.evaluate(() => window.__bpc.game.startCampaign(11));
+    await page.waitForTimeout(600);
+    await clearBoardByFinalPair(page);
+    await expect(page.locator("#win")).toBeVisible();
+
+    await page.locator("#win-next").click();
+    await expect(page.locator("#tool-unlock")).toBeVisible();
+    await expect(page.locator("#tool-unlock-name")).toHaveText("Pets");
+    await expect(page.locator("#tool-unlock-level")).toContainText("Level 12");
+    await expect(page.locator("#tool-unlock-lesson")).toContainText("Sparky");
+
+    const petState = await page.evaluate(() => window.__bpc.Storage.getPetState());
+    expect(petState.equipped).toBe("sparky");
+    expect(petState.owned.sparky).toBeTruthy();
+
+    await page.locator("#tool-unlock-ok").click();
+    await expect(page.locator("#tool-unlock")).toBeHidden();
+    await expect.poll(() => page.evaluate(() => window.__bpc.game.session?.level?.id)).toBe(12);
+    await expect(page.locator("#hud-pet")).toBeVisible();
+  });
 });
 
 test.describe("hold-to-buy (auto-repeat purchase)", () => {
@@ -2190,6 +2248,7 @@ test.describe("hold-to-buy (auto-repeat purchase)", () => {
   test("repeatable pet crate buys use the same capped hold behavior", async ({
     page,
   }) => {
+    await unlockAllPetFeatures(page);
     await page.evaluate(() => window.__bpc.Economy.addCoins(100000));
     await page.locator("#btn-pets").click();
     await expect(page.locator("#pets")).toBeVisible();
@@ -4408,7 +4467,10 @@ test.describe("performance (bounded effect cost)", () => {
 });
 
 test.describe("pet companions (collection & buffs)", () => {
-  test.beforeEach(({ page }) => openGame(page));
+  test.beforeEach(async ({ page }) => {
+    await openGame(page);
+    await unlockAllPetFeatures(page);
+  });
 
   test("Pets screen opens with Sparky owned, equipped, and a starter crate", async ({
     page,
@@ -5327,7 +5389,10 @@ test.describe("lone-bubble rescue", () => {
 });
 
 test.describe("pet gems & sockets (RPG batch 4)", () => {
-  test.beforeEach(({ page }) => openGame(page));
+  test.beforeEach(async ({ page }) => {
+    await openGame(page);
+    await unlockAllPetFeatures(page);
+  });
 
   test("the Pets screen launches a dedicated Gem Forge with Bag & Forge tabs", async ({ page }) => {
     await page.locator("#btn-pets").click();
@@ -5807,7 +5872,10 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
 // upgrade nodes; the player permanently picks one, customizing the pet.
 // ---------------------------------------------------------------------------
 test.describe("pet technology tree (RPG batch 5)", () => {
-  test.beforeEach(({ page }) => openGame(page));
+  test.beforeEach(async ({ page }) => {
+    await openGame(page);
+    await unlockAllPetFeatures(page);
+  });
 
   test("the pet detail shows the tech tree with a pending pick at Lv.2", async ({ page }) => {
     await page.evaluate(() => {
@@ -5957,7 +6025,10 @@ test.describe("last-bubble finale", () => {
 });
 
 test.describe("premium Nova gunship pet", () => {
-  test.beforeEach(({ page }) => openGame(page));
+  test.beforeEach(async ({ page }) => {
+    await openGame(page);
+    await unlockAllPetFeatures(page);
+  });
 
   test("equipped Nova auto-blasts bottom bubbles with no player input", async ({
     page,

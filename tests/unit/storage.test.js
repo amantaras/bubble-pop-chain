@@ -262,12 +262,12 @@ describe("storage", () => {
   });
 
   describe("pets", () => {
-    it("starts with Sparky owned, equipped, and one starter crate", () => {
+    it("starts before the pet system is introduced", () => {
       const p = Storage.getPetState();
-      expect(p.equipped).toBe("sparky");
-      expect(p.owned.sparky).toBeTruthy();
-      expect(p.crates).toBe(1);
-      expect(Storage.ownsPet("sparky")).toBe(true);
+      expect(p.equipped).toBeNull();
+      expect(p.owned).toEqual({});
+      expect(p.crates).toBe(0);
+      expect(Storage.ownsPet("sparky")).toBe(false);
       expect(Storage.ownsPet("draco")).toBe(false);
     });
 
@@ -289,7 +289,9 @@ describe("storage", () => {
       expect(Storage.getPetTrait("ghost")).toBeNull();
     });
 
-    it("starter Sparky carries the balanced trait", () => {
+    it("progression-granted Sparky carries the balanced trait", () => {
+      Storage.grantPet("sparky", "balanced");
+      Storage.equipPet("sparky");
       expect(Storage.getPetTrait("sparky")).toBe("balanced");
     });
 
@@ -298,7 +300,7 @@ describe("storage", () => {
       expect(Storage.getPetTech("draco")).toEqual([]);
       // Unowned pets report an empty array, not undefined.
       expect(Storage.getPetTech("ghost")).toEqual([]);
-      // Starter Sparky too.
+      Storage.grantPet("sparky", "balanced");
       expect(Storage.getPetTech("sparky")).toEqual([]);
     });
 
@@ -362,6 +364,7 @@ describe("storage", () => {
     });
 
     it("accumulates XP only for owned pets", () => {
+      Storage.grantPet("sparky", "balanced");
       Storage.addPetXp("sparky", 40);
       expect(Storage.getPetState().owned.sparky.xp).toBe(40);
       Storage.addPetXp("ghost", 40); // not owned — no-op
@@ -379,8 +382,7 @@ describe("storage", () => {
 
     it("adds and consumes crates without going negative", () => {
       Storage.addCrates(2);
-      expect(Storage.getPetState().crates).toBe(3); // 1 starter + 2
-      expect(Storage.consumeCrate()).toBe(true);
+      expect(Storage.getPetState().crates).toBe(2);
       expect(Storage.consumeCrate()).toBe(true);
       expect(Storage.consumeCrate()).toBe(true);
       expect(Storage.consumeCrate()).toBe(false); // none left
@@ -388,6 +390,7 @@ describe("storage", () => {
     });
 
     it("grants and selects cosmetics idempotently", () => {
+      Storage.grantPet("sparky", "balanced");
       expect(Storage.grantCosmetic("sparky", "sunset")).toBe(true);
       expect(Storage.grantCosmetic("sparky", "sunset")).toBe(false);
       expect(Storage.setCosmetic("sparky", "sunset")).toBe(true);
@@ -401,7 +404,7 @@ describe("storage", () => {
       Storage.addCrates(4);
       const raw = JSON.parse(localStorage.getItem("bpc_save_v1"));
       expect(raw.pets.owned.draco).toBeTruthy();
-      expect(raw.pets.crates).toBe(5);
+      expect(raw.pets.crates).toBe(4);
     });
 
     it("defaults dust and pity to zero", () => {
@@ -514,7 +517,8 @@ describe("storage", () => {
       expect(Storage.getSockets("rover")).toEqual([]);
     });
 
-    it("default sparky owns an empty sockets array", () => {
+    it("progression-granted sparky owns an empty sockets array", () => {
+      Storage.grantPet("sparky", "balanced");
       const raw = JSON.parse(localStorage.getItem("bpc_save_v1"));
       expect(raw.pets.owned.sparky.sockets).toEqual([]);
     });

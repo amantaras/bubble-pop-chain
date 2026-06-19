@@ -2107,6 +2107,39 @@ body {
   font-size: 11px;
   color: var(--text-dim);
 }
+.pet-feature-lock {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+}
+.pfl-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.pfl-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.pfl-copy b {
+  font-size: 13px;
+}
+.pfl-copy span {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-dim);
+}
 .store-item {
   display: flex;
   align-items: center;

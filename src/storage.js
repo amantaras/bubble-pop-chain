@@ -81,14 +81,12 @@ const DEFAULT_SAVE = {
   adRewards: { date: null, count: 0 },
   // Pet companions. `owned` maps petId → { xp, cosmetics:[ids], cosmetic } for
   // every pet the player has collected; `equipped` is the active pet's id;
-  // `crates` is the number of unopened pet crates. New players start with
-  // Sparky equipped and one starter crate so the system is usable immediately.
+  // `crates` is the number of unopened pet crates. New players start with no
+  // pet surface; Sparky and the first crate arrive from campaign progression.
   pets: {
-    owned: {
-      sparky: { xp: 0, cosmetics: ["default"], cosmetic: "default", trait: "balanced", sockets: [], tech: [] },
-    },
-    equipped: "sparky",
-    crates: 1,
+    owned: {},
+    equipped: null,
+    crates: 0,
     // Party support slots — up to 2 extra pets that lend a fraction of their
     // passive buffs alongside the equipped lead (see pets.js partyBuffs).
     party: { supports: [] },

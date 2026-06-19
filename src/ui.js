@@ -77,6 +77,10 @@ import {
   getCosmetic,
   petBuffs,
   petActive,
+  PET_FEATURE_INFO,
+  isPetFeatureUnlocked,
+  nextPetFeatureUnlock,
+  petFeatureUnlockLevel,
   levelForXp,
   levelProgress,
   MAX_PET_LEVEL,
@@ -514,6 +518,7 @@ class UIManager {
       this.refreshSeasonBadge();
       this.refreshPuzzleBadge();
       this.refreshPetsBadge();
+      this.refreshPetAccess();
     }
     if (name === "levelmap") this.buildLevelMap();
     if (name === "shop") this.buildShop();
@@ -588,6 +593,11 @@ class UIManager {
   // over a running level the game is paused and input disabled; closing resumes
   // play. Opened from the menu it behaves like a normal screen.
   openPetOverlay() {
+    if (!this._petFeatureUnlocked("pets")) {
+      const next = nextPetFeatureUnlock(Storage.get("maxUnlockedLevel"));
+      this.toast(next ? `Pets unlock at Level ${next.level}` : "Pets are locked");
+      return;
+    }
     const overGame = !!(this.cb.isLevelActive && this.cb.isLevelActive());
     this._petOverlayOverGame = overGame;
     this._selectedPet = null;
@@ -1863,6 +1873,10 @@ class UIManager {
   refreshPetsBadge() {
     const badge = this.el["pets-badge"];
     if (!badge) return;
+    if (!this._petFeatureUnlocked("pets") || !this._petFeatureUnlocked("tech")) {
+      badge.classList.add("hidden");
+      return;
+    }
     let n = 0;
     if (this.cb.petHasPendingTech) {
       const owned = Storage.getPetState().owned || {};
@@ -2069,7 +2083,27 @@ class UIManager {
   }
 
   // ---- Pets -------------------------------------------------------------
+  _petFeatureUnlocked(feature) {
+    return isPetFeatureUnlocked(feature, Storage.get("maxUnlockedLevel"));
+  }
+
+  refreshPetAccess() {
+    const petsUnlocked = this._petFeatureUnlocked("pets");
+    const tile = this.el["btn-pets"];
+    if (!tile) return;
+    tile.classList.toggle("hidden", !petsUnlocked);
+    const sub = tile.querySelector(".tile-sub");
+    if (sub) sub.textContent = petsUnlocked ? "Companions" : "Unlocks later";
+  }
+
+  _petFeatureLockHtml(feature, body) {
+    const info = PET_FEATURE_INFO[feature] || { icon: "🔒", name: "Locked", lesson: "Keep clearing campaign levels." };
+    const level = petFeatureUnlockLevel(feature);
+    return `<div class="pet-feature-lock"><span class="pfl-icon">${info.icon}</span><span class="pfl-copy"><b>${info.name} unlocks at Level ${level}</b><span>${body || info.lesson}</span></span></div>`;
+  }
+
   buildPets() {
+    if (!this._petFeatureUnlocked("pets")) return;
     const { owned } = Storage.getPetState();
     // Default the detail selection to the equipped pet (or first owned one).
     if (!this._selectedPet || !PET_CATALOG.find((p) => p.id === this._selectedPet)) {
@@ -2077,9 +2111,12 @@ class UIManager {
       this._selectedPet = eq || PET_CATALOG[0].id;
     }
     this._buildPetCrate();
-    this._buildPetParty();
-    this._buildPetGems();
-    this._buildPetStore();
+    if (this._petFeatureUnlocked("party")) this._buildPetParty();
+    else if (this.el["pet-party"]) this.el["pet-party"].innerHTML = "";
+    if (this._petFeatureUnlocked("gems")) this._buildPetGems();
+    else if (this.el["pet-gems"]) this.el["pet-gems"].innerHTML = "";
+    if (this._petFeatureUnlocked("crates")) this._buildPetStore();
+    else if (this.el["pet-store"]) this.el["pet-store"].innerHTML = "";
     this._buildPetList(owned);
     this._buildPetDetail(owned);
   }
@@ -2123,11 +2160,18 @@ class UIManager {
   _buildPetCrate() {
     const wrap = this.el["pets-crate"];
     if (!wrap) return;
+    if (!this._petFeatureUnlocked("crates")) {
+      wrap.innerHTML = this._petFeatureLockHtml("crates", "Your first companion can level up now. More pets arrive soon.");
+      return;
+    }
     const { crates, dust } = Storage.getPetState();
     wrap.innerHTML = "";
     const info = document.createElement("div");
     info.className = "crate-info";
-    info.innerHTML = `<span class="crate-icon crate-art crate-art-pet" aria-hidden="true"><span class="ca-glow"></span><span class="ca-lid"></span><span class="ca-body"></span><span class="ca-band"></span><span class="ca-lock"></span><span class="ca-gem ca-g1"></span><span class="ca-gem ca-g2"></span></span><div><div class="crate-title">Pet Crates</div><div class="crate-sub">You have <b id="crate-count">${crates}</b> — open one to win a pet!</div><div class="crate-dust">✨ <b id="dust-count">${dust}</b> Pet Dust — craft & embue gems</div></div>`;
+    const dustText = this._petFeatureUnlocked("gems")
+      ? `✨ <b id="dust-count">${dust}</b> Pet Dust — craft & embue gems`
+      : "Duplicate pets become XP now. Pet Dust becomes useful later.";
+    info.innerHTML = `<span class="crate-icon crate-art crate-art-pet" aria-hidden="true"><span class="ca-glow"></span><span class="ca-lid"></span><span class="ca-body"></span><span class="ca-band"></span><span class="ca-lock"></span><span class="ca-gem ca-g1"></span><span class="ca-gem ca-g2"></span></span><div><div class="crate-title">Pet Crates</div><div class="crate-sub">You have <b id="crate-count">${crates}</b> — open one to win a pet!</div><div class="crate-dust">${dustText}</div></div>`;
 
     const openBtn = document.createElement("button");
     openBtn.className = "buy-btn pet-open-btn";
@@ -2360,10 +2404,10 @@ class UIManager {
       panel.appendChild(traitEl);
 
       // Gem sockets (unlock with level; tap to socket / unsocket a gem).
-      panel.appendChild(this._buildSocketRow(pet, lvl, owned[pet.id]));
+      if (this._petFeatureUnlocked("gems")) panel.appendChild(this._buildSocketRow(pet, lvl, owned[pet.id]));
 
       // Technology tree (pick one upgrade per level-up tier).
-      panel.appendChild(this._buildPetTech(pet, lvl, owned[pet.id]));
+      if (this._petFeatureUnlocked("tech")) panel.appendChild(this._buildPetTech(pet, lvl, owned[pet.id]));
 
       // Equip button.
       const equip = document.createElement("button");
@@ -2386,7 +2430,7 @@ class UIManager {
       actions.appendChild(equip);
 
       // Support-slot toggle (only for owned pets that aren't the current lead).
-      if (equipped !== pet.id) {
+      if (this._petFeatureUnlocked("party") && equipped !== pet.id) {
         const supports = Storage.getPartySupports();
         const inParty = supports.includes(pet.id);
         const full = supports.length >= SUPPORT_SLOTS;
@@ -2411,14 +2455,16 @@ class UIManager {
         });
         actions.appendChild(sup);
       }
-      const forge = document.createElement("button");
-      forge.className = "buy-btn pd-forge-btn";
-      forge.textContent = "Gem Forge";
-      forge.addEventListener("click", () => {
-        Audio.click();
-        this.openGemForge();
-      });
-      actions.appendChild(forge);
+      if (this._petFeatureUnlocked("gems")) {
+        const forge = document.createElement("button");
+        forge.className = "buy-btn pd-forge-btn";
+        forge.textContent = "Gem Forge";
+        forge.addEventListener("click", () => {
+          Audio.click();
+          this.openGemForge();
+        });
+        actions.appendChild(forge);
+      }
       panel.appendChild(actions);
 
       // Cosmetics row.
@@ -2458,9 +2504,9 @@ class UIManager {
     const party = equipped ? "Lead pet" : "Party option";
     guide.innerHTML =
       `<span class="pd-guide-chip">${has ? "Owned" : "Locked"}</span>` +
-      `<span class="pd-guide-chip">${mode}</span>` +
-      `<span class="pd-guide-chip">${gems}</span>` +
-      `<span class="pd-guide-chip">${party}</span>`;
+      (this._petFeatureUnlocked("abilities") ? `<span class="pd-guide-chip">${mode}</span>` : "") +
+      (this._petFeatureUnlocked("gems") ? `<span class="pd-guide-chip">${gems}</span>` : "") +
+      (this._petFeatureUnlocked("party") ? `<span class="pd-guide-chip">${party}</span>` : "");
     return guide;
   }
 
@@ -3197,7 +3243,7 @@ class UIManager {
   updatePetHud(pet) {
     const el = this.el["hud-pet"];
     if (!el) return;
-    if (!pet) {
+    if (!pet || !this._petFeatureUnlocked("pets")) {
       el.classList.add("hidden");
       return;
     }
@@ -3500,7 +3546,7 @@ class UIManager {
   }
 
   showToolUnlock(unlock) {
-    const info = POWERUP_INFO[unlock.type];
+    const info = unlock.feature ? PET_FEATURE_INFO[unlock.feature] : POWERUP_INFO[unlock.type];
     if (!info || !this.el["tool-unlock"]) return;
     this.hideModals();
     this.showHud(false);
@@ -3508,7 +3554,7 @@ class UIManager {
     this.el["tool-unlock-name"].textContent = info.name;
     this.el["tool-unlock-level"].textContent = `Unlocked at Level ${unlock.level}`;
     this.el["tool-unlock-desc"].textContent = info.desc;
-    this.el["tool-unlock-lesson"].textContent = unlock.lesson;
+    this.el["tool-unlock-lesson"].textContent = unlock.lesson || info.lesson;
     this.el["tool-unlock"].classList.remove("hidden");
   }
 

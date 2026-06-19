@@ -126,6 +126,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   puzzle mode (`puzzle.js`: ladder integrity, getPuzzle shape/clamp, puzzleStars
   thresholds + 1..3 bounds, isPuzzleUnlocked gating, puzzlesSolved count),
   the pet companion system (catalog integrity + premium flags, XP/level curve,
+  staged feature unlock helpers (`PET_FEATURE_UNLOCKS`, feature info copy,
+  `isPetFeatureUnlocked`, `petFeaturesUnlockedBetween`, `nextPetFeatureUnlock`),
   passive buff scaling, active-pet cooldown/strength/count scaling, expanded
   long-progression catalog coverage (Mochi/Sprout/Luma/Amp/Prism/Midas), seeded
   crate rolls including the rare premium drop chance + the boosted Legendary
@@ -212,7 +214,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   rewarded-ad flows, endless refill, daily streak, the full power-up/tool set,
   progressive tool unlocks (fresh players see no HUD/shop/loadout tools, Level
   5→6 shows the **New Tool Unlocked!** mini-tutorial before starting the next
-  level), shop purchases, shop affordability affordances (`.cannot-afford`/`.need-coins`),
+  level), progressive pet unlocks (fresh players do not see the Pets tile,
+  Level 11→12 shows the pet feature unlock window, grants/equips Sparky, then
+  starts the next level with the HUD pet badge), shop purchases, shop affordability affordances (`.cannot-afford`/`.need-coins`),
   the in-game pause overlay (`#pause`) freezing the level, resuming, and routing
   to Menu, HUD status chips, hold-to-buy auto-repeat (a held buy button keeps purchasing at the
   configured rate, shows live buying/limit feedback, respects the visible
@@ -286,7 +290,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   the last-bubble finale (leaving exactly one bubble triggers the glow+explode
   finale with a random style 0–4, suspends input, and clears the board to win
   the level),
-  the pet companions flow (Pets screen with starter Sparky owned/equipped,
+  the pet companions flow (with pet progression unlocked for these mature-system
+  tests: Pets screen with Sparky owned/equipped,
   guided pet-detail chips/actions and the `#pet-gem-tip` socket guidance strip,
   buy + open a crate grants a pet, the Pet Store sells premium pets + a
   Legendary Crate that grants a pet, buying a premium pet unlocks it,

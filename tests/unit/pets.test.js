@@ -42,10 +42,35 @@ import {
   activeSynergies,
   applySynergies,
   SYNERGIES,
+  PET_FEATURE_UNLOCKS,
+  PET_FEATURE_INFO,
+  petFeatureUnlockLevel,
+  isPetFeatureUnlocked,
+  petFeaturesUnlockedBetween,
+  nextPetFeatureUnlock,
 } from "../../src/pets.js";
 import { makeRng } from "../../src/rng.js";
 
 describe("pets catalog", () => {
+  it("drips pet systems into campaign progression", () => {
+    expect(PET_FEATURE_UNLOCKS.map((u) => [u.feature, u.level])).toEqual([
+      ["pets", 12],
+      ["crates", 14],
+      ["abilities", 16],
+      ["party", 18],
+      ["gems", 22],
+      ["tech", 26],
+    ]);
+    for (const unlock of PET_FEATURE_UNLOCKS) {
+      expect(PET_FEATURE_INFO[unlock.feature]).toBeTruthy();
+      expect(petFeatureUnlockLevel(unlock.feature)).toBe(unlock.level);
+      expect(isPetFeatureUnlocked(unlock.feature, unlock.level - 1)).toBe(false);
+      expect(isPetFeatureUnlocked(unlock.feature, unlock.level)).toBe(true);
+    }
+    expect(nextPetFeatureUnlock(1).feature).toBe("pets");
+    expect(petFeaturesUnlockedBetween(13, 18).map((u) => u.feature)).toEqual(["crates", "abilities", "party"]);
+  });
+
   it("has unique ids and valid rarities", () => {
     const ids = new Set();
     for (const p of PET_CATALOG) {

@@ -776,7 +776,14 @@ never re‑discovered the hard way.
   toast states the goal).
 - **Pet companions** (`pets.js`, pure; `storage.js` `pets`): collectible helper
   pets that support the player both **passively** and with **active board
-  powers**. `PET_CATALOG` holds 21 pets across four rarities
+  powers**. Pet systems are **progressively introduced** so new players are not
+  hit with the full RPG layer on day one: fresh saves start with no owned pet,
+  no equipped pet, and zero crates; clearing into Level 12 unlocks **Pets** and
+  grants/equips Sparky, Level 14 unlocks **Crates & Pet Store** and grants the
+  first crate, Level 16 enables **active abilities**, Level 18 unlocks the
+  **party/support** slots, Level 22 unlocks **gems & sockets**, and Level 26
+  unlocks the **pet technology tree**. Each unlock queues the same celebratory
+  feature modal flow as tool unlocks. `PET_CATALOG` holds 21 pets across four rarities
   (`common`/`rare`/`epic`/`legendary`). **Passive pets** carry an `ability`
   (`scoreMult`/`coinMult`/`powerMult`/`feverMult`/`startCharge`) that scales per
   level (`petBuffs`/`abilityValue`). **Active pets** carry an `active` config and
@@ -1239,7 +1246,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 609 unit tests + 460 E2E
+- **Current baseline (keep growing, never shrink)**: 610 unit tests + 464 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

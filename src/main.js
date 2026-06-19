@@ -100,6 +100,8 @@ import {
   rollLegendaryCrate,
   getPet,
   getCosmetic,
+  isPetFeatureUnlocked,
+  petFeaturesUnlockedBetween,
   PET_XP_PER_LEVEL,
   DUP_XP,
   CRATE_COST,
@@ -237,6 +239,7 @@ class Game {
     this.eventTimer = 0; // seconds until the next spawn
     this.activeEvent = false; // a token is currently on screen
     this._pendingToolUnlock = null;
+    this._pendingToolUnlocks = [];
   }
 
   init() {
@@ -422,17 +425,21 @@ class Game {
 
   // Build the party roster (lead + support pets) as petBuffs/partyBuffs members.
   _partyMembers() {
+    if (!isPetFeatureUnlocked("pets", Storage.get("maxUnlockedLevel"))) return [];
     const members = [];
     const eq = Storage.getEquippedPet();
-    if (eq) members.push({ id: eq.id, level: levelForXp(eq.xp || 0), trait: eq.trait, sockets: Storage.getSockets(eq.id), tech: Storage.getPetTech(eq.id), role: "lead" });
+    const socketsUnlocked = isPetFeatureUnlocked("gems", Storage.get("maxUnlockedLevel"));
+    const techUnlocked = isPetFeatureUnlocked("tech", Storage.get("maxUnlockedLevel"));
+    if (eq) members.push({ id: eq.id, level: levelForXp(eq.xp || 0), trait: eq.trait, sockets: socketsUnlocked ? Storage.getSockets(eq.id) : [], tech: techUnlocked ? Storage.getPetTech(eq.id) : [], role: "lead" });
+    if (!isPetFeatureUnlocked("party", Storage.get("maxUnlockedLevel"))) return members;
     for (const id of Storage.getPartySupports()) {
       if (!Storage.ownsPet(id) || id === (eq && eq.id)) continue;
       members.push({
         id,
         level: levelForXp((Storage.getPetState().owned[id] || {}).xp || 0),
         trait: Storage.getPetTrait(id),
-        sockets: Storage.getSockets(id),
-        tech: Storage.getPetTech(id),
+        sockets: socketsUnlocked ? Storage.getSockets(id) : [],
+        tech: techUnlocked ? Storage.getPetTech(id) : [],
         role: "support",
       });
     }
@@ -454,9 +461,12 @@ class Game {
 
   // The active board action the equipped pet performs (or null for passive pets).
   _equippedActive() {
+    if (!isPetFeatureUnlocked("abilities", Storage.get("maxUnlockedLevel"))) return null;
     const eq = Storage.getEquippedPet();
     if (!eq) return null;
-    return petActive(eq.id, levelForXp(eq.xp || 0), eq.trait, Storage.getSockets(eq.id), Storage.getPetTech(eq.id));
+    const sockets = isPetFeatureUnlocked("gems", Storage.get("maxUnlockedLevel")) ? Storage.getSockets(eq.id) : [];
+    const tech = isPetFeatureUnlocked("tech", Storage.get("maxUnlockedLevel")) ? Storage.getPetTech(eq.id) : [];
+    return petActive(eq.id, levelForXp(eq.xp || 0), eq.trait, sockets, tech);
   }
 
   // Roll a fresh personality trait for a newly-acquired pet, advancing the
@@ -564,6 +574,7 @@ class Game {
   _enterSession() {
     const board = this.session.board;
     this._pendingToolUnlock = null;
+    this._pendingToolUnlocks = [];
     this.session.magnet = null;
     this.paused = false;
     board.layout(this.W, this.H, TOP_INSET, this._bottomInset());
@@ -918,12 +929,17 @@ class Game {
   }
 
   // ---- Pet companion actions (driven by the Pets screen) ----------------
+  _petFeatureUnlocked(feature) {
+    return isPetFeatureUnlocked(feature, Storage.get("maxUnlockedLevel"));
+  }
+
   // Open one crate: consumes a crate, rolls a pet (very rarely a premium
   // surprise — see PREMIUM_DROP_CHANCE), grants it (or converts a duplicate
   // into bonus XP). Returns { petId, isNew, premium } or null when no crate was
   // available. The roll is seeded so opens are reproducible in tests via
   // `?e2e=1` + a fixed seed counter.
   openCrate() {
+    if (!this._petFeatureUnlocked("crates")) return null;
     if (!Storage.consumeCrate()) return null;
     this._crateSeed = ((this._crateSeed || 1) * 1664525 + 1013904223) >>> 0;
     const seed = (this._crateSeed ^ ((Date.now() >>> 0) || 1)) >>> 0;
@@ -951,6 +967,7 @@ class Game {
 
   // Buy one crate with coins. Returns true on success.
   buyCrate() {
+    if (!this._petFeatureUnlocked("crates")) return false;
     if (Economy.spendCoins(CRATE_COST)) {
       Storage.addCrates(1);
       return true;
@@ -962,21 +979,7 @@ class Game {
   // duplicate currency. Lets a player escape bad crate luck and target a pet
   // they want. Returns { ok, petId, rarity, cost } or { ok:false, reason }.
   craftPet(petId) {
-    const pet = getPet(petId);
-    if (!pet) return { ok: false, reason: "unknown" };
-    if (pet.premium) return { ok: false, reason: "premium" };
-    if (Storage.ownsPet(petId)) return { ok: false, reason: "owned" };
-    const cost = dustCost(pet.rarity);
-    if (!Storage.spendDust(cost)) return { ok: false, reason: "dust" };
-    const trait = this._rollPetTrait();
-    Storage.grantPet(petId, trait);
-    return { ok: true, petId, rarity: pet.rarity, cost, trait };
-  }
-
-  // Craft (buy) a specific NON-premium pet outright with Pet Dust — the
-  // duplicate currency. Lets a player escape bad crate luck and target a pet
-  // they want. Returns { ok, petId, rarity, cost } or { ok:false, reason }.
-  craftPet(petId) {
+    if (!this._petFeatureUnlocked("crates")) return { ok: false, reason: "locked" };
     const pet = getPet(petId);
     if (!pet) return { ok: false, reason: "unknown" };
     if (pet.premium) return { ok: false, reason: "premium" };
@@ -992,6 +995,7 @@ class Game {
   // odds (see rollLegendaryCrate): always a legendary, often a premium pet.
   // Returns { petId, isNew, premium } on success, or null if the purchase fails.
   async buyLegendaryCrate() {
+    if (!this._petFeatureUnlocked("crates")) return null;
     const res = await Monetization.purchase(LEGENDARY_CRATE.product);
     if (!res || !res.ok) return null;
     this._crateSeed = ((this._crateSeed || 1) * 1664525 + 1013904223) >>> 0;
@@ -1011,6 +1015,7 @@ class Game {
     return { petId, isNew, premium: !!premium, rarity, dust, gem, trait: isNew ? trait : null };
   }
   equipPet(id) {
+    if (!this._petFeatureUnlocked("pets")) return false;
     if (!Storage.equipPet(id)) return false;
     if (this.session && !this.session.ended) {
       this.session.petBuffs = this._equippedBuffs();
@@ -1027,6 +1032,7 @@ class Game {
   // buffs (no active board move), so this safely refreshes the live session's
   // buffs without restarting the level. Returns the new support id list.
   toggleSupport(id) {
+    if (!this._petFeatureUnlocked("party")) return Storage.getPartySupports();
     const supports = Storage.toggleSupport(id);
     if (this.session && !this.session.ended) {
       this.session.petBuffs = this._equippedBuffs();
@@ -1054,6 +1060,7 @@ class Game {
   // Craft a gem (type + tier) by spending Pet Dust. Returns
   // { ok, key, cost } or { ok:false, reason }.
   craftGem(type, tier) {
+    if (!this._petFeatureUnlocked("gems")) return { ok: false, reason: "locked" };
     if (!getGemDef(type)) return { ok: false, reason: "unknown" };
     const tierId = getGemTier(tier).id;
     const cost = gemDustCost(tierId);
@@ -1068,6 +1075,7 @@ class Game {
   // upgrade a pile of weak duplicates. Returns { ok, from, to } or
   // { ok:false, reason }.
   fuseGem(key) {
+    if (!this._petFeatureUnlocked("gems")) return { ok: false, reason: "locked" };
     const up = fusedGemKey(key);
     if (!up) return { ok: false, reason: "top" }; // unknown or already top-tier
     if (Storage.gemCount(key) < FUSE_COUNT) return { ok: false, reason: "count" };
@@ -1081,6 +1089,7 @@ class Game {
   // cheapest source (gems first, then dust). Returns
   // { ok, key, via:"fuse"|"dust", cost } or { ok:false, reason }.
   forgeTier(type, tier) {
+    if (!this._petFeatureUnlocked("gems")) return { ok: false, reason: "locked" };
     if (!getGemDef(type)) return { ok: false, reason: "unknown" };
     const tierId = getGemTier(tier).id;
     const key = gemKey(type, tierId);
@@ -1104,6 +1113,7 @@ class Game {
   // sockets the pet has unlocked at its current level. Returns true on success
   // and refreshes the live session if the pet is the active lead.
   socketGem(petId, slot, key) {
+    if (!this._petFeatureUnlocked("gems")) return false;
     const lvl = levelForXp((Storage.getPetState().owned[petId] || {}).xp || 0);
     // A gem's tier must be unlocked by the pet's level (stronger gems need a
     // higher level — see GEM_TIER_MIN_LEVEL).
@@ -1125,6 +1135,7 @@ class Game {
   // they paid. Returns { key, dust } on success (or null if the slot was empty)
   // and refreshes the live session.
   unsocketGem(petId, slot) {
+    if (!this._petFeatureUnlocked("gems")) return null;
     const key = Storage.unsocketGem(petId, slot);
     if (!key) return null;
     const g = parseGemKey(key);
@@ -1139,6 +1150,7 @@ class Game {
   // records it, and live-refreshes the running session if it's the active lead.
   // Returns { ok:true, node } or { ok:false, reason }.
   pickPetTech(petId, nodeId) {
+    if (!this._petFeatureUnlocked("tech")) return { ok: false, reason: "locked" };
     if (!Storage.ownsPet(petId)) return { ok: false, reason: "unowned" };
     const lvl = levelForXp((Storage.getPetState().owned[petId] || {}).xp || 0);
     const chosen = Storage.getPetTech(petId);
@@ -1150,6 +1162,7 @@ class Game {
 
   // Whether an owned pet has a tech-tier ready to pick (drives the Pets badge).
   petHasPendingTech(petId) {
+    if (!this._petFeatureUnlocked("tech")) return false;
     if (!Storage.ownsPet(petId)) return false;
     const lvl = levelForXp((Storage.getPetState().owned[petId] || {}).xp || 0);
     return hasPendingTech(Storage.getPetTech(petId), lvl);
@@ -1201,6 +1214,7 @@ class Game {
 
 
   async buyPremiumPet(id) {
+    if (!this._petFeatureUnlocked("crates")) return false;
     const pet = getPet(id);
     if (!pet || !pet.premium) return false;
     const res = await Monetization.purchase(pet.product || `pet_${id}`);
@@ -3663,6 +3677,7 @@ class Game {
         Storage.recordLevelResult(s.level.id, stars);
         const unlockedAfter = Storage.get("maxUnlockedLevel");
         const toolUnlocks = powerupsUnlockedBetween(unlockedBefore, unlockedAfter);
+        const petUnlocks = petFeaturesUnlockedBetween(unlockedBefore, unlockedAfter);
         // Per-level personal best: celebrate when the player beats their prior
         // best for this level (first clears don't count as a "new best").
         const bestInfo = Storage.recordLevelScore(s.level.id, s.score);
@@ -3695,7 +3710,8 @@ class Game {
           }
           if (bonusCoins) Economy.addCoins(bonusCoins);
         }
-        if (toolUnlocks.length) this._grantToolUnlock(toolUnlocks[0]);
+        toolUnlocks.forEach((unlock) => this._grantToolUnlock(unlock));
+        petUnlocks.forEach((unlock) => this._grantPetFeatureUnlock(unlock));
 
         // Bonus objective: pay extra coins if the level's optional challenge
         // was met. "nopowerup" resolves from the usedPowerup flag at finish;
@@ -3929,13 +3945,35 @@ class Game {
     if (!info) return;
     if (Economy.getPowerup(unlock.type) <= 0) Economy.addPowerup(unlock.type, 1);
     this._ensureToolInLoadout(unlock.type);
-    this._pendingToolUnlock = unlock;
+    this._queueProgressUnlock(unlock);
+  }
+
+  _grantPetFeatureUnlock(unlock) {
+    if (!unlock || !unlock.feature) return;
+    if (unlock.feature === "pets") {
+      if (!Storage.ownsPet("sparky")) Storage.grantPet("sparky", "balanced");
+      Storage.equipPet("sparky");
+    } else if (unlock.feature === "crates") {
+      if (Storage.getPetState().crates <= 0) Storage.addCrates(1);
+    }
+    this._queueProgressUnlock(unlock);
+    UI.refreshPetAccess();
+    UI.updatePetHud(Storage.getEquippedPet());
+  }
+
+  _queueProgressUnlock(unlock) {
+    this._pendingToolUnlocks.push(unlock);
+    if (!this._pendingToolUnlock) this._pendingToolUnlock = this._pendingToolUnlocks.shift();
   }
 
   _continueAfterToolUnlock() {
     const s = this.session;
-    this._pendingToolUnlock = null;
     UI.hideModals();
+    this._pendingToolUnlock = this._pendingToolUnlocks.shift() || null;
+    if (this._pendingToolUnlock) {
+      UI.showToolUnlock(this._pendingToolUnlock);
+      return;
+    }
     if (s && s.mode === "campaign") this.startCampaign(s.level.id + 1);
     else this.quitToMenu();
   }

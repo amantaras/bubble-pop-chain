@@ -172,7 +172,7 @@ export const TUTORIAL_STEPS = [
   {
     id: "pets",
     title: "Pet Companions",
-    body: "You've got a buddy! Equip a pet from the Pets menu for a helping hand — some boost your score, coins, charge or Fever, while others physically help on the board: 🐶 fetches a whole colour together and 🐱 zaps lone, hard-to-match bubbles. WIN pets free by opening 🎁 crates (you start with one!) — earn more crates from milestones and falling gifts. The rarest companions live in the 💎 Pet Store. Level pets up and dress them up too!",
+    body: "Pets unlock later in the campaign so the early levels stay focused. When the Pets menu appears, Sparky joins first; then crates, active abilities, party supports, gems and technology unlock step by step. Pets can boost your score, coins, charge or Fever, and some physically help on the board. WIN more pets free from crates, milestones and falling gifts; the rarest companions live in the Pet Store.",
     advance: "button",
     cta: "Cool!",
   },

@@ -22,6 +22,72 @@ export const DUP_XP = 30;
 // Coin cost to buy one crate from the Pets screen.
 export const CRATE_COST = 250;
 
+export const PET_FEATURE_INFO = {
+  pets: {
+    icon: "⚡",
+    name: "Pets",
+    desc: "A companion now joins your run and adds a small passive boost.",
+    lesson: "Sparky is equipped for you. Open Pets from the menu after this level to see your companion and its level progress.",
+  },
+  crates: {
+    icon: "🧰",
+    name: "Pet Crates",
+    desc: "Crates let you collect more companions, including pets with active board abilities.",
+    lesson: "Open crates in Pets to discover new companions. Duplicate pets become XP and Pet Dust for later upgrades.",
+  },
+  abilities: {
+    icon: "🐾",
+    name: "Pet Abilities",
+    desc: "Some pets do more than boost stats: they can help the board every few moves.",
+    lesson: "Active pets charge automatically while you play. Their ability fires when ready, so you can focus on making good pops.",
+  },
+  party: {
+    icon: "＋",
+    name: "Pet Party",
+    desc: "Extra pets can support your lead companion with a smaller share of their passive buffs.",
+    lesson: "Add owned pets to support slots from Pets. Matching certain companion groups can activate small party synergies.",
+  },
+  gems: {
+    icon: "💎",
+    name: "Gem Sockets",
+    desc: "Pets can now hold gems for focused stat boosts.",
+    lesson: "Craft gems with Pet Dust, then tap an unlocked socket on a pet to embue a gem into it.",
+  },
+  tech: {
+    icon: "🧬",
+    name: "Pet Technology",
+    desc: "Leveled pets now earn permanent upgrade choices.",
+    lesson: "When a pet levels up, open Pets and pick one tech node for each available tier. Choices are permanent.",
+  },
+};
+
+export const PET_FEATURE_UNLOCKS = [
+  { feature: "pets", level: 12 },
+  { feature: "crates", level: 14 },
+  { feature: "abilities", level: 16 },
+  { feature: "party", level: 18 },
+  { feature: "gems", level: 22 },
+  { feature: "tech", level: 26 },
+].map((u) => ({ ...u, ...PET_FEATURE_INFO[u.feature] }));
+
+const PET_UNLOCK_BY_FEATURE = Object.fromEntries(PET_FEATURE_UNLOCKS.map((u) => [u.feature, u]));
+
+export function petFeatureUnlockLevel(feature) {
+  return PET_UNLOCK_BY_FEATURE[feature] ? PET_UNLOCK_BY_FEATURE[feature].level : Infinity;
+}
+
+export function isPetFeatureUnlocked(feature, maxUnlockedLevel = 1) {
+  return (maxUnlockedLevel || 1) >= petFeatureUnlockLevel(feature);
+}
+
+export function petFeaturesUnlockedBetween(from, to) {
+  return PET_FEATURE_UNLOCKS.filter((u) => u.level > from && u.level <= to);
+}
+
+export function nextPetFeatureUnlock(maxUnlockedLevel = 1) {
+  return PET_FEATURE_UNLOCKS.find((u) => u.level > (maxUnlockedLevel || 1)) || null;
+}
+
 // ---- Pity timer (anti-bad-luck guarantee) ----------------------------------
 // Gacha fairness: a standard crate guarantees an EPIC by this many opens
 // without one, and a LEGENDARY by this many. The running counters live in
