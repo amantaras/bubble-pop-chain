@@ -219,6 +219,7 @@ export function claimableCategories(progress, claims) {
 export const CHEST_POWERUPS = [
   "bomb",
   "colorClear",
+  "paint",
   "shuffle",
   "chainBolt",
   "pick",

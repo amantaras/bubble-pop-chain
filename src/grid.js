@@ -1011,6 +1011,63 @@ export class Board {
     return cells;
   }
 
+  canRecolor(c, r) {
+    if (c < 0 || c >= this.cols || r < 0 || r >= this.rows) return false;
+    if (this.grid[c][r] === -1) return false;
+    const t = this.types[c] && this.types[c][r];
+    return t !== STONE && t !== RAINBOW;
+  }
+
+  recolorCell(c, r, color) {
+    if (!this.canRecolor(c, r)) return false;
+    const next = Math.max(0, Math.min(this.colorCount - 1, Number(color) || 0));
+    if (this.grid[c][r] === next) return false;
+    this.grid[c][r] = next;
+    const s = this.spriteGrid[c] && this.spriteGrid[c][r];
+    if (s) s.color = next;
+    return true;
+  }
+
+  suggestRecolors(c, r, count = 3) {
+    if (!this.canRecolor(c, r)) return [];
+    const current = this.grid[c][r];
+    const out = [];
+    const dirs = [
+      [-1, 0],
+      [1, 0],
+      [0, -1],
+      [0, 1],
+    ];
+    for (let color = 0; color < this.colorCount; color++) {
+      if (color === current) continue;
+      this.grid[c][r] = color;
+      const groupSize = this.getGroupAt(c, r).length;
+      let adjacent = 0;
+      for (const [dc, dr] of dirs) {
+        const cc = c + dc;
+        const rr = r + dr;
+        if (cc < 0 || cc >= this.cols || rr < 0 || rr >= this.rows) continue;
+        if (this.grid[cc][rr] === color || this.isRainbow(cc, rr)) adjacent++;
+      }
+      out.push({
+        color,
+        groupSize,
+        adjacent,
+        totalColor: this.colorCells(color).length,
+        createsMove: groupSize >= 2,
+      });
+    }
+    this.grid[c][r] = current;
+    out.sort(
+      (a, b) =>
+        b.groupSize - a.groupSize ||
+        b.adjacent - a.adjacent ||
+        b.totalColor - a.totalColor ||
+        a.color - b.color
+    );
+    return out.slice(0, Math.max(0, count));
+  }
+
   // The most common NORMAL (plain) bubble colour on the board, or null when
   // there are none. Used by the "gather" pet companion to pick a target.
   dominantColor() {

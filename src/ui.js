@@ -173,6 +173,7 @@ class UIManager {
       "fever-meter", "fever-fill", "fever-label",
       "powerups", "pu-slot-0", "pu-slot-1", "pu-slot-2",
       "loadout", "loadout-list", "loadout-sub", "loadout-close",
+      "paint-choice", "paint-choice-sub", "paint-choice-list", "paint-choice-cancel",
       "tool-unlock", "tool-unlock-icon", "tool-unlock-name", "tool-unlock-level",
       "tool-unlock-desc", "tool-unlock-lesson", "tool-unlock-ok",
       "magnet-gauge", "mg-needle",
@@ -364,6 +365,16 @@ class UIManager {
 
     // Loadout picker: close button + tap-outside dismiss.
     click("loadout-close", () => this.closeLoadoutPicker());
+    click("paint-choice-cancel", () => this.cb.cancelPaint && this.cb.cancelPaint());
+    const paintList = $("paint-choice-list");
+    if (paintList) {
+      paintList.addEventListener("click", (e) => {
+        const btn = e.target.closest(".paint-choice-btn");
+        if (!btn) return;
+        Audio.click();
+        this.cb.choosePaintColor && this.cb.choosePaintColor(Number(btn.dataset.color));
+      });
+    }
     click("tool-unlock-ok", () => this.cb.toolUnlockContinue && this.cb.toolUnlockContinue());
     if (this.el["loadout"]) {
       this.el["loadout"].addEventListener("click", (e) => {
@@ -3571,6 +3582,38 @@ class UIManager {
     if (this.el["loadout"]) this.el["loadout"].classList.add("hidden");
   }
 
+  showPaintChoices({ suggestions = [], palette = [], current = null } = {}) {
+    const modal = this.el["paint-choice"];
+    const list = this.el["paint-choice-list"];
+    if (!modal || !list) return;
+    list.innerHTML = "";
+    suggestions.forEach((s, i) => {
+      const color = palette[s.color] || "#ffffff";
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "paint-choice-btn";
+      btn.dataset.color = String(s.color);
+      btn.style.setProperty("--paint-color", color);
+      btn.innerHTML =
+        `<span class="paint-rank">${i === 0 ? "BEST" : `#${i + 1}`}</span>` +
+        `<span class="paint-swatch"></span>` +
+        `<b>${s.groupSize >= 2 ? `Makes ${s.groupSize}` : "Setup"}</b>` +
+        `<small>${s.groupSize >= 2 ? "ready to pop" : "best available"}</small>`;
+      list.appendChild(btn);
+    });
+    if (this.el["paint-choice-sub"]) {
+      this.el["paint-choice-sub"].textContent =
+        current == null
+          ? "Pick the colour that creates the strongest next pop."
+          : "Ranked by the group this bubble will join after repainting.";
+    }
+    modal.classList.remove("hidden");
+  }
+
+  hidePaintChoices() {
+    if (this.el["paint-choice"]) this.el["paint-choice"].classList.add("hidden");
+  }
+
   // ---- Magnet strength gauge -------------------------------------------
   // A circular dial shown over the board while a magnet is being aimed; the
   // needle sweeps a 270° arc, the player taps to lock it, and proximity to the
@@ -3645,6 +3688,7 @@ class UIManager {
     if (this.el["pause"]) this.el["pause"].classList.add("hidden");
     if (this.el["isolated"]) this.el["isolated"].classList.add("hidden");
     if (this.el["loadout"]) this.el["loadout"].classList.add("hidden");
+    if (this.el["paint-choice"]) this.el["paint-choice"].classList.add("hidden");
     if (this.el["tool-unlock"]) this.el["tool-unlock"].classList.add("hidden");
     if (this.el["chest"]) this.el["chest"].classList.add("hidden");
     if (this.el["pet-confirm"]) this.el["pet-confirm"].classList.add("hidden");

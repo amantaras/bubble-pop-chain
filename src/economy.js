@@ -6,6 +6,7 @@ export const POWERUP_INFO = {
   undo: { name: "Undo", icon: "↶", desc: "Takes back your last move", price: 90 },
   bomb: { name: "Bomb", icon: "💥", desc: "Clears a 3×3 area", price: 150 },
   colorClear: { name: "Color Clear", icon: "🌈", desc: "Removes one whole color", price: 250 },
+  paint: { name: "Paint", icon: "🎨", desc: "Changes one bubble to a smart suggested color", price: 180 },
   shuffle: { name: "Shuffle", icon: "🔀", desc: "Reshuffles the board", price: 100 },
   chainBolt: { name: "Chain Bolt", icon: "⚡", desc: "Clears a full row and column", price: 300 },
   pick: { name: "Pick", icon: "🔨", desc: "Removes a single bubble", price: 120 },
@@ -18,6 +19,7 @@ export const POWERUP_UNLOCKS = [
   { type: "bomb", level: 10, lesson: "Tap Bomb, then tap the board. It clears a 3×3 area, which is perfect for breaking crowded corners or opening space near the bottom." },
   { type: "colorClear", level: 13, lesson: "Tap Color Clear, then tap a bubble colour. Every bubble of that colour disappears, setting up huge cascades and emergency clears." },
   { type: "pick", level: 16, lesson: "Tap Pick, then tap one bubble. Use it to remove a lone blocker, trigger a special bubble, or rescue a board that is almost solved." },
+  { type: "paint", level: 18, lesson: "Tap Paint, choose one bubble, then pick from the three suggested colours. The best swatch makes the biggest new group for your next pop." },
   { type: "chainBolt", level: 20, lesson: "Tap Chain Bolt, then tap a cell. It clears that whole row and column, and any special bubbles in the strike can chain for extra impact." },
   { type: "magnet", level: 24, lesson: "Tap Magnet, choose a plain bubble, then tap again when the dial hits green. A strong lock pulls that colour into one giant poppable cluster." },
 ];

@@ -36,6 +36,7 @@ export const GIFT_GEM_CHANCE = 0.12;
 export const GIFT_POWERUP_POOL = [
   "bomb",
   "colorClear",
+  "paint",
   "shuffle",
   "pick",
   "chainBolt",

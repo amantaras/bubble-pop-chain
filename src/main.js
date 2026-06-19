@@ -267,6 +267,8 @@ class Game {
       claimWinChoice: (id) => this.claimWinChoice(id),
       winRewardsSettled: () => this._showPendingProgressUnlock(),
       suggestLoadout: () => this.suggestLoadout(),
+      choosePaintColor: (color) => this.confirmPaintColor(color),
+      cancelPaint: () => this.cancelPaint(),
       startTutorial: () => this.startTutorial(),
       tutorialNext: () => this.tutorial && this.tutorial.next(),
       tutorialSkip: () => this.tutorial && this.tutorial.skip(),
@@ -595,6 +597,7 @@ class Game {
     this._pendingToolUnlock = null;
     this._pendingToolUnlocks = [];
     this.session.magnet = null;
+    this.session.paint = null;
     this.paused = false;
     board.layout(this.W, this.H, TOP_INSET, this._bottomInset());
     this.particles.particles.length = 0;
@@ -604,6 +607,7 @@ class Game {
     UI.hideModals();
     UI.clearRescueTool();
     UI.hideMagnetGauge();
+    UI.hidePaintChoices();
     UI.clearFallingEvents();
     this.activeEvent = false;
     // Tutorial gates input step-by-step, so falling events stay disabled there.
@@ -739,6 +743,7 @@ class Game {
         snap.boardIdleTime == null
           ? EVENT_BOARD_IDLE_GRACE + 1
           : Math.max(0, snap.boardIdleTime),
+      paint: null,
     };
     this._enterSession();
   }
@@ -1350,6 +1355,18 @@ class Game {
       );
       decorateSpecials(types);
       b.restore(g, types);
+    } else if (kind === "paint") {
+      const b = s.board;
+      const { colors: g, types } = buildTutorialBoard(
+        b.cols,
+        b.rows,
+        Math.max(4, s.level.colors || 4)
+      );
+      decorateSpecials(types);
+      b.restore(g, types);
+      Economy.addPowerup("paint", Math.max(0, 1 - Economy.getPowerup("paint")));
+      this._ensureToolInLoadout("paint");
+      UI.updatePowerups();
     } else if (kind === "lightning") {
       // Fresh practice board with a lightning bubble parked inside a guaranteed
       // cluster so popping it always triggers a strike and advances the step.
@@ -1662,12 +1679,14 @@ class Game {
     s.preview = null;
     s.armed = null;
     s.magnet = null;
+    s.paint = null;
     s.hint = null;
     s.idleTime = 0;
     s.undosLeft = Economy.getPowerup("undo");
 
     UI.clearArmedPowerups();
     UI.hideMagnetGauge();
+    UI.hidePaintChoices();
     UI.updatePowerups();
     UI.updatePower(s.power, s.power >= 1);
     UI.updateFever(s.fever, !!s.feverActive);
@@ -1894,6 +1913,14 @@ class Game {
       if (!target) return;
       this._noteBoardActivity();
       this.beginMagnet(target.c, target.r);
+      return;
+    }
+
+    if (s.armed === "paint") {
+      const target = this._toolTargetFromTap(px, py);
+      if (!target) return;
+      this._noteBoardActivity();
+      this.beginPaint(target.c, target.r);
       return;
     }
 
@@ -2664,6 +2691,71 @@ class Game {
     this.afterMove();
   }
 
+  beginPaint(c, r) {
+    const s = this.session;
+    if (!s || s.ended) return;
+    const suggestions = s.board.suggestRecolors(c, r, 3);
+    if (!suggestions.length) {
+      UI.toast("Paint needs a recolourable bubble");
+      return;
+    }
+    s.paint = { c, r, suggestions };
+    Audio.click();
+    UI.showPaintChoices({
+      suggestions,
+      palette: (this.theme && this.theme.bubbles) || [],
+      current: s.board.grid[c][r],
+    });
+    UI.toast("🎨 Pick the smartest colour");
+  }
+
+  cancelPaint() {
+    const s = this.session;
+    if (!s) return;
+    s.paint = null;
+    s.armed = null;
+    UI.hidePaintChoices();
+    UI.clearArmedPowerups();
+  }
+
+  confirmPaintColor(color) {
+    const s = this.session;
+    if (!s || s.ended || !s.paint) return;
+    const { c, r } = s.paint;
+    const suggestions = s.board.suggestRecolors(c, r, 3);
+    const picked = suggestions.find((opt) => opt.color === color);
+    if (!picked) {
+      this.cancelPaint();
+      UI.toast("That paint choice is no longer available");
+      return;
+    }
+    if (s.mode !== "tutorial" && !Economy.usePowerup("paint")) {
+      this.cancelPaint();
+      return;
+    }
+    this._pushUndo(s.mode === "tutorial" ? null : { powerup: "paint" });
+    if (!s.board.recolorCell(c, r, color)) {
+      if (Array.isArray(s.undoStack)) s.undoStack.pop();
+      if (s.mode !== "tutorial") Economy.addPowerup("paint", 1);
+      this.cancelPaint();
+      return;
+    }
+    this._markPowerupUsed();
+    s.paint = null;
+    s.armed = null;
+    UI.hidePaintChoices();
+    UI.clearArmedPowerups();
+    UI.updatePowerups();
+    Audio.powerup();
+    vibrate(14);
+    const p = s.board.targetPixel(c, r);
+    this.floating.spawn(p.x, p.y - 22, `🎨 ${picked.groupSize}`, "#ffffff", 28);
+    if (s.stats) s.stats.powerups += 1;
+    this.refreshHud();
+    this._tut("powerup");
+    this.afterMove();
+  }
+
   // ---- Magnet: timing-gauge gather --------------------------------------
   // Step 1 (after arming 🧲): tapping a plain bubble locks the target colour
   // and starts a strength gauge that sweeps back and forth (driven by the game
@@ -3258,6 +3350,10 @@ class Game {
         s.magnet = null;
         UI.hideMagnetGauge();
       }
+      if (s.paint) {
+        s.paint = null;
+        UI.hidePaintChoices();
+      }
       UI.clearArmedPowerups();
     } else {
       s.armed = type;
@@ -3265,12 +3361,17 @@ class Game {
         s.magnet = null;
         UI.hideMagnetGauge();
       }
+      if (s.paint) {
+        s.paint = null;
+        UI.hidePaintChoices();
+      }
       UI.clearArmedPowerups();
       const armedBtn = btn || document.querySelector(`.powerup-btn[data-pu="${type}"]`);
       if (armedBtn) armedBtn.classList.add("armed");
       const hint = {
         bomb: "Tap to drop bomb",
         colorClear: "Tap a color to clear it",
+        paint: "Tap a bubble to repaint it",
         chainBolt: "Tap to fire a row + column bolt",
         pick: "Tap a single bubble to remove it",
         magnet: "Tap a plain bubble to aim the magnet",
@@ -3811,7 +3912,7 @@ class Game {
         Economy.addCoins(coins);
         const petBit = this._awardPetXp();
         if (petBit) rewardBits.push(petBit);
-        this._pendingWinChoices = this._buildWinChoices(s, stars);
+        this._pendingWinChoices = this._buildWinChoices(s, stars, unlockedBefore);
         this._recordProgress({
           levelsCleared: Storage.get("maxUnlockedLevel") - 1,
           totalStars: Storage.totalStars(),
@@ -4049,7 +4150,7 @@ class Game {
     UI.updatePetHud(Storage.getEquippedPet());
   }
 
-  _buildWinChoices(session, stars) {
+  _buildWinChoices(session, stars, unlockedLevel = Storage.get("maxUnlockedLevel")) {
     this._winChoiceClaimed = false;
     if (!session || session.mode !== "campaign") return [];
     const levelId = session.level ? session.level.id : 1;
@@ -4069,7 +4170,7 @@ class Game {
         reward: { type: "seasonxp", amount: 20 },
       },
     ];
-    const tools = this._suggestedToolsForLevel(session.level).filter((type) => isPowerupUnlocked(type));
+    const tools = this._suggestedToolsForLevel(session.level).filter((type) => isPowerupUnlocked(type, unlockedLevel));
     const tool = tools.find((type) => Economy.getPowerup(type) < 3) || tools[0];
     if (tool && POWERUP_INFO[tool]) {
       choices.push({
@@ -4140,8 +4241,8 @@ class Game {
     if (level && level.boss) add("chainBolt"), add("bomb"), add("pick");
     if (specials.stone || specials.vine || specials.ice) add("pick"), add("bomb");
     if (specials.lightning || specials.bomb) add("colorClear"), add("chainBolt");
-    if (level && level.objective && level.objective.type === "group") add("magnet"), add("colorClear");
-    if (level && level.objective && level.objective.type === "combo") add("shuffle"), add("magnet");
+    if (level && level.objective && level.objective.type === "group") add("magnet"), add("paint"), add("colorClear");
+    if (level && level.objective && level.objective.type === "combo") add("shuffle"), add("paint"), add("magnet");
     if (level && level.moves <= 10) add("undo"), add("shuffle");
     add("undo");
     add("shuffle");

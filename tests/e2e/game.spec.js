@@ -29,6 +29,7 @@ async function unlockAllTools(page) {
       undo: 1,
       bomb: 1,
       colorClear: 1,
+      paint: 1,
       shuffle: 1,
       chainBolt: 1,
       pick: 1,
@@ -1741,6 +1742,67 @@ test.describe("power-ups (UI arm + apply)", () => {
     await expect(page.locator('[data-pu="pick"] .pu-count')).toHaveText("0");
   });
 
+  test("paint suggests the three highest-impact colours before repainting a bubble", async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      window.__bpc.Storage.set("maxUnlockedLevel", 999);
+      g.startCampaign(2);
+      const b = g.session.board;
+      b.cols = 4;
+      b.rows = 3;
+      b.colorCount = 4;
+      b.restore(
+        [
+          [0, 1, 2],
+          [3, 2, 2],
+          [1, 2, 3],
+          [1, 3, 3],
+        ],
+        [
+          [0, 0, 0],
+          [0, 0, 0],
+          [0, 0, 0],
+          [0, 0, 0],
+        ]
+      );
+      b.layout(g.W, g.H, 168, g._bottomInset());
+      b.snapToTargets();
+      window.__bpc.Storage.set("powerups", {
+        ...window.__bpc.Storage.get("powerups"),
+        paint: 1,
+      });
+      window.__bpc.UI.assignLoadout(0, "paint");
+    });
+    await page.waitForTimeout(200);
+
+    await page.locator('[data-pu="paint"]').click();
+    await tapCell(page, 1, 0);
+
+    const picker = page.locator("#paint-choice");
+    await expect(picker).toBeVisible();
+    await expect(picker.locator(".paint-choice-btn b")).toHaveText([
+      "Makes 5",
+      "Makes 3",
+      "Makes 2",
+    ]);
+
+    await picker.locator('.paint-choice-btn[data-color="2"]').click();
+    await expect(picker).toBeHidden();
+    const res = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      return {
+        color: b.grid[1][0],
+        group: b.getGroupAt(1, 0).length,
+        stock: window.__bpc.Economy.getPowerup("paint"),
+        usedPowerup: g.session.usedPowerup,
+      };
+    });
+    expect(res).toMatchObject({ color: 2, group: 5, stock: 0, usedPowerup: true });
+  });
+
   test("pick on a lightning bubble triggers the full row+column strike", async ({
     page,
   }) => {
@@ -2009,7 +2071,7 @@ test.describe("power-ups (UI arm + apply)", () => {
 
     // The picker lists every power-up, including ones not in the loadout.
     await expect(page.locator('#loadout-list [data-pu="shuffle"]')).toBeVisible();
-    await expect(page.locator("#loadout-list .loadout-item")).toHaveCount(7);
+    await expect(page.locator('#loadout-list [data-pu="paint"]')).toBeVisible();
 
     // Choosing Shuffle equips it in slot 0 and closes the picker.
     await page.locator('#loadout-list [data-pu="shuffle"]').click();
@@ -2197,6 +2259,7 @@ test.describe("progressive tool unlocks", () => {
 
     await page.locator("#win-chest").click();
     await expect(page.locator("#win-choice")).toBeVisible();
+    await expect(page.locator("#win-choice-list")).not.toContainText("Undo");
     await page.locator('#win-choice-list .win-choice-btn[data-choice="coins"]').click();
 
     await expect(page.locator("#tool-unlock")).toBeVisible();
@@ -4455,9 +4518,27 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
             return;
           }
     });
+    await expect.poll(() => stepId(page)).toBe("paint");
+
+    // 7b) paint — arm it, choose a bubble, then accept the best suggested colour.
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      g.armPowerup("paint", document.querySelector('[data-pu="paint"]'));
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          const suggestions = b.suggestRecolors(c, r, 3);
+          if (suggestions.length) {
+            const p = b.targetPixel(c, r);
+            g.handleTap(p.x, p.y);
+            g.confirmPaintColor(suggestions[0].color);
+            return;
+          }
+        }
+    });
     await expect.poll(() => stepId(page)).toBe("magnet");
 
-    // 7b) magnet — arm it, aim a plain bubble, lock the gauge on green.
+    // 7c) magnet — arm it, aim a plain bubble, lock the gauge on green.
     await page.evaluate(() => {
       const g = window.__bpc.game;
       const b = g.session.board;

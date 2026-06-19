@@ -623,6 +623,17 @@
       </div>
     </div>
 
+    <!-- Paint tool: smart colour suggestions after choosing one bubble. -->
+    <div id="paint-choice" class="overlay modal hidden" role="dialog" aria-modal="true" aria-label="Choose paint colour">
+      <div class="modal-card paint-card">
+        <div class="paint-kicker">Smart Paint</div>
+        <h2 class="modal-title">Choose a colour</h2>
+        <p class="paint-sub" id="paint-choice-sub">These colours make the selected bubble easier to pop.</p>
+        <div class="paint-choice-list" id="paint-choice-list"></div>
+        <button class="btn btn-ghost" id="paint-choice-cancel">Cancel</button>
+      </div>
+    </div>
+
     <!-- Tool unlock celebration: campaign progression introduces power-ups one
          at a time, with a tiny lesson before the next level starts. -->
     <div id="tool-unlock" class="overlay modal hidden" role="dialog" aria-modal="true" aria-label="New tool unlocked">

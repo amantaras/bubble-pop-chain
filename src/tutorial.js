@@ -28,7 +28,7 @@ import { NORMAL, ICE, RAINBOW } from "./grid.js";
 //   grant   — optional setup applied when the step is entered
 //             ("power" | "fever" | "bomb" | "specials" | "magnet" | "event"
 //              | "lightning" | "stone" | "bombbubble" | "multiplier"
-//              | "coinbubble" | "vine" | "undo")
+//              | "coinbubble" | "vine" | "undo" | "paint")
 export const TUTORIAL_STEPS = [
   {
     id: "welcome",
@@ -96,6 +96,14 @@ export const TUTORIAL_STEPS = [
     advance: "powerup",
     hint: "🧨 Arm the Bomb, then tap the board",
     grant: "bomb",
+  },
+  {
+    id: "paint",
+    title: "Smart Paint",
+    body: "The 🎨 Paint tool changes one bubble's colour. Tap Paint, choose a bubble, then pick one of the three suggested colours — the best swatch makes the biggest next group.",
+    advance: "powerup",
+    hint: "🎨 Arm Paint, tap a bubble, then pick a colour",
+    grant: "paint",
   },
   {
     id: "magnet",

@@ -28,7 +28,7 @@ const DEFAULT_SAVE = {
   // and large CSS animations are neutralised (also auto-honoured from the OS
   // `prefers-reduced-motion` setting via CSS).
   settings: { colorblind: false, hints: true, reducedMotion: false, buyRepeatMs: 500, buyBatchMax: 10 },
-  powerups: { undo: 0, bomb: 0, colorClear: 0, shuffle: 0, chainBolt: 0, pick: 0, magnet: 0 },
+  powerups: { undo: 0, bomb: 0, colorClear: 0, paint: 0, shuffle: 0, chainBolt: 0, pick: 0, magnet: 0 },
   // The three power-ups shown in the HUD's quick-access slots. Players swap
   // them via a long-press picker so the bar never overflows as we add tools.
   loadout: [null, null, null],

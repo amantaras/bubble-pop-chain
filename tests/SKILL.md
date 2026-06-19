@@ -58,7 +58,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
 
 - **Unit tests** import the actual `src/*.js` modules and assert on real
   behaviour: RNG determinism, level difficulty curve, scoring/combo math,
-  flood-fill + gravity + column collapse, power-up effects, the coin economy,
+  flood-fill + gravity + column collapse, power-up effects (including Paint's
+  impact-ranked recolour suggestions), the coin economy,
   daily-streak rules, theme unlock logic, storage persistence, the
   monetization cadence (forced interstitials gated until level 7), gesture
   swipe classification, the Power-meter charge curve + Charged-Blast AoE,
@@ -213,6 +214,7 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   pointer taps on the `<canvas>`. They cover: grouped menu/level-map/shop/themes
   navigation, popping via real taps, scoring, win/lose, revive and double-coins
   rewarded-ad flows, endless refill, daily streak, the full power-up/tool set,
+  the Paint tool's smart three-colour picker and repaint flow,
   progressive tool unlocks (fresh players see no HUD/shop/loadout tools or locked
   Pick rescue prompts, Level 5→6 shows the **New Tool Unlocked!** mini-tutorial before starting the next
   level, and claiming the win bonus after the reward chest also opens that popup), progressive pet unlocks (fresh players do not see the Pets tile,

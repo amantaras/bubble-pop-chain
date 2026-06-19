@@ -163,6 +163,40 @@ describe("grid / Board", () => {
     expect(b.colorCells(2).length).toBe(1);
   });
 
+  it("suggestRecolors ranks colours by the target bubble's new group impact", () => {
+    const b = new Board(4, 3, 4, 1);
+    setGrid(b, [
+      [0, 1, 2],
+      [3, 2, 2],
+      [1, 2, 3],
+      [1, 3, 3],
+    ]);
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+
+    const suggestions = b.suggestRecolors(1, 0);
+
+    expect(suggestions.map((s) => s.color)).toEqual([2, 1, 0]);
+    expect(suggestions[0]).toMatchObject({ color: 2, groupSize: 5, createsMove: true });
+    expect(b.grid[1][0]).toBe(3);
+  });
+
+  it("recolorCell changes a legal bubble colour and keeps stone locked", () => {
+    const b = new Board(2, 2, 4, 1);
+    setGrid(b, [
+      [0, 1],
+      [2, 3],
+    ]);
+    b.types = [
+      [NORMAL, STONE],
+      [NORMAL, NORMAL],
+    ];
+
+    expect(b.recolorCell(0, 0, 3)).toBe(true);
+    expect(b.grid[0][0]).toBe(3);
+    expect(b.recolorCell(0, 1, 2)).toBe(false);
+    expect(b.grid[0][1]).toBe(1);
+  });
+
   it("crossCells clears the full row and column through a cell (no dupes)", () => {
     const b = new Board(3, 3, 3, 1);
     setGrid(b, [

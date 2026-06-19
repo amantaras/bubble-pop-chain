@@ -85,11 +85,13 @@ describe("economy", () => {
       "bomb",
       "colorClear",
       "pick",
+      "paint",
       "chainBolt",
       "magnet",
     ]);
     expect(unlockedPowerups(6)).toEqual(["undo"]);
     expect(unlockedPowerups(16)).toEqual(["undo", "shuffle", "bomb", "colorClear", "pick"]);
+    expect(unlockedPowerups(18)).toEqual(["undo", "shuffle", "bomb", "colorClear", "pick", "paint"]);
     expect(unlockedPowerups(24)).toEqual(POWERUP_UNLOCKS.map((u) => u.type));
     expect(powerupsUnlockedBetween(5, 10).map((u) => u.type)).toEqual(["undo", "shuffle", "bomb"]);
   });
@@ -118,8 +120,8 @@ describe("economy", () => {
     expect(resolveRewardForUnlocks({ coins: 40, powerup: "bomb" })).toEqual({ coins: 40, powerup: "bomb" });
   });
 
-  it("catalogs the Magnet, Chain Bolt and Pick with the Magnet most expensive", () => {
-    for (const t of ["magnet", "chainBolt", "pick"]) {
+  it("catalogs the Magnet, Chain Bolt, Pick and Paint with the Magnet most expensive", () => {
+    for (const t of ["magnet", "chainBolt", "pick", "paint"]) {
       expect(POWERUP_INFO[t]).toBeTruthy();
       expect(POWERUP_INFO[t].price).toBeGreaterThan(0);
     }

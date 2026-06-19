@@ -108,8 +108,10 @@ never re‑discovered the hard way.
   Up!" win modal. Menu **Rush** tile (`#btn-timeattack`). High-score meta mode —
   **no tutorial step**. (Exposed for tests via `__bpc.timeattack`.)
   **Power-ups** (`economy.js` `POWERUP_INFO`, armed from the HUD): **Bomb** (3×3),
-  **Color Clear** (one colour), **Shuffle**, **Chain Bolt** (`grid.crossCells`,
-  full row + column), **Pick** (single bubble; when aimed at a special bubble it
+  **Color Clear** (one colour), **Shuffle**, **Paint** (`grid.suggestRecolors`/
+  `recolorCell` — tap one recolourable bubble, then choose from the three
+  impact-ranked colour swatches that create the strongest next group),
+  **Chain Bolt** (`grid.crossCells`, full row + column), **Pick** (single bubble; when aimed at a special bubble it
   also triggers that bubble's effect — lightning strike, bomb blast, multiplier,
   coin payout, vine cue), and the premium **Magnet**
   (`grid.magnetGather`) — arm it, tap a plain bubble, then lock a **circular
@@ -143,7 +145,7 @@ never re‑discovered the hard way.
   five campaign levels keep the HUD quick-access rail, loadout picker, and tool
   shop quiet. Tools then unlock one at a time as campaign progress opens the
   next level: Undo at Level 6, Shuffle at 8,
-  Bomb at 10, Color Clear at 13, Pick at 16, Chain Bolt at 20, and Magnet at 24. The shop and
+  Bomb at 10, Color Clear at 13, Pick at 16, Paint at 18, Chain Bolt at 20, and Magnet at 24. The shop and
   loadout picker only list unlocked tools; before Level 6 they show a small
   "Tools unlock after Level 5" empty state, and the Starter Pack describes its
   locked contents as a future tool stash instead of spoiling the full toolbox.
@@ -1285,7 +1287,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 613 unit tests + 496 E2E
+- **Current baseline (keep growing, never shrink)**: 615 unit tests + 498 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests
