@@ -131,7 +131,7 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   staged feature unlock helpers (`PET_FEATURE_UNLOCKS`, feature info copy,
   `isPetFeatureUnlocked`, `petFeaturesUnlockedBetween`, `nextPetFeatureUnlock`),
   passive buff scaling, active-pet cooldown/strength/count scaling, expanded
-  long-progression catalog coverage (Mochi/Sprout/Luma/Amp/Prism/Midas), seeded
+  long-progression catalog coverage (Mochi/Sprout/Luma/Archer/Amp/Prism/Midas), seeded
   crate rolls including the rare premium drop chance + the boosted Legendary
   Crate roll, premium-pet catalog filter, the pity timer (`pityRarityFloor`/
   `nextPity` thresholds + dry-streak guarantee) + Pet Dust economy
@@ -186,8 +186,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   `getPetTech`/`addPetTech` (idempotent per node, fresh-array return, empty for
   unowned, default Sparky `tech:[]`, no-op on unowned).
   plus the grid helpers it relies on
-  (dominant colour, first-cell-of-colour, isolated-cell detection, and
-  most-isolated-cell ranking for the Talon pick pet),
+  (dominant colour, first-cell-of-colour, isolated-cell detection,
+  most-isolated-cell ranking for the Talon pick pet, and deterministic
+  `arrowRay` pathing for Archer's drag skill shot),
   special bubbles (rainbow wildcard + ice two-hit + lightning row/column
   strike + bomb 3×3 detonation + multiplier gold-score-boost + coin
   treasure-drop + vine creeping-threat spread + stone
@@ -315,7 +316,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   ability with an Equip & Play CTA, equipping
   refreshes the live
   session buffs, a startCharge pet pre-fills the power meter, an active pet
-  arms its gather action, the diagonal pet blasts a streak, the pick pet (Talon)
+  arms its gather action, the diagonal pet blasts a streak, the Archer pet waits
+  for a real player drag then fires a line shot, the pick pet (Talon)
   picks off the most isolated bubbles one by one, premium IAP grants ownership,
   HUD pet badge),
   the pet gems & sockets flow (the Pets screen shows the `#pet-gems` panel with

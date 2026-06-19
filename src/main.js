@@ -323,10 +323,13 @@ class Game {
     this.input = new Input(this.canvas, {
       onTap: (x, y) => this.handleTap(x, y),
       onDoubleTap: (x, y) => this.handleDoubleTap(x, y),
+      onDragStart: (x, y) => this.handleDragStart(x, y),
+      onDragMove: (x0, y0, x1, y1) => this.handleDragMove(x0, y0, x1, y1),
+      onDragEnd: (x0, y0, x1, y1) => this.handleDragEnd(x0, y0, x1, y1),
       onLongPressStart: (x, y) => this.previewAt(x, y),
       onLongPressMove: (x, y) => this.previewAt(x, y),
       onLongPressEnd: (x, y) => this.commitPreview(x, y),
-      onSwipe: (dir, x0, y0) => this.handleSwipe(dir, x0, y0),
+      onSwipe: (dir, x0, y0, x1, y1) => this.handleSwipe(dir, x0, y0, x1, y1),
       shouldDeferTap: () => this.isBlastReady(),
     });
     this.input.setEnabled(false);
@@ -558,6 +561,7 @@ class Game {
       petActive: active,
       petTimer: active ? active.cooldown : 0,
       petPicking: false,
+      archerAim: null,
       shiftTokens: mode === "campaign" || mode === "puzzle" ? 0 : 5,
       stats: this._newStats(),
       bossCoreTotal,
@@ -598,6 +602,7 @@ class Game {
     this._pendingToolUnlocks = [];
     this.session.magnet = null;
     this.session.paint = null;
+    this.session.archerAim = null;
     this.paused = false;
     board.layout(this.W, this.H, TOP_INSET, this._bottomInset());
     this.particles.particles.length = 0;
@@ -716,6 +721,7 @@ class Game {
       petActive: this._equippedActive(),
       petTimer: (this._equippedActive() || { cooldown: 0 }).cooldown,
       petPicking: false,
+      archerAim: null,
       shiftTokens: 0,
       stats: snap.stats || this._newStats(),
       bossCoreTotal: snap.bossCoreTotal || board.frozenRemaining(),
@@ -1632,7 +1638,7 @@ class Game {
   canUndo() {
     const s = this.session;
     if (!s || s.ended) return false;
-    if (s.finishing || s.petPicking) return false; // mid-animation
+    if (s.finishing || s.petPicking || s.archerAim) return false; // mid-animation / aim
     if (s.magnet && s.magnet.aiming) return false; // mid magnet aim
     return Array.isArray(s.undoStack) && s.undoStack.length > 0;
   }
@@ -1680,6 +1686,7 @@ class Game {
     s.armed = null;
     s.magnet = null;
     s.paint = null;
+    s.archerAim = null;
     s.hint = null;
     s.idleTime = 0;
     s.undosLeft = Economy.getPowerup("undo");
@@ -1826,6 +1833,7 @@ class Game {
     if (undoStock > 0) items.push({ icon: "↶", text: `${undoStock} undo`, kind: "undo" });
     if (s.shiftTokens > 0) items.push({ icon: "↔", text: `${s.shiftTokens} shift`, kind: "shift" });
     if (s.petActive && s.petTimer <= 1) items.push({ icon: "✦", text: "Pet soon", kind: "pet" });
+    if (s.archerAim) items.push({ icon: "🏹", text: "Aim arrow", kind: "pet" });
     return items.slice(0, 4);
   }
 
@@ -1896,6 +1904,10 @@ class Game {
   handleTap(px, py) {
     const s = this.session;
     if (!s || s.ended) return;
+    if (s.archerAim) {
+      UI.toast("Drag to aim Archer's arrow");
+      return;
+    }
     this._noteActivity();
 
     // A magnet is mid-aim: the next tap locks in the swinging strength gauge.
@@ -1988,7 +2000,7 @@ class Game {
   // Highlight the group under the finger and show its projected score.
   previewAt(px, py) {
     const s = this.session;
-    if (!s || s.ended || s.armed) return;
+    if (!s || s.ended || s.armed || s.archerAim) return;
     this._noteActivity();
     const cell = s.board.cellAtPixel(px, py);
     if (!cell) {
@@ -2012,6 +2024,7 @@ class Game {
   commitPreview(px, py) {
     const s = this.session;
     if (!s || s.ended) return;
+    if (s.archerAim) return;
     const had = s.preview;
     s.preview = null;
     if (s.armed) return;
@@ -2546,6 +2559,10 @@ class Game {
   handleDoubleTap(px, py) {
     const s = this.session;
     if (!s || s.ended) return;
+    if (s.archerAim) {
+      UI.toast("Release a drag to fire the arrow");
+      return;
+    }
     this._noteActivity();
     // While aiming a magnet, any second tap just locks the gauge.
     if (s.magnet && s.magnet.aiming) {
@@ -2851,6 +2868,120 @@ class Game {
     this.afterMove();
   }
 
+  // ---- Archer pet: drag-to-fire skill shot -----------------------------
+  handleDragStart(x, y) {
+    const s = this.session;
+    if (!s || !s.archerAim || s.ended) return;
+    const cell = s.board.cellAtPixel(x, y);
+    if (cell) s.archerAim.anchor = cell;
+    s.archerAim.start = { x, y };
+    s.archerAim.end = { x, y };
+    s.archerAim.cells = [];
+    s.preview = null;
+    this._noteActivity();
+  }
+
+  handleDragMove(x0, y0, x1, y1) {
+    const s = this.session;
+    if (!s || !s.archerAim || s.ended) return;
+    const aim = s.archerAim;
+    aim.start = aim.start || { x: x0, y: y0 };
+    aim.end = { x: x1, y: y1 };
+    const path = this._archerPath(aim);
+    aim.cells = path.cells;
+    aim.power = path.power;
+    aim.sweet = path.sweet;
+    aim.strength = path.strength;
+    this._noteActivity();
+  }
+
+  handleDragEnd(x0, y0, x1, y1) {
+    const s = this.session;
+    if (!s || !s.archerAim || s.ended) return false;
+    this.handleDragMove(x0, y0, x1, y1);
+    this.fireArcherArrow();
+    return true;
+  }
+
+  _startArcherAim(act) {
+    const s = this.session;
+    if (!s || s.ended || !s.board || !s.board.countRemaining()) return;
+    const anchor = s.board.randomFilledCell(s.board.rng) || s.board.firstFilledCell();
+    if (!anchor) return;
+    const p = s.board.targetPixel(anchor.c, anchor.r);
+    s.archerAim = {
+      act,
+      anchor,
+      start: { x: p.x, y: p.y },
+      end: { x: p.x, y: p.y },
+      cells: [],
+      power: 0,
+      strength: 0,
+      sweet: 0.68,
+    };
+    s.preview = null;
+    s.armed = null;
+    UI.clearArmedPowerups();
+    Audio.powerup();
+    UI.toast("🏹 Archer ready — drag an arrow through bubbles");
+    this.refreshHud();
+  }
+
+  _archerPath(aim) {
+    const s = this.session;
+    if (!s || !aim || !aim.start || !aim.end) {
+      return { cells: [], power: 0, strength: 0, sweet: 0.68 };
+    }
+    const dx = aim.end.x - aim.start.x;
+    const dy = aim.end.y - aim.start.y;
+    const dist = Math.hypot(dx, dy);
+    const power = Math.max(0, Math.min(1, dist / Math.max(1, s.board.cell * 3.2)));
+    const sweet = aim.sweet == null ? 0.68 : aim.sweet;
+    const strength = Math.max(0.35, 1 - Math.abs(power - sweet) / 0.36);
+    const hits = Math.max(1, Math.round((aim.act.count || 2) + strength * 2));
+    return {
+      cells: s.board.arrowRay(aim.anchor.c, aim.anchor.r, dx, dy, hits),
+      power,
+      strength,
+      sweet,
+    };
+  }
+
+  fireArcherArrow() {
+    const s = this.session;
+    if (!s || s.ended || !s.archerAim) return;
+    const aim = s.archerAim;
+    const path = this._archerPath(aim);
+    const cells = path.cells;
+    s.archerAim = null;
+    if (!cells.length) {
+      UI.toast("Archer missed — drag farther through bubbles");
+      this.refreshHud();
+      return;
+    }
+    const raw = cells.length * (path.power >= path.sweet - 0.08 && path.power <= path.sweet + 0.08 ? 24 : 18);
+    const points = Math.round(
+      feverPoints(raw, s.feverActive) * s.petBuffs.scoreMult
+    );
+    s.score += points;
+    const targets = cells.map((cell) => s.board.targetPixel(cell.c, cell.r));
+    const anchorPx = s.board.targetPixel(aim.anchor.c, aim.anchor.r);
+    this.petAnim.play({
+      kind: "diagonal",
+      icon: this._equippedPetIcon("🏹"),
+      anchor: anchorPx,
+      targets,
+      color: "#c9ff7a",
+    });
+    this._popCells(cells, points, cells.length, 1, 0.9 + path.strength * 0.35);
+    Audio.powerup();
+    vibrate(path.strength > 0.85 ? 24 : 12);
+    this.floating.spawn(anchorPx.x, anchorPx.y - 36, path.strength > 0.85 ? "Bullseye!" : "Arrow!", "#c9ff7a", 28);
+    if (s.stats) s.stats.petArrows = (s.stats.petArrows || 0) + cells.length;
+    this.refreshHud();
+    this.afterMove();
+  }
+
   // ---- Active pet companion actions ------------------------------------
   // Counts down the equipped pet's cooldown each move; when it fires, the pet
   // helps on the board. Never runs in the tutorial sandbox.
@@ -2871,6 +3002,7 @@ class Game {
     else if (act.type === "cyclone") this._petCyclone(act);
     else if (act.type === "magma") this._petMagma(act);
     else if (act.type === "tidal") this._petTidal(act);
+    else if (act.type === "archer") this._startArcherAim(act);
   }
 
   // 🐱 Whiskers: pounce on lone, hard-to-match bubbles and clear them.
@@ -3407,16 +3539,16 @@ class Game {
     // Talon's pick is mid-flourish (bubbles are being pecked off one by one). It
     // will settle gravity and call afterMove() again itself when it finishes, so
     // skip win/deadlock checks — and don't let another pet action fire over it.
-    if (s.petPicking) return;
+    if (s.petPicking || s.archerAim) return;
 
     // Active pet companions physically help on the board every few moves
     // (gathering a colour, or zapping isolated bubbles) before we evaluate the
     // board state — so their help counts toward the win/deadlock checks below.
     this._maybePetAction();
 
-    // _maybePetAction may have just launched Talon's pick (async). If so, defer
-    // the rest until its onDone re-runs afterMove on the settled board.
-    if (s.petPicking) return;
+    // _maybePetAction may have just launched Talon's pick (async) or Archer's
+    // player-aimed shot. Defer the rest until that action resolves.
+    if (s.petPicking || s.archerAim) return;
 
     // Vine threat: any vine bubbles left on the board creep into one adjacent
     // ordinary bubble on every resolved move. The player stops the spread by
@@ -4736,6 +4868,9 @@ class Game {
       const markColor =
         this.session.bossKind === "color" ? this.session.bossTargetColor : -1;
       this.renderer.drawBubbles(this.session.board, this.theme, aim, markColor);
+      if (this.session.archerAim) {
+        this.renderer.drawArcherAim(this.session.board, this.session.archerAim, time);
+      }
       if (this.session.blastCue) {
         const cue = this.session.blastCue;
         if (this.session.board.grid[cue.c]?.[cue.r] === -1) this.session.blastCue = null;

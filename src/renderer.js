@@ -846,6 +846,73 @@ export class Renderer {
     ctx.restore();
   }
 
+  // Archer companion aim: stretch line, sweet-power gauge, and predicted cells.
+  drawArcherAim(board, aim, time) {
+    if (!aim || !aim.start || !aim.end) return;
+    const ctx = this.ctx;
+    const t = (time || performance.now()) / 1000;
+    const sx = aim.start.x;
+    const sy = aim.start.y;
+    const ex = aim.end.x;
+    const ey = aim.end.y;
+    const dx = ex - sx;
+    const dy = ey - sy;
+    const len = Math.max(1, Math.hypot(dx, dy));
+    const ux = dx / len;
+    const uy = dy / len;
+    const power = Math.max(0, Math.min(1, aim.power || 0));
+    const sweet = aim.sweet == null ? 0.68 : aim.sweet;
+    const good = Math.abs(power - sweet) <= 0.08;
+    const color = good ? "#b7ff5b" : "#ffffff";
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = good ? "rgba(183,255,91,0.92)" : "rgba(255,255,255,0.72)";
+    ctx.lineWidth = Math.max(3, board.cell * 0.08);
+    ctx.shadowColor = color;
+    ctx.shadowBlur = good ? 18 : 10;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+    // Arrow head.
+    const head = board.cell * 0.34;
+    ctx.beginPath();
+    ctx.moveTo(ex, ey);
+    ctx.lineTo(ex - ux * head - uy * head * 0.45, ey - uy * head + ux * head * 0.45);
+    ctx.moveTo(ex, ey);
+    ctx.lineTo(ex - ux * head + uy * head * 0.45, ey - uy * head - ux * head * 0.45);
+    ctx.stroke();
+    // Predicted pierced cells.
+    const radius = board.cell * (0.42 + 0.04 * Math.sin(t * 9));
+    ctx.strokeStyle = good ? "rgba(183,255,91,0.95)" : "rgba(255,255,255,0.62)";
+    ctx.lineWidth = Math.max(2, board.cell * 0.055);
+    for (const cell of aim.cells || []) {
+      const p = board.targetPixel(cell.c, cell.r);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    // Compact power gauge beside the drag origin.
+    const gx = sx - board.cell * 1.15;
+    const gy = sy - board.cell * 1.25;
+    const gw = board.cell * 2.3;
+    const gh = Math.max(8, board.cell * 0.16);
+    ctx.globalCompositeOperation = "source-over";
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "rgba(0,0,0,0.46)";
+    ctx.fillRect(gx, gy, gw, gh);
+    ctx.fillStyle = "rgba(183,255,91,0.9)";
+    ctx.fillRect(gx + gw * (sweet - 0.08), gy, gw * 0.16, gh);
+    ctx.fillStyle = good ? "#b7ff5b" : "#ffffff";
+    ctx.fillRect(gx, gy, gw * power, gh);
+    ctx.strokeStyle = "rgba(255,255,255,0.72)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(gx, gy, gw, gh);
+    ctx.restore();
+  }
+
   // Charged Blast cue: briefly highlight the best blast center (highest
   // immediate clear) when double-tap becomes available.
   drawBlastCue(board, cue, time) {

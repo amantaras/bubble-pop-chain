@@ -5181,6 +5181,71 @@ test.describe("pet companions (collection & buffs)", () => {
     expect(result.kind).toBe("diagonal");
   });
 
+  test("the Archer pet waits for a player drag and fires a line shot", async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      window.__bpc.Storage.grantPet("archer");
+      window.__bpc.game.equipPet("archer");
+    });
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    const active = await page.evaluate(() => window.__bpc.game.session.petActive);
+    expect(active).not.toBeNull();
+    expect(active.type).toBe("archer");
+
+    const shot = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++) {
+        for (let r = 0; r < b.rows; r++) {
+          b.grid[c][r] = -1;
+          b.types[c][r] = 0;
+          b.spriteGrid[c][r] = null;
+        }
+      }
+      for (let i = 0; i < 5; i++) {
+        b.grid[i][i] = i % b.colorCount;
+        b.types[i][i] = 0;
+      }
+      b.restore(b.serialize(), b.serializeTypes());
+      b.layout(g.W, g.H, 92, 190);
+      g.session.petTimer = 1;
+      g.afterMove();
+      const start = b.targetPixel(0, 0);
+      const end = b.targetPixel(4, 4);
+      return { start, end, armed: !!g.session.archerAim, before: b.countRemaining() };
+    });
+    expect(shot.armed).toBe(true);
+
+    const box = await page.locator("#game-canvas").boundingBox();
+    await page.mouse.move(box.x + shot.start.x, box.y + shot.start.y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + shot.end.x, box.y + shot.end.y, { steps: 8 });
+    await page.waitForFunction(
+      () => window.__bpc.game.session.archerAim && window.__bpc.game.session.archerAim.cells.length >= 3
+    );
+    await page.mouse.up();
+    await page.waitForTimeout(250);
+
+    const result = await page.evaluate((before) => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      return {
+        aiming: !!g.session.archerAim,
+        before,
+        after: b.countRemaining(),
+        score: g.session.score,
+        arrows: g.session.stats.petArrows || 0,
+        busy: g.petAnim.busy,
+      };
+    }, shot.before);
+    expect(result.aiming).toBe(false);
+    expect(result.after).toBeLessThanOrEqual(result.before - 3);
+    expect(result.score).toBeGreaterThan(0);
+    expect(result.arrows).toBeGreaterThanOrEqual(3);
+    expect(result.busy).toBe(true);
+  });
+
   test("the cleanse pet (Whiskers) pops isolated bubbles immediately", async ({
     page,
   }) => {

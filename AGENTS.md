@@ -824,7 +824,7 @@ never re‑discovered the hard way.
   first crate, Level 16 enables **active abilities**, Level 18 unlocks the
   **party/support** slots, Level 22 unlocks **gems & sockets**, and Level 26
   unlocks the **pet technology tree**. Each unlock queues the same celebratory
-  feature modal flow as tool unlocks. `PET_CATALOG` holds 21 pets across four rarities
+  feature modal flow as tool unlocks. `PET_CATALOG` holds 22 pets across four rarities
   (`common`/`rare`/`epic`/`legendary`). **Passive pets** carry an `ability`
   (`scoreMult`/`coinMult`/`powerMult`/`feverMult`/`startCharge`) that scales per
   level (`petBuffs`/`abilityValue`). **Active pets** carry an `active` config and
@@ -850,7 +850,15 @@ never re‑discovered the hard way.
   session. Its `count` scales 2→6 across the longer level curve. **Luma 🖌️**
   (`paint`, rare) recolours nearby awkward bubbles to match a tricky anchor,
   creating a new cluster for the player's next pop (`grid.paintArea` →
-  `_petPaint`) without clearing anything directly. Four **elemental** active board pets round out the free roster:
+  `_petPaint`) without clearing anything directly. **Archer 🏹** (`archer`, epic)
+  readies a **player-aimed skill shot** instead of resolving automatically:
+  when its move cooldown fires, `main._startArcherAim` stores
+  `session.archerAim`, pauses normal end-of-move checks, and prompts the player
+  to drag an arrow from a chosen bubble. Drag start re-anchors the shot to the
+  bubble under the finger; drag length feeds a compact power gauge with a green
+  sweet band, drag angle sets the direction, and release resolves a deterministic
+  grid ray (`grid.arrowRay`) that pierces a level-scaled number of filled cells
+  (`main.fireArcherArrow`) through the normal pop/score/settle path. Four **elemental** active board pets round out the free roster:
   **Quake 🌍** (`quake`, rare) is a *match-maker* — a board-wide tremor that
   resettles every bubble so identical colours land together in big connected
   groups (`grid.quakeRegroup` → `_petQuake`; colours are conserved, it creates
@@ -877,7 +885,7 @@ never re‑discovered the hard way.
   `_equippedBuffs`/`_equippedActive` (folded into `popAt`/`chargedBlast`/
   `applyPowerup`/`_finish` scoring and the meters) and `_maybePetAction`/
   `_petGather`/`_petCleanse`/`_petDiagonal`/`_petPick`/`_petQuake`/`_petCyclone`/
-  `_petMagma`/`_petTidal` (ticked from `afterMove` on
+  `_petMagma`/`_petTidal`/`_startArcherAim` (ticked from `afterMove` on
   `session.petTimer`).
   When an active pet fires, it plays an on-board **ability animation** (`PetAnim`
   in `animations.js`, ticked/drawn from the game loop via `game.petAnim`): the
@@ -887,7 +895,9 @@ never re‑discovered the hard way.
   streaks in diagonally and fires a bright beam along the popped streak
   (`diagonal`), and **Talon 🦅** swoops down and pecks each isolated bubble in
   sequence (`pick`, destroying each bubble in its `onHit` as the beak lands and
-  settling/re-evaluating in `onDone`). The other pets' board change happens
+  settling/re-evaluating in `onDone`). **Archer 🏹** draws a live arrow line,
+  predicted hit rings, and green-band power gauge (`renderer.drawArcherAim`) while
+  the player stretches the shot. The other pets' board change happens
   immediately when triggered (the animation is cosmetic); Talon's pick is the
   exception — it removes each bubble in step with the peck so nothing is pecked
   after it has already vanished.
@@ -1287,7 +1297,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 615 unit tests + 498 E2E
+- **Current baseline (keep growing, never shrink)**: 617 unit tests + 500 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

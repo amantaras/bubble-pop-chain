@@ -194,6 +194,20 @@ describe("pets catalog", () => {
     expect(l5.cooldown).toBeLessThanOrEqual(l1.cooldown);
     expect(l5.cooldown).toBeGreaterThanOrEqual(4); // minCooldown floor
   });
+
+  it("provides a free Archer skill-shot pet whose arrow pierces more at high level", () => {
+    const archer = getPet("archer");
+    expect(archer).toBeTruthy();
+    expect(archer.premium).toBe(false);
+    expect(archer.rarity).toBe("epic");
+    expect(archer.active.type).toBe("archer");
+    const early = petActive("archer", 1);
+    const late = petActive("archer", MAX_PET_LEVEL);
+    expect(early.type).toBe("archer");
+    expect(early.count).toBe(2);
+    expect(late.count).toBeGreaterThan(early.count);
+    expect(late.cooldown).toBeLessThan(early.cooldown);
+  });
 });
 
 describe("pet leveling", () => {

@@ -190,6 +190,8 @@ export const RARITY_WEIGHTS = {
 //                 current dominant colour
 //      paint    — recolours nearby bubbles to match a difficult anchor,
 //                 creating a fresh cluster without clearing anything directly
+//      archer   — arms a player-aimed arrow skill-shot; the player drags to
+//                 set direction/strength, then the shot clears a grid ray
 //      shooter  — (PREMIUM "Nova") an alien gunship that patrols the bottom of
 //                 the board in real time and auto-blasts the lowest bubbles.
 //                 Its firepower grows with the pet's level: faster cannons →
@@ -285,6 +287,14 @@ export const PET_CATALOG = [
     active: {
       type: "magma", baseCooldown: 7, minCooldown: 4, baseCount: 1, countPer: 0.25,
       label: "Erupts and clears a vertical lane every few moves",
+    },
+  },
+  {
+    id: "archer", name: "Archer", icon: "🏹", rarity: "epic", premium: false,
+    desc: "A focused companion that readies a skill-shot arrow. Drag to aim, release in the green power band, and pierce a line through the board.",
+    active: {
+      type: "archer", baseCooldown: 7, minCooldown: 4, baseCount: 2, countPer: 0.35,
+      label: "Readies a player-aimed arrow every few moves",
     },
   },
   {

@@ -6,6 +6,9 @@
 //   onLongPressStart(x, y)           — press held past `longPressMs`
 //   onLongPressMove(x, y)            — movement while a long-press is active
 //   onLongPressEnd(x, y)             — release that ends a long-press
+//   onDragStart(x, y)                — optional raw press hook for drag tools
+//   onDragMove(x0, y0, x1, y1)       — optional raw drag hook for live aiming
+//   onDragEnd(x0, y0, x1, y1)        — optional raw drag release; return true to consume
 //   onSwipe(dir, x0, y0, x1, y1)     — directional drag ("left"/"right"/"up"/"down")
 // Optional: shouldDeferTap() -> bool — when true, a tap is held back briefly so
 //   a double-tap can be detected first (keeps normal taps instant otherwise).
@@ -78,6 +81,7 @@ export class Input {
     const p = this._pos(e);
     this._down = { x: p.x, y: p.y, t: performance.now() };
     this._longActive = false;
+    if (this.h.onDragStart) this.h.onDragStart(p.x, p.y);
     clearTimeout(this._longTimer);
     if (this.h.onLongPressStart) {
       this._longTimer = setTimeout(() => {
@@ -91,6 +95,7 @@ export class Input {
   _onMove(e) {
     if (!this.enabled || !this._down) return;
     const p = this._pos(e);
+    if (this.h.onDragMove) this.h.onDragMove(this._down.x, this._down.y, p.x, p.y);
     if (this._longActive) {
       if (this.h.onLongPressMove) this.h.onLongPressMove(p.x, p.y);
       return;
@@ -110,6 +115,7 @@ export class Input {
 
     if (this._longActive) {
       this._longActive = false;
+      if (this.h.onDragEnd && this.h.onDragEnd(down.x, down.y, p.x, p.y)) return;
       if (this.h.onLongPressEnd) this.h.onLongPressEnd(p.x, p.y);
       return;
     }
@@ -118,6 +124,8 @@ export class Input {
     const dy = p.y - down.y;
     const dt = performance.now() - down.t;
     const moved = Math.hypot(dx, dy);
+
+    if (this.h.onDragEnd && this.h.onDragEnd(down.x, down.y, p.x, p.y)) return;
 
     // Swipe takes priority over tap when the finger travelled far enough.
     const dir = classifySwipe(dx, dy, { minDist: this.swipeMinDist });

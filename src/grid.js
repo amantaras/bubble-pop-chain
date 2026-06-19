@@ -1207,6 +1207,36 @@ export class Board {
     return best;
   }
 
+  // Archer pet skill-shot: step a deterministic grid ray from a start cell in
+  // the drag direction and return the first `count` filled cells it crosses.
+  // Uses DDA stepping so shallow/steep shots both feel natural on the square
+  // board. Empty cells are skipped; duplicate cells are de-duped.
+  arrowRay(c, r, dx, dy, count = 3) {
+    if (!Number.isFinite(dx) || !Number.isFinite(dy)) return [];
+    const mag = Math.hypot(dx, dy);
+    if (mag < 0.001) return [];
+    const maxHits = Math.max(1, Math.round(count || 1));
+    const stepX = dx / mag;
+    const stepY = dy / mag;
+    const samples = Math.max(this.cols, this.rows) * 6;
+    const seen = new Set();
+    const cells = [];
+    for (let i = 0; i <= samples && cells.length < maxHits; i++) {
+      const cc = Math.floor(c + 0.5 + stepX * i * 0.22);
+      const rr = Math.floor(r + 0.5 + stepY * i * 0.22);
+      if (cc < 0 || cc >= this.cols || rr < 0 || rr >= this.rows) {
+        if (i > 0) break;
+        continue;
+      }
+      if (this.grid[cc][rr] === -1) continue;
+      const key = cc * this.rows + rr;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      cells.push({ c: cc, r: rr });
+    }
+    return cells;
+  }
+
   // A random filled NORMAL cell (used by hazard events to anchor a scatter).
   // Returns null when the board has no plain bubbles. `rand` keeps it testable.
   randomFilledCell(rand = Math.random) {
