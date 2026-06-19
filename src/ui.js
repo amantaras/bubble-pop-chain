@@ -3753,6 +3753,7 @@ class UIManager {
     const choices = this._winRewardChoices || [];
     box.classList.toggle("hidden", !visible || !choices.length || this._winChoiceClaimed);
     list.innerHTML = "";
+    list.dataset.count = String(Math.min(choices.length, 3));
     if (!visible || !choices.length || this._winChoiceClaimed) return;
     choices.forEach((choice) => {
       const btn = document.createElement("button");

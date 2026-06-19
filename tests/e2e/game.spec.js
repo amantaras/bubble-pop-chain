@@ -1191,6 +1191,13 @@ test.describe("campaign progression", () => {
   
     await expect(page.locator("#win-choice")).toBeVisible();
     await expect(page.locator("#win-choice-list .win-choice-btn")).toHaveCount(2);
+    await expect(page.locator("#win-choice-list")).toHaveAttribute("data-count", "2");
+    const choiceAlignment = await page.evaluate(() => {
+      const modal = document.querySelector("#win .modal-card").getBoundingClientRect();
+      const list = document.querySelector("#win-choice-list").getBoundingClientRect();
+      return Math.abs((modal.left + modal.width / 2) - (list.left + list.width / 2));
+    });
+    expect(choiceAlignment).toBeLessThan(2);
     const beforeCoins = await page.evaluate(() => window.__bpc.Storage.get("coins"));
     await page.locator('#win-choice-list .win-choice-btn[data-choice="coins"]').click();
     await expect(page.locator("#win-choice")).toBeHidden();

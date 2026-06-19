@@ -4286,6 +4286,15 @@ body {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 7px;
+  margin-inline: auto;
+}
+.win-choice-list[data-count="1"] {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: calc((100% - 14px) / 3);
+}
+.win-choice-list[data-count="2"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: calc((200% - 7px) / 3);
 }
 .win-choice-btn {
   min-width: 0;
