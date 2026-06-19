@@ -177,7 +177,7 @@ class UIManager {
       "events-layer",
       "combo-banner", "toast",      "win-stars", "win-score", "win-reward", "win-double", "win-next", "win-menu",
       "win-stats", "win-coins", "win-coins-num",
-      "win-chest", "win-chest-art", "win-chest-burst", "win-chest-hint", "win-reward-reveal",
+      "win-chest", "win-chest-art", "win-chest-burst", "win-chest-hint", "win-reward-reveal", "win-choice", "win-choice-list",
       "lose-score", "lose-revive", "lose-retry", "lose-menu",
       "isolated", "iso-msg", "iso-pick", "iso-giveup",
       "btn-daily",
@@ -372,6 +372,14 @@ class UIManager {
     click("win-menu", () => this.cb.quitToMenu && this.cb.quitToMenu());
     const wd = $("win-double");
     if (wd) wd.addEventListener("click", () => this.cb.doubleCoins && this.cb.doubleCoins());
+    const choiceList = $("win-choice-list");
+    if (choiceList) {
+      choiceList.addEventListener("click", (e) => {
+        const btn = e.target.closest(".win-choice-btn");
+        if (!btn || btn.disabled) return;
+        this.claimWinChoice(btn.dataset.choice);
+      });
+    }
     // Tap the reward chest to burst it open and reveal the coins.
     const wc = $("win-chest");
     if (wc) wc.addEventListener("click", () => this.openWinChest());
@@ -856,6 +864,8 @@ class UIManager {
     const grid = this.el["level-grid"];
     grid.innerHTML = "";
     const maxUnlocked = Storage.get("maxUnlockedLevel");
+    const teaser = this._buildNextUnlockTeaser(maxUnlocked);
+    if (teaser) grid.appendChild(teaser);
     // The campaign is endless, so render a window: every cleared/authored level
     // plus one preview chapter beyond the player's current progress. This keeps
     // the DOM bounded (it grows with progress, not to LEVEL_COUNT) while still
@@ -907,6 +917,31 @@ class UIManager {
       }
       grid.appendChild(cell);
     }
+  }
+
+  _nextProgressUnlock(maxUnlocked) {
+    const tool = nextPowerupUnlock(maxUnlocked);
+    const pet = nextPetFeatureUnlock(maxUnlocked);
+    if (tool && (!pet || tool.level <= pet.level)) {
+      const info = POWERUP_INFO[tool.type];
+      return info ? { level: tool.level, icon: info.icon, name: info.name, kind: "Tool" } : null;
+    }
+    if (pet) {
+      const info = PET_FEATURE_INFO[pet.feature];
+      return info ? { level: pet.level, icon: info.icon, name: info.name, kind: "Pets" } : null;
+    }
+    return null;
+  }
+
+  _buildNextUnlockTeaser(maxUnlocked) {
+    const next = this._nextProgressUnlock(maxUnlocked);
+    if (!next) return null;
+    const card = document.createElement("div");
+    card.className = "next-unlock-teaser";
+    card.innerHTML =
+      `<span class="nut-icon">${next.icon}</span>` +
+      `<span class="nut-copy"><b>Next unlock: ${next.name}</b><span>${next.kind} opens at Level ${next.level}</span></span>`;
+    return card;
   }
 
   // ---- Shop -------------------------------------------------------------
@@ -1118,6 +1153,20 @@ class UIManager {
       empty.className = "shop-empty-tools";
       empty.innerHTML = `<b>Tools unlock after Level 5</b><span>${next ? `First up: ${POWERUP_INFO[next.type].icon} ${POWERUP_INFO[next.type].name} at Level ${next.level}.` : "All tools are unlocked."}</span>`;
       list.appendChild(empty);
+    }
+    if (available.length && this.cb.suggestLoadout) {
+      const suggest = document.createElement("button");
+      suggest.type = "button";
+      suggest.className = "loadout-suggest";
+      suggest.innerHTML = `<span>✨</span><b>Suggest loadout</b><small>Match tools to this level</small>`;
+      suggest.addEventListener("click", () => {
+        Audio.click();
+        const ok = this.cb.suggestLoadout && this.cb.suggestLoadout();
+        this.updatePowerups();
+        this.toast(ok ? "Suggested tools equipped" : "No better suggestion yet");
+        this.closeLoadoutPicker();
+      });
+      list.appendChild(suggest);
     }
     available.forEach((type) => {
       const info = POWERUP_INFO[type];
@@ -3396,6 +3445,20 @@ class UIManager {
       });
       list.appendChild(row);
     });
+    if (available.length && this.cb.suggestLoadout) {
+      const suggest = document.createElement("button");
+      suggest.type = "button";
+      suggest.className = "loadout-suggest";
+      suggest.innerHTML = `<span>✨</span><b>Suggest loadout</b><small>Match tools to this level</small>`;
+      suggest.addEventListener("click", () => {
+        Audio.click();
+        const ok = this.cb.suggestLoadout && this.cb.suggestLoadout();
+        this.updatePowerups();
+        this.toast(ok ? "Suggested tools equipped" : "No better suggestion yet");
+        this.closeLoadoutPicker();
+      });
+      list.appendChild(suggest);
+    }
     this.el["loadout"].classList.remove("hidden");
   }
 
@@ -3494,7 +3557,7 @@ class UIManager {
     if (this.el["pet-reveal"]) this.el["pet-reveal"].classList.add("hidden");
   }
 
-  showWin({ stars, score, coins = 0, rewardText, stats, showNext, showDouble }) {
+  showWin({ stars, score, coins = 0, rewardText, stats, showNext, showDouble, rewardChoices = [] }) {
     const starEls = this.el["win-stars"].querySelectorAll(".star");
     starEls.forEach((el, i) => el.classList.toggle("on", i < stars));
 
@@ -3520,6 +3583,8 @@ class UIManager {
     this._winShowDouble = !!showDouble;
     this._winCoinsPending = coins;
     this._winChestOpened = false;
+    this._winRewardChoices = rewardChoices || [];
+    this._winChoiceClaimed = false;
     this.el["win-double"].style.display = "none";
     if (this.el["win-coins-num"]) this.el["win-coins-num"].textContent = "0";
     const reveal = this.el["win-reward-reveal"];
@@ -3536,6 +3601,7 @@ class UIManager {
       art.classList.add("shaking");
     }
     if (this.el["win-chest-burst"]) this.el["win-chest-burst"].innerHTML = "";
+    this._renderWinChoices(false);
 
     this.showHud(false);
     this.el["win"].classList.remove("hidden");
@@ -3580,6 +3646,37 @@ class UIManager {
     if (this._winShowDouble) this.el["win-double"].style.display = "";
     // Let the lid pop before the coins start tallying.
     setTimeout(() => this._animateCoins(this._winCoinsPending || 0), 180);
+    this._renderWinChoices(true);
+  }
+
+  _renderWinChoices(visible) {
+    const box = this.el["win-choice"];
+    const list = this.el["win-choice-list"];
+    if (!box || !list) return;
+    const choices = this._winRewardChoices || [];
+    box.classList.toggle("hidden", !visible || !choices.length || this._winChoiceClaimed);
+    list.innerHTML = "";
+    if (!visible || !choices.length || this._winChoiceClaimed) return;
+    choices.forEach((choice) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "win-choice-btn";
+      btn.dataset.choice = choice.id;
+      btn.innerHTML = `<span class="wcb-icon">${choice.icon}</span><span><b>${choice.title}</b><small>${choice.desc}</small></span>`;
+      list.appendChild(btn);
+    });
+  }
+
+  claimWinChoice(id) {
+    if (!id || this._winChoiceClaimed) return false;
+    const choice = (this._winRewardChoices || []).find((c) => c.id === id);
+    if (!choice) return false;
+    const ok = this.cb.claimWinChoice && this.cb.claimWinChoice(id);
+    if (!ok) return false;
+    this._winChoiceClaimed = true;
+    this._renderWinChoices(false);
+    this.toast(`${choice.icon} ${choice.title} claimed`);
+    return true;
   }
 
   // Fling a handful of coin/sparkle glyphs out of the chest along random arcs.

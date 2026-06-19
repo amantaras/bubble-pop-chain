@@ -146,6 +146,7 @@ never re‑discovered the hard way.
   loadout picker only list unlocked tools; before Level 6 they show a small
   "Tools unlock after Level 5" empty state, and the Starter Pack describes its
   locked contents as a future tool stash instead of spoiling the full toolbox.
+  The level map also shows one compact **Next unlock** teaser (`.next-unlock-teaser`) for the nearest upcoming tool or pet feature, using the same unlock schedules so players can anticipate what is coming without seeing the whole toolbox at once.
   When a campaign clear crosses an unlock threshold, the game grants a starter
   charge if the player does not already own that newly unlocked tool, auto-slots
   it into the first empty HUD slot, and queues the dedicated **New Tool
@@ -216,6 +217,10 @@ never re‑discovered the hard way.
   `Storage.setLoadoutSlot`, which keeps the three slots distinct (swapping if
   the tool is already equipped). New saves start with `[null,null,null]` until
   progression unlocks a tool. The loadout deep-merges into existing saves.
+  The picker includes a **Suggest loadout** action (`.loadout-suggest`) during a
+  live campaign level; `Game.suggestLoadout()` ranks the current level's boss,
+  specials, move budget, and bonus objective, then fills the three slots with
+  unlocked tools that fit that board (falling back to Undo/Shuffle/Bomb).
   Tapping a slot the player has **no charges of** (`armPowerup` sees
   `Economy.getPowerup(type) <= 0`) doesn't just toast — it opens the shop
   focused on that tool (`UI.openShopForPowerup`: pauses the live level, scrolls
@@ -428,6 +433,11 @@ never re‑discovered the hard way.
   rewarded-ad offer (`#win-double`) is shown only if `_winShowDouble`. The
   reward text still lives in `#win-reward` inside the sealed block, so
   `toContainText` assertions read it regardless of visibility.
+  Campaign wins also reveal a one-time **Pick a bonus** row after the chest opens
+  (`#win-choice`): up to three additive options such as extra coins, Season XP,
+  a suggested tool charge, pet XP, Pet Dust, or an occasional crate depending on progression.
+  `Game.claimWinChoice(id)` grants exactly one choice per win and refreshes the
+  visible economy/loadout state.
 - **Daily retention** (`daily.js`): rotating seeded modifier, three tiered
   goals → daily stars, a 7‑day reward cycle, and a streak‑freeze token that
   rescues one missed day. The daily can be **completed only once per day**:
@@ -1246,7 +1256,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 610 unit tests + 464 E2E
+- **Current baseline (keep growing, never shrink)**: 610 unit tests + 468 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

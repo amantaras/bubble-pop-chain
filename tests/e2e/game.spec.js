@@ -293,6 +293,12 @@ test.describe("menu & navigation (UI)", () => {
     await expect(page.locator(".level-cell").first()).toContainText("1");
     await expect(page.locator(".level-cell.locked").first()).toBeVisible();
   });
+  
+  test("level map previews the next progression unlock", async ({ page }) => {
+    await page.locator("#btn-play").click();
+    await expect(page.locator(".next-unlock-teaser")).toContainText("Next unlock: Undo");
+    await expect(page.locator(".next-unlock-teaser")).toContainText("Level 6");
+  });
 
   test("Shop and Themes open and Back returns to menu", async ({ page }) => {
     await page.locator("#btn-shop").click();
@@ -1107,6 +1113,14 @@ test.describe("campaign progression", () => {
     await expect
       .poll(async () => Number(await page.locator("#win-coins-num").textContent()))
       .toBeGreaterThan(0);
+  
+    await expect(page.locator("#win-choice")).toBeVisible();
+    await expect(page.locator("#win-choice-list .win-choice-btn")).toHaveCount(2);
+    const beforeCoins = await page.evaluate(() => window.__bpc.Storage.get("coins"));
+    await page.locator('#win-choice-list .win-choice-btn[data-choice="coins"]').click();
+    await expect(page.locator("#win-choice")).toBeHidden();
+    const afterCoins = await page.evaluate(() => window.__bpc.Storage.get("coins"));
+    expect(afterCoins).toBeGreaterThan(beforeCoins);
 
     // Once the count-up settles, re-tapping the chest must not reset/replay it.
     await page.waitForTimeout(1300);
@@ -1925,6 +1939,27 @@ test.describe("power-ups (UI arm + apply)", () => {
     );
     expect(loadout[0]).toBe("shuffle");
     expect(new Set(loadout).size).toBe(3);
+  });
+  
+  test("loadout picker can apply a smart suggested loadout", async ({ page }) => {
+    await page.evaluate(() => {
+      window.__bpc.Storage.set("maxUnlockedLevel", 20);
+      window.__bpc.Storage.set("loadout", ["undo", "shuffle", "bomb"]);
+      window.__bpc.game.startCampaign(20);
+    });
+    await page.waitForTimeout(700);
+
+    const box = await page.locator("#pu-slot-0").boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(650);
+    await page.mouse.up();
+    await expect(page.locator("#loadout")).toBeVisible();
+    await page.locator(".loadout-suggest").click();
+    await expect(page.locator("#loadout")).toBeHidden();
+
+    const loadout = await page.evaluate(() => window.__bpc.Storage.getLoadout());
+    expect(loadout.slice(0, 3)).toEqual(["chainBolt", "bomb", "pick"]);
   });
 
   test("HUD tool slots mark stocked and empty tools for visual states", async ({

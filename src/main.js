@@ -260,6 +260,8 @@ class Game {
       retryLevel: () => this.retryLevel(),
       reviveLevel: () => this.reviveLevel(),
       doubleCoins: () => this.doubleCoins(),
+      claimWinChoice: (id) => this.claimWinChoice(id),
+      suggestLoadout: () => this.suggestLoadout(),
       startTutorial: () => this.startTutorial(),
       tutorialNext: () => this.tutorial && this.tutorial.next(),
       tutorialSkip: () => this.tutorial && this.tutorial.skip(),
@@ -3732,6 +3734,7 @@ class Game {
         Economy.addCoins(coins);
         const petBit = this._awardPetXp();
         if (petBit) rewardBits.push(petBit);
+        this._pendingWinChoices = this._buildWinChoices(s, stars);
         this._recordProgress({
           levelsCleared: Storage.get("maxUnlockedLevel") - 1,
           totalStars: Storage.totalStars(),
@@ -3756,6 +3759,7 @@ class Game {
           score: s.score,
           coins: totalCoins,
           rewardText: rewardBits.join("  •  "),
+          rewardChoices: this._pendingWinChoices,
           stats: this._winStats(s, s.level.moves - s.movesLeft),
           showNext: s.level.id < LEVEL_COUNT,
           showDouble: !Monetization.isAdsRemoved(),
@@ -3959,6 +3963,116 @@ class Game {
     this._queueProgressUnlock(unlock);
     UI.refreshPetAccess();
     UI.updatePetHud(Storage.getEquippedPet());
+  }
+
+  _buildWinChoices(session, stars) {
+    this._winChoiceClaimed = false;
+    if (!session || session.mode !== "campaign") return [];
+    const levelId = session.level ? session.level.id : 1;
+    const choices = [
+      {
+        id: "coins",
+        icon: "🪙",
+        title: `+${60 + stars * 30} coins`,
+        desc: "Bank a little extra now",
+        reward: { type: "coins", amount: 60 + stars * 30 },
+      },
+      {
+        id: "seasonxp",
+        icon: "⭐",
+        title: "+20 season XP",
+        desc: "Push the reward track forward",
+        reward: { type: "seasonxp", amount: 20 },
+      },
+    ];
+    const tools = this._suggestedToolsForLevel(session.level).filter((type) => isPowerupUnlocked(type));
+    const tool = tools.find((type) => Economy.getPowerup(type) < 3) || tools[0];
+    if (tool && POWERUP_INFO[tool]) {
+      choices.push({
+        id: `tool:${tool}`,
+        icon: POWERUP_INFO[tool].icon,
+        title: `+1 ${POWERUP_INFO[tool].name}`,
+        desc: "Prep for the next tricky board",
+        reward: { type: "tool", tool, amount: 1 },
+      });
+    }
+    if (isPetFeatureUnlocked("pets", Storage.get("maxUnlockedLevel")) && Storage.getEquippedPet()) {
+      choices.push({
+        id: "petxp",
+        icon: "🐾",
+        title: "+18 pet XP",
+        desc: "Level your lead companion faster",
+        reward: { type: "petxp", amount: 18 },
+      });
+    } else if (isPetFeatureUnlocked("crates", Storage.get("maxUnlockedLevel"))) {
+      choices.push({
+        id: "dust",
+        icon: "✨",
+        title: "+12 Pet Dust",
+        desc: "Save toward gems and companions",
+        reward: { type: "dust", amount: 12 },
+      });
+    }
+    if (isPetFeatureUnlocked("crates", Storage.get("maxUnlockedLevel")) && levelId % 3 === 0) {
+      choices.push({
+        id: "crate",
+        icon: "🧰",
+        title: "+1 pet crate",
+        desc: "Open a new companion roll",
+        reward: { type: "crate", amount: 1 },
+      });
+    }
+    return choices.slice(0, 3);
+  }
+
+  claimWinChoice(id) {
+    if (!id || !this._pendingWinChoices || this._winChoiceClaimed) return false;
+    const choice = this._pendingWinChoices.find((c) => c.id === id);
+    if (!choice) return false;
+    const reward = choice.reward || {};
+    if (reward.type === "coins") Economy.addCoins(reward.amount || 0);
+    else if (reward.type === "tool") Economy.addPowerup(reward.tool, reward.amount || 1);
+    else if (reward.type === "seasonxp") this._awardSeasonXp(reward.amount || 0);
+    else if (reward.type === "petxp") {
+      const pet = Storage.getEquippedPet();
+      if (!pet) return false;
+      Storage.addPetXp(pet.id, reward.amount || 0);
+      UI.updatePetHud(Storage.getEquippedPet());
+    } else if (reward.type === "dust") Storage.addDust(reward.amount || 0);
+    else if (reward.type === "crate") Storage.addCrates(reward.amount || 1);
+    else return false;
+    this._winChoiceClaimed = true;
+    UI.refreshCoins();
+    UI.updatePowerups();
+    return true;
+  }
+
+  _suggestedToolsForLevel(level) {
+    const specials = (level && level.specials) || {};
+    const picks = [];
+    const add = (type) => {
+      if (!picks.includes(type)) picks.push(type);
+    };
+    if (level && level.boss) add("chainBolt"), add("bomb"), add("pick");
+    if (specials.stone || specials.vine || specials.ice) add("pick"), add("bomb");
+    if (specials.lightning || specials.bomb) add("colorClear"), add("chainBolt");
+    if (level && level.objective && level.objective.type === "group") add("magnet"), add("colorClear");
+    if (level && level.objective && level.objective.type === "combo") add("shuffle"), add("magnet");
+    if (level && level.moves <= 10) add("undo"), add("shuffle");
+    add("undo");
+    add("shuffle");
+    add("bomb");
+    return picks;
+  }
+
+  suggestLoadout() {
+    const s = this.session;
+    if (!s || s.mode !== "campaign") return false;
+    const tools = this._suggestedToolsForLevel(s.level).filter((type) => isPowerupUnlocked(type));
+    if (!tools.length) return false;
+    tools.slice(0, 3).forEach((type, index) => Storage.setLoadoutSlot(index, type));
+    UI.updatePowerups();
+    return true;
   }
 
   _queueProgressUnlock(unlock) {

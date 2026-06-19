@@ -332,6 +332,38 @@ body {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
+.next-unlock-teaser {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(91, 227, 255, 0.28);
+  background: linear-gradient(135deg, rgba(91, 227, 255, 0.12), rgba(255, 211, 91, 0.08));
+}
+.nut-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 20px;
+}
+.nut-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+.nut-copy b {
+  font-size: 13px;
+}
+.nut-copy span {
+  color: var(--text-dim);
+  font-size: 11px;
+}
 .tile {
   appearance: none;
   position: relative;
@@ -4164,6 +4196,53 @@ body {
   min-height: 20px;
   margin-bottom: 14px;
 }
+.win-choice {
+  margin: 8px 0 12px;
+}
+.win-choice-title {
+  margin-bottom: 7px;
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.win-choice-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+.win-choice-btn {
+  min-width: 0;
+  padding: 8px 6px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text);
+  cursor: pointer;
+}
+.win-choice-btn:active {
+  transform: scale(0.98);
+}
+.wcb-icon {
+  display: block;
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+.win-choice-btn b,
+.win-choice-btn small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.win-choice-btn b {
+  font-size: 12px;
+}
+.win-choice-btn small {
+  margin-top: 2px;
+  color: var(--text-dim);
+  font-size: 10px;
+  line-height: 1.25;
+}
 
 /* ---------- Win-screen reward chest ---------- */
 /* The chest button itself never transforms (so taps stay rock-solid for both
@@ -4435,6 +4514,31 @@ body {
   margin-bottom: 18px;
   max-height: 56vh;
   overflow-y: auto;
+}
+.loadout-suggest {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 2px 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 211, 91, 0.38);
+  background: rgba(255, 211, 91, 0.08);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+.loadout-suggest span {
+  grid-row: 1 / 3;
+  font-size: 22px;
+}
+.loadout-suggest b {
+  font-size: 14px;
+}
+.loadout-suggest small {
+  color: var(--text-dim);
+  font-size: 11px;
 }
 .loadout-item {
   position: relative;
