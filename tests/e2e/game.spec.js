@@ -334,6 +334,7 @@ test.describe("menu & navigation (UI)", () => {
     await page.locator(".level-cell[aria-label='Level 1']").click();
     await expect(page.locator("#brief-replay")).toContainText("Replay record");
     await expect(page.locator("#brief-replay")).toContainText("Best 1234");
+    await expect(page.locator("#brief-start")).toHaveText("Replay");
   });
 
   test("Shop and Themes open and Back returns to menu", async ({ page }) => {

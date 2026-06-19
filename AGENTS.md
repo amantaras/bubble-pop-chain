@@ -641,7 +641,7 @@ never re‑discovered the hard way.
   Tapping an unlocked map cell opens a compact **level briefing** (`#level-brief`)
   before play starts: target, moves, colors, bonus objective, board traits, and
   unlocked suggested tools. Replays also show the stored stars/best score in
-  `#brief-replay`. `#brief-start` is the only path that calls
+  `#brief-replay` and relabel the primary action to **Replay**. `#brief-start` is the only path that calls
   `startLevel`, so map clicks now preview instead of launching immediately.
   `levelScores` is a new `DEFAULT_SAVE` field, so old saves auto-default to `{}`.
   Like stars/achievements this meta-progression display gets **no tutorial

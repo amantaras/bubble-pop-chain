@@ -949,6 +949,7 @@ class UIManager {
     this._setBriefSection("brief-objective", level.objective ? "🎯 Bonus objective" : "", level.objective ? level.objective.label : "");
     this._setBriefSection("brief-hazards", "Board traits", this._briefHazards(level));
     this._setBriefSection("brief-tools", "Suggested tools", this._briefTools(level));
+    if (this.el["brief-start"]) this.el["brief-start"].textContent = Storage.getStars(levelId) ? "Replay" : "Start";
     this.el["level-brief"].classList.remove("hidden");
   }
 
