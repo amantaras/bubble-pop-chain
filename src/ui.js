@@ -1154,20 +1154,6 @@ class UIManager {
       empty.innerHTML = `<b>Tools unlock after Level 5</b><span>${next ? `First up: ${POWERUP_INFO[next.type].icon} ${POWERUP_INFO[next.type].name} at Level ${next.level}.` : "All tools are unlocked."}</span>`;
       list.appendChild(empty);
     }
-    if (available.length && this.cb.suggestLoadout) {
-      const suggest = document.createElement("button");
-      suggest.type = "button";
-      suggest.className = "loadout-suggest";
-      suggest.innerHTML = `<span>✨</span><b>Suggest loadout</b><small>Match tools to this level</small>`;
-      suggest.addEventListener("click", () => {
-        Audio.click();
-        const ok = this.cb.suggestLoadout && this.cb.suggestLoadout();
-        this.updatePowerups();
-        this.toast(ok ? "Suggested tools equipped" : "No better suggestion yet");
-        this.closeLoadoutPicker();
-      });
-      list.appendChild(suggest);
-    }
     available.forEach((type) => {
       const info = POWERUP_INFO[type];
       const owned = Economy.getPowerup(type);
