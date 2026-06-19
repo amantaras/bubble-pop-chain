@@ -1185,7 +1185,7 @@ tests/
   SKILL.md          # testing + CI/CD reference doc
 .github/workflows/
   ci.yml            # unit + e2e on every push/PR
-  deploy.yml        # builds dist/web, then deploys to GitHub Pages ONLY after CI success on master
+  deploy.yml        # after CI success on master, builds Android+iOS artifacts, then deploys dist/web to Pages
   mobile.yml        # manual/PR native Android APK + unsigned iOS build validation
 android/            # Capacitor Android project (run npm run native:sync before building)
 ios/                # Capacitor iOS project (requires Xcode for local/device/App Store builds)
@@ -1254,10 +1254,11 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - `.github/workflows/ci.yml`: runs `unit` (Vitest) and `e2e` (Playwright on
   Chromium) on every push and PR; uploads the Playwright HTML report.
 - `.github/workflows/deploy.yml`: triggered by `workflow_run` on **completion of
-  CI for `master`** and only proceeds when `conclusion == 'success'`, then
-  runs `npm run build:web` and publishes only `dist/web` to GitHub Pages.
-  **A red test suite means no deploy — keep it that way.** The deploy workflow
-  self-enables Pages; do not remove that step.
+  CI for `master`** and only proceeds when `conclusion == 'success'`. It always
+  builds and uploads the Android debug APK and an unsigned iOS app bundle first,
+  then runs `npm run build:web` and publishes only `dist/web` to GitHub Pages.
+  **A red test suite or failed mobile build means no production deploy — keep it
+  that way.** The deploy workflow self-enables Pages; do not remove that step.
 - `.github/workflows/mobile.yml`: native target validation, run manually or on
   PRs that touch mobile files. Android builds a debug APK artifact; iOS performs
   an unsigned Xcode build on macOS. Store signing/distribution still happens in
