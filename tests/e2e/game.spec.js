@@ -314,6 +314,17 @@ test.describe("menu & navigation (UI)", () => {
     await expect(page.locator("#hud-mode-label")).toContainText("Level 1");
   });
 
+  test("level briefing supports keyboard open and focus return", async ({ page }) => {
+    await page.locator("#btn-play").click();
+    const firstLevel = page.locator(".level-cell[aria-label='Level 1']");
+    await firstLevel.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#level-brief")).toBeVisible();
+    await page.locator("#brief-cancel").click();
+    await expect(page.locator("#level-brief")).toBeHidden();
+    await expect(firstLevel).toBeFocused();
+  });
+
   test("Shop and Themes open and Back returns to menu", async ({ page }) => {
     await page.locator("#btn-shop").click();
     await expect(page.locator("#shop")).toBeVisible();

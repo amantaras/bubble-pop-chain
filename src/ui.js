@@ -913,7 +913,16 @@ class UIManager {
         ? `<span class="lock">🔒</span>${badge ? `<span class="lvl-badge">${badge}</span>` : ""}`
         : `${badge ? `<span class="lvl-badge">${badge}</span>` : ""}<span class="num">${i}</span><span class="lvl-stars">${starStr}</span>${bestStr}`;
       if (!locked) {
+        cell.tabIndex = 0;
+        cell.setAttribute("role", "button");
+        cell.setAttribute("aria-label", `Level ${i}`);
         cell.addEventListener("click", () => {
+          Audio.click();
+          this.openLevelBrief(i);
+        });
+        cell.addEventListener("keydown", (e) => {
+          if (e.key !== "Enter" && e.key !== " ") return;
+          e.preventDefault();
           Audio.click();
           this.openLevelBrief(i);
         });
@@ -944,6 +953,10 @@ class UIManager {
 
   closeLevelBrief() {
     if (this.el["level-brief"]) this.el["level-brief"].classList.add("hidden");
+    const cell = this._briefLevelId
+      ? this.el["level-grid"]?.querySelector(`.level-cell[aria-label="Level ${this._briefLevelId}"]`)
+      : null;
+    if (cell) cell.focus({ preventScroll: true });
   }
 
   startBriefedLevel() {

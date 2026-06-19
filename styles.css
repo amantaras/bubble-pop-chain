@@ -1211,6 +1211,10 @@ body {
 .level-cell:active {
   transform: scale(0.94);
 }
+.level-cell:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
 .level-cell.locked {
   opacity: 0.45;
   cursor: default;
