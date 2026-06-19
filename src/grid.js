@@ -261,6 +261,31 @@ export class Board {
     return r;
   }
 
+  // Row to shift for a horizontal swipe. When a sparse board has just settled,
+  // sprites can still be visibly falling through now-empty rows while the logic
+  // grid already points at their final rows; map that visible swipe back to the
+  // bubble's logical row so quick follow-up swipes still work.
+  rowAtSwipePixel(py) {
+    const r = this.rowAtPixel(py);
+    if (r === null) return null;
+    for (let c = 0; c < this.cols; c++) {
+      if (this.grid[c][r] !== -1) return r;
+    }
+    let best = null;
+    let bestDist = Infinity;
+    const halfCell = this.cell / 2;
+    for (const s of this.sprites) {
+      if (!s || s.state === "pop" || s.alpha <= 0) continue;
+      if (s.r < 0 || s.r >= this.rows) continue;
+      const dist = Math.abs(s.y - py);
+      if (dist <= halfCell && dist < bestDist) {
+        best = s.r;
+        bestDist = dist;
+      }
+    }
+    return best;
+  }
+
   // Column index under a pixel X, clamped to the board (used by the Nova
   // gunship to aim straight up from wherever it is patrolling).
   columnAtPixel(px) {

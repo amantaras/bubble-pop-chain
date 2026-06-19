@@ -16,6 +16,7 @@ import {
   isPowerupUnlocked,
   nextPowerupUnlock,
   powerupUnlockLevel,
+  resolveRewardForUnlocks,
   unlockedPowerups,
 } from "./economy.js";
 import { Monetization } from "./monetization.js";
@@ -1824,6 +1825,7 @@ class UIManager {
 
   // ---- Login calendar / daily gifts ------------------------------------
   _calRewardLabel(reward) {
+    reward = resolveRewardForUnlocks(reward);
     const bits = [];
     if (reward.coins) bits.push(`${reward.coins} coins`);
     if (reward.powerup) {
@@ -1835,6 +1837,7 @@ class UIManager {
   }
 
   _calRewardIcon(reward) {
+    reward = resolveRewardForUnlocks(reward);
     if (reward.crate) return "📦";
     if (reward.powerup) {
       const info = POWERUP_INFO[reward.powerup] || {};
@@ -1967,6 +1970,7 @@ class UIManager {
   }
 
   _questRewardLabel(reward) {
+    reward = resolveRewardForUnlocks(reward);
     if (!reward) return "";
     const bits = [];
     if (reward.coins) bits.push(`🪙 ${reward.coins}`);
@@ -3454,6 +3458,8 @@ class UIManager {
   updatePowerups() {
     const loadout = Storage.getLoadout();
     const tutorial = this.cb.isTutorial && this.cb.isTutorial();
+    const toolsAvailable = tutorial || !!this._rescueTool || unlockedPowerups().length > 0;
+    if (this.el.powerups) this.el.powerups.classList.toggle("hidden", !toolsAvailable);
     (this._slots || []).forEach((btn, i) => {
       const type = loadout[i];
       const unlocked = type && (tutorial || isPowerupUnlocked(type) || type === this._rescueTool);
@@ -3735,6 +3741,9 @@ class UIManager {
     // Let the lid pop before the coins start tallying.
     setTimeout(() => this._animateCoins(this._winCoinsPending || 0), 180);
     this._renderWinChoices(true);
+    if (!this._winRewardChoices.length && this.cb.winRewardsSettled) {
+      setTimeout(() => this.cb.winRewardsSettled(), 420);
+    }
   }
 
   _renderWinChoices(visible) {
@@ -3764,6 +3773,7 @@ class UIManager {
     this._winChoiceClaimed = true;
     this._renderWinChoices(false);
     this.toast(`${choice.icon} ${choice.title} claimed`);
+    if (this.cb.winRewardsSettled) setTimeout(() => this.cb.winRewardsSettled(), 120);
     return true;
   }
 

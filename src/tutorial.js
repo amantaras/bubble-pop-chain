@@ -108,7 +108,7 @@ export const TUTORIAL_STEPS = [
   {
     id: "events",
     title: "Gifts & Problems",
-    body: "Now and then a 🎁 gift or a ⚠️ problem drifts down the screen. Tap a gift to grab coins or a free power-up — and tap a problem to defuse it before it lands, or it can scramble the board, drain moves, freeze bubbles, sprout vines, or scatter your clusters.",
+    body: "While you are actively playing the board, a 🎁 gift or a ⚠️ problem can drift down the screen. Tap a gift to grab coins or a free power-up — and tap a problem to defuse it before it lands, or it can scramble the board, drain moves, freeze bubbles, sprout vines, or scatter your clusters.",
     advance: "event",
     hint: "🎁 Tap the falling token",
     grant: "event",

@@ -38,8 +38,10 @@ import {
   POWERUP_INFO,
   STARTER_PACK,
   isPowerupUnlocked,
+  lockedPowerupRewardCoins,
   powerupUnlockLevel,
   powerupsUnlockedBetween,
+  resolveRewardForUnlocks,
 } from "./economy.js";
 import { Monetization } from "./monetization.js";
 import { UI } from "./ui.js";
@@ -205,6 +207,8 @@ const UNDO_STACK_LIMIT = 3;
 // Time Attack: a fast score-rush mode where the board refills endlessly and the
 // only limit is the clock. Players chase a personal best within the window.
 const TIME_ATTACK_SECONDS = 60;
+const SCREEN_TIME_SECONDS = 180;
+const EVENT_BOARD_IDLE_GRACE = 8;
 
 // Coins dropped per treasure "coin" bubble cleared in a pop (outside the
 // tutorial, which never touches the real economy).
@@ -261,6 +265,7 @@ class Game {
       reviveLevel: () => this.reviveLevel(),
       doubleCoins: () => this.doubleCoins(),
       claimWinChoice: (id) => this.claimWinChoice(id),
+      winRewardsSettled: () => this._showPendingProgressUnlock(),
       suggestLoadout: () => this.suggestLoadout(),
       startTutorial: () => this.startTutorial(),
       tutorialNext: () => this.tutorial && this.tutorial.next(),
@@ -567,9 +572,21 @@ class Game {
       movesSinceDrop: 0,
       // Time Attack countdown (seconds). Unused by other modes.
       timeLeft: mode === "timeattack" ? TIME_ATTACK_SECONDS : 0,
+      screenTimeLeft: this._screenTimeLimit(mode, level),
+      screenTimeShown: Math.ceil(this._screenTimeLimit(mode, level)),
+      boardInteracted: false,
+      boardIdleTime: EVENT_BOARD_IDLE_GRACE + 1,
     };
     this._enterSession();
     if (mode === "campaign") this._persistSession();
+  }
+
+  _screenTimeLimit(mode, level = {}) {
+    if (mode === "campaign")
+      return level.milestone === "boss" ? SCREEN_TIME_SECONDS + 30 : SCREEN_TIME_SECONDS;
+    if (mode === "puzzle") return 150;
+    if (mode === "daily" || mode === "tournament") return SCREEN_TIME_SECONDS;
+    return 0;
   }
 
   // Shared UI/state setup used by both fresh and resumed sessions.
@@ -708,6 +725,20 @@ class Game {
       undosLeft: 0,
       downpour: level.downpour || null,
       movesSinceDrop: snap.movesSinceDrop || 0,
+      screenTimeLeft:
+        snap.screenTimeLeft == null
+          ? this._screenTimeLimit("campaign", level)
+          : Math.max(0, snap.screenTimeLeft),
+      screenTimeShown: Math.ceil(
+        snap.screenTimeLeft == null
+          ? this._screenTimeLimit("campaign", level)
+          : Math.max(0, snap.screenTimeLeft)
+      ),
+      boardInteracted: !!snap.boardInteracted,
+      boardIdleTime:
+        snap.boardIdleTime == null
+          ? EVENT_BOARD_IDLE_GRACE + 1
+          : Math.max(0, snap.boardIdleTime),
     };
     this._enterSession();
   }
@@ -732,6 +763,10 @@ class Game {
       objectiveMet: !!s.objectiveMet,
       usedPowerup: !!s.usedPowerup,
       movesSinceDrop: s.movesSinceDrop || 0,
+      screenTimeLeft: s.screenTimeLeft || 0,
+      screenTimeShown: s.screenTimeShown || Math.ceil(s.screenTimeLeft || 0),
+      boardInteracted: !!s.boardInteracted,
+      boardIdleTime: s.boardIdleTime || 0,
     });
   }
 
@@ -1565,6 +1600,10 @@ class Game {
       objectiveMet: s.objectiveMet,
       usedPowerup: s.usedPowerup,
       stats: s.stats ? { ...s.stats } : null,
+      screenTimeLeft: s.screenTimeLeft || 0,
+      screenTimeShown: s.screenTimeShown || Math.ceil(s.screenTimeLeft || 0),
+      boardInteracted: !!s.boardInteracted,
+      boardIdleTime: s.boardIdleTime || 0,
       refund: refund || null,
     });
     if (s.undoStack.length > UNDO_STACK_LIMIT) s.undoStack.shift();
@@ -1610,6 +1649,10 @@ class Game {
     s.petTimer = snap.petTimer;
     s.objectiveMet = snap.objectiveMet;
     s.usedPowerup = snap.usedPowerup;
+    s.screenTimeLeft = snap.screenTimeLeft || s.screenTimeLeft || 0;
+    s.screenTimeShown = snap.screenTimeShown || Math.ceil(s.screenTimeLeft || 0);
+    s.boardInteracted = !!snap.boardInteracted;
+    s.boardIdleTime = snap.boardIdleTime || 0;
     if (snap.stats) s.stats = { ...snap.stats };
     // Refund any tool the undone move consumed.
     if (snap.refund && snap.refund.powerup) {
@@ -1753,6 +1796,8 @@ class Game {
     const s = this.session;
     if (!s) return [];
     const items = [];
+    if ((s.screenTimeLeft || 0) > 0)
+      items.push({ icon: "⏱", text: `${Math.ceil(s.screenTimeLeft)}s`, kind: "time" });
     if ((s.power || 0) >= 1) items.push({ icon: "⚡", text: "Blast ready", kind: "ready" });
     else if ((s.power || 0) >= 0.65) items.push({ icon: "⚡", text: "Charge close", kind: "charge" });
     if (s.feverActive) items.push({ icon: "🔥", text: "Fever x2", kind: "fever" });
@@ -1847,6 +1892,7 @@ class Game {
     if (s.armed === "magnet") {
       const target = this._magnetTargetFromTap(px, py);
       if (!target) return;
+      this._noteBoardActivity();
       this.beginMagnet(target.c, target.r);
       return;
     }
@@ -1854,11 +1900,13 @@ class Game {
     if (s.armed) {
       const target = this._toolTargetFromTap(px, py);
       if (!target) return; // need a valid bubble target
+      this._noteBoardActivity();
       this.applyPowerup(s.armed, target.c, target.r);
       return;
     }
 
     if (!cell) return;
+    this._noteBoardActivity();
     this.popAt(cell.c, cell.r);
   }
 
@@ -1869,7 +1917,7 @@ class Game {
     this._noteActivity();
     if (dir !== "left" && dir !== "right") return; // only horizontal shifts
 
-    const r = s.board.rowAtPixel(y0);
+    const r = s.board.rowAtSwipePixel(y0);
     if (r === null) return;
 
     // A shift is a move: campaign/puzzle spend a move, endless/daily spend a token.
@@ -1887,6 +1935,7 @@ class Game {
       if (Array.isArray(s.undoStack)) s.undoStack.pop();
       return; // empty row — nothing to shift
     }
+    this._noteBoardActivity();
 
     s.preview = null;
     s.board.settle();
@@ -2248,6 +2297,22 @@ class Game {
     UI.refreshQuestsBadge();
   }
 
+  _resolvePowerupReward(type, amount = 1) {
+    const n = Math.max(1, Number(amount) || 1);
+    if (isPowerupUnlocked(type)) {
+      const info = POWERUP_INFO[type] || {};
+      return { coins: 0, powerup: { id: type, n, name: info.name || type, icon: info.icon || "✨" } };
+    }
+    return { coins: lockedPowerupRewardCoins(type, n), powerup: null };
+  }
+
+  _grantPowerupReward(type, amount = 1) {
+    const reward = this._resolvePowerupReward(type, amount);
+    if (reward.powerup) Economy.addPowerup(reward.powerup.id, reward.powerup.n);
+    else if (reward.coins) Economy.addCoins(reward.coins);
+    return reward;
+  }
+
   // Claim a completed quest's reward (called from the Quests UI). Grants the
   // reward (coins / power-up / crate / season XP), persists the claim, and
   // returns a reward summary for the toast — or null if not claimable.
@@ -2258,7 +2323,7 @@ class Game {
       Storage.set("quests", current);
       return null;
     }
-    const r = res.reward || {};
+    const r = resolveRewardForUnlocks(res.reward || {});
     if (r.coins) Economy.addCoins(r.coins);
     if (r.powerup) Economy.addPowerup(r.powerup, 1);
     if (r.crate) Storage.addCrates(r.crate);
@@ -2296,14 +2361,15 @@ class Game {
     const chest = rollChest(rng, { tierIndex: st.tierIndex, coins: st.tier.coins });
 
     // Grant coins (guaranteed tier payout + bonus).
-    const coins = chest.coins + chest.bonusCoins;
+    let coins = chest.coins + chest.bonusCoins;
     if (coins > 0) Economy.addCoins(coins);
 
     // Grant power-up tools.
-    const powerups = chest.powerups.map(({ id, n }) => {
-      Economy.addPowerup(id, n);
-      const info = POWERUP_INFO[id] || {};
-      return { id, n, name: info.name || id, icon: info.icon || "✨" };
+    const powerups = [];
+    chest.powerups.forEach(({ id, n }) => {
+      const reward = this._grantPowerupReward(id, n);
+      if (reward.powerup) powerups.push(reward.powerup);
+      else coins += reward.coins;
     });
 
     // Rarely, a pet. New pets join the collection; duplicates grant XP.
@@ -2378,7 +2444,7 @@ class Game {
     const st = calendarStatus(state, key);
     if (!st.claimable) return null;
 
-    const reward = st.reward || {};
+    const reward = resolveRewardForUnlocks(st.reward || {});
     const coins = reward.coins || 0;
     if (coins > 0) Economy.addCoins(coins);
     let powerup = null;
@@ -2419,7 +2485,7 @@ class Game {
     const next = claimTier(state, index, track);
     if (!next) return null;
 
-    const reward = tierReward(index, track) || {};
+    const reward = resolveRewardForUnlocks(tierReward(index, track) || {});
     const coins = reward.coins || 0;
     if (coins > 0) Economy.addCoins(coins);
     let powerup = null;
@@ -2461,6 +2527,7 @@ class Game {
     }
     const cell = s.board.cellAtPixel(px, py);
     if (!cell) return;
+    this._noteBoardActivity();
     if (this.isBlastReady()) {
       this.chargedBlast(cell.c, cell.r);
     } else {
@@ -3261,6 +3328,11 @@ class Game {
     // glow-and-explode finale — one of several random styles — that clears the
     // board, then let the normal clear logic resolve the level.
     if (s.board.countRemaining() === 1 && !this.finale.active) {
+      if (!s.board.isIdle()) {
+        s.pendingFinale = true;
+        return;
+      }
+      s.pendingFinale = false;
       this._startLastBubbleFinale();
       return;
     }
@@ -3441,6 +3513,7 @@ class Game {
     if (!s || s.ended) return false;
     if (s.gaveUp) return false; // player already chose to end this jam
     if (s.board.isCleared()) return false; // nothing to rescue
+    if (!isPowerupUnlocked("pick")) return false;
 
     if (s.rescuing) {
       // Already rescuing: keep the level alive so the player can keep using
@@ -3453,12 +3526,10 @@ class Game {
     return true;
   }
 
-  // The deadlock is escapable if the player owns a Pick or can afford to buy one.
+  // The deadlock is escapable if Pick is unlocked and the player owns or can buy one.
   _canRescue() {
-    return (
-      Economy.getPowerup("pick") > 0 ||
-      Economy.coins >= POWERUP_INFO.pick.price
-    );
+    if (!isPowerupUnlocked("pick")) return false;
+    return Economy.getPowerup("pick") > 0 || Economy.coins >= POWERUP_INFO.pick.price;
   }
 
   _showIsolatedHelp() {
@@ -3486,8 +3557,9 @@ class Game {
   _rescueWithPick() {
     const s = this.session;
     if (!s) return;
+    if (!isPowerupUnlocked("pick")) return;
     if (Economy.getPowerup("pick") <= 0) {
-      if (!Economy.buyPowerup("pick", { ignoreUnlock: true })) {
+      if (!Economy.buyPowerup("pick")) {
         UI.toast("Not enough coins for a Pick");
         return;
       }
@@ -3695,10 +3767,15 @@ class Game {
           if (mtype === "treasure") {
             const tr = treasureReward(s.level.id);
             bonusCoins = tr.bonus;
-            Economy.addPowerup(tr.powerup, 1);
-            const info = POWERUP_INFO[tr.powerup];
             rewardBits.push(`🎁 +${tr.bonus} bonus coins`);
-            rewardBits.push(`Free ${info.icon} ${info.name}`);
+            const toolReward = this._resolvePowerupReward(tr.powerup, 1);
+            if (toolReward.powerup) {
+              Economy.addPowerup(toolReward.powerup.id, toolReward.powerup.n);
+              rewardBits.push(`Free ${toolReward.powerup.icon} ${toolReward.powerup.name}`);
+            } else {
+              bonusCoins += toolReward.coins;
+              rewardBits.push(`Locked-tool bonus: +${toolReward.coins} coins`);
+            }
             // Treasure milestones also drop a pet crate.
             Storage.addCrates(1);
             rewardBits.push(`🐾 Pet Crate`);
@@ -3773,6 +3850,8 @@ class Game {
           title:
             reason === "buried"
               ? "Buried!"
+              : reason === "timeout"
+              ? "Time's Up!"
               : s.movesLeft <= 0
               ? "Out of Moves"
               : "No Moves Left",
@@ -3936,11 +4015,14 @@ class Game {
   }
 
   // ---- Modal actions ----------------------------------------------------
+  _showPendingProgressUnlock() {
+    if (!this._pendingToolUnlock) return false;
+    UI.showToolUnlock(this._pendingToolUnlock);
+    return true;
+  }
+
   nextLevel() {
-    if (this._pendingToolUnlock) {
-      UI.showToolUnlock(this._pendingToolUnlock);
-      return;
-    }
+    if (this._showPendingProgressUnlock()) return;
     const s = this.session;
     if (s && s.mode === "campaign") this.startCampaign(s.level.id + 1);
     else if (s && s.mode === "puzzle") this.startPuzzle(s.level.puzzleIndex + 1);
@@ -4033,7 +4115,7 @@ class Game {
     if (!choice) return false;
     const reward = choice.reward || {};
     if (reward.type === "coins") Economy.addCoins(reward.amount || 0);
-    else if (reward.type === "tool") Economy.addPowerup(reward.tool, reward.amount || 1);
+    else if (reward.type === "tool") this._grantPowerupReward(reward.tool, reward.amount || 1);
     else if (reward.type === "seasonxp") this._awardSeasonXp(reward.amount || 0);
     else if (reward.type === "petxp") {
       const pet = Storage.getEquippedPet();
@@ -4080,6 +4162,7 @@ class Game {
   _loseTip(session, reason) {
     const level = session && session.level;
     if (reason === "buried") return "Keep the top rows open. Clear tall columns before downpour pressure stacks up.";
+    if (reason === "timeout") return "Keep popping to stay ahead of the clock. Waiting will not bring extra gifts.";
     if (level && level.boss) return "Focus the boss objective first. Score usually follows once the locked core starts breaking.";
     if (level && level.objective && level.objective.type === "combo") return "Use smaller pops to extend the combo chain instead of spending every large group at once.";
     if (level && level.objective && level.objective.type === "group") return "Leave matching colors connected for one bigger group before cashing it in.";
@@ -4190,6 +4273,16 @@ class Game {
     this.finale.update(dt);
     if (this.session && !this.paused) {
       this.session.board.update(dt);
+      if (
+        this.session.pendingFinale &&
+        !this.session.ended &&
+        !this.session.finishing &&
+        this.session.board.isIdle()
+      ) {
+        this.session.pendingFinale = false;
+        this.afterMove();
+      }
+      this._updateScreenTimer(dt);
       // Time Attack: drain the clock; when it hits zero the run ends (the score
       // banked so far is the result).
       if (this.session.mode === "timeattack" && !this.session.ended) {
@@ -4267,6 +4360,30 @@ class Game {
     s.hint = null;
   }
 
+  _noteBoardActivity() {
+    const s = this.session;
+    if (!s) return;
+    s.boardInteracted = true;
+    s.boardIdleTime = 0;
+  }
+
+  _updateScreenTimer(dt) {
+    const s = this.session;
+    if (!s || s.ended || !s.screenTimeLeft) return;
+    const beforeShown = Math.ceil(s.screenTimeLeft);
+    s.screenTimeLeft = Math.max(0, s.screenTimeLeft - dt);
+    const afterShown = Math.ceil(s.screenTimeLeft);
+    if (afterShown !== beforeShown || afterShown !== s.screenTimeShown) {
+      s.screenTimeShown = afterShown;
+      this.refreshHud();
+    }
+    if (s.screenTimeLeft > 0) return;
+    if (s.mode === "campaign") this._scheduleEnd(false, "timeout");
+    else if (s.mode === "puzzle") this._scheduleEnd(false, "puzzlefail");
+    else if (s.mode === "daily") this._scheduleEnd(true, "daily");
+    else if (s.mode === "tournament") this._scheduleEnd(true, "tournament");
+  }
+
   // After HINT_DELAY seconds of inactivity, surface the largest poppable group
   // as a gentle nudge. Suppressed in the tutorial, when disabled, or while the
   // player is mid-gesture (arming, previewing, aiming, or chaining a combo).
@@ -4298,6 +4415,8 @@ class Game {
     if (this.activeEvent) return;
     if (s.magnet && s.magnet.aiming) return;
     if (this.eventTimer === Infinity) return;
+    s.boardIdleTime = Math.min(EVENT_BOARD_IDLE_GRACE + 1, (s.boardIdleTime || 0) + dt);
+    if (!s.boardInteracted || s.boardIdleTime > EVENT_BOARD_IDLE_GRACE) return;
     this.eventTimer -= dt;
     if (this.eventTimer <= 0) this._spawnEvent();
   }
@@ -4363,11 +4482,15 @@ class Game {
         this.floating.spawn(cx, cy, `${icon} Gem!`, "#bde0fe", 28);
         UI.toast(`🎁 Gift: a ${gemLabel(key)}! Socket it in the Pets menu`);
       } else if (reward.type === "powerup") {
-        Economy.addPowerup(reward.powerup, 1);
+        const toolReward = this._grantPowerupReward(reward.powerup, 1);
         UI.updatePowerups();
-        const name = (POWERUP_INFO[reward.powerup] || {}).name || "Power-up";
-        this.floating.spawn(cx, cy, `+1 ${name}`, "#5bff9b", 28);
-        UI.toast(`🎁 Gift: +1 ${name}!`);
+        if (toolReward.powerup) {
+          this.floating.spawn(cx, cy, `+1 ${toolReward.powerup.name}`, "#5bff9b", 28);
+          UI.toast(`🎁 Gift: +1 ${toolReward.powerup.name}!`);
+        } else {
+          this.floating.spawn(cx, cy, `+${toolReward.coins}`, "#ffd35b", 30);
+          UI.toast(`🎁 Gift: +${toolReward.coins} coins!`);
+        }
       } else {
         Economy.addCoins(reward.coins);
         this.floating.spawn(cx, cy, `+${reward.coins}`, "#ffd35b", 30);

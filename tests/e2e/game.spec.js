@@ -712,6 +712,42 @@ test.describe("gestures: swipe to shift a row (real input)", () => {
     );
     expect(moves).toBe(aim.moves - 1); // the swipe consumed exactly one move
   });
+
+  test("swipe still works while sparse bubbles are visibly settling", async ({
+    page,
+  }) => {
+    const result = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      g.startCampaign(5);
+      const s = g.session;
+      const b = s.board;
+      b.restore([
+        [0, -1, -1, -1, -1, -1],
+        [-1, -1, -1, -1, -1, -1],
+        [-1, -1, -1, -1, -1, -1],
+        [-1, -1, -1, -1, -1, -1],
+        [-1, -1, -1, -1, -1, -1],
+        [-1, -1, -1, -1, -1, -1],
+        [-1, -1, -1, -1, -1, -1],
+      ]);
+      s.movesLeft = 3;
+      const y = b.targetPixel(0, 0).y;
+      b.settle();
+      const before = {
+        moves: s.movesLeft,
+        rowAtPixel: b.rowAtPixel(y),
+        rowAtSwipePixel: b.rowAtSwipePixel(y),
+      };
+      g.handleSwipe("right", b.originX + b.boardW / 2, y);
+      return {
+        before,
+        afterMoves: s.movesLeft,
+      };
+    });
+    expect(result.before.rowAtPixel).toBe(0);
+    expect(result.before.rowAtSwipePixel).toBeGreaterThan(0);
+    expect(result.afterMoves).toBe(result.before.moves - 1);
+  });
 });
 
 test.describe("special bubbles (ice + rainbow)", () => {
@@ -1226,7 +1262,7 @@ test.describe("milestone events (every 5 levels)", () => {
     expect(lvl.target).toBeGreaterThan(0);
   });
 
-  test("a treasure level pays a one-time bonus + free power-up (not farmable)", async ({
+  test("a treasure level pays a one-time bonus with locked-tool fallback (not farmable)", async ({
     page,
   }) => {
     // First clear of treasure level 5 grants the reward.
@@ -1238,6 +1274,7 @@ test.describe("milestone events (every 5 levels)", () => {
     await clearBoardByFinalPair(page);
     await expect(page.locator("#win")).toBeVisible();
     await expect(page.locator("#win-reward")).toContainText("bonus coins");
+    await expect(page.locator("#win-reward")).toContainText("Locked-tool bonus: +60 coins");
     const save1 = await page.evaluate(() =>
       JSON.parse(localStorage.getItem("bpc_save_v1"))
     );
@@ -1245,7 +1282,7 @@ test.describe("milestone events (every 5 levels)", () => {
     const puAfter = await page.evaluate(() =>
       window.__bpc.Economy.getPowerup("shuffle")
     );
-    expect(puAfter).toBe(puBefore + 1); // treasure #1 grants a free shuffle
+    expect(puAfter).toBe(puBefore); // shuffle is still locked at this point
 
     // Replaying the same level must NOT pay the milestone reward again.
     await page.evaluate(() => window.__bpc.game.startCampaign(5));
@@ -1263,7 +1300,7 @@ test.describe("milestone events (every 5 levels)", () => {
     const puReplayAfter = await page.evaluate(() =>
       window.__bpc.Economy.getPowerup("shuffle")
     );
-    expect(puReplayAfter).toBe(puReplay); // no second free power-up
+    expect(puReplayAfter).toBe(puReplay); // no second fallback reward either
   });
 
   test("a boss level shows the core objective and unlocks a theme on victory", async ({
@@ -2084,19 +2121,44 @@ test.describe("progressive tool unlocks", () => {
 
     await page.evaluate(() => window.__bpc.game.startCampaign(1));
     await page.waitForTimeout(300);
-    for (let i = 0; i < 3; i++) {
-      await expect(page.locator(`#pu-slot-${i}`)).toHaveClass(/empty/);
-      await expect(page.locator(`#pu-slot-${i}`)).toHaveAttribute("data-pu", "");
-    }
+    await expect(page.locator("#powerups")).toBeHidden();
+    for (let i = 0; i < 3; i++) await expect(page.locator(`#pu-slot-${i}`)).toBeHidden();
+    await expect(page.locator("#loadout")).toBeHidden();
+  });
 
-    const box = await page.locator("#pu-slot-0").boundingBox();
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-    await page.mouse.down();
-    await page.waitForTimeout(650);
-    await page.mouse.up();
-    await expect(page.locator("#loadout")).toBeVisible();
-    await expect(page.locator("#loadout-list .loadout-item")).toHaveCount(0);
-    await expect(page.locator(".loadout-empty")).toContainText("Undo unlocks at Level 6");
+  test("locked Pick is not recommended as a lone-bubble rescue", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await page.waitForTimeout(500);
+
+    const state = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const s = g.session;
+      const b = s.board;
+      s.petActive = null;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          b.grid[c][r] = -1;
+          b.types[c][r] = 0;
+          b.spriteGrid[c][r] = null;
+        }
+      const br = b.rows - 1;
+      b.grid[0][br] = 0;
+      b.grid[b.cols - 1][br] = 1;
+      s.movesLeft = 0;
+      s.score = 0;
+      g.afterMove();
+      return {
+        ended: s.ended,
+        rescuing: !!s.rescuing,
+        pickUnlocked: window.__bpc.isPowerupUnlocked ? window.__bpc.isPowerupUnlocked("pick") : false,
+      };
+    });
+
+    expect(state.pickUnlocked).toBe(false);
+    expect(state.rescuing).toBe(false);
+    expect(state.ended).toBe(true);
+    await expect(page.locator("#isolated")).toBeHidden();
+    await expect(page.locator("#lose")).toBeVisible();
   });
 
   test("clearing into a tool unlock shows a celebratory mini tutorial", async ({
@@ -2118,6 +2180,43 @@ test.describe("progressive tool unlocks", () => {
     await expect.poll(() => page.evaluate(() => window.__bpc.game.session?.level?.id)).toBe(6);
     await expect(page.locator("#pu-slot-0")).toHaveAttribute("data-pu", "undo");
     await expect(page.locator("#pu-slot-0 .pu-count")).toHaveText("1");
+  });
+
+  test("claiming the win bonus after a new tool unlock opens the tool popup", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(5));
+    await page.waitForTimeout(600);
+    await clearBoardByFinalPair(page);
+    await expect(page.locator("#win")).toBeVisible();
+
+    await page.locator("#win-chest").click();
+    await expect(page.locator("#win-choice")).toBeVisible();
+    await page.locator('#win-choice-list .win-choice-btn[data-choice="coins"]').click();
+
+    await expect(page.locator("#tool-unlock")).toBeVisible();
+    await expect(page.locator("#tool-unlock-name")).toHaveText("Undo");
+    await expect(page.locator("#tool-unlock-lesson")).toContainText("restores the board");
+
+    await page.locator("#tool-unlock-ok").click();
+    await expect(page.locator("#tool-unlock")).toBeHidden();
+    await expect.poll(() => page.evaluate(() => window.__bpc.game.session?.level?.id)).toBe(6);
+  });
+
+  test("treasure milestones convert locked tool rewards into coins", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(5));
+    await page.waitForTimeout(600);
+    await clearBoardByFinalPair(page);
+    await expect(page.locator("#win")).toBeVisible();
+
+    const state = await page.evaluate(() => ({
+      shuffle: window.__bpc.Economy.getPowerup("shuffle"),
+      undo: window.__bpc.Economy.getPowerup("undo"),
+      coins: window.__bpc.Economy.coins,
+    }));
+
+    expect(state.shuffle).toBe(0);
+    expect(state.undo).toBe(1);
+    expect(state.coins).toBeGreaterThanOrEqual(60);
+    await expect(page.locator("#win-reward")).toContainText("Locked-tool bonus: +60 coins");
   });
 
   test("clearing into the pet intro shows a feature unlock and grants Sparky", async ({
@@ -3091,6 +3190,27 @@ test.describe("login calendar (daily gifts)", () => {
     expect(res.first).not.toBeNull();
     expect(res.second).toBeNull();
   });
+
+  test("locked calendar tool gifts display and claim as coins for fresh players", async ({ page }) => {
+    await page.evaluate(() => {
+      window.__bpc.Storage.set("maxUnlockedLevel", 1);
+      window.__bpc.Storage.set("loginCalendar", { lastClaim: null, day: 2 });
+      window.__bpc.Storage.set("coins", 0);
+      window.__bpc.UI.buildCalendar();
+    });
+
+    await page.locator("#btn-calendar").click();
+    await expect(page.locator(".cal-day.today")).toContainText("90 coins");
+    await expect(page.locator(".cal-day.today")).not.toContainText("Bomb");
+    await page.locator("#cal-claim").click();
+
+    const state = await page.evaluate(() => ({
+      coins: window.__bpc.Economy.coins,
+      bombs: window.__bpc.Economy.getPowerup("bomb"),
+    }));
+    expect(state.coins).toBe(90);
+    expect(state.bombs).toBe(0);
+  });
 });
 
 test.describe("season pass (battle pass)", () => {
@@ -3162,6 +3282,28 @@ test.describe("season pass (battle pass)", () => {
     // Re-render the menu so the badge refresh runs.
     await page.evaluate(() => window.__bpc.UI.showScreen("menu"));
     await expect(page.locator("#season-badge")).toBeVisible();
+  });
+
+  test("locked season tool rewards display and claim as coins", async ({ page }) => {
+    await page.evaluate(() => {
+      window.__bpc.Storage.set("maxUnlockedLevel", 1);
+      window.__bpc.Storage.set("coins", 0);
+      window.__bpc.game._awardSeasonXp(300);
+    });
+    await page.locator("#btn-season").click();
+
+    const shuffleTier = page.locator(".season-row").nth(2).locator(".season-free");
+    await expect(shuffleTier).toHaveClass(/claimable/);
+    await expect(shuffleTier).toContainText("60 coins");
+    await expect(shuffleTier).not.toContainText("Shuffle");
+    await shuffleTier.click();
+
+    const state = await page.evaluate(() => ({
+      coins: window.__bpc.Economy.coins,
+      shuffle: window.__bpc.Economy.getPowerup("shuffle"),
+    }));
+    expect(state.coins).toBe(60);
+    expect(state.shuffle).toBe(0);
   });
 });
 
@@ -3493,6 +3635,86 @@ test.describe("bonus objectives", () => {
 
 test.describe("falling events (gift & problem tokens)", () => {
   test.beforeEach(({ page }) => openGame(page));
+
+  test("ambient gifts do not spawn before the player interacts with the board", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(500);
+
+    const res = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      g.eventTimer = 0.01;
+      g._updateEvents(1);
+      return {
+        activeEvent: g.activeEvent,
+        eventTimer: g.eventTimer,
+        boardInteracted: g.session.boardInteracted,
+      };
+    });
+
+    expect(res.activeEvent).toBe(false);
+    expect(res.boardInteracted).toBe(false);
+    expect(res.eventTimer).toBeCloseTo(0.01, 4);
+    await expect(page.locator("#falling-event")).toHaveCount(0);
+  });
+
+  test("ambient event timer advances only during recent board play", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(500);
+
+    const idle = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      g._noteBoardActivity();
+      g.eventTimer = 1;
+      g._updateEvents(9);
+      return { activeEvent: g.activeEvent, eventTimer: g.eventTimer };
+    });
+    expect(idle.activeEvent).toBe(false);
+    expect(idle.eventTimer).toBe(1);
+
+    const active = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      g._noteBoardActivity();
+      g._updateEvents(0.5);
+      return { activeEvent: g.activeEvent, eventTimer: g.eventTimer };
+    });
+    expect(active.activeEvent).toBe(false);
+    expect(active.eventTimer).toBeCloseTo(0.5, 4);
+  });
+
+  test("a board pop arms ambient gifts and the screen countdown is enforced", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(500);
+    await expect(page.locator("#hud-status")).toContainText(/\d+s/);
+
+    const spawned = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      let target = null;
+      for (let c = 0; c < b.cols && !target; c++)
+        for (let r = 0; r < b.rows && !target; r++)
+          if (b.grid[c][r] !== -1 && b.getGroupAt(c, r).length >= 2) target = { c, r };
+      const p = b.targetPixel(target.c, target.r);
+      g.handleTap(p.x, p.y);
+      g.eventTimer = 0.01;
+      g._updateEvents(0.02);
+      return { boardInteracted: g.session.boardInteracted, activeEvent: g.activeEvent };
+    });
+    expect(spawned.boardInteracted).toBe(true);
+    expect(spawned.activeEvent).toBe(true);
+    await expect(page.locator("#falling-event")).toBeVisible();
+
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const token = document.getElementById("falling-event");
+      if (token) token.remove();
+      g.activeEvent = false;
+      g.session.screenTimeLeft = 0.01;
+      g._updateScreenTimer(0.02);
+    });
+    await expect(page.locator("#lose")).toBeVisible({ timeout: 6000 });
+    await expect(page.locator(".lose-title")).toHaveText("Time's Up!");
+    await expect(page.locator("#lose-tip")).toContainText("Waiting will not bring extra gifts");
+  });
 
   test("a forced gift token can be tapped to collect coins", async ({ page }) => {
     await page.evaluate(() => window.__bpc.game.startCampaign(2));
@@ -5401,6 +5623,7 @@ test.describe("lone-bubble rescue", () => {
     page,
   }) => {
     await openGame(page);
+    await page.evaluate(() => window.__bpc.Storage.set("maxUnlockedLevel", 16));
     await page.evaluate(() => window.__bpc.game.startCampaign(2));
     await page.evaluate(() => window.__bpc.Economy.addPowerup("pick", 2));
     await jamBoardWithLoneBubbles(page);
@@ -5415,6 +5638,7 @@ test.describe("lone-bubble rescue", () => {
 
   test("Use Pick arms the Pick tool and resumes play", async ({ page }) => {
     await openGame(page);
+    await page.evaluate(() => window.__bpc.Storage.set("maxUnlockedLevel", 16));
     await page.evaluate(() => window.__bpc.game.startCampaign(2));
     await page.evaluate(() => window.__bpc.Economy.addPowerup("pick", 2));
     await jamBoardWithLoneBubbles(page);
@@ -5432,6 +5656,7 @@ test.describe("lone-bubble rescue", () => {
     page,
   }) => {
     await openGame(page);
+    await page.evaluate(() => window.__bpc.Storage.set("maxUnlockedLevel", 16));
     await page.evaluate(() => window.__bpc.game.startCampaign(2));
     await page.evaluate(() => window.__bpc.Economy.addCoins(1000));
     await jamBoardWithLoneBubbles(page);
@@ -5450,6 +5675,7 @@ test.describe("lone-bubble rescue", () => {
 
   test("Give Up lets the level end normally", async ({ page }) => {
     await openGame(page);
+    await page.evaluate(() => window.__bpc.Storage.set("maxUnlockedLevel", 16));
     await page.evaluate(() => window.__bpc.game.startCampaign(2));
     await page.evaluate(() => window.__bpc.Economy.addPowerup("pick", 2));
     await jamBoardWithLoneBubbles(page);
@@ -6096,6 +6322,57 @@ test.describe("last-bubble finale", () => {
     );
     expect(cleared).toBe(0);
   });
+
+  test("the finale waits for earlier pop sprites to finish before clearing", async ({ page }) => {
+    await openGame(page);
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(400);
+
+    const deferred = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      const live = b.targetPixel(0, b.rows - 1);
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          b.grid[c][r] = -1;
+          b.types[c][r] = 0;
+          if (b.spriteGrid && b.spriteGrid[c]) b.spriteGrid[c][r] = null;
+        }
+      b.grid[0][b.rows - 1] = 0;
+      b.sprites = [
+        { c: 0, r: b.rows - 1, x: live.x, y: live.y, scale: 1, alpha: 1, state: "idle", delay: 0, fallDur: 0, glideDur: 0 },
+        { c: 1, r: b.rows - 1, x: live.x + b.cell, y: live.y, scale: 1, alpha: 1, state: "pop", t: 0, delay: 0, fallDur: 0, glideDur: 0 },
+      ];
+      g.session.score = 0;
+      g.afterMove();
+      return {
+        pending: !!g.session.pendingFinale,
+        finaleActive: g.finale.active,
+        finishing: !!g.session.finishing,
+        idle: b.isIdle(),
+        remaining: b.countRemaining(),
+      };
+    });
+
+    expect(deferred.remaining).toBe(1);
+    expect(deferred.idle).toBe(false);
+    expect(deferred.pending).toBe(true);
+    expect(deferred.finaleActive).toBe(false);
+    expect(deferred.finishing).toBe(false);
+
+    const started = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      g.update(0.25);
+      return {
+        pending: !!g.session.pendingFinale,
+        finaleActive: g.finale.active,
+        finishing: !!g.session.finishing,
+      };
+    });
+    expect(started.pending).toBe(false);
+    expect(started.finaleActive).toBe(true);
+    expect(started.finishing).toBe(true);
+  });
 });
 
 test.describe("premium Nova gunship pet", () => {
@@ -6231,6 +6508,32 @@ test.describe("daily & weekly quests (Tier 1)", () => {
     }));
     expect(after.coins).toBe(before + 60);
     expect(after.claimed).toBe(true);
+  });
+
+  test("locked quest tool rewards claim as coins", async ({ page }) => {
+    await page.evaluate(() => {
+      const { ensureQuests, todayKey, weekKey } = window.__bpc.quests;
+      const S = window.__bpc.Storage;
+      S.set("maxUnlockedLevel", 1);
+      S.set("coins", 0);
+      const st = ensureQuests(S.get("quests"), todayKey(), weekKey());
+      st.daily = [{ id: "d_win3", progress: 3, claimed: false }];
+      S.set("quests", st);
+      window.__bpc.UI.refreshQuestsBadge();
+    });
+
+    await page.locator("#btn-quests").click();
+    const quest = page.locator("#quests-list .quest").first();
+    await expect(quest.locator(".quest-reward")).toContainText("60");
+    await expect(quest.locator(".quest-reward")).not.toContainText("Shuffle");
+    await quest.locator(".quest-claim").click();
+
+    const state = await page.evaluate(() => ({
+      coins: window.__bpc.Economy.coins,
+      shuffle: window.__bpc.Economy.getPowerup("shuffle"),
+    }));
+    expect(state.coins).toBe(60);
+    expect(state.shuffle).toBe(0);
   });
 });
 

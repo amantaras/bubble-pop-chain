@@ -718,6 +718,24 @@ describe("grid / Board", () => {
     expect(b.shiftRow(0, "left")).toBe(false);
   });
 
+  it("rowAtSwipePixel follows visible falling sprites on sparse boards", () => {
+    const b = new Board(3, 3, 3, 1);
+    b.layout(300, 300, 0, 0);
+    b.restore([
+      [0, -1, -1],
+      [-1, -1, -1],
+      [-1, -1, -1],
+    ]);
+    const visibleY = b.targetPixel(0, 0).y;
+
+    b.settle();
+
+    expect(b.rowAtPixel(visibleY)).toBe(0);
+    expect(b.shiftRow(0, "right")).toBe(false);
+    expect(b.rowAtSwipePixel(visibleY)).toBe(2);
+    expect(b.shiftRow(b.rowAtSwipePixel(visibleY), "right")).toBe(true);
+  });
+
   it("rainbow bubbles act as wildcards and bridge same-colour regions", () => {
     const b = new Board(3, 1, 6, 1);
     setGrid(b, [[0], [5], [0]]);

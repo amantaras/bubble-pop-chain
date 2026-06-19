@@ -112,7 +112,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   per day, reward index wraps after a full week),
   the season pass (`season.js`: tiersUnlocked thresholds, tierReward tracks,
   canClaim gating on premium ownership/unlock state, seasonStatus progress +
-  claimable counts, addSeasonXp/claimTier immutability + idempotency,
+  claimable counts, addSeasonXp/claimTier immutability + idempotency, locked
+  power-up reward conversion in `economy.js`,
   unlockPremium),
   the daily & weekly quests (`quests.js`: seeded daily/weekly selection,
   ensureQuests reroll on day/week change, applyQuestProgress count+max+cap +
@@ -212,9 +213,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   pointer taps on the `<canvas>`. They cover: grouped menu/level-map/shop/themes
   navigation, popping via real taps, scoring, win/lose, revive and double-coins
   rewarded-ad flows, endless refill, daily streak, the full power-up/tool set,
-  progressive tool unlocks (fresh players see no HUD/shop/loadout tools, Level
-  5→6 shows the **New Tool Unlocked!** mini-tutorial before starting the next
-  level), progressive pet unlocks (fresh players do not see the Pets tile,
+  progressive tool unlocks (fresh players see no HUD/shop/loadout tools or locked
+  Pick rescue prompts, Level 5→6 shows the **New Tool Unlocked!** mini-tutorial before starting the next
+  level, and claiming the win bonus after the reward chest also opens that popup), progressive pet unlocks (fresh players do not see the Pets tile,
   Level 11→12 shows the pet feature unlock window, grants/equips Sparky, then
   starts the next level with the HUD pet badge), the level-map **Next unlock**
   teaser, pre-level briefings before a map cell starts play (including replay records), post-win bonus choices
@@ -252,6 +253,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   shows the earned rank, and surfaces the best on the menu summary),
   Time Attack (starting it runs a 60s, full, refilling board with a Time
   countdown HUD; the clock running out ends the run and banks a personal best),
+  general screen countdowns (campaign/puzzle/daily/tournament show a countdown
+  status chip and a campaign timeout resolves as Time's Up),
   the group-pop explosion styles (a popped group selects the style + shockwave
   rings + local sprite VFX matching its size, and a forced big group fires the
   top "supernova" tier with rings + flash + sprite particles),
@@ -276,10 +279,11 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   ordinary levels +
   hidden on milestones, meeting one pays a coin bonus on the win screen),
   the season pass (Season screen lists the 10-tier ladder, earning XP unlocks +
-  pays out a free tier, the premium track is gated until the pass is purchased,
-  and the menu badge appears when a reward is claimable),
+  pays out a free tier, locked tool rewards display/claim as coins, the premium
+  track is gated until the pass is purchased, and the menu badge appears when a reward is claimable),
   the daily & weekly quests (Quests screen lists 3 daily + 1 weekly goal,
-  gameplay pops feed progress, completing one makes its reward claimable, and the
+  gameplay pops feed progress, completing one makes its reward claimable, locked
+  tool quest rewards claim as coins, and the
   menu badge counts claimable rewards),
   the stats/profile dashboard (Stats screen renders a Profile section + Lifetime
   Totals section of 8 cells each, lifetime totals reflect persisted progress,
@@ -291,8 +295,8 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   unlocked, solving puzzle 1 records ≥1 star + unlocks the next, and running out
   of moves without clearing the board fails the attempt with no revive),
   the last-bubble finale (leaving exactly one bubble triggers the glow+explode
-  finale with a random style 0–4, suspends input, and clears the board to win
-  the level),
+  finale with a random style 0–4, suspends input, clears the board to win the
+  level, and waits for earlier pop sprites to finish before starting),
   the pet companions flow (with pet progression unlocked for these mature-system
   tests: Pets screen with Sparky owned/equipped,
   guided pet-detail chips/actions and the `#pet-gem-tip` socket guidance strip,
@@ -335,6 +339,9 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   higher tier can't be picked before its level is reached, and the menu Pets tile
   badges a pet with a pending upgrade then clears once picked),
   the daily retention flow (summary, streak reward),
+  falling gift/problem anti-idle rules (ambient tokens do not spawn before board
+  interaction, the event clock pauses after board inactivity, and a real board
+  pop arms the next ambient token),
   buying a power-up refreshing the HUD tool-slot count,
   a performance guard (a heavy pop storm keeps the particle pool capped and it
   still drains to empty afterwards, with sprite particles separately capped), and the gated

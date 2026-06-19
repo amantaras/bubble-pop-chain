@@ -40,6 +40,22 @@ export function unlockedPowerups(level = Storage.get("maxUnlockedLevel")) {
   return POWERUP_UNLOCKS.filter((u) => isPowerupUnlocked(u.type, level)).map((u) => u.type);
 }
 
+export function lockedPowerupRewardCoins(type, amount = 1) {
+  const info = POWERUP_INFO[type];
+  const n = Math.max(1, Number(amount) || 1);
+  return Math.max(50, Math.round(((info && info.price) || 100) * 0.6)) * n;
+}
+
+export function resolveRewardForUnlocks(reward = {}, level = Storage.get("maxUnlockedLevel")) {
+  const out = { ...reward };
+  if (out.powerup && !isPowerupUnlocked(out.powerup, level)) {
+    out.coins = (out.coins || 0) + lockedPowerupRewardCoins(out.powerup, out.powerupAmount || 1);
+    delete out.powerup;
+    delete out.powerupAmount;
+  }
+  return out;
+}
+
 export function nextPowerupUnlock(level = Storage.get("maxUnlockedLevel")) {
   const current = Math.max(1, Number(level) || 1);
   return POWERUP_UNLOCKS.find((u) => u.level > current) || null;

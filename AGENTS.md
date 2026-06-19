@@ -140,8 +140,9 @@ never re‑discovered the hard way.
 - **Progressive tool unlocks** (`economy.js` `POWERUP_UNLOCKS`/
   `powerupsUnlockedBetween`, `ui.js` `showToolUnlock`, `main.js`
   `_grantToolUnlock`): new players start with **no tools at all** — the first
-  five campaign levels keep the HUD/tool shop quiet. Tools then unlock one at a
-  time as campaign progress opens the next level: Undo at Level 6, Shuffle at 8,
+  five campaign levels keep the HUD quick-access rail, loadout picker, and tool
+  shop quiet. Tools then unlock one at a time as campaign progress opens the
+  next level: Undo at Level 6, Shuffle at 8,
   Bomb at 10, Color Clear at 13, Pick at 16, Chain Bolt at 20, and Magnet at 24. The shop and
   loadout picker only list unlocked tools; before Level 6 they show a small
   "Tools unlock after Level 5" empty state, and the Starter Pack describes its
@@ -151,10 +152,15 @@ never re‑discovered the hard way.
   charge if the player does not already own that newly unlocked tool, auto-slots
   it into the first empty HUD slot, and queues the dedicated **New Tool
   Unlocked!** modal (`#tool-unlock`) with the tool icon, unlock level, and a
-  short use lesson. Pressing Next on the win screen shows that modal first;
-  pressing **Try it next level** starts the next campaign level. Normal shop
-  purchases and HUD arming are blocked while locked, but the lone-bubble rescue
-  may still buy/arm Pick as an emergency-only escape hatch.
+  short use lesson. The modal appears automatically once the win reward chest
+  flow has settled (after any Pick a bonus claim), with the Next button still
+  acting as a fallback; pressing **Try it next level** starts the next campaign level. Normal shop
+  purchases, HUD arming, and lone-bubble rescue offers are blocked while locked,
+  so Pick is never recommended or sold before its Level 16 unlock. Meta rewards
+  also pass through the same unlock rule: if a calendar/season/quest/gift/chest/
+  treasure reward rolls a tool the player cannot use yet, `resolveRewardForUnlocks`
+  / `_grantPowerupReward` convert it into coins instead of stockpiling a locked
+  Bomb/Shuffle/etc. in the inventory.
 - **Lone-bubble rescue** (`main.js` `_offerIsolatedRescue`/`_canRescue`/
   `_showIsolatedHelp`/`_rescueWithPick`/`_giveUpRescue`; `ui.js`
   `showIsolatedHelp`/`hideIsolatedHelp`, `#isolated` modal): single bubbles of
@@ -163,7 +169,9 @@ never re‑discovered the hard way.
   failing the player, the deadlock is intercepted in `afterMove` (only when it
   would otherwise be a **loss** — campaign score < target, boss fail, or endless
   game-over; **daily** still completes as a win) and a friendly **"Oh no! Lone
-  bubbles"** prompt steers the player to the **Pick 🔨** tool. The modal adapts:
+  bubbles"** prompt steers the player to the **Pick 🔨** tool, but only after Pick
+  has unlocked in the tool progression. Before Level 16 the same deadlock resolves
+  normally instead of recommending a locked tool. The modal adapts:
   **Use Pick** if owned, **Buy Pick** (`POWERUP_INFO.pick.price`) if affordable,
   or informational if neither. Choosing Pick arms it (`armPowerup("pick")`) and
   keeps the level alive (`session.rescuing`); popping a lone bubble can make
@@ -201,7 +209,10 @@ never re‑discovered the hard way.
   fires once at the glow→blast boundary (the game does
   `Board.forceRemove` + `settle` + a variant-flavoured particle burst, shake,
   haptics and sound there) and `onDone` fires when the whole finale completes
-  (resolution). While it plays, `session.finishing` is set and input is disabled
+  (resolution). The finale is deferred with `session.pendingFinale` until
+  `Board.isIdle()` when the last bubble is reached while older pop/fall sprites
+  are still visibly animating, so the screen never auto-clears ahead of what the
+  player can see. While it plays, `session.finishing` is set and input is disabled
   (`afterMove` early-returns on `finishing`); the chosen style is stored on
   `session.finaleVariant` for inspection/tests. `Board.forceRemove(c,r)` clears a
   single cell **regardless of type** (ice cleared outright, unlike `removeCells`
@@ -209,9 +220,11 @@ never re‑discovered the hard way.
   triggers at **exactly one** bubble, so the multi-bubble lone-bubble rescue
   (`#isolated`) still handles 2+ stranded bubbles. Like other auto-mechanic
   visuals it gets **no tutorial step**.
-- **HUD loadout** (`ui.js`, `storage.js` `loadout`): the HUD shows **three
-  quick-access slots** instead of one button per power-up (so it never grows as
-  tools are added). A short **tap** arms that slot's power-up; a **long-press**
+- **HUD loadout** (`ui.js`, `storage.js` `loadout`): once tools are unlocked, the
+  HUD shows **three quick-access slots** instead of one button per power-up (so
+  it never grows as tools are added). Before the first tool unlock, the whole
+  quick-access rail is hidden so fresh players don't see dead empty buttons. A
+  short **tap** arms that slot's power-up; a **long-press**
   (>450ms) opens the loadout picker (`#loadout`) listing every currently
   unlocked tool — choosing one assigns it to the held slot via
   `Storage.setLoadoutSlot`, which keeps the three slots distinct (swapping if
@@ -454,24 +467,33 @@ never re‑discovered the hard way.
   produces the post-claim state (`{ lastClaim, day+1 }`). State lives in
   `storage.js` `loginCalendar: { lastClaim, day }` (deep-merges into old saves).
   `Game.claimCalendar()` (idempotent per `todayKey()`) grants the reward via
-  `Economy.addCoins`/`addPowerup` + `Storage.addCrates`, advances the state, and
+  `Economy.addCoins`/unlock-aware power-up conversion + `Storage.addCrates`,
+  advances the state, and
   refreshes the UI. The **Gifts screen** (`ui.js` `buildCalendar`, `#calendar`,
   menu **Gifts** tile) renders the 7 day cells (collected / today / upcoming,
   with the grand prize spanning the last row) and a Claim button; a menu tile
   badge (`refreshCalendarBadge`, `#cal-badge`) shows when today's gift is
   unclaimed. Like other meta/reward displays this gets **no tutorial step**.
 - **Falling events** (`events.js`, `main.js` `_updateEvents`/`_spawnEvent`,
-  `ui.js` `spawnFallingEvent`): every ~12–20s a 🎁 **gift** or ⚠️ **problem**
+  `ui.js` `spawnFallingEvent`): every ~12–20s **during recent board play** a 🎁 **gift** or ⚠️ **problem**
   token drifts down the screen (`#events-layer`, `pointer-events:none` so it
-  never blocks board taps; the token itself is tappable). Tap a gift to collect
+  never blocks board taps; the token itself is tappable). The event clock does
+  not start before the player interacts with the board and pauses again after a
+  short idle grace (`EVENT_BOARD_IDLE_GRACE`), so waiting cannot farm gifts;
+  tapping the falling token itself does **not** count as board activity. Tap a gift to collect
   coins (`GIFT_COIN_MIN..MAX`) or, ~40% of the time (`GIFT_POWERUP_CHANCE`), a
   free power-up (`GIFT_POWERUP_POOL`, excludes magnet) — tools land often enough
-  to feel like a real drop, not just coins. Tap a problem to **defuse** it for a
+  to feel like a real drop, not just coins; locked tool rolls are converted to
+  coins until that tool unlocks. Tap a problem to **defuse** it for a
   small coin reward; if it falls off-screen untouched it rolls one of five
   `PROBLEM_EFFECTS`: scatter nearby bubbles (`board.scatterArea`), scramble the
   board (`board.shuffle`), drain moves/seconds, freeze a few normal bubbles, or
   seed a creeping vine threat. Suspended during the tutorial (auto-spawns gated)
-  and once a session ends. Also **paused** while the player is off the playing
+  and once a session ends. Campaign, puzzle, daily and tournament boards also
+  carry a visible status-chip countdown (`screenTimeLeft`, persisted for
+  campaign resume and undo snapshots) so a screen cannot be held open forever;
+  campaign/puzzle timeouts fail the board, while daily/tournament timeouts bank
+  the run like their normal end conditions. Also **paused** while the player is off the playing
   window: `pauseForOverlay`/`resumeFromOverlay` (used by the pet manager and the
   mid-level shop) call `UI.pauseFallingEvents`/`resumeFallingEvents`, which add a
   `paused` class to `#events-layer` that freezes the token's CSS fall (so it
@@ -716,7 +738,8 @@ never re‑discovered the hard way.
   **tutorial play never counts**). Every unlocked tier offers a **free** reward
   (everyone) and a richer **premium** reward (only after buying the
   `season_premium` pass via the mock IAP). Rewards reuse the calendar shape
-  (`{ coins | powerup | crate }`) and are **claimed explicitly + idempotently**:
+  (`{ coins | powerup | crate }`) and are **claimed explicitly + idempotently**;
+  locked power-up rewards display/claim as coin fallbacks until their tool unlocks:
   `claimTier(state, i, track)` records the claim, `tierReward(i, track)` is what
   gets granted; `seasonStatus(state)` drives the XP bar (`progress`), tier label,
   and the **claimable count** badge on the menu Season tile (`#season-badge`).
@@ -741,8 +764,9 @@ never re‑discovered the hard way.
   `{ fevers: 1 }`, and a campaign win reports `{ levelsWon: 1 }`. **Tutorial play
   never counts.** A complete quest is **claimable** and grants its reward
   (`{ coins | powerup | crate | seasonXp }`) **explicitly + idempotently** via
-  `claimQuest(state, scope, index)`; `questsClaimable(state)` drives the
-  claimable-count badge on the menu Quests tile (`#quests-badge`). `quests.js` is
+  `claimQuest(state, scope, index)`; locked power-up rewards are shown/paid as
+  coins until usable, and `questsClaimable(state)` drives the claimable-count
+  badge on the menu Quests tile (`#quests-badge`). `quests.js` is
   **pure** (no DOM/storage) — `ensureQuests`, `applyQuestProgress`, `claimQuest`,
   `questsClaimable` all return new state without mutating input. Like other meta
   features it never affects win/star outcomes and gets **no tutorial step**.
@@ -1261,7 +1285,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 610 unit tests + 474 E2E
+- **Current baseline (keep growing, never shrink)**: 613 unit tests + 496 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

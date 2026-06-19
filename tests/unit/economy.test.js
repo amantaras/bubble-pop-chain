@@ -10,8 +10,10 @@ import {
   AD_COIN_DAILY_CAP,
   isPowerupUnlocked,
   nextPowerupUnlock,
+  lockedPowerupRewardCoins,
   powerupUnlockLevel,
   powerupsUnlockedBetween,
+  resolveRewardForUnlocks,
   unlockedPowerups,
 } from "../../src/economy.js";
 
@@ -102,6 +104,18 @@ describe("economy", () => {
     Storage.set("maxUnlockedLevel", powerupUnlockLevel("magnet"));
     expect(Economy.buyPowerup("magnet")).toBe(true);
     expect(Economy.getPowerup("magnet")).toBe(start + 1);
+  });
+
+  it("converts locked power-up rewards into usable coin rewards", () => {
+    Storage.set("maxUnlockedLevel", 1);
+    expect(lockedPowerupRewardCoins("bomb")).toBe(90);
+    expect(resolveRewardForUnlocks({ powerup: "bomb" })).toEqual({ coins: 90 });
+    expect(resolveRewardForUnlocks({ coins: 40, powerup: "shuffle" })).toEqual({ coins: 100 });
+  });
+
+  it("keeps reward power-ups once that tool is unlocked", () => {
+    Storage.set("maxUnlockedLevel", powerupUnlockLevel("bomb"));
+    expect(resolveRewardForUnlocks({ coins: 40, powerup: "bomb" })).toEqual({ coins: 40, powerup: "bomb" });
   });
 
   it("catalogs the Magnet, Chain Bolt and Pick with the Magnet most expensive", () => {
