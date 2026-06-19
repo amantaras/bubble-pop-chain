@@ -140,6 +140,7 @@ class UIManager {
       "menu", "levelmap", "shop", "themes", "hud", "win", "lose",
       "menu-coins", "lm-coins", "shop-coins", "themes-coins", "hud-coins",
       "level-grid", "shop-list", "theme-list",
+      "level-brief", "brief-title", "brief-sub", "brief-stats", "brief-objective", "brief-hazards", "brief-tools", "brief-cancel", "brief-start",
       "achievements", "achv-list", "achv-count", "btn-achievements", "achv-back",
       "achv-badge", "achv-collect-all",
       "calendar", "cal-grid", "cal-status", "cal-claim", "cal-back",
@@ -178,7 +179,7 @@ class UIManager {
       "combo-banner", "toast",      "win-stars", "win-score", "win-reward", "win-double", "win-next", "win-menu",
       "win-stats", "win-coins", "win-coins-num",
       "win-chest", "win-chest-art", "win-chest-burst", "win-chest-hint", "win-reward-reveal", "win-choice", "win-choice-list",
-      "lose-score", "lose-revive", "lose-retry", "lose-menu",
+      "lose-score", "lose-revive", "lose-retry", "lose-menu", "lose-tip",
       "isolated", "iso-msg", "iso-pick", "iso-giveup",
       "btn-daily",
       "btn-tournament", "tournament-summary",
@@ -222,6 +223,8 @@ class UIManager {
 
     // Back buttons
     click("lm-back", () => this.showScreen("menu"));
+    click("brief-cancel", () => this.closeLevelBrief());
+    click("brief-start", () => this.startBriefedLevel());
     // Shop can be reached from the menu OR popped open mid-level when the
     // player taps an empty tool slot. In the latter case, returning resumes the
     // paused level instead of dropping back to the menu.
@@ -912,11 +915,87 @@ class UIManager {
       if (!locked) {
         cell.addEventListener("click", () => {
           Audio.click();
-          this.cb.startLevel && this.cb.startLevel(i);
+          this.openLevelBrief(i);
         });
       }
       grid.appendChild(cell);
     }
+  }
+
+  openLevelBrief(levelId) {
+    const level = getLevel(levelId);
+    if (!level || !this.el["level-brief"]) {
+      this.cb.startLevel && this.cb.startLevel(levelId);
+      return;
+    }
+    this._briefLevelId = levelId;
+    const mtype = level.milestone;
+    this.el["brief-title"].textContent = `${mtype === "boss" ? "Boss" : mtype === "treasure" ? "Treasure" : "Level"} ${levelId}`;
+    this.el["brief-sub"].textContent = this._briefSubtitle(level);
+    this.el["brief-stats"].innerHTML =
+      `<div><b>${level.target}</b><span>Target</span></div>` +
+      `<div><b>${level.moves}</b><span>Moves</span></div>` +
+      `<div><b>${level.colors}</b><span>Colors</span></div>`;
+    this._setBriefSection("brief-objective", level.objective ? "🎯 Bonus objective" : "", level.objective ? level.objective.label : "");
+    this._setBriefSection("brief-hazards", "Board traits", this._briefHazards(level));
+    this._setBriefSection("brief-tools", "Suggested tools", this._briefTools(level));
+    this.el["level-brief"].classList.remove("hidden");
+  }
+
+  closeLevelBrief() {
+    if (this.el["level-brief"]) this.el["level-brief"].classList.add("hidden");
+  }
+
+  startBriefedLevel() {
+    const levelId = this._briefLevelId;
+    this.closeLevelBrief();
+    if (levelId && this.cb.startLevel) this.cb.startLevel(levelId);
+  }
+
+  _setBriefSection(id, title, body) {
+    const el = this.el[id];
+    if (!el) return;
+    el.classList.toggle("hidden", !body);
+    el.innerHTML = body ? `<b>${title}</b><span>${body}</span>` : "";
+  }
+
+  _briefSubtitle(level) {
+    if (level.milestone === "boss") return "Break the boss objective before the board runs dry.";
+    if (level.milestone === "treasure") return "Clear the vault for a one-time treasure payout.";
+    return "Clear every bubble and beat the score target.";
+  }
+
+  _briefHazards(level) {
+    const traits = [];
+    const specials = level.specials || {};
+    if (level.boss) traits.push("boss objective");
+    if (level.downpour) traits.push("downpour rows");
+    if (specials.ice) traits.push("ice");
+    if (specials.stone) traits.push("stone");
+    if (specials.vine) traits.push("vines");
+    if (specials.lightning) traits.push("lightning");
+    if (specials.bomb) traits.push("bomb bubbles");
+    if (specials.coin) traits.push("coin bubbles");
+    return traits.length ? traits.join(" • ") : "Clean board. Build big groups and keep cascades alive.";
+  }
+
+  _briefTools(level) {
+    const unlocked = new Set(unlockedPowerups());
+    const picks = [];
+    const add = (type) => {
+      if (unlocked.has(type) && POWERUP_INFO[type] && !picks.includes(type)) picks.push(type);
+    };
+    const specials = level.specials || {};
+    if (level.boss) add("chainBolt"), add("bomb"), add("pick");
+    if (specials.stone || specials.vine || specials.ice) add("pick"), add("bomb");
+    if (level.objective && level.objective.type === "group") add("magnet"), add("colorClear");
+    if (level.objective && level.objective.type === "combo") add("shuffle"), add("magnet");
+    add("undo");
+    add("shuffle");
+    add("bomb");
+    return picks.length
+      ? picks.slice(0, 3).map((type) => `${POWERUP_INFO[type].icon} ${POWERUP_INFO[type].name}`).join(" • ")
+      : "Tools unlock after Level 5.";
   }
 
   _nextProgressUnlock(maxUnlocked) {
@@ -3735,10 +3814,16 @@ class UIManager {
     document.querySelector("#win .modal-title").textContent = text;
   }
 
-  showLose({ score, showRevive, title }) {
+  showLose({ score, showRevive, title, tip, tools }) {
     if (title) document.querySelector("#lose .modal-title").textContent = title;
     this.el["lose-score"].textContent = score;
     this.el["lose-revive"].style.display = showRevive ? "" : "none";
+    const tipBox = this.el["lose-tip"];
+    if (tipBox) {
+      const toolLine = tools && tools.length ? `<span class="lose-tip-tools">Try: ${tools.join(" • ")}</span>` : "";
+      tipBox.classList.toggle("hidden", !tip && !toolLine);
+      tipBox.innerHTML = tip || toolLine ? `<b>Next attempt</b><span>${tip || ""}</span>${toolLine}` : "";
+    }
     this.showHud(false);
     this.el["lose"].classList.remove("hidden");
   }

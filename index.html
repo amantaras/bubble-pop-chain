@@ -310,6 +310,22 @@
       <div class="level-grid" id="level-grid"></div>
     </div>
 
+    <!-- Level briefing -->
+    <div id="level-brief" class="overlay modal hidden" role="dialog" aria-modal="true" aria-label="Level briefing">
+      <div class="modal-card level-brief-card">
+        <h2 class="modal-title" id="brief-title">Level 1</h2>
+        <p class="modal-sub" id="brief-sub">Check the board plan before you jump in.</p>
+        <div class="brief-stats" id="brief-stats"></div>
+        <div class="brief-section hidden" id="brief-objective"></div>
+        <div class="brief-section hidden" id="brief-hazards"></div>
+        <div class="brief-section hidden" id="brief-tools"></div>
+        <div class="modal-buttons">
+          <button class="btn btn-ghost" id="brief-cancel">Back</button>
+          <button class="btn btn-primary" id="brief-start">Start</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Shop -->
     <div id="shop" class="overlay screen hidden">
       <div class="screen-head">
@@ -571,6 +587,7 @@
       <div class="modal-card">
         <h2 class="modal-title lose-title">Out of Moves</h2>
         <div class="modal-score">Score <b id="lose-score">0</b></div>
+        <div class="lose-tip hidden" id="lose-tip"></div>
         <div class="modal-buttons">
           <button class="btn btn-ghost" id="lose-menu">Menu</button>
           <button class="btn btn-primary" id="lose-retry">Retry</button>

@@ -3776,6 +3776,8 @@ class Game {
               : s.movesLeft <= 0
               ? "Out of Moves"
               : "No Moves Left",
+          tip: this._loseTip(s, reason),
+          tools: this._loseToolHints(s.level),
         });
       }
     } else if (s.mode === "endless") {
@@ -4073,6 +4075,23 @@ class Game {
     tools.slice(0, 3).forEach((type, index) => Storage.setLoadoutSlot(index, type));
     UI.updatePowerups();
     return true;
+  }
+
+  _loseTip(session, reason) {
+    const level = session && session.level;
+    if (reason === "buried") return "Keep the top rows open. Clear tall columns before downpour pressure stacks up.";
+    if (level && level.boss) return "Focus the boss objective first. Score usually follows once the locked core starts breaking.";
+    if (level && level.objective && level.objective.type === "combo") return "Use smaller pops to extend the combo chain instead of spending every large group at once.";
+    if (level && level.objective && level.objective.type === "group") return "Leave matching colors connected for one bigger group before cashing it in.";
+    if (session && session.score < level.target) return "Aim for larger groups and cascades early; the target is easier before the board gets sparse.";
+    return "You had the score. Spend tools late to clean up isolated blockers and finish the board.";
+  }
+
+  _loseToolHints(level) {
+    return this._suggestedToolsForLevel(level)
+      .filter((type) => isPowerupUnlocked(type) && POWERUP_INFO[type])
+      .slice(0, 3)
+      .map((type) => `${POWERUP_INFO[type].icon} ${POWERUP_INFO[type].name}`);
   }
 
   _queueProgressUnlock(unlock) {

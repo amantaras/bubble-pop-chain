@@ -300,6 +300,20 @@ test.describe("menu & navigation (UI)", () => {
     await expect(page.locator(".next-unlock-teaser")).toContainText("Level 6");
   });
 
+  test("level map opens a briefing before starting a level", async ({ page }) => {
+    await page.locator("#btn-play").click();
+    await page.locator(".level-cell").first().click();
+    await expect(page.locator("#level-brief")).toBeVisible();
+    await expect(page.locator("#brief-title")).toHaveText("Level 1");
+    await expect(page.locator("#brief-stats")).toContainText("Target");
+    await expect(page.locator("#brief-hazards")).toContainText("Clean board");
+
+    await page.locator("#brief-start").click();
+    await expect(page.locator("#level-brief")).toBeHidden();
+    await expect(page.locator("#hud")).toBeVisible();
+    await expect(page.locator("#hud-mode-label")).toContainText("Level 1");
+  });
+
   test("Shop and Themes open and Back returns to menu", async ({ page }) => {
     await page.locator("#btn-shop").click();
     await expect(page.locator("#shop")).toBeVisible();
@@ -320,6 +334,7 @@ test.describe("menu & navigation (UI)", () => {
   test("sound toggle persists mute state", async ({ page }) => {
     await page.locator("#btn-play").click();
     await page.locator(".level-cell").first().click();
+    await page.locator("#brief-start").click();
     await page.locator("#btn-sound").click();
     const muted = await page.evaluate(() => localStorage.getItem("bpc_save_v1"));
     expect(JSON.parse(muted).muted).toBe(true);
@@ -1050,6 +1065,7 @@ test.describe("campaign progression", () => {
     await page.evaluate(() => (window.__bpc.game.session.movesLeft = 1));
     await page.evaluate(({ c, r }) => window.__bpc.game.popAt(c, r), cell);
     await expect(page.locator("#lose")).toBeVisible();
+    await expect(page.locator("#lose-tip")).toContainText("Next attempt");
     await expect(page.locator("#lose-revive")).toBeVisible();
   });
 
