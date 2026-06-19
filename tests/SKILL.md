@@ -217,7 +217,7 @@ npm run serve               # preview the game at http://127.0.0.1:4173
   level), progressive pet unlocks (fresh players do not see the Pets tile,
   Level 11→12 shows the pet feature unlock window, grants/equips Sparky, then
   starts the next level with the HUD pet badge), the level-map **Next unlock**
-  teaser, pre-level briefings before a map cell starts play, post-win bonus choices
+  teaser, pre-level briefings before a map cell starts play (including replay records), post-win bonus choices
   after opening the reward chest, smart suggested loadouts in the long-press picker,
   retry coaching on campaign losses, shop purchases, shop affordability affordances (`.cannot-afford`/`.need-coins`),
   the in-game pause overlay (`#pause`) freezing the level, resuming, and routing

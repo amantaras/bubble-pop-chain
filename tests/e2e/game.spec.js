@@ -325,6 +325,17 @@ test.describe("menu & navigation (UI)", () => {
     await expect(firstLevel).toBeFocused();
   });
 
+  test("level briefing shows replay record for cleared levels", async ({ page }) => {
+    await page.evaluate(() => {
+      window.__bpc.Storage.recordLevelResult(1, 3);
+      window.__bpc.Storage.recordLevelScore(1, 1234);
+    });
+    await page.locator("#btn-play").click();
+    await page.locator(".level-cell[aria-label='Level 1']").click();
+    await expect(page.locator("#brief-replay")).toContainText("Replay record");
+    await expect(page.locator("#brief-replay")).toContainText("Best 1234");
+  });
+
   test("Shop and Themes open and Back returns to menu", async ({ page }) => {
     await page.locator("#btn-shop").click();
     await expect(page.locator("#shop")).toBeVisible();

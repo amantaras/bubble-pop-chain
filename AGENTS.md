@@ -640,7 +640,8 @@ never re‑discovered the hard way.
   stored best (`🏆 <score>`, `.lvl-best`) under the stars on every cleared cell.
   Tapping an unlocked map cell opens a compact **level briefing** (`#level-brief`)
   before play starts: target, moves, colors, bonus objective, board traits, and
-  unlocked suggested tools. `#brief-start` is the only path that calls
+  unlocked suggested tools. Replays also show the stored stars/best score in
+  `#brief-replay`. `#brief-start` is the only path that calls
   `startLevel`, so map clicks now preview instead of launching immediately.
   `levelScores` is a new `DEFAULT_SAVE` field, so old saves auto-default to `{}`.
   Like stars/achievements this meta-progression display gets **no tutorial
@@ -1260,7 +1261,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 610 unit tests + 472 E2E
+- **Current baseline (keep growing, never shrink)**: 610 unit tests + 474 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

@@ -140,7 +140,7 @@ class UIManager {
       "menu", "levelmap", "shop", "themes", "hud", "win", "lose",
       "menu-coins", "lm-coins", "shop-coins", "themes-coins", "hud-coins",
       "level-grid", "shop-list", "theme-list",
-      "level-brief", "brief-title", "brief-sub", "brief-stats", "brief-objective", "brief-hazards", "brief-tools", "brief-cancel", "brief-start",
+      "level-brief", "brief-title", "brief-sub", "brief-stats", "brief-replay", "brief-objective", "brief-hazards", "brief-tools", "brief-cancel", "brief-start",
       "achievements", "achv-list", "achv-count", "btn-achievements", "achv-back",
       "achv-badge", "achv-collect-all",
       "calendar", "cal-grid", "cal-status", "cal-claim", "cal-back",
@@ -945,6 +945,7 @@ class UIManager {
       `<div><b>${level.target}</b><span>Target</span></div>` +
       `<div><b>${level.moves}</b><span>Moves</span></div>` +
       `<div><b>${level.colors}</b><span>Colors</span></div>`;
+    this._setBriefSection("brief-replay", "Replay record", this._briefReplay(levelId));
     this._setBriefSection("brief-objective", level.objective ? "🎯 Bonus objective" : "", level.objective ? level.objective.label : "");
     this._setBriefSection("brief-hazards", "Board traits", this._briefHazards(level));
     this._setBriefSection("brief-tools", "Suggested tools", this._briefTools(level));
@@ -976,6 +977,14 @@ class UIManager {
     if (level.milestone === "boss") return "Break the boss objective before the board runs dry.";
     if (level.milestone === "treasure") return "Clear the vault for a one-time treasure payout.";
     return "Clear every bubble and beat the score target.";
+  }
+
+  _briefReplay(levelId) {
+    const stars = Storage.getStars(levelId);
+    const best = Storage.getLevelScore(levelId);
+    if (!stars && !best) return "";
+    const starText = stars ? `${"★".repeat(stars)}${"☆".repeat(3 - stars)}` : "No stars yet";
+    return best ? `${starText} • Best ${best}` : starText;
   }
 
   _briefHazards(level) {
