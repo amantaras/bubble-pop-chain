@@ -21,12 +21,17 @@ concurrency:
 
 jobs:
   android:
-    name: Android debug APK
+    name: Android signed APK
     # Guard: require the triggering CI run to have succeeded.
     if: >-
       ${{ github.event_name == 'workflow_dispatch' ||
           github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -41,13 +46,29 @@ jobs:
       - name: Ensure Android SDK 35 is installed
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
       - run: npm ci
-      - name: Build Android debug APK
-        run: npm run android:build
+      - name: Require Android signing secrets
+        run: |
+          missing=0
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing required GitHub secret: $name"
+              missing=1
+            fi
+          done
+          exit "$missing"
+      - name: Decode Android keystore
+        run: |
+          mkdir -p "$RUNNER_TEMP/android-signing"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/android-signing/release.jks"
+      - name: Build signed Android APK
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/android-signing/release.jks
+        run: npm run android:apk:release
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
-          name: bubble-pop-chain-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: bubblit-signed-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
 
   ios:
@@ -96,11 +117,11 @@ jobs:
       - name: Add Android APK download
         uses: actions/download-artifact@v4
         with:
-          name: bubble-pop-chain-debug-apk
+          name: bubblit-signed-apk
           path: dist/web/downloads
       - name: Publish stable Android APK filename
         run: |
-          mv dist/web/downloads/app-debug.apk dist/web/downloads/bubblit.apk
+          mv dist/web/downloads/app-release.apk dist/web/downloads/bubblit.apk
           shasum -a 256 dist/web/downloads/bubblit.apk > dist/web/downloads/bubblit.apk.sha256
       - name: Configure Pages
         uses: actions/configure-pages@v5

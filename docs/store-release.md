@@ -5,8 +5,8 @@ This repo can build the web/PWA, Android, and iOS targets from the same static a
 ## Current Release Surface
 
 - Web production: GitHub Pages via `.github/workflows/deploy.yml` after CI passes.
-- Android direct download: every successful production deploy publishes the latest installable APK at `https://amantaras.github.io/bubble-pop-chain/downloads/bubblit.apk` with a matching SHA-256 file at `https://amantaras.github.io/bubble-pop-chain/downloads/bubblit.apk.sha256`.
-- Android validation: debug APK in `.github/workflows/deploy.yml` and `.github/workflows/mobile.yml`.
+- Android direct download: every successful production deploy publishes the latest signed release APK at `https://amantaras.github.io/bubble-pop-chain/downloads/bubblit.apk` with a matching SHA-256 file at `https://amantaras.github.io/bubble-pop-chain/downloads/bubblit.apk.sha256`.
+- Android validation: signed release APK in `.github/workflows/deploy.yml`; debug APK in `.github/workflows/mobile.yml`.
 - iOS validation: unsigned build in `.github/workflows/deploy.yml` and `.github/workflows/mobile.yml`.
 - Store release: manual `.github/workflows/store-release.yml` builds signed Android AAB and signed iOS IPA when secrets are configured.
 
@@ -39,6 +39,7 @@ xcodebuild -version
 xcode-select -p
 npm run build:web
 npm run android:build
+npm run android:apk:release
 npm run android:bundle
 npm run ios:build
 ```
@@ -57,6 +58,7 @@ export ANDROID_KEYSTORE_PASSWORD=...
 export ANDROID_KEY_ALIAS=...
 export ANDROID_KEY_PASSWORD=...
 npm run android:bundle:release
+npm run android:apk:release
 ```
 
 GitHub Secrets for the manual Store release workflow:

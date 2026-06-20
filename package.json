@@ -12,6 +12,7 @@
     "android:sync": "npm run build:web && cap sync android",
     "android:open": "npm run android:sync && cap open android",
     "android:build": "npm run android:sync && JAVA_HOME=\"${JAVA_HOME:-/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home}\"; export JAVA_HOME PATH=\"$JAVA_HOME/bin:$PATH\"; cd android && ./gradlew assembleDebug",
+    "android:apk:release": "npm run android:sync && JAVA_HOME=\"${JAVA_HOME:-/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home}\"; export JAVA_HOME PATH=\"$JAVA_HOME/bin:$PATH\"; cd android && ./gradlew assembleRelease",
     "android:bundle": "npm run android:sync && JAVA_HOME=\"${JAVA_HOME:-/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home}\"; export JAVA_HOME PATH=\"$JAVA_HOME/bin:$PATH\"; cd android && ./gradlew bundleRelease",
     "android:bundle:release": "npm run android:bundle",
     "ios:sync": "npm run build:web && cap sync ios",

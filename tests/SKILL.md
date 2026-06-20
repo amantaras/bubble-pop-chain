@@ -47,6 +47,7 @@ npm run native:sync         # copy dist/web into Android/iOS Capacitor projects
 npm run android:sync        # sync only Android; does not require Xcode
 npm run ios:sync            # sync only iOS; requires full Xcode + CocoaPods
 npm run android:build       # build a local Android debug APK
+npm run android:apk:release # build a signed Android release APK when signing env vars are set
 npm run android:bundle      # build a release Android App Bundle (signing still required)
 npm run android:bundle:release # build a signed AAB when Android signing env vars are set
 npm run ios:build           # unsigned iOS build via xcodebuild (requires Xcode)

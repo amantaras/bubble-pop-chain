@@ -1293,6 +1293,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
   npm run android:sync     # sync only Android; does not require Xcode
   npm run ios:sync         # sync only iOS; requires full Xcode + CocoaPods
   npm run android:build    # local debug APK
+  npm run android:apk:release # signed release APK; requires Android signing env vars
   npm run android:bundle   # release AAB; signing configured in Android Studio/Play Console
   npm run ios:build        # unsigned iOS build; requires full Xcode install
   ```
@@ -1308,9 +1309,10 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
   Chromium) on every push and PR; uploads the Playwright HTML report.
 - `.github/workflows/deploy.yml`: triggered by `workflow_run` on **completion of
   CI for `master`** and only proceeds when `conclusion == 'success'`. It always
-  builds and uploads the Android debug APK and an unsigned iOS app bundle first,
-  then runs `npm run build:web`, adds the APK to `dist/web/downloads/bubblit.apk`,
-  and publishes `dist/web` to GitHub Pages. The Android sideload URL is stable:
+  builds and uploads a signed Android release APK and an unsigned iOS app bundle
+  first, then runs `npm run build:web`, adds the APK to
+  `dist/web/downloads/bubblit.apk`, and publishes `dist/web` to GitHub Pages.
+  The Android sideload URL is stable:
   `https://amantaras.github.io/bubble-pop-chain/downloads/bubblit.apk`.
   **A red test suite or failed mobile build means no production deploy — keep it
   that way.** The deploy workflow self-enables Pages; do not remove that step.
