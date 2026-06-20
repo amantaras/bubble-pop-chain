@@ -1,0 +1,196 @@
+name: Store release
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_android:
+        description: "Build signed Android AAB"
+        type: boolean
+        default: true
+      submit_to_play:
+        description: "Submit Android AAB to Play internal testing"
+        type: boolean
+        default: false
+      build_ios:
+        description: "Build signed iOS IPA"
+        type: boolean
+        default: true
+      upload_testflight:
+        description: "Upload iOS IPA to TestFlight"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: store-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  android:
+    name: Android signed AAB
+    if: ${{ inputs.build_android }}
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+      - name: Ensure Android SDK 35 is installed
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - run: npm ci
+      - name: Require Android signing secrets
+        run: |
+          missing=0
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing required GitHub secret: $name"
+              missing=1
+            fi
+          done
+          exit "$missing"
+      - name: Decode Android keystore
+        run: |
+          mkdir -p "$RUNNER_TEMP/android-signing"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/android-signing/release.jks"
+      - name: Build signed Android App Bundle
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/android-signing/release.jks
+        run: npm run android:bundle:release
+      - name: Upload Android AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bubblit-android-release-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+      - name: Submit Android to Play internal testing
+        if: ${{ inputs.submit_to_play && env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON != '' }}
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.amantaras.bubblepopchain
+          releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
+          track: internal
+          status: draft
+
+  ios:
+    name: iOS signed IPA
+    if: ${{ inputs.build_ios }}
+    runs-on: macos-latest
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+      IOS_DISTRIBUTION_CERT_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERT_BASE64 }}
+      IOS_DISTRIBUTION_CERT_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERT_PASSWORD }}
+      KEYCHAIN_PASSWORD: ${{ secrets.IOS_BUILD_KEYCHAIN_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Require iOS signing secrets
+        run: |
+          missing=0
+          for name in APPLE_TEAM_ID APP_STORE_CONNECT_KEY_ID APP_STORE_CONNECT_ISSUER_ID APP_STORE_CONNECT_PRIVATE_KEY IOS_DISTRIBUTION_CERT_BASE64 IOS_DISTRIBUTION_CERT_PASSWORD KEYCHAIN_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing required GitHub secret: $name"
+              missing=1
+            fi
+          done
+          exit "$missing"
+      - name: Install signing certificate
+        run: |
+          CERT_PATH="$RUNNER_TEMP/ios_distribution.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          printf '%s' "$IOS_DISTRIBUTION_CERT_BASE64" | base64 --decode > "$CERT_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security default-keychain -s "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$IOS_DISTRIBUTION_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+      - name: Install App Store Connect API key
+        run: |
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY" > "$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+      - name: Sync iOS native project
+        run: npm run ios:sync
+      - name: Archive iOS app
+        run: |
+          xcodebuild \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -archivePath ios/App/build/Bubblit.xcarchive \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8" \
+            -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
+            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            archive
+      - name: Create export options
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>signingStyle</key>
+            <string>automatic</string>
+            <key>teamID</key>
+            <string>${APPLE_TEAM_ID}</string>
+            <key>destination</key>
+            <string>export</string>
+            <key>stripSwiftSymbols</key>
+            <true/>
+            <key>compileBitcode</key>
+            <false/>
+          </dict>
+          </plist>
+          EOF
+      - name: Export iOS IPA
+        run: |
+          xcodebuild \
+            -exportArchive \
+            -archivePath ios/App/build/Bubblit.xcarchive \
+            -exportPath ios/App/build/export \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8" \
+            -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
+            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
+      - name: Upload iOS IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bubblit-ios-release-ipa
+          path: ios/App/build/export/*.ipa
+          if-no-files-found: error
+      - name: Upload iOS IPA to TestFlight
+        if: ${{ inputs.upload_testflight }}
+        run: |
+          xcrun altool \
+            --upload-app \
+            --type ios \
+            --file ios/App/build/export/*.ipa \
+            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"

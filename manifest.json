@@ -1,6 +1,6 @@
 {
-  "name": "Bubble Pop Chain",
-  "short_name": "BubblePop",
+  "name": "Bubblit!",
+  "short_name": "Bubblit!",
   "description": "Tap to pop chains of same-colored bubbles. Plan your taps, build combos, clear the board.",
   "start_url": "./index.html",
   "scope": "./",

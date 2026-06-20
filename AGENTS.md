@@ -409,8 +409,10 @@ never re‑discovered the hard way.
   provider via `Monetization.setProvider(p)` (revert with `clearProvider()`/
   `setProvider(null)`). A provider may implement `showRewardedAd(label)`,
   `showInterstitial()`, and/or `purchase(productId)`; any method it omits falls
-  back to the built-in mock (`_providerCan` gates per-method), so a platform can
-  override just the surfaces it supports. Swapping providers can never change
+  back to the built-in mock on web/dev only (`_providerCan` gates per-method), so
+  a platform can override just the surfaces it supports. Native Capacitor builds
+  fail closed without a real provider: no fake purchases, no fake rewarded ads.
+  Swapping providers can never change
   *when* ads show or *whether* the ads-removed flag is recorded — that contract
   stays in the manager.
 - **Coin economy** (`scoring.coinReward`, `economy.js`): level payout is
@@ -1314,6 +1316,11 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
   PRs that touch mobile files. Android builds a debug APK artifact; iOS performs
   an unsigned Xcode build on macOS. Store signing/distribution still happens in
   Android Studio / Play Console and Xcode / App Store Connect.
+- `.github/workflows/store-release.yml`: manual signed store packaging. It builds
+  a signed Android AAB and a signed iOS IPA when the required GitHub Secrets are
+  configured, optionally submitting Android to the Play internal track and iOS to
+  TestFlight. Store-account setup, compliance metadata, and real monetization SDK
+  behavior are tracked in `docs/store-release.md`.
 - Node 20 in current workflows. (GitHub deprecation warning about Node 20
   actions is non-blocking; bump action versions only when asked.)
 

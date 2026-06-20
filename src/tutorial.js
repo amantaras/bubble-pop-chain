@@ -32,7 +32,7 @@ import { NORMAL, ICE, RAINBOW } from "./grid.js";
 export const TUTORIAL_STEPS = [
   {
     id: "welcome",
-    title: "Welcome to Bubble Pop Chain",
+    title: "Welcome to Bubblit!",
     body: "Let's learn the ropes. This tutorial waits for you to try each move before moving on.",
     advance: "button",
     cta: "Let's go",

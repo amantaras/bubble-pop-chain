@@ -4230,7 +4230,7 @@ test.describe("persistence & PWA", () => {
     const resp = await page.request.get("/manifest.json");
     expect(resp.ok()).toBe(true);
     const json = await resp.json();
-    expect(json.name).toBe("Bubble Pop Chain");
+    expect(json.name).toBe("Bubblit!");
   });
 
   test("special bubble icon assets are local and reachable", async ({ page }) => {

@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Bubble Pop Chain</string>
-    <string name="title_activity_main">Bubble Pop Chain</string>
+    <string name="app_name">Bubblit!</string>
+    <string name="title_activity_main">Bubblit!</string>
     <string name="package_name">com.amantaras.bubblepopchain</string>
     <string name="custom_url_scheme">com.amantaras.bubblepopchain</string>
 </resources>

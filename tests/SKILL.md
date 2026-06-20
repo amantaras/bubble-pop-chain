@@ -29,6 +29,8 @@ running game in a real Chromium browser.
 | `.github/workflows/ci.yml` | Test gate — runs on every push/PR |
 | `.github/workflows/deploy.yml` | Builds `dist/web` and deploys it to GitHub Pages only after CI passes |
 | `.github/workflows/mobile.yml` | Native Android/iOS validation workflow, manual and PR-scoped |
+| `.github/workflows/store-release.yml` | Manual signed Android/iOS store package workflow |
+| `docs/store-release.md` | Store signing, compliance, listing, and release checklist |
 
 ## Commands
 
@@ -46,12 +48,15 @@ npm run android:sync        # sync only Android; does not require Xcode
 npm run ios:sync            # sync only iOS; requires full Xcode + CocoaPods
 npm run android:build       # build a local Android debug APK
 npm run android:bundle      # build a release Android App Bundle (signing still required)
+npm run android:bundle:release # build a signed AAB when Android signing env vars are set
 npm run ios:build           # unsigned iOS build via xcodebuild (requires Xcode)
+npm run ios:archive         # release iOS archive (requires Xcode + signing)
 
 npm run test:unit:watch     # TDD watch mode
 npm run test:e2e:ui         # Playwright interactive UI mode
 npx playwright show-report  # open the last HTML E2E report
 npm run serve               # preview the game at http://127.0.0.1:4173
+npm run dev                 # alias for npm run serve
 ```
 
 ## How "real" testing works (no mocking)

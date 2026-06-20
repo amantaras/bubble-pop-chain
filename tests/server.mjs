@@ -47,6 +47,14 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+server.on("error", (err) => {
+  if (err && err.code === "EADDRINUSE") {
+    console.log(`bpc test server already running at http://127.0.0.1:${PORT}`);
+    process.exit(0);
+  }
+  throw err;
+});
+
 server.listen(PORT, () => {
   console.log(`bpc test server running at http://127.0.0.1:${PORT}`);
 });

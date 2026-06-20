@@ -9,12 +9,13 @@
 //
 // A provider is any object that may implement `showRewardedAd(label) -> bool`,
 // `showInterstitial() -> any`, and/or `purchase(productId) -> { ok }`. Any
-// method it omits falls back to the built-in mock, so a provider can override
-// just the surfaces a given platform supports (e.g. a web ad SDK that does ads
-// but defers IAP to native). The manager always owns *policy* — ad cadence,
-// new-player grace, the ads-removed gate, and persisting the remove-ads flag —
-// so swapping providers can never change when ads show or how purchases are
-// recorded. The rest of the game code stays unchanged.
+// method it omits falls back to the built-in mock on web/dev only, so a provider
+// can override just the surfaces a given platform supports. Native Capacitor
+// builds fail closed without a provider: no fake purchases, no fake rewarded ads.
+// The manager always owns *policy* — ad cadence, new-player grace, the
+// ads-removed gate, and persisting the remove-ads flag — so swapping providers
+// can never change when ads show or how purchases are recorded. The rest of the
+// game code stays unchanged.
 import { Storage } from "./storage.js";
 
 class MonetizationManager {
@@ -51,6 +52,18 @@ class MonetizationManager {
     return !!(this.provider && typeof this.provider[method] === "function");
   }
 
+  _isNativePlatform() {
+    const cap = globalThis.Capacitor;
+    if (!cap) return false;
+    if (typeof cap.isNativePlatform === "function") return !!cap.isNativePlatform();
+    if (typeof cap.getPlatform === "function") return cap.getPlatform() !== "web";
+    return false;
+  }
+
+  _canUseMock() {
+    return !this._isNativePlatform();
+  }
+
   isAdsRemoved() {
     return !!Storage.get("adsRemoved");
   }
@@ -73,6 +86,7 @@ class MonetizationManager {
     if (this._providerCan("showRewardedAd")) {
       return !!(await this.provider.showRewardedAd(rewardLabel));
     }
+    if (!this._canUseMock()) return false;
     await this._showAdOverlay(`Loading ${rewardLabel}…`, 2.2);
     return true; // mock: always grant
   }
@@ -91,11 +105,14 @@ class MonetizationManager {
       this.levelWinCount % this.interstitialEvery === 0 &&
       now - this._lastInterstitial > this.minSeconds
     ) {
-      this._lastInterstitial = now;
       if (this._providerCan("showInterstitial")) {
+        this._lastInterstitial = now;
         await this.provider.showInterstitial();
-      } else {
+      } else if (this._canUseMock()) {
+        this._lastInterstitial = now;
         await this._showAdOverlay("Advertisement", 2.5);
+      } else {
+        return false;
       }
       return true;
     }
@@ -110,8 +127,10 @@ class MonetizationManager {
     let result;
     if (this._providerCan("purchase")) {
       result = await this.provider.purchase(productId);
-    } else {
+    } else if (this._canUseMock()) {
       result = this._mockPurchase(productId);
+    } else {
+      result = { ok: false, nativeProviderRequired: true };
     }
     if (result && result.ok && productId === "remove_ads") {
       Storage.set("adsRemoved", true);

@@ -1,6 +1,6 @@
 {
   "appId": "com.amantaras.bubblepopchain",
-  "appName": "Bubble Pop Chain",
+  "appName": "Bubblit!",
   "webDir": "dist/web",
   "bundledWebRuntime": false,
   "server": {

@@ -10,6 +10,7 @@ describe("monetization (real code paths, mock provider)", () => {
     Monetization.levelWinCount = 0;
     Monetization._lastInterstitial = 0;
     Monetization.clearProvider();
+    delete globalThis.Capacitor;
   });
 
   it("rewarded ad resolves true (reward granted)", async () => {
@@ -78,6 +79,7 @@ describe("monetization provider seam (real ad/IAP SDK injection)", () => {
     Monetization.levelWinCount = 0;
     Monetization._lastInterstitial = 0;
     Monetization.clearProvider();
+    delete globalThis.Capacitor;
   });
 
   it("setProvider/clearProvider toggle the active provider", () => {
@@ -184,6 +186,37 @@ describe("monetization provider seam (real ad/IAP SDK injection)", () => {
     expect((await Monetization.purchase("pet_aurora")).ok).toBe(true);
     expect((await Monetization.purchase("crate_legendary")).ok).toBe(true);
     expect((await Monetization.purchase("nope")).ok).toBe(false);
+  });
+
+  it("native builds do not fall back to mock ads or purchases", async () => {
+    globalThis.Capacitor = { isNativePlatform: () => true };
+    await expect(Monetization.showRewardedAd("coins")).resolves.toBe(false);
+
+    const purchase = await Monetization.purchase("starter_pack");
+    expect(purchase.ok).toBe(false);
+    expect(purchase.nativeProviderRequired).toBe(true);
+
+    expect(await Monetization.maybeShowInterstitial(9)).toBe(false);
+    expect(await Monetization.maybeShowInterstitial(9)).toBe(false);
+    expect(await Monetization.maybeShowInterstitial(9)).toBe(false);
+    expect(Monetization._lastInterstitial).toBe(0);
+  });
+
+  it("native builds still use an injected real provider", async () => {
+    globalThis.Capacitor = { getPlatform: () => "ios" };
+    let interstitials = 0;
+    Monetization.setProvider({
+      showRewardedAd: async () => true,
+      showInterstitial: async () => interstitials++,
+      purchase: async () => ({ ok: true, receipt: "native" }),
+    });
+
+    await expect(Monetization.showRewardedAd("coins")).resolves.toBe(true);
+    expect((await Monetization.purchase("starter_pack")).receipt).toBe("native");
+    expect(await Monetization.maybeShowInterstitial(9)).toBe(false);
+    expect(await Monetization.maybeShowInterstitial(9)).toBe(false);
+    expect(await Monetization.maybeShowInterstitial(9)).toBe(true);
+    expect(interstitials).toBe(1);
   });
 });
 

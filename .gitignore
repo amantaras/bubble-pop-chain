@@ -9,6 +9,13 @@ Thumbs.db
 # Logs
 *.log
 
+# Signing secrets (use GitHub Secrets or local untracked files only)
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+AuthKey_*.p8
+
 # Dependencies (none currently, but future-proofing)
 node_modules/
 
