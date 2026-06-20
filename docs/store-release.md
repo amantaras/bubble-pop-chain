@@ -5,6 +5,7 @@ This repo can build the web/PWA, Android, and iOS targets from the same static a
 ## Current Release Surface
 
 - Web production: GitHub Pages via `.github/workflows/deploy.yml` after CI passes.
+- Android direct download: every successful production deploy publishes the latest installable APK at `https://amantaras.github.io/bubble-pop-chain/downloads/bubblit.apk` with a matching SHA-256 file at `https://amantaras.github.io/bubble-pop-chain/downloads/bubblit.apk.sha256`.
 - Android validation: debug APK in `.github/workflows/deploy.yml` and `.github/workflows/mobile.yml`.
 - iOS validation: unsigned build in `.github/workflows/deploy.yml` and `.github/workflows/mobile.yml`.
 - Store release: manual `.github/workflows/store-release.yml` builds signed Android AAB and signed iOS IPA when secrets are configured.

@@ -1309,7 +1309,9 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - `.github/workflows/deploy.yml`: triggered by `workflow_run` on **completion of
   CI for `master`** and only proceeds when `conclusion == 'success'`. It always
   builds and uploads the Android debug APK and an unsigned iOS app bundle first,
-  then runs `npm run build:web` and publishes only `dist/web` to GitHub Pages.
+  then runs `npm run build:web`, adds the APK to `dist/web/downloads/bubblit.apk`,
+  and publishes `dist/web` to GitHub Pages. The Android sideload URL is stable:
+  `https://amantaras.github.io/bubble-pop-chain/downloads/bubblit.apk`.
   **A red test suite or failed mobile build means no production deploy — keep it
   that way.** The deploy workflow self-enables Pages; do not remove that step.
 - `.github/workflows/mobile.yml`: native target validation, run manually or on

@@ -93,6 +93,15 @@ jobs:
       - run: npm ci
       - name: Build static web artifact
         run: npm run build:web
+      - name: Add Android APK download
+        uses: actions/download-artifact@v4
+        with:
+          name: bubble-pop-chain-debug-apk
+          path: dist/web/downloads
+      - name: Publish stable Android APK filename
+        run: |
+          mv dist/web/downloads/app-debug.apk dist/web/downloads/bubblit.apk
+          shasum -a 256 dist/web/downloads/bubblit.apk > dist/web/downloads/bubblit.apk.sha256
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
