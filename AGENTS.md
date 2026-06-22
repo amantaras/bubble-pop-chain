@@ -975,7 +975,11 @@ never re‑discovered the hard way.
   panel with local layered `.crate-art` CSS (standard and legendary variants),
   the **Pet Store** (`_buildPetStore`, `#pet-store` — premium pets + Legendary
   Crate), the catalog grid (`.pet-card`, locked/owned/equipped), and a detail
-  pane (XP bar, equip, premium buy, cosmetics); a HUD badge (`#hud-pet`,
+  pane (XP bar, equip, premium buy, cosmetics). Pet cards and detail panes also
+  explain acquisition clearly: normal pets say they come from their rarity's Pet
+  Crates and can be crafted with Pet Dust, premium pets say they are premium and
+  may rarely appear in crates, and Nova's store-only copy says it never drops
+  from crates. A HUD badge (`#hud-pet`,
   `updatePetHud`) shows the equipped pet during play (hidden in the tutorial).
   Winning a **brand-new** companion (crate open, Legendary Crate, or premium
   store buy) fires a celebration modal (`#pet-reveal`, `ui.js`

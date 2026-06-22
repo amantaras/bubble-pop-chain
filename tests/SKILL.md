@@ -141,7 +141,8 @@ npm run dev                 # alias for npm run serve
   crate rolls including the rare premium drop chance + the boosted Legendary
   Crate roll, premium-pet catalog filter, the pity timer (`pityRarityFloor`/
   `nextPity` thresholds + dry-streak guarantee) + Pet Dust economy
-  (`dustValue`/`dustCost` tables, `rollCrate` floor) + pet personality traits
+  (`dustValue`/`dustCost` tables, `rollCrate` floor) + pet acquisition UI labels
+  that explain normal crate/craft paths versus premium/store-only paths + pet personality traits
   (`TRAITS` table integrity, `rollTrait` seeded/in-range, `getTrait` Balanced
   fallback, trait mods nudging `petActive` cooldown/count/strength and
   `petBuffs` passive mults incl. active-only pets) + party & set synergies
@@ -309,7 +310,8 @@ npm run dev                 # alias for npm run serve
   the pet companions flow (with pet progression unlocked for these mature-system
   tests: Pets screen with Sparky owned/equipped,
   guided pet-detail chips/actions and the `#pet-gem-tip` socket guidance strip,
-  buy + open a crate grants a pet, the Pet Store sells premium pets + a
+  buy + open a crate grants a pet, pet detail/cards explain crate/craft versus
+  premium/store-only acquisition, the Pet Store sells premium pets + a
   Legendary Crate that grants a pet, buying a premium pet unlocks it,
   duplicate crate pulls grant Pet Dust + the crate panel shows the balance and
   local `.crate-art` CSS graphics (no remote asset dependency),

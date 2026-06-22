@@ -108,6 +108,10 @@ export function dustValue(rarity) {
   return DUST_PER_DUP[rarity] != null ? DUST_PER_DUP[rarity] : DUST_PER_DUP.common;
 }
 
+export function dustCost(rarity) {
+  return dustValue(rarity) * 10;
+}
+
 // The minimum rarity the NEXT standard crate must yield, given the pity
 // counters BEFORE that roll. Returns "legendary", "epic", or null (no floor).
 // The legendary guarantee takes precedence over the epic one.

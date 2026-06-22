@@ -87,6 +87,7 @@ import {
   MAX_PET_LEVEL,
   CRATE_COST,
   LEGENDARY_CRATE,
+  dustCost,
   premiumPets,
   getTrait,
   SUPPORT_SLOTS,
@@ -2446,7 +2447,8 @@ class UIManager {
         `<span class="store-icon">${pet.icon}</span>` +
         `<div class="store-meta"><div class="store-name">${pet.name} ` +
         `<span class="pd-rarity tag-premium">premium</span></div>` +
-        `<div class="store-sub">${pet.desc}</div></div>`;
+        `<div class="store-sub">${pet.desc}</div>` +
+        `<div class="store-source">${this._petAcquisitionText(pet)}</div></div>`;
       const btn = document.createElement("button");
       btn.className = "buy-btn store-buy";
       btn.dataset.pet = pet.id;
@@ -2494,11 +2496,13 @@ class UIManager {
       const cos = has ? getCosmetic(owned[pet.id].cosmetic) : null;
       const hue = cos ? cos.hue : 0;
       const tag = pet.premium && !has ? "premium" : pet.rarity;
+      const source = this._petAcquisitionText(pet, { short: true });
       const pendingTech = has && this.cb.petHasPendingTech && this.cb.petHasPendingTech(pet.id);
       card.innerHTML =
         `<span class="pet-icon" style="filter:hue-rotate(${hue}deg)">${has ? pet.icon : (pet.premium ? "💎" : "❓")}</span>` +
         `<span class="pet-name">${has ? pet.name : (pet.premium ? "Premium" : "???")}</span>` +
         `<span class="pet-tag tag-${tag}">${has ? "Lv." + lvl : tag}</span>` +
+        `<span class="pet-source">${source}</span>` +
         (equipped === pet.id ? `<span class="pet-eqbadge">✓</span>` : "") +
         (pendingTech ? `<span class="pet-techbadge" title="Tech upgrade ready">🧬</span>` : "");
       card.addEventListener("click", () => {
@@ -2530,6 +2534,7 @@ class UIManager {
       `<span class="pd-icon" style="filter:hue-rotate(${cos.hue}deg)">${pet.icon}</span>` +
       `<div class="pd-meta"><div class="pd-name">${pet.name} <span class="pd-rarity tag-${pet.rarity}">${pet.rarity}</span></div>` +
       `<div class="pd-desc">${pet.desc}</div>` +
+      `<div class="pd-source">${this._petAcquisitionText(pet)}</div>` +
       `<div class="pd-ability">${this._petAbilityText(pet, has ? lvl : 1)}</div></div>`;
     panel.appendChild(head);
     panel.appendChild(this._buildPetGuide(pet, has, equipped === pet.id));
@@ -2643,9 +2648,23 @@ class UIManager {
     } else {
       const hint = document.createElement("div");
       hint.className = "pd-locked-hint";
-      hint.textContent = `Open Pet Crates to win ${pet.name}. Duplicate pulls turn into ✨ Pet Dust you can spend on gems.`;
+      hint.textContent = `${pet.name} can drop from ${pet.rarity} Pet Crates. Duplicate pulls become ✨ Pet Dust; craft directly for ${dustCost(pet.rarity)} dust if crate luck misses.`;
       panel.appendChild(hint);
     }
+  }
+
+  _petAcquisitionText(pet, opts = {}) {
+    if (!pet) return "";
+    if (pet.storeOnly) return opts.short ? "Store only" : "Store only — never drops from crates.";
+    if (pet.premium) {
+      return opts.short
+        ? "Premium"
+        : "Premium — buy directly, or rarely find in crates unless marked store-only.";
+    }
+    const craft = dustCost(pet.rarity);
+    return opts.short
+      ? `${pet.rarity} crate`
+      : `Normal progression — found in ${pet.rarity} Pet Crates or craftable for ${craft} Pet Dust.`;
   }
 
   _buildPetGuide(pet, has, equipped) {

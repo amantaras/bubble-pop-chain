@@ -2255,6 +2255,12 @@ body {
   font-size: 11px;
   color: var(--text-dim);
 }
+.store-item .store-source {
+  margin-top: 3px;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--accent);
+}
 .store-buy {
   flex: 0 0 auto;
 }
@@ -2308,6 +2314,12 @@ body {
   letter-spacing: 0.04em;
   color: var(--text-dim);
 }
+.pet-card .pet-source {
+  min-height: 12px;
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--accent);
+}
 .pet-card .pet-eqbadge {
   position: absolute;
   top: 6px;
@@ -2328,6 +2340,14 @@ body {
 .tag-epic { color: #b478ff; }
 .tag-legendary { color: #ffc850; }
 .tag-premium { color: #ff6ec7; }
+
+.pd-source {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--accent);
+  font-weight: 800;
+}
 
 /* One-time Starter Pack shop bundle ---------------------------------------- */
 .shop-starter {

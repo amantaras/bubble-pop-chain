@@ -5035,6 +5035,26 @@ test.describe("pet companions (collection & buffs)", () => {
     expect(owned).toContain(res.petId);
   });
 
+  test("Pet detail explains normal crate, craft, premium, and store-only acquisition", async ({ page }) => {
+    await page.locator("#btn-pets").click();
+
+    await page.locator('.pet-card[data-pet="archer"]').click();
+    await expect(page.locator('.pet-card[data-pet="archer"] .pet-source')).toContainText("epic crate");
+    await expect(page.locator("#pet-detail .pd-source")).toContainText("Normal progression");
+    await expect(page.locator("#pet-detail .pd-source")).toContainText("epic Pet Crates");
+    await expect(page.locator("#pet-detail .pd-locked-hint")).toContainText("craft directly");
+
+    await page.locator('.pet-card[data-pet="aurora"]').click();
+    await expect(page.locator("#pet-detail .pd-source")).toContainText("Premium");
+    await expect(page.locator("#pet-detail .pd-source")).toContainText("rarely find in crates");
+
+    await page.locator('.pet-card[data-pet="nova"]').click();
+    await expect(page.locator("#pet-detail .pd-source")).toContainText("Store only");
+    await expect(page.locator("#pet-detail .pd-source")).toContainText("never drops from crates");
+    await expect(page.locator('#pet-store .store-buy[data-pet="nova"]')).toBeVisible();
+    await expect(page.locator("#pet-store")).toContainText("Store only");
+  });
+
   test("buying a premium pet from the store unlocks it", async ({ page }) => {
     await page.locator("#btn-pets").click();
     await expect(page.locator("#pet-store")).toBeVisible();

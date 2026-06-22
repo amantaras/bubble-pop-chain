@@ -30,6 +30,7 @@ import {
   PITY_LEGENDARY,
   DUST_PER_DUP,
   dustValue,
+  dustCost,
   pityRarityFloor,
   nextPity,
   TRAITS,
@@ -207,6 +208,13 @@ describe("pets catalog", () => {
     expect(early.count).toBe(2);
     expect(late.count).toBeGreaterThan(early.count);
     expect(late.cooldown).toBeLessThan(early.cooldown);
+  });
+
+  it("keeps craft dust costs derived from duplicate dust values", () => {
+    for (const rarity of RARITIES) {
+      expect(dustCost(rarity)).toBe(dustValue(rarity) * 10);
+    }
+    expect(dustCost("unknown")).toBe(dustValue("common") * 10);
   });
 });
 
