@@ -228,13 +228,14 @@ npm run dev                 # alias for npm run serve
   progressive tool unlocks (fresh players see no HUD/shop/loadout tools or locked
   Pick rescue prompts, Level 5→6 shows the **New Tool Unlocked!** mini-tutorial before starting the next
   level, and claiming the win bonus after the reward chest also opens that popup), the win reward ceremony tracker (Chest → Pick bonus → Next unlock stage states), progressive pet unlocks (fresh players do not see the Pets tile,
-  Level 11→12 shows the pet feature unlock window, grants/equips Sparky, then
+  Level 11→12 shows the pet feature unlock window, grants/equips Sparky, early
+  pet-economy unlocks grant two starter crates and Pet Dust, then
   starts the next level with the HUD pet badge), the level-map **Current focus**
   card and **Next unlock** teaser, pre-level briefings before a map cell starts play (including replay records), post-win bonus choices
   after opening the reward chest, smart suggested loadouts in the long-press picker,
   retry coaching on campaign losses, shop purchases, shop affordability affordances (`.cannot-afford`/`.need-coins`),
   the in-game pause overlay (`#pause`) freezing the level, resuming, and routing
-  to Menu, HUD status chips, hold-to-buy auto-repeat (a held buy button keeps purchasing at the
+  to Menu, HUD status chips including the current-priority chip, hold-to-buy auto-repeat (a held buy button keeps purchasing at the
   configured rate, shows live buying/limit feedback, respects the visible
   hold-purchase limit preference, and stops when coins run out), "remove ads", theme buy/apply,
   sound toggle, PWA service-worker
@@ -327,7 +328,8 @@ npm run dev                 # alias for npm run serve
   refreshes the live
   session buffs, a startCharge pet pre-fills the power meter, an active pet
   arms its gather action, the diagonal pet blasts a streak, the Archer pet waits
-  for a real player drag then fires a line shot, the pick pet (Talon)
+  for a real player drag, preserves the shot on a too-short release, updates the
+  HUD priority text, then fires a line shot, the pick pet (Talon)
   picks off the most isolated bubbles one by one, premium IAP grants ownership,
   HUD pet badge),
   the pet gems & sockets flow (the Pets screen shows the `#pet-gems` panel with

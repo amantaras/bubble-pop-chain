@@ -33,19 +33,19 @@ export const PET_FEATURE_INFO = {
     icon: "🧰",
     name: "Pet Crates",
     desc: "Crates let you collect more companions, including pets with active board abilities.",
-    lesson: "Open crates in Pets to discover new companions. Duplicate pets become XP and Pet Dust for later upgrades.",
+    lesson: "You get two starter crates now. Open them in Pets to discover companions; duplicates become XP and Pet Dust.",
   },
   abilities: {
     icon: "🐾",
     name: "Pet Abilities",
     desc: "Some pets do more than boost stats: they can help the board every few moves.",
-    lesson: "Active pets charge automatically while you play. Their ability fires when ready, so you can focus on making good pops.",
+    lesson: "Active pets charge automatically while you play. You also get starter Pet Dust to craft or embue your first upgrades.",
   },
   party: {
     icon: "＋",
     name: "Pet Party",
     desc: "Extra pets can support your lead companion with a smaller share of their passive buffs.",
-    lesson: "Add owned pets to support slots from Pets. Matching certain companion groups can activate small party synergies.",
+    lesson: "Add owned pets to support slots from Pets. A Dust bonus helps you build toward a chosen companion or gem setup.",
   },
   gems: {
     icon: "💎",
@@ -69,6 +69,12 @@ export const PET_FEATURE_UNLOCKS = [
   { feature: "gems", level: 22 },
   { feature: "tech", level: 26 },
 ].map((u) => ({ ...u, ...PET_FEATURE_INFO[u.feature] }));
+
+export const PET_FEATURE_GRANTS = {
+  crates: { crates: 2 },
+  abilities: { dust: 60 },
+  party: { dust: 60 },
+};
 
 const PET_UNLOCK_BY_FEATURE = Object.fromEntries(PET_FEATURE_UNLOCKS.map((u) => [u.feature, u]));
 

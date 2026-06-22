@@ -45,6 +45,7 @@ import {
   SYNERGIES,
   PET_FEATURE_UNLOCKS,
   PET_FEATURE_INFO,
+  PET_FEATURE_GRANTS,
   petFeatureUnlockLevel,
   isPetFeatureUnlocked,
   petFeaturesUnlockedBetween,
@@ -215,6 +216,12 @@ describe("pets catalog", () => {
       expect(dustCost(rarity)).toBe(dustValue(rarity) * 10);
     }
     expect(dustCost("unknown")).toBe(dustValue("common") * 10);
+  });
+
+  it("defines starter grants for early pet economy unlocks", () => {
+    expect(PET_FEATURE_GRANTS.crates).toEqual({ crates: 2 });
+    expect(PET_FEATURE_GRANTS.abilities.dust).toBeGreaterThanOrEqual(50);
+    expect(PET_FEATURE_GRANTS.party.dust).toBeGreaterThanOrEqual(50);
   });
 });
 

@@ -862,20 +862,26 @@ export class Renderer {
     const uy = dy / len;
     const power = Math.max(0, Math.min(1, aim.power || 0));
     const sweet = aim.sweet == null ? 0.68 : aim.sweet;
-    const good = Math.abs(power - sweet) <= 0.08;
-    const color = good ? "#b7ff5b" : "#ffffff";
+    const tooShort = !!aim.tooShort;
+    const good = !!aim.good || Math.abs(power - sweet) <= 0.12;
+    const color = tooShort ? "#ffd35b" : good ? "#b7ff5b" : "#ffffff";
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.strokeStyle = good ? "rgba(183,255,91,0.92)" : "rgba(255,255,255,0.72)";
-    ctx.lineWidth = Math.max(3, board.cell * 0.08);
+    ctx.strokeStyle = tooShort ? "rgba(255,211,91,0.82)" : good ? "rgba(183,255,91,0.95)" : "rgba(255,255,255,0.78)";
+    ctx.lineWidth = Math.max(4, board.cell * (good ? 0.1 : 0.08));
     ctx.shadowColor = color;
-    ctx.shadowBlur = good ? 18 : 10;
+    ctx.shadowBlur = good ? 24 : 12;
     ctx.beginPath();
     ctx.moveTo(sx, sy);
     ctx.lineTo(ex, ey);
     ctx.stroke();
+    if (tooShort) {
+      ctx.beginPath();
+      ctx.arc(sx, sy, board.cell * (0.48 + 0.06 * Math.sin(t * 8)), 0, Math.PI * 2);
+      ctx.stroke();
+    }
     // Arrow head.
     const head = board.cell * 0.34;
     ctx.beginPath();
@@ -886,10 +892,14 @@ export class Renderer {
     ctx.stroke();
     // Predicted pierced cells.
     const radius = board.cell * (0.42 + 0.04 * Math.sin(t * 9));
-    ctx.strokeStyle = good ? "rgba(183,255,91,0.95)" : "rgba(255,255,255,0.62)";
+    ctx.strokeStyle = good ? "rgba(183,255,91,0.98)" : "rgba(255,255,255,0.66)";
     ctx.lineWidth = Math.max(2, board.cell * 0.055);
     for (const cell of aim.cells || []) {
       const p = board.targetPixel(cell.c, cell.r);
+      ctx.fillStyle = good ? "rgba(183,255,91,0.18)" : "rgba(255,255,255,0.1)";
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, radius * 0.82, 0, Math.PI * 2);
+      ctx.fill();
       ctx.beginPath();
       ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
       ctx.stroke();
@@ -904,12 +914,16 @@ export class Renderer {
     ctx.fillStyle = "rgba(0,0,0,0.46)";
     ctx.fillRect(gx, gy, gw, gh);
     ctx.fillStyle = "rgba(183,255,91,0.9)";
-    ctx.fillRect(gx + gw * (sweet - 0.08), gy, gw * 0.16, gh);
-    ctx.fillStyle = good ? "#b7ff5b" : "#ffffff";
+    ctx.fillRect(gx + gw * (sweet - 0.12), gy, gw * 0.24, gh);
+    ctx.fillStyle = tooShort ? "#ffd35b" : good ? "#b7ff5b" : "#ffffff";
     ctx.fillRect(gx, gy, gw * power, gh);
     ctx.strokeStyle = "rgba(255,255,255,0.72)";
     ctx.lineWidth = 1;
     ctx.strokeRect(gx, gy, gw, gh);
+    ctx.font = `${Math.max(10, board.cell * 0.18)}px sans-serif`;
+    ctx.fillStyle = tooShort ? "#ffd35b" : good ? "#b7ff5b" : "rgba(255,255,255,0.86)";
+    ctx.textAlign = "center";
+    ctx.fillText(tooShort ? "DRAG" : good ? "BULLSEYE" : "AIM", gx + gw / 2, gy - 5);
     ctx.restore();
   }
 

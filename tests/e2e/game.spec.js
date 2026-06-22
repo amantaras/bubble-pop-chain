@@ -2375,6 +2375,50 @@ test.describe("progressive tool unlocks", () => {
     await expect.poll(() => page.evaluate(() => window.__bpc.game.session?.level?.id)).toBe(12);
     await expect(page.locator("#hud-pet")).toBeVisible();
   });
+
+  test("early pet economy unlocks grant starter crates and dust", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.Storage.set("maxUnlockedLevel", 13));
+    await page.evaluate(() => window.__bpc.game.startCampaign(13));
+    await page.waitForTimeout(600);
+    await clearBoardByFinalPair(page);
+    await expect(page.locator("#win")).toBeVisible();
+    await page.locator("#win-next").click();
+    await expect(page.locator("#tool-unlock-name")).toHaveText("Pet Crates");
+    await expect(page.locator("#tool-unlock-lesson")).toContainText("two starter crates");
+    expect(await page.evaluate(() => window.__bpc.Storage.getPetState().crates)).toBeGreaterThanOrEqual(2);
+    await page.locator("#tool-unlock-ok").click();
+
+    await page.evaluate(() => {
+      window.__bpc.game.quitToMenu();
+      window.__bpc.Storage.set("maxUnlockedLevel", 15);
+      window.__bpc.game.startCampaign(15);
+    });
+    await page.waitForTimeout(600);
+    await clearBoardByFinalPair(page);
+    await expect(page.locator("#win")).toBeVisible();
+    await page.locator("#win-next").click();
+    await expect(page.locator("#tool-unlock-name")).toHaveText("Pick");
+    await page.locator("#tool-unlock-ok").click();
+    await expect(page.locator("#tool-unlock-name")).toHaveText("Pet Abilities");
+    await expect(page.locator("#tool-unlock-lesson")).toContainText("starter Pet Dust");
+    expect(await page.evaluate(() => window.__bpc.Storage.getDust())).toBeGreaterThanOrEqual(60);
+    await page.locator("#tool-unlock-ok").click();
+
+    await page.evaluate(() => {
+      window.__bpc.game.quitToMenu();
+      window.__bpc.Storage.set("maxUnlockedLevel", 17);
+      window.__bpc.game.startCampaign(17);
+    });
+    await page.waitForTimeout(600);
+    await clearBoardByFinalPair(page);
+    await expect(page.locator("#win")).toBeVisible();
+    await page.locator("#win-next").click();
+    await expect(page.locator("#tool-unlock-name")).toHaveText("Paint");
+    await page.locator("#tool-unlock-ok").click();
+    await expect(page.locator("#tool-unlock-name")).toHaveText("Pet Party");
+    await expect(page.locator("#tool-unlock-lesson")).toContainText("Dust bonus");
+    expect(await page.evaluate(() => window.__bpc.Storage.getDust())).toBeGreaterThanOrEqual(120);
+  });
 });
 
 test.describe("hold-to-buy (auto-repeat purchase)", () => {
@@ -5298,14 +5342,28 @@ test.describe("pet companions (collection & buffs)", () => {
       return { start, end, armed: !!g.session.archerAim, before: b.countRemaining() };
     });
     expect(shot.armed).toBe(true);
+    await expect(page.locator("#hud-status")).toContainText("Stretch arrow");
 
     const box = await page.locator("#game-canvas").boundingBox();
+    await page.mouse.move(box.x + shot.start.x, box.y + shot.start.y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + shot.start.x + 6, box.y + shot.start.y + 6, { steps: 2 });
+    await page.mouse.up();
+    await expect(page.locator("#hud-status")).toContainText("Stretch arrow");
+    const shortDrag = await page.evaluate((before) => {
+      const g = window.__bpc.game;
+      return { aiming: !!g.session.archerAim, remaining: g.session.board.countRemaining(), before };
+    }, shot.before);
+    expect(shortDrag.aiming).toBe(true);
+    expect(shortDrag.remaining).toBe(shortDrag.before);
+
     await page.mouse.move(box.x + shot.start.x, box.y + shot.start.y);
     await page.mouse.down();
     await page.mouse.move(box.x + shot.end.x, box.y + shot.end.y, { steps: 8 });
     await page.waitForFunction(
       () => window.__bpc.game.session.archerAim && window.__bpc.game.session.archerAim.cells.length >= 3
     );
+    await expect(page.locator("#hud-status")).toContainText(/\d+ bubble shot/);
     await page.mouse.up();
     await page.waitForTimeout(250);
 

@@ -250,8 +250,10 @@ never re‑discovered the hard way.
   Settings, Retry, and Menu. Shop/Settings opened from pause remember that they
   are over a live level (`_shopOverGame`/`_themesOverGame`) so their Back button
   resumes the board instead of returning to the main menu. `refreshHud()` also
-  feeds a compact `#hud-status` strip with existing session facts (Blast ready /
-  charge close, Fever, hint on, undo count, shift tokens, pet soon). Display
+  feeds a compact `#hud-status` strip with a first-position **current priority**
+  chip when something needs attention (Archer shot, armed tool, vines, boss
+  target, downpour soon, bonus objective, pet next), followed by existing session
+  facts (Blast ready / charge close, Fever, hint on, undo count, shift tokens, pet soon). Display
   polish only — no save field, no tutorial step.
 - **Undo tool** (`economy.js` `POWERUP_INFO.undo`, `main.js` `_pushUndo`/
   `canUndo`/`undoMove`): Undo is now a normal loadout tool, unlocked at Level 6
@@ -859,10 +861,13 @@ never re‑discovered the hard way.
   when its move cooldown fires, `main._startArcherAim` stores
   `session.archerAim`, pauses normal end-of-move checks, and prompts the player
   to drag an arrow from a chosen bubble. Drag start re-anchors the shot to the
-  bubble under the finger; drag length feeds a compact power gauge with a green
-  sweet band, drag angle sets the direction, and release resolves a deterministic
+  bubble under the finger; drag length feeds a compact power gauge with a wider
+  green sweet band and live `Stretch arrow` / `N bubble shot` HUD priority text,
+  drag angle sets the direction, and release resolves a deterministic
   grid ray (`grid.arrowRay`) that pierces a level-scaled number of filled cells
-  (`main.fireArcherArrow`) through the normal pop/score/settle path. Four **elemental** active board pets round out the free roster:
+  (`main.fireArcherArrow`) through the normal pop/score/settle path. Releasing
+  too short no longer wastes the shot; it keeps Archer armed and tells the player
+  to stretch farther. Four **elemental** active board pets round out the free roster:
   **Quake 🌍** (`quake`, rare) is a *match-maker* — a board-wide tremor that
   resettles every bubble so identical colours land together in big connected
   groups (`grid.quakeRegroup` → `_petQuake`; colours are conserved, it creates
@@ -900,8 +905,8 @@ never re‑discovered the hard way.
   (`diagonal`), and **Talon 🦅** swoops down and pecks each isolated bubble in
   sequence (`pick`, destroying each bubble in its `onHit` as the beak lands and
   settling/re-evaluating in `onDone`). **Archer 🏹** draws a live arrow line,
-  predicted hit rings, and green-band power gauge (`renderer.drawArcherAim`) while
-  the player stretches the shot. The other pets' board change happens
+  predicted hit rings, a stronger bullseye fill, and green-band power gauge
+  (`renderer.drawArcherAim`) while the player stretches the shot. The other pets' board change happens
   immediately when triggered (the animation is cosmetic); Talon's pick is the
   exception — it removes each bubble in step with the peck so nothing is pecked
   after it has already vanished.
@@ -1011,6 +1016,10 @@ never re‑discovered the hard way.
   Save state lives in `storage.js` `pets: { owned, equipped, crates }` with
   helpers (`getPetState`/`grantPet`/`addPetXp`/`equipPet`/`addCrates`/
   `consumeCrate`/`grantCosmetic`/`setCosmetic`); it deep-merges into old saves.
+  Early pet progression grants enough starter economy to try the system as it
+  unlocks: Crates at Level 14 gives two starter crates, Active Abilities at Level
+  16 gives 60 Pet Dust, and Party at Level 18 gives another 60 Pet Dust
+  (`PET_FEATURE_GRANTS`).
 - **Gems & sockets** (`gems.js`, pure; `storage.js` `gems` + per-pet
   `owned[id].sockets`; `main.js` `craftGem`/`socketGem`/`unsocketGem`/
   `_grantRolledGem`/`_refreshPetSession`; `ui.js`

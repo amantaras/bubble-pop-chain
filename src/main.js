@@ -109,6 +109,7 @@ import {
   CRATE_COST,
   LEGENDARY_CRATE,
   PET_CATALOG,
+  PET_FEATURE_GRANTS,
   pityRarityFloor,
   nextPity,
   dustValue,
@@ -1818,10 +1819,29 @@ class Game {
     }
   }
 
+  _priorityStatus(s) {
+    if (!s || !s.board) return null;
+    if (s.archerAim) {
+      const cells = (s.archerAim.cells || []).length;
+      if (s.archerAim.tooShort || cells === 0) return { icon: "🏹", text: "Stretch arrow", kind: "priority" };
+      return { icon: "🏹", text: `${cells} bubble shot`, kind: "priority" };
+    }
+    if (s.armed === "paint") return { icon: "🖌", text: "Paint a setup", kind: "priority" };
+    if (s.armed) return { icon: "✦", text: "Pick a target", kind: "priority" };
+    if (typeof s.board.vineCount === "function" && s.board.vineCount() > 0) return { icon: "🌿", text: "Clear vines", kind: "priority" };
+    if (s.level && s.level.boss) return { icon: "👹", text: "Boss target", kind: "priority" };
+    if (s.downpour && (s.movesSinceDrop || 0) >= Math.max(0, s.downpour.interval - 2)) return { icon: "🌧", text: "Rain soon", kind: "priority" };
+    if (s.objective && !s.objectiveMet) return { icon: "🎯", text: s.objective.label || "Bonus goal", kind: "priority" };
+    if (s.petActive && s.petTimer <= 1) return { icon: "✦", text: "Pet next", kind: "priority" };
+    return null;
+  }
+
   _hudStatus() {
     const s = this.session;
     if (!s) return [];
     const items = [];
+    const priority = this._priorityStatus(s);
+    if (priority) items.push(priority);
     if ((s.screenTimeLeft || 0) > 0)
       items.push({ icon: "⏱", text: `${Math.ceil(s.screenTimeLeft)}s`, kind: "time" });
     if ((s.power || 0) >= 1) items.push({ icon: "⚡", text: "Blast ready", kind: "ready" });
@@ -1832,8 +1852,7 @@ class Game {
     const undoStock = Economy.getPowerup("undo");
     if (undoStock > 0) items.push({ icon: "↶", text: `${undoStock} undo`, kind: "undo" });
     if (s.shiftTokens > 0) items.push({ icon: "↔", text: `${s.shiftTokens} shift`, kind: "shift" });
-    if (s.petActive && s.petTimer <= 1) items.push({ icon: "✦", text: "Pet soon", kind: "pet" });
-    if (s.archerAim) items.push({ icon: "🏹", text: "Aim arrow", kind: "pet" });
+    if (s.petActive && s.petTimer <= 1 && !priority) items.push({ icon: "✦", text: "Pet soon", kind: "pet" });
     return items.slice(0, 4);
   }
 
@@ -2892,7 +2911,10 @@ class Game {
     aim.power = path.power;
     aim.sweet = path.sweet;
     aim.strength = path.strength;
+    aim.tooShort = path.tooShort;
+    aim.good = path.good;
     this._noteActivity();
+    this.refreshHud();
   }
 
   handleDragEnd(x0, y0, x1, y1) {
@@ -2918,6 +2940,8 @@ class Game {
       power: 0,
       strength: 0,
       sweet: 0.68,
+      tooShort: true,
+      good: false,
     };
     s.preview = null;
     s.armed = null;
@@ -2930,20 +2954,24 @@ class Game {
   _archerPath(aim) {
     const s = this.session;
     if (!s || !aim || !aim.start || !aim.end) {
-      return { cells: [], power: 0, strength: 0, sweet: 0.68 };
+      return { cells: [], power: 0, strength: 0, sweet: 0.68, tooShort: true, good: false };
     }
     const dx = aim.end.x - aim.start.x;
     const dy = aim.end.y - aim.start.y;
     const dist = Math.hypot(dx, dy);
+    const tooShort = dist < s.board.cell * 0.55;
     const power = Math.max(0, Math.min(1, dist / Math.max(1, s.board.cell * 3.2)));
     const sweet = aim.sweet == null ? 0.68 : aim.sweet;
-    const strength = Math.max(0.35, 1 - Math.abs(power - sweet) / 0.36);
+    const good = Math.abs(power - sweet) <= 0.12;
+    const strength = tooShort ? 0 : Math.max(0.35, 1 - Math.abs(power - sweet) / 0.42);
     const hits = Math.max(1, Math.round((aim.act.count || 2) + strength * 2));
     return {
-      cells: s.board.arrowRay(aim.anchor.c, aim.anchor.r, dx, dy, hits),
+      cells: tooShort ? [] : s.board.arrowRay(aim.anchor.c, aim.anchor.r, dx, dy, hits),
       power,
       strength,
       sweet,
+      tooShort,
+      good,
     };
   }
 
@@ -2953,13 +2981,22 @@ class Game {
     const aim = s.archerAim;
     const path = this._archerPath(aim);
     const cells = path.cells;
-    s.archerAim = null;
-    if (!cells.length) {
-      UI.toast("Archer missed — drag farther through bubbles");
+    if (path.tooShort) {
+      UI.toast("Stretch farther to fire Archer's arrow");
+      aim.tooShort = true;
+      aim.cells = [];
+      aim.power = path.power;
+      aim.strength = 0;
       this.refreshHud();
       return;
     }
-    const raw = cells.length * (path.power >= path.sweet - 0.08 && path.power <= path.sweet + 0.08 ? 24 : 18);
+    s.archerAim = null;
+    if (!cells.length) {
+      UI.toast("Archer missed — aim through bubbles next time");
+      this.refreshHud();
+      return;
+    }
+    const raw = cells.length * (path.good ? 26 : 18);
     const points = Math.round(
       feverPoints(raw, s.feverActive) * s.petBuffs.scoreMult
     );
@@ -2975,8 +3012,8 @@ class Game {
     });
     this._popCells(cells, points, cells.length, 1, 0.9 + path.strength * 0.35);
     Audio.powerup();
-    vibrate(path.strength > 0.85 ? 24 : 12);
-    this.floating.spawn(anchorPx.x, anchorPx.y - 36, path.strength > 0.85 ? "Bullseye!" : "Arrow!", "#c9ff7a", 28);
+    vibrate(path.good ? 30 : 12);
+    this.floating.spawn(anchorPx.x, anchorPx.y - 36, path.good ? "Bullseye!" : "Arrow!", path.good ? "#b7ff5b" : "#c9ff7a", 28);
     if (s.stats) s.stats.petArrows = (s.stats.petArrows || 0) + cells.length;
     this.refreshHud();
     this.afterMove();
@@ -4276,7 +4313,11 @@ class Game {
       if (!Storage.ownsPet("sparky")) Storage.grantPet("sparky", "balanced");
       Storage.equipPet("sparky");
     } else if (unlock.feature === "crates") {
-      if (Storage.getPetState().crates <= 0) Storage.addCrates(1);
+      if (Storage.getPetState().crates <= 0) Storage.addCrates(PET_FEATURE_GRANTS.crates.crates);
+    } else if (unlock.feature === "abilities") {
+      Storage.addDust(PET_FEATURE_GRANTS.abilities.dust);
+    } else if (unlock.feature === "party") {
+      Storage.addDust(PET_FEATURE_GRANTS.party.dust);
     }
     this._queueProgressUnlock(unlock);
     UI.refreshPetAccess();
