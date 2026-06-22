@@ -182,6 +182,7 @@ class UIManager {
       "events-layer",
       "combo-banner", "toast",      "win-stars", "win-score", "win-reward", "win-double", "win-next", "win-menu",
       "win-stats", "win-coins", "win-coins-num",
+      "win-ceremony", "win-step-chest", "win-step-bonus", "win-step-unlock",
       "win-chest", "win-chest-art", "win-chest-burst", "win-chest-hint", "win-reward-reveal", "win-choice", "win-choice-list",
       "lose-score", "lose-revive", "lose-retry", "lose-menu", "lose-tip",
       "isolated", "iso-msg", "iso-pick", "iso-giveup",
@@ -3815,7 +3816,7 @@ class UIManager {
     if (this.el["pet-reveal"]) this.el["pet-reveal"].classList.add("hidden");
   }
 
-  showWin({ stars, score, coins = 0, rewardText, stats, showNext, showDouble, rewardChoices = [] }) {
+  showWin({ stars, score, coins = 0, rewardText, stats, showNext, showDouble, rewardChoices = [], hasPendingUnlock = false }) {
     const starEls = this.el["win-stars"].querySelectorAll(".star");
     starEls.forEach((el, i) => el.classList.toggle("on", i < stars));
 
@@ -3843,6 +3844,7 @@ class UIManager {
     this._winChestOpened = false;
     this._winRewardChoices = rewardChoices || [];
     this._winChoiceClaimed = false;
+    this._winHasPendingUnlock = !!hasPendingUnlock;
     this.el["win-double"].style.display = "none";
     if (this.el["win-coins-num"]) this.el["win-coins-num"].textContent = "0";
     const reveal = this.el["win-reward-reveal"];
@@ -3859,6 +3861,7 @@ class UIManager {
       art.classList.add("shaking");
     }
     if (this.el["win-chest-burst"]) this.el["win-chest-burst"].innerHTML = "";
+    this._renderWinCeremony("chest");
     this._renderWinChoices(false);
 
     this.showHud(false);
@@ -3905,9 +3908,33 @@ class UIManager {
     // Let the lid pop before the coins start tallying.
     setTimeout(() => this._animateCoins(this._winCoinsPending || 0), 180);
     this._renderWinChoices(true);
+    this._renderWinCeremony((this._winRewardChoices || []).length ? "bonus" : this._winHasPendingUnlock ? "unlock" : "done");
     if (!this._winRewardChoices.length && this.cb.winRewardsSettled) {
       setTimeout(() => this.cb.winRewardsSettled(), 420);
     }
+  }
+
+  _renderWinCeremony(activeStep) {
+    const wrap = this.el["win-ceremony"];
+    if (!wrap) return;
+    const steps = ["chest"];
+    if ((this._winRewardChoices || []).length) steps.push("bonus");
+    if (this._winHasPendingUnlock) steps.push("unlock");
+    wrap.classList.toggle("hidden", steps.length <= 1);
+    wrap.dataset.active = activeStep;
+    wrap.dataset.count = String(steps.length);
+    ["chest", "bonus", "unlock"].forEach((id) => {
+      const el = this.el[`win-step-${id}`];
+      if (!el) return;
+      const included = steps.includes(id);
+      const index = steps.indexOf(id);
+      const activeIndex = activeStep === "done" ? steps.length : steps.indexOf(activeStep);
+      el.classList.toggle("hidden", !included);
+      el.classList.toggle("active", included && id === activeStep);
+      el.classList.toggle("done", included && activeIndex > index);
+      const num = el.querySelector("b");
+      if (num && included) num.textContent = String(index + 1);
+    });
   }
 
   _renderWinChoices(visible) {
@@ -3937,6 +3964,7 @@ class UIManager {
     if (!ok) return false;
     this._winChoiceClaimed = true;
     this._renderWinChoices(false);
+    this._renderWinCeremony(this._winHasPendingUnlock ? "unlock" : "done");
     this.toast(`${choice.icon} ${choice.title} claimed`);
     if (this.cb.winRewardsSettled) setTimeout(() => this.cb.winRewardsSettled(), 120);
     return true;

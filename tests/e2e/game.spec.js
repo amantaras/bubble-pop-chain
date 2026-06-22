@@ -1213,6 +1213,10 @@ test.describe("campaign progression", () => {
     await expect(page.locator("#win-chest-art .wc-body")).toBeVisible();
     await expect(page.locator("#win-chest-art .wc-lid")).toBeVisible();
     await expect(page.locator("#win-reward-reveal")).toBeHidden();
+    await expect(page.locator("#win-ceremony")).toBeVisible();
+    await expect(page.locator("#win-step-chest")).toHaveClass(/active/);
+    await expect(page.locator("#win-step-bonus")).toBeVisible();
+    await expect(page.locator("#win-step-unlock")).toBeHidden();
     expect(await page.locator("#win-coins-num").textContent()).toBe("0");
 
     // Tap to open: lid flips, the reward reveals and the coins count up.
@@ -1220,6 +1224,8 @@ test.describe("campaign progression", () => {
     await expect(page.locator("#win-chest-art")).toHaveClass(/open/);
     await expect(page.locator("#win-chest-art")).not.toHaveClass(/shaking/);
     await expect(page.locator("#win-reward-reveal")).toBeVisible();
+    await expect(page.locator("#win-step-chest")).toHaveClass(/done/);
+    await expect(page.locator("#win-step-bonus")).toHaveClass(/active/);
     await expect
       .poll(async () => Number(await page.locator("#win-coins-num").textContent()))
       .toBeGreaterThan(0);
@@ -1236,6 +1242,7 @@ test.describe("campaign progression", () => {
     const beforeCoins = await page.evaluate(() => window.__bpc.Storage.get("coins"));
     await page.locator('#win-choice-list .win-choice-btn[data-choice="coins"]').click();
     await expect(page.locator("#win-choice")).toBeHidden();
+    await expect(page.locator("#win-step-bonus")).toHaveClass(/done/);
     const afterCoins = await page.evaluate(() => window.__bpc.Storage.get("coins"));
     expect(afterCoins).toBeGreaterThan(beforeCoins);
 
@@ -2304,10 +2311,18 @@ test.describe("progressive tool unlocks", () => {
     await clearBoardByFinalPair(page);
     await expect(page.locator("#win")).toBeVisible();
 
+    await expect(page.locator("#win-ceremony")).toBeVisible();
+    await expect(page.locator("#win-step-chest")).toHaveClass(/active/);
+    await expect(page.locator("#win-step-bonus")).toBeVisible();
+    await expect(page.locator("#win-step-unlock")).toBeVisible();
     await page.locator("#win-chest").click();
     await expect(page.locator("#win-choice")).toBeVisible();
+    await expect(page.locator("#win-step-chest")).toHaveClass(/done/);
+    await expect(page.locator("#win-step-bonus")).toHaveClass(/active/);
     await expect(page.locator("#win-choice-list")).not.toContainText("Undo");
     await page.locator('#win-choice-list .win-choice-btn[data-choice="coins"]').click();
+    await expect(page.locator("#win-step-bonus")).toHaveClass(/done/);
+    await expect(page.locator("#win-step-unlock")).toHaveClass(/active/);
 
     await expect(page.locator("#tool-unlock")).toBeVisible();
     await expect(page.locator("#tool-unlock-name")).toHaveText("Undo");

@@ -436,7 +436,9 @@ never re‑discovered the hard way.
   IAP — **no tutorial step**.
 - **Win-screen reward chest** (`ui.js` `showWin`/`openWinChest`, `#win`): coins
   are credited to `Economy` *before* `showWin`, so the chest is purely
-  presentational. On show, the reward block (`#win-reward-reveal`) starts
+  presentational. A compact **reward ceremony tracker** (`#win-ceremony`) appears
+  when a win has more than the chest step, marking Chest → Pick a bonus → Next
+  unlock as each stage completes so stacked rewards feel like one flow. On show, the reward block (`#win-reward-reveal`) starts
   **sealed** (`.is-sealed`, hidden) and a fully local CSS-built treasure chest
   (`#win-chest-art`) **shakes** (`@keyframes wc-shake` on the inner art, never on
   the clickable `#win-chest` button — transforms on clickable elements flake

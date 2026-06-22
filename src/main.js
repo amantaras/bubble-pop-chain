@@ -4070,6 +4070,7 @@ class Game {
           coins: totalCoins,
           rewardText: rewardBits.join("  •  "),
           rewardChoices: this._pendingWinChoices,
+          hasPendingUnlock: !!this._pendingToolUnlock,
           stats: this._winStats(s, s.level.moves - s.movesLeft),
           showNext: s.level.id < LEVEL_COUNT,
           showDouble: !Monetization.isAdsRemoved(),
