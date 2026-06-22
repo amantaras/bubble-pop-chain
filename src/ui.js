@@ -167,6 +167,7 @@ class UIManager {
       "pet-reveal-desc", "pet-reveal-close", "pet-reveal-equip",
       "btn-pets", "pets-back", "hud-pet", "hud-pet-icon", "hud-pet-buff", "pets-badge",
       "btn-continue", "daily-summary",
+      "dev-panel", "dev-status", "dev-reset", "dev-lvl-6", "dev-lvl-12", "dev-lvl-16", "dev-lvl-22", "dev-grant-kit",
       "hud-mode-label", "hud-score", "hud-target", "hud-target-wrap", "hud-target-label",
       "hud-moves", "hud-moves-label", "hud-progress-fill", "hud-status",
       "hud-objective", "hud-objective-text",
@@ -194,10 +195,82 @@ class UIManager {
     ids.forEach((id) => (this.el[id] = $(id)));
     this._wireStaticButtons();
     this._organizeMenuSections();
+    this._initDevPanel();
   }
 
   bind(callbacks) {
     this.cb = callbacks;
+  }
+
+  _devModeEnabled() {
+    return typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search);
+  }
+
+  _initDevPanel() {
+    const panel = this.el["dev-panel"];
+    if (!panel) return;
+    const enabled = this._devModeEnabled();
+    panel.classList.toggle("hidden", !enabled);
+    if (enabled) this._refreshDevPanel();
+  }
+
+  _refreshDevPanel() {
+    const status = this.el["dev-status"];
+    if (!status) return;
+    const pets = Storage.getPetState();
+    status.textContent = `Level ${Storage.get("maxUnlockedLevel")} · ${Economy.coins} coins · ${pets.crates || 0} crates · ${pets.dust || 0} dust`;
+  }
+
+  _devRefreshUi(message) {
+    this.refreshCoins();
+    this.updateContinue();
+    this.refreshPetAccess();
+    this.refreshPetsBadge();
+    this.refreshAchievementsBadge();
+    this.refreshCalendarBadge();
+    this.refreshQuestsBadge();
+    this.refreshSeasonBadge();
+    this.refreshPuzzleBadge();
+    this.updatePowerups();
+    this._refreshDevPanel();
+    if (message) this.toast(message);
+  }
+
+  _devResetSave() {
+    if (!this._devModeEnabled()) return;
+    Storage.reset();
+    this.showScreen("menu");
+    this._devRefreshUi("Save reset");
+  }
+
+  _devSetLevel(level) {
+    if (!this._devModeEnabled()) return;
+    const nextLevel = Math.max(1, Number(level) || 1);
+    Storage.set("maxUnlockedLevel", nextLevel);
+    if (nextLevel >= petFeatureUnlockLevel("pets") && !Storage.ownsPet("sparky")) {
+      Storage.grantPet("sparky", "balanced");
+      Storage.equipPet("sparky");
+    }
+    if (nextLevel >= petFeatureUnlockLevel("crates") && Storage.getPetState().crates <= 0) Storage.addCrates(1);
+    this._devRefreshUi(`Jumped to Level ${nextLevel}`);
+  }
+
+  _devGrantKit() {
+    if (!this._devModeEnabled()) return;
+    Economy.addCoins(5000);
+    Storage.addCrates(3);
+    Storage.addDust(500);
+    Storage.set("powerups", {
+      undo: 5,
+      shuffle: 5,
+      bomb: 5,
+      colorClear: 5,
+      pick: 5,
+      paint: 5,
+      chainBolt: 5,
+      magnet: 3,
+    });
+    this._devRefreshUi("Test kit granted");
   }
 
   _wireStaticButtons() {
@@ -223,6 +296,12 @@ class UIManager {
     click("btn-season", () => this.showScreen("season"));
     click("btn-pets", () => this.openPetOverlay());
     click("btn-tutorial", () => this.cb.startTutorial && this.cb.startTutorial());
+    click("dev-reset", () => this._devResetSave());
+    click("dev-lvl-6", () => this._devSetLevel(6));
+    click("dev-lvl-12", () => this._devSetLevel(12));
+    click("dev-lvl-16", () => this._devSetLevel(16));
+    click("dev-lvl-22", () => this._devSetLevel(22));
+    click("dev-grant-kit", () => this._devGrantKit());
 
     // Back buttons
     click("lm-back", () => this.showScreen("menu"));

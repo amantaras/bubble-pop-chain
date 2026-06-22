@@ -1283,7 +1283,10 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
   SDK) — test the real shipped code path; do not add extra mocking on top.
 - **The `?e2e=1` hook**: `src/main.js` exposes internals on `window.__bpc`
   **only** when the URL has `?e2e=1`. Use it in E2E tests to set up/inspect
-  state — never to replace logic. Production never sets this param.
+  state — never to replace logic. Production never sets this param. The main
+  menu also shows a compact **Test Lab** only under `?e2e=1`; its reset,
+  unlock-jump, and grant buttons call the real `Storage`/`Economy` APIs for local
+  progression testing without DevTools/localStorage hand editing.
 - **Commands**:
   ```bash
   npm install              # first time

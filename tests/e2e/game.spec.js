@@ -66,6 +66,38 @@ async function unlockPetIntro(page) {
   });
 }
 
+test.describe("dev Test Lab", () => {
+  test("is hidden in normal play and active only behind the e2e gate", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator("#dev-panel")).toBeHidden();
+
+    await openGame(page);
+    await expect(page.locator("#dev-panel")).toBeVisible();
+    await expect(page.locator("#dev-status")).toContainText("Level 1");
+  });
+
+  test("can jump progression, grant a kit, and reset the real save", async ({ page }) => {
+    await openGame(page);
+
+    await page.locator("#dev-lvl-16").click();
+    await expect(page.locator("#dev-status")).toContainText("Level 16");
+    expect(await page.evaluate(() => window.__bpc.Storage.get("maxUnlockedLevel"))).toBe(16);
+    expect(await page.evaluate(() => window.__bpc.Storage.ownsPet("sparky"))).toBe(true);
+    expect(await page.evaluate(() => window.__bpc.Storage.getPetState().crates)).toBeGreaterThanOrEqual(1);
+
+    await page.locator("#dev-grant-kit").click();
+    await expect(page.locator("#dev-status")).toContainText("5000 coins");
+    expect(await page.evaluate(() => window.__bpc.Storage.getDust())).toBeGreaterThanOrEqual(500);
+    expect(await page.evaluate(() => window.__bpc.Economy.getPowerup("paint"))).toBe(5);
+
+    await page.locator("#dev-reset").click();
+    await expect(page.locator("#dev-status")).toContainText("Level 1");
+    expect(await page.evaluate(() => window.__bpc.Storage.get("coins"))).toBe(0);
+    expect(await page.evaluate(() => window.__bpc.Storage.get("maxUnlockedLevel"))).toBe(1);
+    expect(await page.evaluate(() => window.__bpc.Storage.ownsPet("sparky"))).toBe(false);
+  });
+});
+
 // Pop the largest available group repeatedly until the session ends.
 async function autoPlay(page) {
   await page.evaluate(async () => {

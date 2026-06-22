@@ -219,7 +219,9 @@ npm run dev                 # alias for npm run serve
   `localStorage` is a real spec-compliant store
   (`tests/setup.js`), reset before each test.
 - **E2E tests** load the real page, click real DOM buttons, and dispatch real
-  pointer taps on the `<canvas>`. They cover: grouped menu/level-map/shop/themes
+  pointer taps on the `<canvas>`. They cover: the `?e2e=1`-only **Test Lab**
+  save/progression helper (hidden in normal play; reset/jump/grant buttons mutate
+  the real save), grouped menu/level-map/shop/themes
   navigation, popping via real taps, scoring, win/lose, revive and double-coins
   rewarded-ad flows, endless refill, daily streak, the full power-up/tool set,
   the Paint tool's smart three-colour picker and repaint flow,
@@ -377,6 +379,9 @@ Production sessions never set this query param, so the hook stays dormant. The
 hook only *exposes* the real objects to let tests set up deterministic
 scenarios (e.g. force a near-loss, force a board clear) and assert internal
 state — it never substitutes game logic.
+The main menu also shows a compact **Test Lab** only under `?e2e=1`; its reset,
+unlock-jump, and grant buttons call the same real `Storage`/`Economy` APIs used
+by the game so local progression testing does not require manual DevTools edits.
 
 > Note: the in-game ad/IAP provider (`src/monetization.js`) is itself an
 > intentional mock *feature stub* awaiting a real ad SDK. Tests exercise that
