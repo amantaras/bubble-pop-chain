@@ -139,7 +139,7 @@ class UIManager {
 
   init() {
     const ids = [
-      "menu", "levelmap", "shop", "themes", "hud", "win", "lose",
+      "splash", "menu", "levelmap", "shop", "themes", "hud", "win", "lose",
       "menu-coins", "lm-coins", "shop-coins", "themes-coins", "hud-coins",
       "level-grid", "shop-list", "theme-list",
       "level-brief", "brief-title", "brief-sub", "brief-stats", "brief-replay", "brief-objective", "brief-hazards", "brief-tools", "brief-cancel", "brief-start",
@@ -639,6 +639,25 @@ class UIManager {
     if (name === "stats") this.buildStats();
     if (name === "puzzle") this.buildPuzzles();
     if (name === "season") this.buildSeason();
+  }
+
+  showSplash() {
+    const splash = this.el.splash;
+    if (!splash) return;
+    splash.classList.remove("hidden", "is-exiting");
+  }
+
+  hideSplash() {
+    const splash = this.el.splash;
+    if (!splash) return;
+    splash.classList.add("hidden");
+    splash.classList.remove("is-exiting");
+  }
+
+  finishSplash() {
+    const splash = this.el.splash;
+    if (!splash) return;
+    splash.classList.add("is-exiting");
   }
 
   // Open the shop focused on a specific power-up, highlighting and scrolling to

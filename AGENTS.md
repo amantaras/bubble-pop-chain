@@ -16,6 +16,13 @@ never re‑discovered the hard way.
   framework without explicit user approval.
 - **Installable PWA**: `manifest.json` + `sw.js` (service worker) + SVG icons.
 - **Persistence**: `localStorage` under the key `bpc_save_v1`.
+- **Animated startup splash** (`#splash`, `UI.showSplash`/`finishSplash`/
+  `hideSplash`, `Game._shouldShowStartupSplash`): app launch shows a brief
+  full-screen Bubblit! title animation with orbiting bubbles and a charge bar,
+  then hands off to the normal menu / first-run tutorial flow. The delay is
+  skipped under plain `?e2e=1` so routine tests stay fast, but can be forced with
+  `?e2e=1&splash=1` for splash coverage. Cosmetic startup polish — **no tutorial
+  step**.
 - **Gestures** (`src/input.js`): tap to pop, **long‑press** = Preview & Plan
   (highlights a group + projected score), **double‑tap** = Charged Blast when
   the Power meter is full, **swipe left/right** = shift a whole row (2048‑style,

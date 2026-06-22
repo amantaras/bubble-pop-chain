@@ -98,6 +98,17 @@ test.describe("dev Test Lab", () => {
   });
 });
 
+test.describe("startup splash", () => {
+  test("shows the animated game name before first-run onboarding", async ({ page }) => {
+    await page.goto("/?e2e=1&splash=1");
+    await expect(page.locator("#splash")).toBeVisible();
+    await expect(page.locator("#splash h1")).toHaveText("Bubblit!");
+    await expect(page.locator("#splash .splash-meter span")).toBeVisible();
+    await expect(page.locator("#splash")).toBeHidden({ timeout: 2500 });
+    await expect(page.locator("#tutorial")).toBeVisible();
+  });
+});
+
 // Pop the largest available group repeatedly until the session ends.
 async function autoPlay(page) {
   await page.evaluate(async () => {
@@ -3628,21 +3639,20 @@ test.describe("accessibility attributes", () => {
     await expect(page.locator("#lose")).toHaveAttribute("role", "dialog");
   });
 
-  test("the informational menu footer never intercepts button clicks", async ({
+  test("the informational menu footer does not overlap the Play CTA", async ({
     page,
   }) => {
-    // The absolutely-positioned top-right .menu-foot (coins + daily/tournament
-    // summaries) can visually overlap the centred menu buttons when the week's
-    // modifier adds an extra summary row. It is purely informational, so it and
-    // every descendant must be transparent to pointer events — otherwise it
-    // intercepts clicks on #btn-continue (the CI "Deep Freeze" week regression).
-    const pe = await page.evaluate(() => {
-      const foot = document.querySelector(".menu-foot");
-      const all = [foot, ...foot.querySelectorAll("*")];
-      return all.map((el) => getComputedStyle(el).pointerEvents);
+    // The footer summaries used to be pinned over the top-right of the menu,
+    // which could collide with the campaign CTA on tall Android phones.
+    const boxes = await page.evaluate(() => {
+      const foot = document.querySelector(".menu-foot").getBoundingClientRect();
+      const play = document.querySelector("#btn-play").getBoundingClientRect();
+      return {
+        foot: { top: foot.top, bottom: foot.bottom, left: foot.left, right: foot.right },
+        play: { top: play.top, bottom: play.bottom, left: play.left, right: play.right },
+      };
     });
-    expect(pe.length).toBeGreaterThan(0);
-    expect(pe.every((v) => v === "none")).toBe(true);
+    expect(boxes.foot.bottom).toBeLessThanOrEqual(boxes.play.top - 4);
   });
 });
 

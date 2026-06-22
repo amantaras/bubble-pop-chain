@@ -348,15 +348,26 @@ class Game {
 
     window.addEventListener("resize", () => this.resize());
     this.resize();
-    UI.showScreen("menu");
+    const finishStartup = () => {
+      UI.showScreen("menu");
+      UI.hideSplash();
 
-    // Recover the real inventory if a previous tutorial was interrupted (e.g.
-    // the page was reloaded mid-tutorial) before it could restore the snapshot.
-    this._restoreTutorialInventory();
+      // Recover the real inventory if a previous tutorial was interrupted (e.g.
+      // the page was reloaded mid-tutorial) before it could restore the snapshot.
+      this._restoreTutorialInventory();
 
-    // First-time players are walked through the interactive tutorial.
-    if (!Storage.get("firstRunDone")) {
-      this.startTutorial();
+      // First-time players are walked through the interactive tutorial.
+      if (!Storage.get("firstRunDone")) {
+        this.startTutorial();
+      }
+    };
+
+    if (this._shouldShowStartupSplash()) {
+      UI.showSplash();
+      window.setTimeout(() => UI.finishSplash(), this._startupSplashDuration());
+      window.setTimeout(finishStartup, this._startupSplashDuration() + 420);
+    } else {
+      finishStartup();
     }
 
     if ("serviceWorker" in navigator) {
@@ -366,6 +377,17 @@ class Game {
     }
 
     requestAnimationFrame((t) => this.loop(t));
+  }
+
+  _shouldShowStartupSplash() {
+    const params = new URLSearchParams(window.location.search);
+    const e2e = params.has("e2e");
+    return !e2e || params.has("splash");
+  }
+
+  _startupSplashDuration() {
+    const params = new URLSearchParams(window.location.search);
+    return params.has("e2e") ? 180 : 1350;
   }
 
   // Apply the reduced-motion accessibility setting. When on: screen shake is
