@@ -301,7 +301,7 @@ export const PET_CATALOG = [
   },
   {
     id: "archer", name: "Archer", icon: "🏹", rarity: "epic", premium: false,
-    desc: "A focused companion that readies a skill-shot arrow. Drag to aim, release in the green power band, and pierce a line through the board.",
+    desc: "A focused companion that readies a skill-shot arrow. Pull back, release in the green power band, and shoot the opposite way through a line of bubbles.",
     active: {
       type: "archer", baseCooldown: 7, minCooldown: 4, baseCount: 2, countPer: 0.35,
       label: "Readies a player-aimed arrow every few moves",

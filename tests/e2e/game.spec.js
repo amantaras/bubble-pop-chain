@@ -5339,27 +5339,30 @@ test.describe("pet companions (collection & buffs)", () => {
           b.spriteGrid[c][r] = null;
         }
       }
-      for (let i = 0; i < 5; i++) {
-        b.grid[i][i] = i % b.colorCount;
-        b.types[i][i] = 0;
+      const row = Math.min(2, b.rows - 1);
+      const anchorC = Math.min(4, b.cols - 1);
+      const pullC = Math.min(anchorC + 1, b.cols - 1);
+      for (let c = 0; c <= anchorC; c++) {
+        b.grid[c][row] = c % b.colorCount;
+        b.types[c][row] = 0;
       }
       b.restore(b.serialize(), b.serializeTypes());
       b.layout(g.W, g.H, 92, 190);
       g.session.petTimer = 1;
       g.afterMove();
-      const start = b.targetPixel(0, 0);
-      const end = b.targetPixel(4, 4);
+      const start = b.targetPixel(anchorC, row);
+      const end = b.targetPixel(pullC, row);
       return { start, end, armed: !!g.session.archerAim, before: b.countRemaining() };
     });
     expect(shot.armed).toBe(true);
-    await expect(page.locator("#hud-status")).toContainText("Stretch arrow");
+    await expect(page.locator("#hud-status")).toContainText("Pull back");
 
     const box = await page.locator("#game-canvas").boundingBox();
     await page.mouse.move(box.x + shot.start.x, box.y + shot.start.y);
     await page.mouse.down();
     await page.mouse.move(box.x + shot.start.x + 6, box.y + shot.start.y + 6, { steps: 2 });
     await page.mouse.up();
-    await expect(page.locator("#hud-status")).toContainText("Stretch arrow");
+    await expect(page.locator("#hud-status")).toContainText("Pull back");
     const shortDrag = await page.evaluate((before) => {
       const g = window.__bpc.game;
       return { aiming: !!g.session.archerAim, remaining: g.session.board.countRemaining(), before };
@@ -5387,6 +5390,7 @@ test.describe("pet companions (collection & buffs)", () => {
         score: g.session.score,
         arrows: g.session.stats.petArrows || 0,
         busy: g.petAnim.busy,
+        kind: g.petAnim.items[0] && g.petAnim.items[0].kind,
       };
     }, shot.before);
     expect(result.aiming).toBe(false);
@@ -5394,6 +5398,7 @@ test.describe("pet companions (collection & buffs)", () => {
     expect(result.score).toBeGreaterThan(0);
     expect(result.arrows).toBeGreaterThanOrEqual(3);
     expect(result.busy).toBe(true);
+    expect(result.kind).toBe("arrow");
   });
 
   test("the cleanse pet (Whiskers) pops isolated bubbles immediately", async ({

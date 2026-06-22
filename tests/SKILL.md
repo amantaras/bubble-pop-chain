@@ -328,8 +328,9 @@ npm run dev                 # alias for npm run serve
   refreshes the live
   session buffs, a startCharge pet pre-fills the power meter, an active pet
   arms its gather action, the diagonal pet blasts a streak, the Archer pet waits
-  for a real player drag, preserves the shot on a too-short release, updates the
-  HUD priority text, then fires a line shot, the pick pet (Talon)
+  for a real player pull, preserves the shot on a too-short release, updates the
+  HUD priority text, then fires a line shot opposite the pull with a dedicated
+  arrow animation, the pick pet (Talon)
   picks off the most isolated bubbles one by one, premium IAP grants ownership,
   HUD pet badge),
   the pet gems & sockets flow (the Pets screen shows the `#pet-gems` panel with
@@ -389,9 +390,10 @@ by the game so local progression testing does not require manual DevTools edits.
 > intentional mock *feature stub* awaiting a real ad SDK. Tests exercise that
 > real shipped code path; they do not add additional mocking on top. The mock
 > is **pluggable** — `Monetization.setProvider(p)` injects a real SDK and the
-> unit tests cover both the mock fallback and the delegation/policy contract
-> (cadence, new-player grace, ads-removed gate, and the manager-owned
-> remove-ads side-effect surviving any provider).
+> unit tests cover both the mock fallback and the delegation/policy contract.
+> Native builds keep opt-in rewarded ads available through the temporary
+> `developmentRewardedFallback` until a real ad SDK is installed; purchases and
+> forced interstitials still fail closed without a provider.
 
 ## CI/CD — test before production (required)
 

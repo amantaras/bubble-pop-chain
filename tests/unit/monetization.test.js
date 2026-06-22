@@ -10,6 +10,7 @@ describe("monetization (real code paths, mock provider)", () => {
     Monetization.levelWinCount = 0;
     Monetization._lastInterstitial = 0;
     Monetization.clearProvider();
+    Monetization.setDevelopmentRewardedFallback(true);
     delete globalThis.Capacitor;
   });
 
@@ -79,6 +80,7 @@ describe("monetization provider seam (real ad/IAP SDK injection)", () => {
     Monetization.levelWinCount = 0;
     Monetization._lastInterstitial = 0;
     Monetization.clearProvider();
+    Monetization.setDevelopmentRewardedFallback(true);
     delete globalThis.Capacitor;
   });
 
@@ -188,9 +190,9 @@ describe("monetization provider seam (real ad/IAP SDK injection)", () => {
     expect((await Monetization.purchase("nope")).ok).toBe(false);
   });
 
-  it("native builds do not fall back to mock ads or purchases", async () => {
+  it("native builds allow rewarded gameplay fallback while ads are in development", async () => {
     globalThis.Capacitor = { isNativePlatform: () => true };
-    await expect(Monetization.showRewardedAd("coins")).resolves.toBe(false);
+    await expect(Monetization.showRewardedAd("coins")).resolves.toBe(true);
 
     const purchase = await Monetization.purchase("starter_pack");
     expect(purchase.ok).toBe(false);
@@ -200,6 +202,12 @@ describe("monetization provider seam (real ad/IAP SDK injection)", () => {
     expect(await Monetization.maybeShowInterstitial(9)).toBe(false);
     expect(await Monetization.maybeShowInterstitial(9)).toBe(false);
     expect(Monetization._lastInterstitial).toBe(0);
+  });
+
+  it("native rewarded fallback can be disabled when a real ad SDK is required", async () => {
+    globalThis.Capacitor = { isNativePlatform: () => true };
+    Monetization.setDevelopmentRewardedFallback(false);
+    await expect(Monetization.showRewardedAd("coins")).resolves.toBe(false);
   });
 
   it("native builds still use an injected real provider", async () => {

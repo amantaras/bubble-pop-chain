@@ -855,11 +855,14 @@ export class Renderer {
     const sy = aim.start.y;
     const ex = aim.end.x;
     const ey = aim.end.y;
-    const dx = ex - sx;
-    const dy = ey - sy;
-    const len = Math.max(1, Math.hypot(dx, dy));
-    const ux = dx / len;
-    const uy = dy / len;
+    const pullDx = ex - sx;
+    const pullDy = ey - sy;
+    const len = Math.max(1, Math.hypot(pullDx, pullDy));
+    const ux = -pullDx / len;
+    const uy = -pullDy / len;
+    const aimLen = Math.min(board.cell * 4.2, Math.max(board.cell * 1.1, len * 1.15));
+    const ax = sx + ux * aimLen;
+    const ay = sy + uy * aimLen;
     const power = Math.max(0, Math.min(1, aim.power || 0));
     const sweet = aim.sweet == null ? 0.68 : aim.sweet;
     const tooShort = !!aim.tooShort;
@@ -869,13 +872,21 @@ export class Renderer {
     ctx.globalCompositeOperation = "lighter";
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
+    ctx.strokeStyle = "rgba(255,255,255,0.26)";
+    ctx.lineWidth = Math.max(3, board.cell * 0.045);
+    ctx.shadowColor = "rgba(255,255,255,0.55)";
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
     ctx.strokeStyle = tooShort ? "rgba(255,211,91,0.82)" : good ? "rgba(183,255,91,0.95)" : "rgba(255,255,255,0.78)";
     ctx.lineWidth = Math.max(4, board.cell * (good ? 0.1 : 0.08));
     ctx.shadowColor = color;
     ctx.shadowBlur = good ? 24 : 12;
     ctx.beginPath();
     ctx.moveTo(sx, sy);
-    ctx.lineTo(ex, ey);
+    ctx.lineTo(ax, ay);
     ctx.stroke();
     if (tooShort) {
       ctx.beginPath();
@@ -885,10 +896,10 @@ export class Renderer {
     // Arrow head.
     const head = board.cell * 0.34;
     ctx.beginPath();
-    ctx.moveTo(ex, ey);
-    ctx.lineTo(ex - ux * head - uy * head * 0.45, ey - uy * head + ux * head * 0.45);
-    ctx.moveTo(ex, ey);
-    ctx.lineTo(ex - ux * head + uy * head * 0.45, ey - uy * head - ux * head * 0.45);
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(ax - ux * head - uy * head * 0.45, ay - uy * head + ux * head * 0.45);
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(ax - ux * head + uy * head * 0.45, ay - uy * head - ux * head * 0.45);
     ctx.stroke();
     // Predicted pierced cells.
     const radius = board.cell * (0.42 + 0.04 * Math.sin(t * 9));
@@ -923,7 +934,7 @@ export class Renderer {
     ctx.font = `${Math.max(10, board.cell * 0.18)}px sans-serif`;
     ctx.fillStyle = tooShort ? "#ffd35b" : good ? "#b7ff5b" : "rgba(255,255,255,0.86)";
     ctx.textAlign = "center";
-    ctx.fillText(tooShort ? "DRAG" : good ? "BULLSEYE" : "AIM", gx + gw / 2, gy - 5);
+    ctx.fillText(tooShort ? "PULL" : good ? "BULLSEYE" : "POWER", gx + gw / 2, gy - 5);
     ctx.restore();
   }
 

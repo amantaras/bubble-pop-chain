@@ -1845,7 +1845,7 @@ class Game {
     if (!s || !s.board) return null;
     if (s.archerAim) {
       const cells = (s.archerAim.cells || []).length;
-      if (s.archerAim.tooShort || cells === 0) return { icon: "🏹", text: "Stretch arrow", kind: "priority" };
+      if (s.archerAim.tooShort || cells === 0) return { icon: "🏹", text: "Pull back", kind: "priority" };
       return { icon: "🏹", text: `${cells} bubble shot`, kind: "priority" };
     }
     if (s.armed === "paint") return { icon: "🖌", text: "Paint a setup", kind: "priority" };
@@ -2969,7 +2969,7 @@ class Game {
     s.armed = null;
     UI.clearArmedPowerups();
     Audio.powerup();
-    UI.toast("🏹 Archer ready — drag an arrow through bubbles");
+    UI.toast("🏹 Archer ready — pull back, release to shoot");
     this.refreshHud();
   }
 
@@ -2978,22 +2978,26 @@ class Game {
     if (!s || !aim || !aim.start || !aim.end) {
       return { cells: [], power: 0, strength: 0, sweet: 0.68, tooShort: true, good: false };
     }
-    const dx = aim.end.x - aim.start.x;
-    const dy = aim.end.y - aim.start.y;
-    const dist = Math.hypot(dx, dy);
+    const pullDx = aim.end.x - aim.start.x;
+    const pullDy = aim.end.y - aim.start.y;
+    const dist = Math.hypot(pullDx, pullDy);
     const tooShort = dist < s.board.cell * 0.55;
     const power = Math.max(0, Math.min(1, dist / Math.max(1, s.board.cell * 3.2)));
     const sweet = aim.sweet == null ? 0.68 : aim.sweet;
     const good = Math.abs(power - sweet) <= 0.12;
     const strength = tooShort ? 0 : Math.max(0.35, 1 - Math.abs(power - sweet) / 0.42);
-    const hits = Math.max(1, Math.round((aim.act.count || 2) + strength * 2));
+    const hits = Math.max(2, Math.round((aim.act.count || 2) + power * 2 + strength * 3));
+    const shotDx = -pullDx;
+    const shotDy = -pullDy;
     return {
-      cells: tooShort ? [] : s.board.arrowRay(aim.anchor.c, aim.anchor.r, dx, dy, hits),
+      cells: tooShort ? [] : s.board.arrowRay(aim.anchor.c, aim.anchor.r, shotDx, shotDy, hits),
       power,
       strength,
       sweet,
       tooShort,
       good,
+      shotDx,
+      shotDy,
     };
   }
 
@@ -3004,7 +3008,7 @@ class Game {
     const path = this._archerPath(aim);
     const cells = path.cells;
     if (path.tooShort) {
-      UI.toast("Stretch farther to fire Archer's arrow");
+      UI.toast("Pull farther back to fire Archer's arrow");
       aim.tooShort = true;
       aim.cells = [];
       aim.power = path.power;
@@ -3026,11 +3030,13 @@ class Game {
     const targets = cells.map((cell) => s.board.targetPixel(cell.c, cell.r));
     const anchorPx = s.board.targetPixel(aim.anchor.c, aim.anchor.r);
     this.petAnim.play({
-      kind: "diagonal",
+      kind: "arrow",
       icon: this._equippedPetIcon("🏹"),
       anchor: anchorPx,
       targets,
       color: "#c9ff7a",
+      shotDx: path.shotDx,
+      shotDy: path.shotDy,
     });
     this._popCells(cells, points, cells.length, 1, 0.9 + path.strength * 0.35);
     Audio.powerup();

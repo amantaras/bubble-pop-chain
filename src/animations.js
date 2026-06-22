@@ -123,7 +123,7 @@ export class PetAnim {
   }
 
   // Trigger a pet ability animation.
-  //   opts.kind       — "gather" | "cleanse" | "pick" | "diagonal"
+  //   opts.kind       — "gather" | "cleanse" | "pick" | "diagonal" | "arrow"
   //   opts.icon       — pet emoji to fly across the screen
   //   opts.anchor     — { x, y } focal point of the ability (pixels)
   //   opts.targets    — [{ x, y }, ...] affected bubble centres (pixels)
@@ -154,6 +154,8 @@ export class PetAnim {
     const kind =
       opts.kind === "cleanse"
         ? "cleanse"
+        : opts.kind === "arrow"
+          ? "arrow"
         : opts.kind === "diagonal"
           ? "diagonal"
           : opts.kind === "pick"
@@ -175,6 +177,8 @@ export class PetAnim {
       board: kind === "gather" ? opts.board || null : null,
       anchorCell: opts.anchorCell || null,
       cells: Array.isArray(opts.cells) ? opts.cells : null,
+      shotDx: Number.isFinite(opts.shotDx) ? opts.shotDx : 0,
+      shotDy: Number.isFinite(opts.shotDy) ? opts.shotDy : 0,
       // Pick fires a per-target callback in sequence as the hawk pecks each one,
       // then a single onDone once the whole flourish has finished.
       onHit: kind === "pick" && typeof opts.onHit === "function" ? opts.onHit : null,
@@ -276,10 +280,15 @@ export class PetAnim {
     const hoverY = (firstTarget ? firstTarget.y : it.cy) - 60;
     // Entry origin depends on ability: Rover dashes in from the left, Whiskers
     // and Talon drop down from above, Comet streaks in from the top-left
-    // diagonal.
+    // diagonal, and Archer flies in from behind the aimed shot.
+    const shotMag = Math.hypot(it.shotDx || 0, it.shotDy || 0) || 1;
+    const shotUx = (it.shotDx || 0) / shotMag;
+    const shotUy = (it.shotDy || 0) / shotMag;
     const origin =
       it.kind === "cleanse" || it.kind === "pick"
         ? { x: hoverX, y: hoverY - 260 }
+        : it.kind === "arrow"
+          ? { x: it.cx - shotUx * 260, y: it.cy - shotUy * 260 }
         : it.kind === "diagonal"
           ? { x: it.cx - 280, y: it.cy - 280 }
           : { x: it.cx - 300, y: it.cy - 30 };
@@ -311,6 +320,15 @@ export class PetAnim {
         py = hoverY - Math.sin(actP * Math.PI) * 8;
         scale = 1.15;
         rot = -0.6 + Math.sin(actP * Math.PI * 2) * 0.25;
+      } else if (it.kind === "arrow") {
+        const pts = it.targets;
+        const first = pts[0] || { x: it.cx, y: it.cy };
+        const last = pts[pts.length - 1] || first;
+        const p = Easing.outCubic(actP);
+        px = first.x + (last.x - first.x) * p;
+        py = first.y + (last.y - first.y) * p;
+        scale = 1.12;
+        rot = Math.atan2(shotUy, shotUx);
       } else if (it.kind === "pick") {
         // Hop: the hawk swoops above each target in turn and dips to peck it,
         // springing back up before darting to the next one.
@@ -335,11 +353,11 @@ export class PetAnim {
       // Talon lifts off from the LAST bubble it pecked (not back at the first),
       // so the exit reads as a smooth climb away rather than a jump.
       const lastTarget =
-        it.kind === "pick" && it.targets.length
+        (it.kind === "pick" || it.kind === "arrow") && it.targets.length
           ? it.targets[it.targets.length - 1]
           : null;
       px = lastTarget ? lastTarget.x : hoverX;
-      py = (lastTarget ? lastTarget.y - 60 : hoverY) - p * 120;
+      py = it.kind === "arrow" && lastTarget ? lastTarget.y - p * 120 : (lastTarget ? lastTarget.y - 60 : hoverY) - p * 120;
       scale = 1.1 - p * 0.6;
       alpha = 1 - p;
       actP = 1;
@@ -348,6 +366,7 @@ export class PetAnim {
     // Effects tied to the affected bubbles (drawn under the sprite).
     ctx.save();
     if (it.kind === "gather") this._drawGatherFx(ctx, it, actP);
+    else if (it.kind === "arrow") this._drawArrowFx(ctx, it, actP);
     else if (it.kind === "diagonal") this._drawDiagonalFx(ctx, it, actP);
     else if (it.kind === "pick") this._drawPickFx(ctx, it, actP);
     else this._drawCleanseFx(ctx, it, actP);
@@ -494,6 +513,41 @@ export class PetAnim {
       ctx.beginPath();
       ctx.arc(t.x, t.y, 5, 0, Math.PI * 2);
       ctx.fill();
+    }
+  }
+
+  // 🏹 Archer: a visible arrow streak pierces each predicted bubble in order.
+  _drawArrowFx(ctx, it, actP) {
+    const pts = it.targets;
+    if (!pts.length) return;
+    const sweep = Easing.outCubic(Math.min(1, actP * 1.25));
+    const fade = 1 - Math.max(0, (actP - 0.72) / 0.28);
+    const a = pts[0];
+    const b = pts[pts.length - 1];
+    const ex = a.x + (b.x - a.x) * sweep;
+    const ey = a.y + (b.y - a.y) * sweep;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = withAlpha(it.color, 0.78 * fade);
+    ctx.lineWidth = 12;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+    ctx.strokeStyle = withAlpha("#ffffff", 0.95 * fade);
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+    for (const t of pts) {
+      const reached = Math.hypot(t.x - a.x, t.y - a.y) <= Math.hypot(ex - a.x, ey - a.y) + 1;
+      if (!reached) continue;
+      const pulse = 0.7 + 0.3 * Math.sin((actP * 20) + t.x * 0.03);
+      ctx.strokeStyle = withAlpha("#ffd35b", 0.85 * fade);
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, 10 + pulse * 10, 0, Math.PI * 2);
+      ctx.stroke();
     }
   }
 }

@@ -418,10 +418,13 @@ never re‑discovered the hard way.
   provider via `Monetization.setProvider(p)` (revert with `clearProvider()`/
   `setProvider(null)`). A provider may implement `showRewardedAd(label)`,
   `showInterstitial()`, and/or `purchase(productId)`; any method it omits falls
-  back to the built-in mock on web/dev only (`_providerCan` gates per-method), so
-  a platform can override just the surfaces it supports. Native Capacitor builds
-  fail closed without a real provider: no fake purchases, no fake rewarded ads.
-  Swapping providers can never change
+  back to the built-in mock on web/dev (`_providerCan` gates per-method), so
+  a platform can override just the surfaces it supports. While the real ad SDK is
+  not installed, native Capacitor builds also allow the explicit
+  `developmentRewardedFallback` for opt-in rewarded ads (revive, double coins,
+  free coins); call `Monetization.setDevelopmentRewardedFallback(false)` when a
+  real native ad provider is required. Native purchases and forced interstitials
+  still fail closed without a real provider. Swapping providers can never change
   *when* ads show or *whether* the ads-removed flag is recorded — that contract
   stays in the manager.
 - **Coin economy** (`scoring.coinReward`, `economy.js`): level payout is
@@ -867,14 +870,15 @@ never re‑discovered the hard way.
   readies a **player-aimed skill shot** instead of resolving automatically:
   when its move cooldown fires, `main._startArcherAim` stores
   `session.archerAim`, pauses normal end-of-move checks, and prompts the player
-  to drag an arrow from a chosen bubble. Drag start re-anchors the shot to the
-  bubble under the finger; drag length feeds a compact power gauge with a wider
-  green sweet band and live `Stretch arrow` / `N bubble shot` HUD priority text,
-  drag angle sets the direction, and release resolves a deterministic
+  to pull back from a chosen bubble and release. Drag start re-anchors the shot
+  to the bubble under the finger; drag length feeds a compact power gauge with a
+  wider green sweet band and live `Pull back` / `N bubble shot` HUD priority
+  text, and the arrow fires in the **opposite direction** of the pull (slingshot
+  style). Release resolves a deterministic
   grid ray (`grid.arrowRay`) that pierces a level-scaled number of filled cells
   (`main.fireArcherArrow`) through the normal pop/score/settle path. Releasing
   too short no longer wastes the shot; it keeps Archer armed and tells the player
-  to stretch farther. Four **elemental** active board pets round out the free roster:
+  to pull farther back. Four **elemental** active board pets round out the free roster:
   **Quake 🌍** (`quake`, rare) is a *match-maker* — a board-wide tremor that
   resettles every bubble so identical colours land together in big connected
   groups (`grid.quakeRegroup` → `_petQuake`; colours are conserved, it creates
@@ -911,9 +915,10 @@ never re‑discovered the hard way.
   streaks in diagonally and fires a bright beam along the popped streak
   (`diagonal`), and **Talon 🦅** swoops down and pecks each isolated bubble in
   sequence (`pick`, destroying each bubble in its `onHit` as the beak lands and
-  settling/re-evaluating in `onDone`). **Archer 🏹** draws a live arrow line,
-  predicted hit rings, a stronger bullseye fill, and green-band power gauge
-  (`renderer.drawArcherAim`) while the player stretches the shot. The other pets' board change happens
+  settling/re-evaluating in `onDone`). **Archer 🏹** draws the pull line plus the
+  opposite firing line, predicted hit rings, a stronger bullseye fill, and
+  green-band power gauge (`renderer.drawArcherAim`), then plays a dedicated
+  `arrow` flight/streak animation through every pierced bubble. The other pets' board change happens
   immediately when triggered (the animation is cosmetic); Talon's pick is the
   exception — it removes each bubble in step with the peck so nothing is pecked
   after it has already vanished.

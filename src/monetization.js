@@ -10,8 +10,10 @@
 // A provider is any object that may implement `showRewardedAd(label) -> bool`,
 // `showInterstitial() -> any`, and/or `purchase(productId) -> { ok }`. Any
 // method it omits falls back to the built-in mock on web/dev only, so a provider
-// can override just the surfaces a given platform supports. Native Capacitor
-// builds fail closed without a provider: no fake purchases, no fake rewarded ads.
+// can override just the surfaces a given platform supports. Until the real ad
+// SDK is installed, native builds also allow an explicit development fallback
+// for opt-in rewarded ads so gameplay gates like revive remain testable.
+// Purchases and forced interstitials still fail closed without a provider.
 // The manager always owns *policy* — ad cadence, new-player grace, the
 // ads-removed gate, and persisting the remove-ads flag — so swapping providers
 // can never change when ads show or how purchases are recorded. The rest of the
@@ -29,6 +31,7 @@ class MonetizationManager {
     this._lastInterstitial = 0;
     // Optional real ad/IAP provider; null = use the built-in mock.
     this.provider = null;
+    this.developmentRewardedFallback = true;
   }
 
   init() {
@@ -47,6 +50,10 @@ class MonetizationManager {
     this.provider = null;
   }
 
+  setDevelopmentRewardedFallback(enabled) {
+    this.developmentRewardedFallback = !!enabled;
+  }
+
   // True when a provider supplies a usable implementation of `method`.
   _providerCan(method) {
     return !!(this.provider && typeof this.provider[method] === "function");
@@ -62,6 +69,10 @@ class MonetizationManager {
 
   _canUseMock() {
     return !this._isNativePlatform();
+  }
+
+  _canUseRewardedFallback() {
+    return this._canUseMock() || this.developmentRewardedFallback;
   }
 
   isAdsRemoved() {
@@ -86,7 +97,7 @@ class MonetizationManager {
     if (this._providerCan("showRewardedAd")) {
       return !!(await this.provider.showRewardedAd(rewardLabel));
     }
-    if (!this._canUseMock()) return false;
+    if (!this._canUseRewardedFallback()) return false;
     await this._showAdOverlay(`Loading ${rewardLabel}…`, 2.2);
     return true; // mock: always grant
   }
