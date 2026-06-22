@@ -329,6 +329,8 @@ test.describe("menu & navigation (UI)", () => {
   
   test("level map previews the next progression unlock", async ({ page }) => {
     await page.locator("#btn-play").click();
+    await expect(page.locator(".current-focus-card")).toContainText("Current focus: Clear Level 1");
+    await expect(page.locator(".current-focus-card")).toContainText("Undo at Level 6");
     await expect(page.locator(".next-unlock-teaser")).toContainText("Next unlock: Undo");
     await expect(page.locator(".next-unlock-teaser")).toContainText("Level 6");
   });
@@ -1860,15 +1862,28 @@ test.describe("power-ups (UI arm + apply)", () => {
       const b = window.__bpc.game.session.board;
       return { count: b.countRemaining(), cols: b.cols, rows: b.rows };
     });
+    const target = { c: Math.floor(before.cols / 2), r: Math.floor(before.rows / 2) };
+    const expectedCleared = before.cols + before.rows - 1;
 
     await page.locator('[data-pu="pick"]').click();
-    await tapCell(page, Math.floor(before.cols / 2), Math.floor(before.rows / 2));
-    await page.waitForTimeout(300);
+    await page.waitForFunction(
+      ({ c, r }) => {
+        const g = window.__bpc.game;
+        return g.session.armed === "pick" && g.session.board.isLightning(c, r);
+      },
+      target
+    );
+    await tapCell(page, target.c, target.r);
+    await page.waitForFunction(
+      ({ beforeCount, expectedCleared }) =>
+        window.__bpc.game.session.board.countRemaining() <= beforeCount - expectedCleared,
+      { beforeCount: before.count, expectedCleared }
+    );
 
     const after = await page.evaluate(() =>
       window.__bpc.game.session.board.countRemaining()
     );
-    expect(before.count - after).toBeGreaterThanOrEqual(before.cols + before.rows - 1);
+    expect(before.count - after).toBeGreaterThanOrEqual(expectedCleared);
   });
 
   test("pick on a bomb bubble triggers the 3x3 blast", async ({ page }) => {

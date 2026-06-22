@@ -364,6 +364,40 @@ body {
   color: var(--text-dim);
   font-size: 11px;
 }
+.current-focus-card {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(138, 255, 193, 0.3);
+  background: linear-gradient(135deg, rgba(138, 255, 193, 0.14), rgba(91, 208, 255, 0.1));
+}
+.cfc-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: #06281c;
+  background: linear-gradient(135deg, #8affc1, #5bd0ff);
+  font-size: 15px;
+  font-weight: 900;
+}
+.cfc-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+.cfc-copy b {
+  font-size: 13px;
+}
+.cfc-copy span {
+  color: var(--text-dim);
+  font-size: 11px;
+}
 .level-brief-card {
   max-width: 390px;
 }

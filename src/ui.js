@@ -959,7 +959,9 @@ class UIManager {
     const grid = this.el["level-grid"];
     grid.innerHTML = "";
     const maxUnlocked = Storage.get("maxUnlockedLevel");
+    const focus = this._buildCurrentFocusCard(maxUnlocked);
     const teaser = this._buildNextUnlockTeaser(maxUnlocked);
+    if (focus) grid.appendChild(focus);
     if (teaser) grid.appendChild(teaser);
     // The campaign is endless, so render a window: every cleared/authored level
     // plus one preview chapter beyond the player's current progress. This keeps
@@ -1135,6 +1137,26 @@ class UIManager {
     card.innerHTML =
       `<span class="nut-icon">${next.icon}</span>` +
       `<span class="nut-copy"><b>Next unlock: ${next.name}</b><span>${next.kind} opens at Level ${next.level}</span></span>`;
+    return card;
+  }
+
+  _buildCurrentFocusCard(maxUnlocked) {
+    const levelId = Math.max(1, Number(maxUnlocked) || 1);
+    const level = getLevel(levelId);
+    if (!level) return null;
+    const next = this._nextProgressUnlock(levelId);
+    const body = level.milestone === "boss"
+      ? "Break the boss objective to keep the campaign moving."
+      : level.milestone === "treasure"
+        ? "Clear the vault for a one-time payout, then push to the next level."
+        : next
+          ? `Clear this level to move toward ${next.name} at Level ${next.level}.`
+          : "Clear this level, improve stars, and keep climbing.";
+    const card = document.createElement("div");
+    card.className = "current-focus-card";
+    card.innerHTML =
+      `<span class="cfc-icon">▶</span>` +
+      `<span class="cfc-copy"><b>Current focus: Clear Level ${levelId}</b><span>${body}</span></span>`;
     return card;
   }
 

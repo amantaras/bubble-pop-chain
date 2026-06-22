@@ -229,8 +229,8 @@ npm run dev                 # alias for npm run serve
   Pick rescue prompts, Level 5→6 shows the **New Tool Unlocked!** mini-tutorial before starting the next
   level, and claiming the win bonus after the reward chest also opens that popup), progressive pet unlocks (fresh players do not see the Pets tile,
   Level 11→12 shows the pet feature unlock window, grants/equips Sparky, then
-  starts the next level with the HUD pet badge), the level-map **Next unlock**
-  teaser, pre-level briefings before a map cell starts play (including replay records), post-win bonus choices
+  starts the next level with the HUD pet badge), the level-map **Current focus**
+  card and **Next unlock** teaser, pre-level briefings before a map cell starts play (including replay records), post-win bonus choices
   after opening the reward chest, smart suggested loadouts in the long-press picker,
   retry coaching on campaign losses, shop purchases, shop affordability affordances (`.cannot-afford`/`.need-coins`),
   the in-game pause overlay (`#pause`) freezing the level, resuming, and routing

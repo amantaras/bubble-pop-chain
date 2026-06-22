@@ -149,7 +149,7 @@ never re‑discovered the hard way.
   loadout picker only list unlocked tools; before Level 6 they show a small
   "Tools unlock after Level 5" empty state, and the Starter Pack describes its
   locked contents as a future tool stash instead of spoiling the full toolbox.
-  The level map also shows one compact **Next unlock** teaser (`.next-unlock-teaser`) for the nearest upcoming tool or pet feature, using the same unlock schedules so players can anticipate what is coming without seeing the whole toolbox at once.
+  The level map also shows a compact **Current focus** card (`.current-focus-card`) for the next playable level plus one **Next unlock** teaser (`.next-unlock-teaser`) for the nearest upcoming tool or pet feature, using the same unlock schedules so players can tell what to do now and what is coming without seeing the whole toolbox at once.
   When a campaign clear crosses an unlock threshold, the game grants a starter
   charge if the player does not already own that newly unlocked tool, auto-slots
   it into the first empty HUD slot, and queues the dedicated **New Tool
