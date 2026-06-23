@@ -40,6 +40,17 @@ describe("monetization (real code paths, mock provider)", () => {
     expect(res.ok).toBe(true);
   });
 
+  it("coin packs are real purchase products, not direct grants", async () => {
+    expect((await Monetization.purchase("coins_med")).ok).toBe(true);
+    expect((await Monetization.purchase("coins_large")).ok).toBe(true);
+  });
+
+  it("reports ad and purchase availability for the current platform", () => {
+    expect(Monetization.canShowRewardedAd()).toBe(true);
+    expect(Monetization.canPurchase()).toBe(true);
+    expect(Monetization.canShowInterstitial()).toBe(true);
+  });
+
   it("interstitial shows on the configured cadence and respects min interval", async () => {
     expect(await Monetization.maybeShowInterstitial()).toBe(false); // 1
     expect(await Monetization.maybeShowInterstitial()).toBe(false); // 2
@@ -192,6 +203,10 @@ describe("monetization provider seam (real ad/IAP SDK injection)", () => {
 
   it("native builds allow rewarded gameplay fallback while ads are in development", async () => {
     globalThis.Capacitor = { isNativePlatform: () => true };
+    expect(Monetization.canShowRewardedAd()).toBe(true);
+    expect(Monetization.canPurchase()).toBe(false);
+    expect(Monetization.canShowInterstitial()).toBe(false);
+
     await expect(Monetization.showRewardedAd("coins")).resolves.toBe(true);
 
     const purchase = await Monetization.purchase("starter_pack");
@@ -207,6 +222,7 @@ describe("monetization provider seam (real ad/IAP SDK injection)", () => {
   it("native rewarded fallback can be disabled when a real ad SDK is required", async () => {
     globalThis.Capacitor = { isNativePlatform: () => true };
     Monetization.setDevelopmentRewardedFallback(false);
+    expect(Monetization.canShowRewardedAd()).toBe(false);
     await expect(Monetization.showRewardedAd("coins")).resolves.toBe(false);
   });
 
@@ -218,6 +234,9 @@ describe("monetization provider seam (real ad/IAP SDK injection)", () => {
       showInterstitial: async () => interstitials++,
       purchase: async () => ({ ok: true, receipt: "native" }),
     });
+    expect(Monetization.canShowRewardedAd()).toBe(true);
+    expect(Monetization.canPurchase()).toBe(true);
+    expect(Monetization.canShowInterstitial()).toBe(true);
 
     await expect(Monetization.showRewardedAd("coins")).resolves.toBe(true);
     expect((await Monetization.purchase("starter_pack")).receipt).toBe("native");

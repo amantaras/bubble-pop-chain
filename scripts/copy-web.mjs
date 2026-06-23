@@ -6,6 +6,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const out = path.join(root, "dist", "web");
 const entries = [
   "index.html",
+  "privacy.html",
+  "support.html",
   "styles.css",
   "manifest.json",
   "sw.js",

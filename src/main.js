@@ -1064,7 +1064,7 @@ class Game {
     return { ok: true, petId, rarity: pet.rarity, cost, trait };
   }
 
-  // Buy + open the premium Legendary Crate via the (mock) IAP provider. Boosted
+  // Buy + open the premium Legendary Crate via the IAP provider. Boosted
   // odds (see rollLegendaryCrate): always a legendary, often a premium pet.
   // Returns { petId, isNew, premium } on success, or null if the purchase fails.
   async buyLegendaryCrate() {
@@ -1296,7 +1296,7 @@ class Game {
     return true;
   }
 
-  // Buy the one-time Starter Pack bundle via the (mock) IAP provider. Grants
+  // Buy the one-time Starter Pack bundle via the IAP provider. Grants
   // coins + a spread of power-ups + a pet crate, then flags the save so it can
   // never be bought again. Returns { ok, owned?, pack? }.
   async buyStarterPack() {
@@ -2589,7 +2589,7 @@ class Game {
     return { index, track, coins, powerup, crate };
   }
 
-  // Buy the premium Season Pass (mock IAP). Unlocks the premium track so all
+  // Buy the premium Season Pass through the IAP provider. Unlocks the premium track so all
   // already-earned premium tiers become claimable. Returns true on success.
   async buySeasonPremium() {
     const res = await Monetization.purchase(SEASON_PREMIUM_PRODUCT);
@@ -4185,14 +4185,14 @@ class Game {
           hasPendingUnlock: !!this._pendingToolUnlock,
           stats: this._winStats(s, s.level.moves - s.movesLeft),
           showNext: s.level.id < LEVEL_COUNT,
-          showDouble: !Monetization.isAdsRemoved(),
+          showDouble: Monetization.canShowRewardedAd() && !Monetization.isAdsRemoved(),
         });
         await Monetization.maybeShowInterstitial(s.level.id);
       } else {
         Audio.lose();
         UI.showLose({
           score: s.score,
-          showRevive: !s.revived,
+          showRevive: !s.revived && Monetization.canShowRewardedAd(),
           title:
             reason === "buried"
               ? "Buried!"
@@ -4215,7 +4215,7 @@ class Game {
       Audio.lose();
       UI.showLose({
         score: s.score,
-        showRevive: !s.revived,
+        showRevive: !s.revived && Monetization.canShowRewardedAd(),
         title: s.score > prevBest ? "New Best!" : "Game Over",
       });
     } else if (s.mode === "daily") {
@@ -4246,7 +4246,7 @@ class Game {
         stats: this._winStats(s, moves),
         rewardText: bits.join("  •  "),
         showNext: false,
-        showDouble: !Monetization.isAdsRemoved(),
+        showDouble: Monetization.canShowRewardedAd() && !Monetization.isAdsRemoved(),
       });
     } else if (s.mode === "tournament") {
       const goals = s.goals || getTournamentGoals(s.level);
@@ -4271,7 +4271,7 @@ class Game {
         stats: this._winStats(s, moves),
         rewardText: bits.join("  •  "),
         showNext: false,
-        showDouble: !Monetization.isAdsRemoved(),
+        showDouble: Monetization.canShowRewardedAd() && !Monetization.isAdsRemoved(),
       });
     } else if (s.mode === "timeattack") {
       const prevBest = Storage.get("highScoreTimeAttack");
@@ -4299,7 +4299,7 @@ class Game {
         stats: this._winStats(s, moves),
         rewardText: bits.join("  •  "),
         showNext: false,
-        showDouble: !Monetization.isAdsRemoved(),
+        showDouble: Monetization.canShowRewardedAd() && !Monetization.isAdsRemoved(),
       });
     } else if (s.mode === "puzzle") {
       const idx = s.level.puzzleIndex;
@@ -4333,7 +4333,7 @@ class Game {
           rewardText: bits.join("  •  "),
           // Advance straight into the next puzzle if it now exists.
           showNext: idx + 1 < PUZZLE_COUNT,
-          showDouble: !Monetization.isAdsRemoved(),
+          showDouble: Monetization.canShowRewardedAd() && !Monetization.isAdsRemoved(),
         });
       } else {
         Audio.lose();

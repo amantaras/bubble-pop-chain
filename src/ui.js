@@ -1278,7 +1278,7 @@ class UIManager {
   }
 
   // Render the one-time Starter Pack bundle. Always shown (so it reads as
-  // "Owned ✓" after purchase); the buy goes through the mock IAP.
+  // "Owned ✓" after purchase); the buy goes through the IAP provider.
   _buildStarterPackItem(list) {
     const owned = !!Storage.get("starterPack");
     const item = document.createElement("div");
@@ -1448,6 +1448,7 @@ class UIManager {
     // Free coins via an opt-in rewarded ad — daily-capped with an escalating
     // payout, so watching a few ads a day is worthwhile but never unlimited.
     const ad = Economy.adCoinState();
+    const rewardedAvailable = Monetization.canShowRewardedAd();
     const freeItem = document.createElement("div");
     freeItem.className = "shop-item";
     freeItem.innerHTML = `
@@ -1455,7 +1456,9 @@ class UIManager {
       <div class="si-body">
         <div class="si-title">Free Coins</div>
         <div class="si-desc">${
-          ad.remaining > 0
+          !rewardedAvailable
+            ? "Rewarded ads are unavailable in this build."
+            : ad.remaining > 0
             ? `Watch an ad for +${ad.nextAmount} coins · ${ad.remaining} left today`
             : "Daily free coins done — come back tomorrow!"
         }</div>
@@ -1463,8 +1466,9 @@ class UIManager {
     const freeBtn = document.createElement("button");
     freeBtn.id = "shop-free-coins";
     freeBtn.className = "buy-btn" + (ad.remaining <= 0 ? " owned" : "");
-    freeBtn.textContent = ad.remaining > 0 ? `▶ +${ad.nextAmount}` : "Done ✓";
-    if (ad.remaining > 0) {
+    freeBtn.textContent = !rewardedAvailable ? "Unavailable" : ad.remaining > 0 ? `▶ +${ad.nextAmount}` : "Done ✓";
+    freeBtn.disabled = !rewardedAvailable;
+    if (rewardedAvailable && ad.remaining > 0) {
       freeBtn.addEventListener("click", async () => {
         await Monetization.showRewardedAd("coins");
         const got = Economy.claimAdCoins();
@@ -1479,7 +1483,8 @@ class UIManager {
     freeItem.appendChild(freeBtn);
     list.appendChild(freeItem);
 
-    // Coin packs (mock IAP)
+    // Coin packs (IAP provider required on native store builds)
+    const purchaseAvailable = Monetization.canPurchase();
     COIN_PACKS.forEach((pack) => {
       const item = document.createElement("div");
       item.className = "shop-item";
@@ -1491,14 +1496,22 @@ class UIManager {
         </div>`;
       const buy = document.createElement("button");
       buy.className = "buy-btn";
-      buy.textContent = pack.label;
-      buy.addEventListener("click", async () => {
-        Economy.addCoins(pack.amount);
-        Audio.coin();
-        this.toast(`+${pack.amount} coins!`);
-        this.refreshCoins();
-        this.buildShop();
-      });
+      buy.textContent = purchaseAvailable ? pack.label : "Unavailable";
+      buy.disabled = !purchaseAvailable;
+      if (purchaseAvailable) {
+        buy.addEventListener("click", async () => {
+          const res = await Monetization.purchase(pack.id);
+          if (!res.ok) {
+            this.toast("Purchase unavailable");
+            return;
+          }
+          Economy.addCoins(pack.amount);
+          Audio.coin();
+          this.toast(`+${pack.amount} coins!`);
+          this.refreshCoins();
+          this.buildShop();
+        });
+      }
       item.appendChild(buy);
       list.appendChild(item);
     });
@@ -1515,13 +1528,16 @@ class UIManager {
       </div>`;
     const adsBtn = document.createElement("button");
     adsBtn.className = "buy-btn" + (removed ? " owned" : "");
-    adsBtn.textContent = removed ? "Owned ✓" : "$2.99";
-    if (!removed) {
+    adsBtn.textContent = removed ? "Owned ✓" : purchaseAvailable ? "$2.99" : "Unavailable";
+    adsBtn.disabled = !removed && !purchaseAvailable;
+    if (!removed && purchaseAvailable) {
       adsBtn.addEventListener("click", async () => {
         const res = await Monetization.purchase("remove_ads");
         if (res.ok) {
           this.toast("Ads removed. Thank you!");
           this.buildShop();
+        } else {
+          this.toast("Purchase unavailable");
         }
       });
     }

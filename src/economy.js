@@ -69,7 +69,7 @@ export function powerupsUnlockedBetween(fromLevel, toLevel) {
   return POWERUP_UNLOCKS.filter((u) => u.level > from && u.level <= to);
 }
 
-// Coin packs purchasable with real money (mock IAP). The free "watch an ad
+// Coin packs purchasable with real money through the monetization provider. The free "watch an ad
 // for coins" reward is handled separately by the daily-capped ad reward below
 // so it can never be farmed for unlimited coins.
 export const COIN_PACKS = [
@@ -77,7 +77,7 @@ export const COIN_PACKS = [
   { id: "coins_large", name: "Chest of Coins", amount: 5000, label: "$4.99", ad: false },
 ];
 
-// One-time "Starter Pack" bundle (mock IAP). A heavily-discounted kickstart of
+// One-time "Starter Pack" bundle through the monetization provider. A heavily-discounted kickstart of
 // coins + a spread of power-ups + a pet crate, buyable exactly once. It is
 // purely additive value (never required to progress) and is gated by the
 // `starterPack` save flag so it can be bought a single time.

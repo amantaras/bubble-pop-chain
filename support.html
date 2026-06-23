@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0b1020" />
+  <title>Bubblit! Support</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0b1020; --panel:#121a33; --text:#eef5ff; --muted:#a8b5d6; --line:#29365f; --accent:#5be3ff; }
+    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:var(--bg); color:var(--text); line-height:1.6; }
+    main { max-width: 840px; margin: 0 auto; padding: 40px 20px 64px; }
+    h1 { font-size: clamp(2rem, 5vw, 3.4rem); margin: 0 0 8px; }
+    h2 { margin-top: 32px; color: var(--accent); }
+    a { color: var(--accent); }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 20px; }
+    .muted { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <main>
+    <p><a href="./index.html">Back to Bubblit!</a></p>
+    <h1>Bubblit! Support</h1>
+    <p class="muted">Help for the web, PWA, Android, and iOS versions.</p>
+
+    <div class="card">
+      <p>If something goes wrong, include your platform, browser or device model, approximate level/mode, and what happened right before the issue.</p>
+    </div>
+
+    <h2>Common Fixes</h2>
+    <p>If the installed PWA shows old behavior, close it fully and reopen it, or refresh once. The service worker uses a network-first strategy, so reopening or refreshing should pull the newest build when you are online.</p>
+    <p>If audio is silent, tap once inside the game. Browsers and mobile platforms require a user gesture before game audio can start.</p>
+    <p>If progress appears missing, check whether you are using a different browser, profile, or device. Bubblit! saves progress locally and does not currently sync across devices.</p>
+
+    <h2>Purchases And Ads</h2>
+    <p>Store builds should only show paid or rewarded surfaces when the matching platform provider is available. If a purchase or rewarded ad is unavailable, try again later after updating the app. Never reinstall before contacting support if you need to preserve local progress.</p>
+
+    <h2>Privacy</h2>
+    <p>Read the privacy policy here: <a href="./privacy.html">Bubblit! Privacy Policy</a>.</p>
+  </main>
+</body>
+</html>

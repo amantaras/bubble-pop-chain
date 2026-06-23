@@ -395,7 +395,10 @@ by the game so local progression testing does not require manual DevTools edits.
 > unit tests cover both the mock fallback and the delegation/policy contract.
 > Native builds keep opt-in rewarded ads available through the temporary
 > `developmentRewardedFallback` until a real ad SDK is installed; purchases and
-> forced interstitials still fail closed without a provider.
+> forced interstitials still fail closed without a provider. Store-safe UI gates
+> rewarded/revive/double-coin surfaces with `canShowRewardedAd()` and paid shop
+> surfaces with `canPurchase()`; coin packs must call `Monetization.purchase` before
+> granting coins.
 
 ## CI/CD — test before production (required)
 

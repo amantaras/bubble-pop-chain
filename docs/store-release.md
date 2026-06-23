@@ -12,7 +12,7 @@ This repo can build the web/PWA, Android, and iOS targets from the same static a
 
 ## Local Prerequisites
 
-- Node 20 and npm.
+- Node 24 and npm.
 - Android: JDK 21, Android SDK platform 35, Android build tools 35.0.0.
 - iOS: full Xcode selected with `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`, CocoaPods, and an Apple Developer team.
 
@@ -98,6 +98,11 @@ Prepare final assets before first submission:
 - Short description, long description, keywords/subtitle, support URL, privacy-policy URL.
 - Age rating answers and ads/IAP disclosures.
 
+Public URLs shipped with the web artifact:
+
+- Privacy policy: `https://amantaras.github.io/bubble-pop-chain/privacy.html`
+- Support URL: `https://amantaras.github.io/bubble-pop-chain/support.html`
+
 ## Compliance And Review
 
 Before submitting:
@@ -110,7 +115,7 @@ Before submitting:
 
 ## Monetization Provider Work
 
-`src/monetization.js` is intentionally pluggable. Web/dev still uses the mock fallback for testing, but native Capacitor builds fail closed without a real provider: rewarded ads return no reward, purchases fail, and forced interstitials do not show fake ads. Before store review, either:
+`src/monetization.js` is intentionally pluggable. Web/dev still uses the mock fallback for testing, but native Capacitor builds fail closed without a real provider: purchases fail, forced interstitials do not show fake ads, and paid shop buttons are disabled unless a purchase provider is available. Rewarded ads can use the explicit development fallback while native ad SDK work is in progress; call `Monetization.setDevelopmentRewardedFallback(false)` before submitting a store build that must require real rewarded ads. Before store review, either:
 
 - inject real providers for rewarded ads, interstitials, and purchases on Android/iOS, or
 - hide/disable the paid/rewarded surfaces until those SDKs are ready.

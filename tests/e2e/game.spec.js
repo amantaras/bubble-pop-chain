@@ -4114,6 +4114,20 @@ test.describe("shop & monetization (UI)", () => {
     await expect(page.locator("#shop-coins")).toHaveText("800");
   });
 
+  test("native store builds disable rewarded and paid shop surfaces without providers", async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      window.Capacitor = { isNativePlatform: () => true };
+      window.__bpc.Monetization.clearProvider();
+      window.__bpc.Monetization.setDevelopmentRewardedFallback(false);
+    });
+    await page.locator("#btn-shop").click();
+    await expect(page.locator("#shop-free-coins")).toHaveText("Unavailable");
+    await expect(page.locator("#shop-free-coins")).toBeDisabled();
+    await expect(page.locator("#shop-list button", { hasText: "Unavailable" })).toHaveCount(4);
+  });
+
   test("buying a power-up deducts coins; insufficient funds is blocked", async ({
     page,
   }) => {

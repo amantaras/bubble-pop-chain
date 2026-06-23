@@ -411,7 +411,8 @@ never re‑discovered the hard way.
   when `session.downpour` is set and `topFilledRow() <= dangerRows`. No tutorial
   step (it's an advanced meta-threat, like gems).
 - **Ads gating** (`monetization.js`): forced interstitials only from
-  `adsStartLevel` (7) onward; rewarded ads always available. The manager owns
+  `adsStartLevel` (7) onward; rewarded surfaces are shown only when
+  `Monetization.canShowRewardedAd()` is true. The manager owns
   all **policy** (cadence, new-player grace, the ads-removed gate, and
   persisting the `adsRemoved` flag after any successful `remove_ads` purchase),
   and the actual ad/IAP surface is **pluggable**: ship a real SDK by injecting a
@@ -424,9 +425,11 @@ never re‑discovered the hard way.
   `developmentRewardedFallback` for opt-in rewarded ads (revive, double coins,
   free coins); call `Monetization.setDevelopmentRewardedFallback(false)` when a
   real native ad provider is required. Native purchases and forced interstitials
-  still fail closed without a real provider. Swapping providers can never change
-  *when* ads show or *whether* the ads-removed flag is recorded — that contract
-  stays in the manager.
+  still fail closed without a real provider, and paid shop buttons are disabled
+  unless `Monetization.canPurchase()` is true. Coin packs route through
+  `Monetization.purchase(pack.id)` before granting coins, just like other IAP.
+  Swapping providers can never change *when* ads show or *whether* the
+  ads-removed flag is recorded — that contract stays in the manager.
 - **Coin economy** (`scoring.coinReward`, `economy.js`): level payout is
   `floor(score/100) + stars*20`, tuned so a ~2-star player affords a cheap
   power-up (100–150) every 2–3 levels without ads. The shop's **Free Coins**
@@ -441,7 +444,7 @@ never re‑discovered the hard way.
   shop** (`.shop-starter`, "BEST VALUE" badge). `STARTER_PACK` is
   `{ id:"starter_pack", price:"$1.99", coins:2000, powerups:{bomb:3,colorClear:2,
   shuffle:2,magnet:1}, crates:1 }`. `Game.buyStarterPack()` goes through the
-  (mock) IAP (`Monetization.purchase("starter_pack")`), then grants the coins,
+  IAP provider (`Monetization.purchase("starter_pack")`), then grants the coins,
   every bundled power-up, and the pet crate, and flags `starterPack: true` in the
   save so it is **one-time only** (a second buy returns `{ ok:false, owned:true }`
   and the shop renders "Owned ✓"). `starterPack` deep-merges into old saves. Meta
@@ -755,7 +758,7 @@ never re‑discovered the hard way.
   (campaign `30 + stars*15`, endless `min(60, 10+floor(score/800))`, daily `40`;
   **tutorial play never counts**). Every unlocked tier offers a **free** reward
   (everyone) and a richer **premium** reward (only after buying the
-  `season_premium` pass via the mock IAP). Rewards reuse the calendar shape
+  `season_premium` pass via the IAP provider). Rewards reuse the calendar shape
   (`{ coins | powerup | crate }`) and are **claimed explicitly + idempotently**;
   locked power-up rewards display/claim as coin fallbacks until their tool unlocks:
   `claimTier(state, i, track)` records the claim, `tierReward(i, track)` is what
@@ -1335,7 +1338,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 625 unit tests + 514 E2E
+- **Current baseline (keep growing, never shrink)**: 627 unit tests + 516 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests
@@ -1360,8 +1363,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
   configured, optionally submitting Android to the Play internal track and iOS to
   TestFlight. Store-account setup, compliance metadata, and real monetization SDK
   behavior are tracked in `docs/store-release.md`.
-- Node 20 in current workflows. (GitHub deprecation warning about Node 20
-  actions is non-blocking; bump action versions only when asked.)
+- GitHub Actions workflows use Node 24 with npm cache enabled.
 
 ## 6. How to verify a deploy (always do this after pushing to master)
 

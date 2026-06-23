@@ -75,6 +75,18 @@ class MonetizationManager {
     return this._canUseMock() || this.developmentRewardedFallback;
   }
 
+  canShowRewardedAd() {
+    return this._providerCan("showRewardedAd") || this._canUseRewardedFallback();
+  }
+
+  canPurchase() {
+    return this._providerCan("purchase") || this._canUseMock();
+  }
+
+  canShowInterstitial() {
+    return this._providerCan("showInterstitial") || this._canUseMock();
+  }
+
   isAdsRemoved() {
     return !!Storage.get("adsRemoved");
   }
@@ -97,7 +109,7 @@ class MonetizationManager {
     if (this._providerCan("showRewardedAd")) {
       return !!(await this.provider.showRewardedAd(rewardLabel));
     }
-    if (!this._canUseRewardedFallback()) return false;
+    if (!this.canShowRewardedAd()) return false;
     await this._showAdOverlay(`Loading ${rewardLabel}…`, 2.2);
     return true; // mock: always grant
   }
@@ -154,6 +166,8 @@ class MonetizationManager {
   // here we only confirm the (mock) purchase succeeded.
   _mockPurchase(productId) {
     if (productId === "remove_ads") return { ok: true };
+    if (productId === "coins_med") return { ok: true };
+    if (productId === "coins_large") return { ok: true };
     if (productId === "starter_pack") return { ok: true };
     if (productId === "season_premium") return { ok: true };
     if (productId === "piggy_crack") return { ok: true };
