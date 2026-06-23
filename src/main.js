@@ -3070,6 +3070,7 @@ class Game {
     else if (act.type === "magma") this._petMagma(act);
     else if (act.type === "tidal") this._petTidal(act);
     else if (act.type === "archer") this._startArcherAim(act);
+    else if (act.type === "bomber") this._petBomber(act);
   }
 
   // 🐱 Whiskers: pounce on lone, hard-to-match bubbles and clear them.
@@ -3386,6 +3387,50 @@ class Game {
     this._popCells(cells, points, cells.length, 1, 1.2);
     Audio.powerup();
     this.floating.spawn(anchor.x, anchor.y - 36, "Tidal Wave!", "#3fb6ff", 30);
+    this.refreshHud();
+  }
+
+  // ✈️ Skybolt: fly one horizontal, vertical, or diagonal line and bomb the
+  // densest route. It uses forceRemove so each dropped bomb clears one bubble,
+  // then settles once after the flyby.
+  _petBomber(act) {
+    const s = this.session;
+    const cells = s.board.bomberRun(Math.max(1, act.count || 4), s.board.rng);
+    if (!cells.length) return;
+    const raw = cells.length * 17;
+    const points = Math.round(
+      feverPoints(raw, s.feverActive) * s.petBuffs.scoreMult
+    );
+    s.score += points;
+    const targets = cells.map((cell) => s.board.targetPixel(cell.c, cell.r));
+    const anchor = targets.reduce(
+      (a, t) => ({ x: a.x + t.x / targets.length, y: a.y + t.y / targets.length }),
+      { x: 0, y: 0 }
+    );
+    this.petAnim.play({
+      kind: "diagonal",
+      icon: this._equippedPetIcon("✈️"),
+      anchor,
+      targets,
+      color: "#ffdf6b",
+    });
+    const palette = this.theme.bubbles;
+    for (const cell of cells) {
+      const p = s.board.targetPixel(cell.c, cell.r);
+      const color = s.board.grid[cell.c][cell.r];
+      const hex = palette[((color % palette.length) + palette.length) % palette.length] || "#ffdf6b";
+      const fx = s.board.forceRemove(cell.c, cell.r);
+      if (!fx) continue;
+      if (s.stats) s.stats.cleared += 1;
+      this.particles.burst(p.x, p.y, hex, 18, 1.05);
+      this.particles.sparkle(p.x, p.y, "#ffffff", 8);
+    }
+    s.board.settle();
+    if (s.stats) s.stats.bomberHits = (s.stats.bomberHits || 0) + cells.length;
+    this.shake.add(0.25 + cells.length * 0.03);
+    Audio.blast();
+    vibrate(22);
+    this.floating.spawn(anchor.x, anchor.y - 36, "Bombs Away!", "#ffdf6b", 30);
     this.refreshHud();
   }
 

@@ -1209,8 +1209,9 @@ export class Board {
 
   // Archer pet skill-shot: step a deterministic grid ray from a start cell in
   // the drag direction and return the first `count` filled cells it crosses.
-  // Uses DDA stepping so shallow/steep shots both feel natural on the square
-  // board. Empty cells are skipped; duplicate cells are de-duped.
+  // Uses DDA stepping with a small hit radius so diagonal shots affect nearby
+  // bubbles just like horizontal/vertical shots. Empty cells are skipped;
+  // duplicate cells are de-duped.
   arrowRay(c, r, dx, dy, count = 3) {
     if (!Number.isFinite(dx) || !Number.isFinite(dy)) return [];
     const mag = Math.hypot(dx, dy);
@@ -1222,8 +1223,32 @@ export class Board {
     const seen = new Set();
     const cells = [];
     for (let i = 0; i <= samples && cells.length < maxHits; i++) {
-      const cc = Math.floor(c + 0.5 + stepX * i * 0.22);
-      const rr = Math.floor(r + 0.5 + stepY * i * 0.22);
+      const x = c + 0.5 + stepX * i * 0.22;
+      const y = r + 0.5 + stepY * i * 0.22;
+      let best = null;
+      let bestD = Infinity;
+      const baseC = Math.floor(x);
+      const baseR = Math.floor(y);
+      for (let cc = baseC - 1; cc <= baseC + 1; cc++) {
+        for (let rr = baseR - 1; rr <= baseR + 1; rr++) {
+          if (cc < 0 || cc >= this.cols || rr < 0 || rr >= this.rows) continue;
+          if (this.grid[cc][rr] === -1) continue;
+          const d = Math.hypot(cc + 0.5 - x, rr + 0.5 - y);
+          if (d <= 0.52 && d < bestD) {
+            bestD = d;
+            best = { c: cc, r: rr };
+          }
+        }
+      }
+      if (!best) {
+        const cc = Math.floor(x);
+        const rr = Math.floor(y);
+        if (cc < 0 || cc >= this.cols || rr < 0 || rr >= this.rows) {
+          if (i > 0) break;
+        }
+        continue;
+      }
+      const { c: cc, r: rr } = best;
       if (cc < 0 || cc >= this.cols || rr < 0 || rr >= this.rows) {
         if (i > 0) break;
         continue;
@@ -1233,6 +1258,61 @@ export class Board {
       if (seen.has(key)) continue;
       seen.add(key);
       cells.push({ c: cc, r: rr });
+    }
+    return cells;
+  }
+
+  bomberRun(count = 5, rand = this.rng || Math.random) {
+    const dirs = [
+      [1, 0],
+      [0, 1],
+      [1, 1],
+      [1, -1],
+    ];
+    const n = Math.max(1, Math.round(count || 1));
+    let best = [];
+    for (const [dc, dr] of dirs) {
+      for (const start of this._bomberStarts(dc, dr)) {
+        const line = this._bomberLine(start.c, start.r, dc, dr, n);
+        if (line.length > best.length) best = line;
+      }
+    }
+    if (best.length) return best;
+    const cells = [];
+    for (let c = 0; c < this.cols; c++)
+      for (let r = 0; r < this.rows; r++)
+        if (this.grid[c][r] !== -1) cells.push({ c, r });
+    for (let i = cells.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [cells[i], cells[j]] = [cells[j], cells[i]];
+    }
+    return cells.slice(0, n);
+  }
+
+  _bomberStarts(dc, dr) {
+    const starts = [];
+    if (dc === 1 && dr === 0) {
+      for (let r = 0; r < this.rows; r++) starts.push({ c: 0, r });
+    } else if (dc === 0 && dr === 1) {
+      for (let c = 0; c < this.cols; c++) starts.push({ c, r: 0 });
+    } else if (dc === 1 && dr === 1) {
+      for (let c = 0; c < this.cols; c++) starts.push({ c, r: 0 });
+      for (let r = 1; r < this.rows; r++) starts.push({ c: 0, r });
+    } else if (dc === 1 && dr === -1) {
+      for (let c = 0; c < this.cols; c++) starts.push({ c, r: this.rows - 1 });
+      for (let r = 0; r < this.rows - 1; r++) starts.push({ c: 0, r });
+    }
+    return starts;
+  }
+
+  _bomberLine(c, r, dc, dr, count) {
+    const cells = [];
+    let cc = c;
+    let rr = r;
+    while (cc >= 0 && cc < this.cols && rr >= 0 && rr < this.rows && cells.length < count) {
+      if (this.grid[cc][rr] !== -1) cells.push({ c: cc, r: rr });
+      cc += dc;
+      rr += dr;
     }
     return cells;
   }

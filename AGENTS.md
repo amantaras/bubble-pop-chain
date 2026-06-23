@@ -840,7 +840,7 @@ never re‑discovered the hard way.
   first crate, Level 16 enables **active abilities**, Level 18 unlocks the
   **party/support** slots, Level 22 unlocks **gems & sockets**, and Level 26
   unlocks the **pet technology tree**. Each unlock queues the same celebratory
-  feature modal flow as tool unlocks. `PET_CATALOG` holds 22 pets across four rarities
+  feature modal flow as tool unlocks. `PET_CATALOG` holds 23 pets across four rarities
   (`common`/`rare`/`epic`/`legendary`). **Passive pets** carry an `ability`
   (`scoreMult`/`coinMult`/`powerMult`/`feverMult`/`startCharge`) that scales per
   level (`petBuffs`/`abilityValue`). **Active pets** carry an `active` config and
@@ -876,9 +876,14 @@ never re‑discovered the hard way.
   text, and the arrow fires in the **opposite direction** of the pull (slingshot
   style). Release resolves a deterministic
   grid ray (`grid.arrowRay`) that pierces a level-scaled number of filled cells
-  (`main.fireArcherArrow`) through the normal pop/score/settle path. Releasing
+  (`main.fireArcherArrow`) through the normal pop/score/settle path; the ray uses
+  a small hit radius so diagonal shots affect nearby bubbles just as reliably as
+  horizontal/vertical shots. Releasing
   too short no longer wastes the shot; it keeps Archer armed and tells the player
-  to pull farther back. Four **elemental** active board pets round out the free roster:
+  to pull farther back. **Skybolt ✈️** (`bomber`, legendary) is an earnable aircraft
+  that picks the densest horizontal, vertical, or diagonal flight path
+  (`grid.bomberRun`) and drops one-bubble bombs along it (`_petBomber`), scoring,
+  bursting, then settling once after the flyby. Four **elemental** active board pets round out the free roster:
   **Quake 🌍** (`quake`, rare) is a *match-maker* — a board-wide tremor that
   resettles every bubble so identical colours land together in big connected
   groups (`grid.quakeRegroup` → `_petQuake`; colours are conserved, it creates
@@ -980,7 +985,7 @@ never re‑discovered the hard way.
   Gizmo 🤖 are passive
   side-grades; **Nova 🛸** is the one premium *active* gunship — IAP `pet_*` via
   `monetization.purchase`). The strongest score booster (Draco, legendary) and
-  all four free active board helpers stay free/earnable. Premiums are bought
+  the free active board helpers stay earnable. Premiums are bought
   directly in the **Pet Store**, or — very rarely (`PREMIUM_DROP_CHANCE` ≈ 0.8%)
   — surprise you out of an ordinary crate (`rollCrate`'s premium roll, which
   draws from `cratePremiumPets`). **Nova is flagged `storeOnly`** so it is
@@ -1330,7 +1335,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 617 unit tests + 500 E2E
+- **Current baseline (keep growing, never shrink)**: 625 unit tests + 514 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

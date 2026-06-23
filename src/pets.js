@@ -202,6 +202,8 @@ export const RARITY_WEIGHTS = {
 //                 creating a fresh cluster without clearing anything directly
 //      archer   — arms a player-aimed arrow skill-shot; the player drags to
 //                 set direction/strength, then the shot clears a grid ray
+//      bomber   — an aircraft that flies horizontal/vertical/diagonal routes
+//                 and drops bombs along the densest line it can find
 //      shooter  — (PREMIUM "Nova") an alien gunship that patrols the bottom of
 //                 the board in real time and auto-blasts the lowest bubbles.
 //                 Its firepower grows with the pet's level: faster cannons →
@@ -305,6 +307,14 @@ export const PET_CATALOG = [
     active: {
       type: "archer", baseCooldown: 7, minCooldown: 4, baseCount: 2, countPer: 0.35,
       label: "Readies a player-aimed arrow every few moves",
+    },
+  },
+  {
+    id: "skybolt", name: "Skybolt", icon: "✈️", rarity: "legendary", premium: false,
+    desc: "A daring aircraft that sweeps across the board horizontally, vertically, or diagonally, dropping bombs along the busiest route.",
+    active: {
+      type: "bomber", baseCooldown: 8, minCooldown: 5, baseCount: 4, countPer: 0.35,
+      label: "Bombs the busiest flight path every few moves",
     },
   },
   {

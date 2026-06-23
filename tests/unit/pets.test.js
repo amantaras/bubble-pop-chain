@@ -211,6 +211,20 @@ describe("pets catalog", () => {
     expect(late.cooldown).toBeLessThan(early.cooldown);
   });
 
+  it("provides a free Skybolt bomber pet whose bomb count scales with level", () => {
+    const skybolt = getPet("skybolt");
+    expect(skybolt).toBeTruthy();
+    expect(skybolt.premium).toBe(false);
+    expect(skybolt.rarity).toBe("legendary");
+    expect(skybolt.active.type).toBe("bomber");
+    const early = petActive("skybolt", 1);
+    const late = petActive("skybolt", MAX_PET_LEVEL);
+    expect(early.type).toBe("bomber");
+    expect(early.count).toBe(4);
+    expect(late.count).toBeGreaterThan(early.count);
+    expect(late.cooldown).toBeLessThan(early.cooldown);
+  });
+
   it("keeps craft dust costs derived from duplicate dust values", () => {
     for (const rarity of RARITIES) {
       expect(dustCost(rarity)).toBe(dustValue(rarity) * 10);

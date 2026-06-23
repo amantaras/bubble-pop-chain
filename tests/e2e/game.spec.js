@@ -5401,6 +5401,110 @@ test.describe("pet companions (collection & buffs)", () => {
     expect(result.kind).toBe("arrow");
   });
 
+  test("the Archer pet diagonal shot clears bubbles on its path", async ({ page }) => {
+    await page.evaluate(() => {
+      window.__bpc.Storage.grantPet("archer");
+      window.__bpc.game.equipPet("archer");
+    });
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    const shot = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++) {
+        for (let r = 0; r < b.rows; r++) {
+          b.grid[c][r] = -1;
+          b.types[c][r] = 0;
+          b.spriteGrid[c][r] = null;
+        }
+      }
+      const cells = [
+        { c: 0, r: 0 },
+        { c: 1, r: 1 },
+        { c: 2, r: 2 },
+        { c: 3, r: 3 },
+        { c: 4, r: 4 },
+      ];
+      for (const cell of cells) {
+        b.grid[cell.c][cell.r] = 0;
+        b.types[cell.c][cell.r] = 0;
+      }
+      b.restore(b.serialize(), b.serializeTypes());
+      b.layout(g.W, g.H, 92, 190);
+      g.session.petTimer = 1;
+      g.afterMove();
+      const start = b.targetPixel(3, 3);
+      const end = b.targetPixel(4, 4);
+      return { start, end, before: b.countRemaining(), armed: !!g.session.archerAim };
+    });
+    expect(shot.armed).toBe(true);
+
+    const box = await page.locator("#game-canvas").boundingBox();
+    await page.mouse.move(box.x + shot.start.x, box.y + shot.start.y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + shot.end.x, box.y + shot.end.y, { steps: 8 });
+    await page.waitForFunction(
+      () => window.__bpc.game.session.archerAim && window.__bpc.game.session.archerAim.cells.length >= 3
+    );
+    await page.mouse.up();
+    await page.waitForTimeout(250);
+
+    const result = await page.evaluate((before) => {
+      const g = window.__bpc.game;
+      return {
+        aiming: !!g.session.archerAim,
+        after: g.session.board.countRemaining(),
+        before,
+        score: g.session.score,
+        arrows: g.session.stats.petArrows || 0,
+      };
+    }, shot.before);
+    expect(result.aiming).toBe(false);
+    expect(result.after).toBeLessThanOrEqual(result.before - 3);
+    expect(result.score).toBeGreaterThan(0);
+    expect(result.arrows).toBeGreaterThanOrEqual(3);
+  });
+
+  test("the Skybolt bomber pet drops bombs along a flight path", async ({ page }) => {
+    await page.evaluate(() => {
+      window.__bpc.Storage.grantPet("skybolt");
+      window.__bpc.game.equipPet("skybolt");
+    });
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    const result = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++) {
+        for (let r = 0; r < b.rows; r++) {
+          b.grid[c][r] = -1;
+          b.types[c][r] = 0;
+          b.spriteGrid[c][r] = null;
+        }
+      }
+      for (let i = 0; i < 5; i++) {
+        b.grid[i][i] = i % b.colorCount;
+        b.types[i][i] = 0;
+      }
+      b.restore(b.serialize(), b.serializeTypes());
+      b.layout(g.W, g.H, 92, 190);
+      g.session.petActive = window.__bpc.pets.petActive("skybolt", 1);
+      const before = b.countRemaining();
+      g._petBomber(g.session.petActive);
+      return {
+        before,
+        after: b.countRemaining(),
+        score: g.session.score,
+        hits: g.session.stats.bomberHits || 0,
+        busy: g.petAnim.busy,
+        kind: g.petAnim.items[0] && g.petAnim.items[0].kind,
+      };
+    });
+    expect(result.after).toBeLessThanOrEqual(result.before - 4);
+    expect(result.score).toBeGreaterThan(0);
+    expect(result.hits).toBeGreaterThanOrEqual(4);
+    expect(result.busy).toBe(true);
+    expect(result.kind).toBe("diagonal");
+  });
+
   test("the cleanse pet (Whiskers) pops isolated bubbles immediately", async ({
     page,
   }) => {

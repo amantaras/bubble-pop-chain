@@ -164,6 +164,23 @@ describe("grid / Board", () => {
     expect(b.arrowRay(0, 0, 1, 0, 3)).toEqual([{ c: 0, r: 0 }]);
   });
 
+  it("arrowRay catches diagonal shots that pass near bubble centres", () => {
+    const b = new Board(5, 5, 3, 1);
+    setGrid(b, [
+      [0, -1, -1, -1, -1],
+      [-1, -1, -1, -1, -1],
+      [-1, 1, -1, -1, -1],
+      [-1, -1, 2, -1, -1],
+      [-1, -1, -1, 0, -1],
+    ]);
+    expect(b.arrowRay(0, 0, 4, 3, 4)).toEqual([
+      { c: 0, r: 0 },
+      { c: 2, r: 1 },
+      { c: 3, r: 2 },
+      { c: 4, r: 3 },
+    ]);
+  });
+
   it("bombArea returns up to a 3x3 region clipped to the board", () => {
     const b = new Board(5, 5, 3, 1);
     expect(b.bombArea(2, 2).length).toBe(9); // centre => full 3x3
@@ -1041,6 +1058,23 @@ describe("grid / Board", () => {
       expect(b.fullestColumns(1)).toEqual([0]);
       expect(b.fullestColumns(2)).toEqual([0, 2]);
       expect(b.fullestColumns(9)).toEqual([0, 2, 1]);
+    });
+
+    it("bomberRun chooses the densest horizontal, vertical, or diagonal route", () => {
+      const b = new Board(5, 5, 4, 1);
+      setGridTyped(b, [
+        [0, -1, -1, -1, -1],
+        [-1, 0, -1, -1, 1],
+        [-1, -1, 0, -1, 1],
+        [-1, -1, -1, 0, -1],
+        [-1, -1, -1, -1, 0],
+      ]);
+      expect(b.bomberRun(4)).toEqual([
+        { c: 0, r: 0 },
+        { c: 1, r: 1 },
+        { c: 2, r: 2 },
+        { c: 3, r: 3 },
+      ]);
     });
 
     it("quakeRegroup conserves colours but clusters them into matches (🌍 Quake)", () => {

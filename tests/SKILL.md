@@ -137,7 +137,7 @@ npm run dev                 # alias for npm run serve
   staged feature unlock helpers (`PET_FEATURE_UNLOCKS`, feature info copy,
   `isPetFeatureUnlocked`, `petFeaturesUnlockedBetween`, `nextPetFeatureUnlock`),
   passive buff scaling, active-pet cooldown/strength/count scaling, expanded
-  long-progression catalog coverage (Mochi/Sprout/Luma/Archer/Amp/Prism/Midas), seeded
+  long-progression catalog coverage (Mochi/Sprout/Luma/Archer/Skybolt/Amp/Prism/Midas), seeded
   crate rolls including the rare premium drop chance + the boosted Legendary
   Crate roll, premium-pet catalog filter, the pity timer (`pityRarityFloor`/
   `nextPity` thresholds + dry-streak guarantee) + Pet Dust economy
@@ -194,8 +194,9 @@ npm run dev                 # alias for npm run serve
   unowned, default Sparky `tech:[]`, no-op on unowned).
   plus the grid helpers it relies on
   (dominant colour, first-cell-of-colour, isolated-cell detection,
-  most-isolated-cell ranking for the Talon pick pet, and deterministic
-  `arrowRay` pathing for Archer's drag skill shot),
+  most-isolated-cell ranking for the Talon pick pet, deterministic
+  `arrowRay` pathing for Archer's drag skill shot, and `bomberRun` route
+  selection for Skybolt's horizontal/vertical/diagonal flyby),
   special bubbles (rainbow wildcard + ice two-hit + lightning row/column
   strike + bomb 3×3 detonation + multiplier gold-score-boost + coin
   treasure-drop + vine creeping-threat spread + stone
@@ -329,8 +330,9 @@ npm run dev                 # alias for npm run serve
   session buffs, a startCharge pet pre-fills the power meter, an active pet
   arms its gather action, the diagonal pet blasts a streak, the Archer pet waits
   for a real player pull, preserves the shot on a too-short release, updates the
-  HUD priority text, then fires a line shot opposite the pull with a dedicated
-  arrow animation, the pick pet (Talon)
+  HUD priority text, then fires horizontal and diagonal line shots opposite the
+  pull with a dedicated arrow animation, the Skybolt bomber pet drops bombs along
+  a flight path, the pick pet (Talon)
   picks off the most isolated bubbles one by one, premium IAP grants ownership,
   HUD pet badge),
   the pet gems & sockets flow (the Pets screen shows the `#pet-gems` panel with
