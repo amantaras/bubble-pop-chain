@@ -248,6 +248,8 @@ class Game {
   }
 
   init() {
+    const nativeShell = Boolean(window.Capacitor?.isNativePlatform?.()) || location.protocol === "capacitor:";
+    document.body.classList.toggle("native-shell", nativeShell);
     applyThemeCss(this.theme);
     UI.init();
     Monetization.init();

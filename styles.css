@@ -16,6 +16,13 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+@media (pointer: coarse) and (max-width: 900px) {
+  body.native-shell {
+    --safe-top: max(env(safe-area-inset-top, 0px), 28px);
+    --safe-bottom: max(env(safe-area-inset-bottom, 0px), 58px);
+  }
+}
+
 * {
   margin: 0;
   padding: 0;
