@@ -5484,7 +5484,7 @@ test.describe("pet companions (collection & buffs)", () => {
       window.__bpc.game.equipPet("skybolt");
     });
     await page.evaluate(() => window.__bpc.game.startCampaign(2));
-    const result = await page.evaluate(() => {
+    const launch = await page.evaluate(() => {
       const g = window.__bpc.game;
       const b = g.session.board;
       for (let c = 0; c < b.cols; c++) {
@@ -5505,18 +5505,34 @@ test.describe("pet companions (collection & buffs)", () => {
       g._petBomber(g.session.petActive);
       return {
         before,
-        after: b.countRemaining(),
+        during: b.countRemaining(),
         score: g.session.score,
         hits: g.session.stats.bomberHits || 0,
         busy: g.petAnim.busy,
         kind: g.petAnim.items[0] && g.petAnim.items[0].kind,
+        picking: !!g.session.petPicking,
       };
     });
-    expect(result.after).toBeLessThanOrEqual(result.before - 4);
-    expect(result.score).toBeGreaterThan(0);
-    expect(result.hits).toBeGreaterThanOrEqual(4);
-    expect(result.busy).toBe(true);
-    expect(result.kind).toBe("diagonal");
+    expect(launch.during).toBe(launch.before); // bombs have not landed yet
+    expect(launch.score).toBeGreaterThan(0);
+    expect(launch.hits).toBeGreaterThanOrEqual(4);
+    expect(launch.busy).toBe(true);
+    expect(launch.kind).toBe("bomber");
+    expect(launch.picking).toBe(true);
+    await page.waitForFunction(() => !window.__bpc.game.petAnim.busy, null, {
+      timeout: 2500,
+    });
+    const landed = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      return {
+        after: g.session.board.countRemaining(),
+        picking: !!g.session.petPicking,
+        cleared: g.session.stats.cleared,
+      };
+    });
+    expect(landed.after).toBeLessThanOrEqual(launch.before - 4);
+    expect(landed.picking).toBe(false);
+    expect(landed.cleared).toBeGreaterThanOrEqual(4);
   });
 
   test("the cleanse pet (Whiskers) pops isolated bubbles immediately", async ({

@@ -24,6 +24,7 @@ function mockCtx() {
     beginPath: rec("beginPath"),
     moveTo: rec("moveTo"),
     lineTo: rec("lineTo"),
+    closePath: rec("closePath"),
     arc: rec("arc"),
     stroke: rec("stroke"),
     fill: rec("fill"),
@@ -34,6 +35,7 @@ function mockCtx() {
     set strokeStyle(v) {},
     set lineWidth(v) {},
     set lineCap(v) {},
+    set lineJoin(v) {},
     set font(v) {},
     set textAlign(v) {},
     set textBaseline(v) {},
@@ -87,8 +89,8 @@ describe("PetAnim — pet ability animations", () => {
     expect(pa.busy).toBe(false);
   });
 
-  it("draw() does not throw across every phase for both abilities", () => {
-    for (const kind of ["gather", "cleanse", "pick"]) {
+  it("draw() does not throw across every phase for pet abilities", () => {
+    for (const kind of ["gather", "cleanse", "pick", "bomber"]) {
       const pa = new PetAnim();
       pa.play({ kind, anchor: { x: 120, y: 120 }, targets: [{ x: 60, y: 60 }] });
       const ctx = mockCtx();
@@ -116,6 +118,27 @@ describe("PetAnim — pet ability animations", () => {
     // Tick the whole animation through in small steps.
     for (let t = 0; t < 80; t++) pa.update(0.05);
     expect(hits).toEqual([0, 1, 2]); // each target pecked exactly once, in order
+    expect(pa.busy).toBe(false);
+  });
+
+  it("bomber fires onHit once per visible bomb drop, then onDone", () => {
+    const pa = new PetAnim();
+    const hits = [];
+    let done = false;
+    pa.play({
+      kind: "bomber",
+      targets: [{ x: 0, y: 0 }, { x: 50, y: 0 }, { x: 100, y: 0 }, { x: 150, y: 0 }],
+      onHit: (i) => hits.push(i),
+      onDone: () => {
+        done = true;
+      },
+    });
+    const it = pa.items[0];
+    expect(it.kind).toBe("bomber");
+    expect(it.act).toBeGreaterThan(0.6);
+    for (let t = 0; t < 80; t++) pa.update(0.05);
+    expect(hits).toEqual([0, 1, 2, 3]);
+    expect(done).toBe(true);
     expect(pa.busy).toBe(false);
   });
 

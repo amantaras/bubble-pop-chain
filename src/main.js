@@ -3390,9 +3390,9 @@ class Game {
     this.refreshHud();
   }
 
-  // ✈️ Skybolt: fly one horizontal, vertical, or diagonal line and bomb the
-  // densest route. It uses forceRemove so each dropped bomb clears one bubble,
-  // then settles once after the flyby.
+  // Skybolt: fly one horizontal, vertical, or diagonal line and bomb the
+  // densest route. Each bubble is destroyed when the visible bomb lands, then
+  // gravity settles once after the flyby.
   _petBomber(act) {
     const s = this.session;
     const cells = s.board.bomberRun(Math.max(1, act.count || 4), s.board.rng);
@@ -3403,33 +3403,45 @@ class Game {
     );
     s.score += points;
     const targets = cells.map((cell) => s.board.targetPixel(cell.c, cell.r));
+    const palette = this.theme.bubbles;
+    const hexes = cells.map((cell) => {
+      const color = s.board.grid[cell.c][cell.r];
+      return palette[((color % palette.length) + palette.length) % palette.length] || "#ffdf6b";
+    });
     const anchor = targets.reduce(
       (a, t) => ({ x: a.x + t.x / targets.length, y: a.y + t.y / targets.length }),
       { x: 0, y: 0 }
     );
+    s.petPicking = true;
     this.petAnim.play({
-      kind: "diagonal",
+      kind: "bomber",
       icon: this._equippedPetIcon("✈️"),
       anchor,
       targets,
       color: "#ffdf6b",
+      onHit: (i) => {
+        const cell = cells[i];
+        const p = targets[i];
+        if (!cell || !p) return;
+        if (s.board && s.board.grid[cell.c][cell.r] !== -1) {
+          const fx = s.board.forceRemove(cell.c, cell.r);
+          if (fx && s.stats) s.stats.cleared += 1;
+        }
+        this.particles.burst(p.x, p.y, hexes[i] || "#ffdf6b", 20, 1.1);
+        this.particles.sparkle(p.x, p.y, "#ffffff", 10);
+        this.shake.add(0.12);
+        Audio.blast();
+        vibrate(8);
+      },
+      onDone: () => {
+        if (s.board) s.board.settle();
+        s.petPicking = false;
+        this.shake.add(0.18 + cells.length * 0.03);
+        this.refreshHud();
+        this.afterMove();
+      },
     });
-    const palette = this.theme.bubbles;
-    for (const cell of cells) {
-      const p = s.board.targetPixel(cell.c, cell.r);
-      const color = s.board.grid[cell.c][cell.r];
-      const hex = palette[((color % palette.length) + palette.length) % palette.length] || "#ffdf6b";
-      const fx = s.board.forceRemove(cell.c, cell.r);
-      if (!fx) continue;
-      if (s.stats) s.stats.cleared += 1;
-      this.particles.burst(p.x, p.y, hex, 18, 1.05);
-      this.particles.sparkle(p.x, p.y, "#ffffff", 8);
-    }
-    s.board.settle();
     if (s.stats) s.stats.bomberHits = (s.stats.bomberHits || 0) + cells.length;
-    this.shake.add(0.25 + cells.length * 0.03);
-    Audio.blast();
-    vibrate(22);
     this.floating.spawn(anchor.x, anchor.y - 36, "Bombs Away!", "#ffdf6b", 30);
     this.refreshHud();
   }

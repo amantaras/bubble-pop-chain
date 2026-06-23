@@ -4,6 +4,7 @@ export const Easing = {
   linear: (t) => t,
   outQuad: (t) => 1 - (1 - t) * (1 - t),
   inQuad: (t) => t * t,
+  inOutQuad: (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2),
   outCubic: (t) => 1 - Math.pow(1 - t, 3),
   outBack: (t) => {
     const c1 = 1.70158;
@@ -123,16 +124,15 @@ export class PetAnim {
   }
 
   // Trigger a pet ability animation.
-  //   opts.kind       — "gather" | "cleanse" | "pick" | "diagonal" | "arrow"
+  //   opts.kind       — "gather" | "cleanse" | "pick" | "diagonal" | "arrow" | "bomber"
   //   opts.icon       — pet emoji to fly across the screen
   //   opts.anchor     — { x, y } focal point of the ability (pixels)
   //   opts.targets    — [{ x, y }, ...] affected bubble centres (pixels)
   //   opts.color      — accent colour for trails/sparkles
-  //   opts.onHit      — (pick) callback(i) fired as each target is pecked, in
+  //   opts.onHit      — (pick/bomber) callback(i) fired as each target is hit, in
   //                     sequence, so the game can destroy each bubble exactly
-  //                     when the hawk's beak reaches it (the bubble is still on
-  //                     the board until then, so it never pecks an empty cell)
-  //   opts.onDone     — (pick) callback fired once when the flourish ends, so
+  //                     when the hawk's beak or Skybolt's bomb reaches it
+  //   opts.onDone     — (pick/bomber) callback fired once when the flourish ends, so
   //                     the game can settle gravity + re-evaluate the board
   //   opts.board      — (optional) live board, so the animation can track
   //                     bubbles that move/vanish while it plays
@@ -156,6 +156,8 @@ export class PetAnim {
         ? "cleanse"
         : opts.kind === "arrow"
           ? "arrow"
+        : opts.kind === "bomber"
+          ? "bomber"
         : opts.kind === "diagonal"
           ? "diagonal"
           : opts.kind === "pick"
@@ -163,7 +165,11 @@ export class PetAnim {
             : "gather";
     // The pick (Talon) sequence hops target-to-target, so give it a longer act
     // phase that scales with how many bubbles it picks off.
-    const act = kind === "pick" ? Math.max(0.7, targets.length * 0.34) : 0.6;
+    const act = kind === "bomber"
+      ? Math.max(1.1, targets.length * 0.34)
+      : kind === "pick"
+        ? Math.max(0.7, targets.length * 0.34)
+        : 0.6;
     this.items.push({
       kind,
       icon: opts.icon || "🐾",
@@ -181,8 +187,8 @@ export class PetAnim {
       shotDy: Number.isFinite(opts.shotDy) ? opts.shotDy : 0,
       // Pick fires a per-target callback in sequence as the hawk pecks each one,
       // then a single onDone once the whole flourish has finished.
-      onHit: kind === "pick" && typeof opts.onHit === "function" ? opts.onHit : null,
-      onDone: kind === "pick" && typeof opts.onDone === "function" ? opts.onDone : null,
+      onHit: (kind === "pick" || kind === "bomber") && typeof opts.onHit === "function" ? opts.onHit : null,
+      onDone: (kind === "pick" || kind === "bomber") && typeof opts.onDone === "function" ? opts.onDone : null,
       done: false,
       hit: [],
       hitAt: [],
@@ -225,10 +231,9 @@ export class PetAnim {
     for (let i = this.items.length - 1; i >= 0; i--) {
       const it = this.items[i];
       it.life += dt;
-      // Pick: fire each target's hit callback in sequence as the hawk reaches
-      // it during the act phase (the bubble was already removed from the model;
-      // this just reveals the destruction FX one-by-one).
-      if (it.kind === "pick" && it.onHit && it.targets.length) {
+      // Pick/bomber: fire each target's hit callback in sequence as the pet
+      // reaches it during the act phase, so board damage matches the visible hit.
+      if ((it.kind === "pick" || it.kind === "bomber") && it.onHit && it.targets.length) {
         const n = it.targets.length;
         const inAct = it.life > it.enter && it.life <= it.enter + it.act;
         const actP = inAct ? (it.life - it.enter) / it.act : it.life > it.enter ? 1 : 0;
@@ -243,9 +248,9 @@ export class PetAnim {
         }
       }
       if (it.life >= it.enter + it.act + it.exit) {
-        // Make sure every queued peck has fired (so no target is skipped if the
+        // Make sure every queued hit has fired (so no target is skipped if the
         // act phase elapsed in a single big frame), then resolve the board.
-        if (it.kind === "pick" && it.onHit && it.targets.length) {
+        if ((it.kind === "pick" || it.kind === "bomber") && it.onHit && it.targets.length) {
           for (let k = 0; k < it.targets.length; k++) {
             if (!it.hit[k]) {
               it.hit[k] = true;
@@ -254,7 +259,7 @@ export class PetAnim {
             }
           }
         }
-        if (it.kind === "pick" && it.onDone && !it.done) {
+        if ((it.kind === "pick" || it.kind === "bomber") && it.onDone && !it.done) {
           it.done = true;
           it.onDone();
         }
@@ -275,12 +280,13 @@ export class PetAnim {
     // Talon should fly straight to the first bubble it'll peck (not the empty
     // centroid between targets), so it always visibly heads to a real bubble.
     const firstTarget =
-      it.kind === "pick" && it.targets.length ? it.targets[0] : null;
+      (it.kind === "pick" || it.kind === "bomber") && it.targets.length ? it.targets[0] : null;
     const hoverX = firstTarget ? firstTarget.x : it.cx;
     const hoverY = (firstTarget ? firstTarget.y : it.cy) - 60;
     // Entry origin depends on ability: Rover dashes in from the left, Whiskers
     // and Talon drop down from above, Comet streaks in from the top-left
-    // diagonal, and Archer flies in from behind the aimed shot.
+    // diagonal, Archer flies in from behind the aimed shot, and Skybolt crosses
+    // the board along the bombing route.
     const shotMag = Math.hypot(it.shotDx || 0, it.shotDy || 0) || 1;
     const shotUx = (it.shotDx || 0) / shotMag;
     const shotUy = (it.shotDy || 0) / shotMag;
@@ -289,6 +295,8 @@ export class PetAnim {
         ? { x: hoverX, y: hoverY - 260 }
         : it.kind === "arrow"
           ? { x: it.cx - shotUx * 260, y: it.cy - shotUy * 260 }
+        : it.kind === "bomber"
+          ? { x: hoverX - 340, y: hoverY - 180 }
         : it.kind === "diagonal"
           ? { x: it.cx - 280, y: it.cy - 280 }
           : { x: it.cx - 300, y: it.cy - 30 };
@@ -329,6 +337,15 @@ export class PetAnim {
         py = first.y + (last.y - first.y) * p;
         scale = 1.12;
         rot = Math.atan2(shotUy, shotUx);
+      } else if (it.kind === "bomber") {
+        const pts = it.targets;
+        const first = pts[0] || { x: hoverX, y: hoverY };
+        const last = pts[pts.length - 1] || first;
+        const p = Easing.inOutQuad(actP);
+        px = first.x + (last.x - first.x) * p;
+        py = first.y + (last.y - first.y) * p - 70 - Math.sin(actP * Math.PI) * 24;
+        scale = 1.18;
+        rot = Math.atan2(last.y - first.y, last.x - first.x);
       } else if (it.kind === "pick") {
         // Hop: the hawk swoops above each target in turn and dips to peck it,
         // springing back up before darting to the next one.
@@ -353,11 +370,23 @@ export class PetAnim {
       // Talon lifts off from the LAST bubble it pecked (not back at the first),
       // so the exit reads as a smooth climb away rather than a jump.
       const lastTarget =
-        (it.kind === "pick" || it.kind === "arrow") && it.targets.length
+        (it.kind === "pick" || it.kind === "arrow" || it.kind === "bomber") && it.targets.length
           ? it.targets[it.targets.length - 1]
           : null;
-      px = lastTarget ? lastTarget.x : hoverX;
-      py = it.kind === "arrow" && lastTarget ? lastTarget.y - p * 120 : (lastTarget ? lastTarget.y - 60 : hoverY) - p * 120;
+      if (it.kind === "bomber" && it.targets.length) {
+        const pts = it.targets;
+        const first = pts[0];
+        const last = pts[pts.length - 1] || first;
+        const dx = last.x - first.x;
+        const dy = last.y - first.y;
+        const mag = Math.hypot(dx, dy) || 1;
+        px = last.x + (dx / mag) * 170 * p;
+        py = last.y + (dy / mag) * 170 * p - 70 - 90 * p;
+        rot = Math.atan2(dy, dx);
+      } else {
+        px = lastTarget ? lastTarget.x : hoverX;
+        py = it.kind === "arrow" && lastTarget ? lastTarget.y - p * 120 : (lastTarget ? lastTarget.y - 60 : hoverY) - p * 120;
+      }
       scale = 1.1 - p * 0.6;
       alpha = 1 - p;
       actP = 1;
@@ -367,6 +396,7 @@ export class PetAnim {
     ctx.save();
     if (it.kind === "gather") this._drawGatherFx(ctx, it, actP);
     else if (it.kind === "arrow") this._drawArrowFx(ctx, it, actP);
+    else if (it.kind === "bomber") this._drawBomberFx(ctx, it, actP);
     else if (it.kind === "diagonal") this._drawDiagonalFx(ctx, it, actP);
     else if (it.kind === "pick") this._drawPickFx(ctx, it, actP);
     else this._drawCleanseFx(ctx, it, actP);
@@ -386,11 +416,73 @@ export class PetAnim {
     ctx.translate(px, py);
     ctx.rotate(rot);
     ctx.scale(scale, scale);
-    ctx.font = "44px -apple-system, system-ui, sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(it.icon, 0, 0);
+    if (it.kind === "bomber") this._drawAircraft(ctx, it.color);
+    else {
+      ctx.font = "44px -apple-system, system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(it.icon, 0, 0);
+    }
     ctx.restore();
+  }
+
+  _drawAircraft(ctx, color) {
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.lineWidth = 2.4;
+    ctx.strokeStyle = "#1f2a3d";
+    ctx.fillStyle = "#f7fbff";
+    ctx.beginPath();
+    ctx.moveTo(31, 0);
+    ctx.lineTo(7, -8);
+    ctx.lineTo(-23, -7);
+    ctx.lineTo(-37, 0);
+    ctx.lineTo(-23, 7);
+    ctx.lineTo(7, 8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(6, -7);
+    ctx.lineTo(-12, -31);
+    ctx.lineTo(-3, -5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(6, 7);
+    ctx.lineTo(-12, 31);
+    ctx.lineTo(-3, 5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "#9be7ff";
+    ctx.beginPath();
+    ctx.moveTo(20, 0);
+    ctx.lineTo(5, -4);
+    ctx.lineTo(3, 4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "#ff8f5a";
+    ctx.beginPath();
+    ctx.moveTo(-27, -5);
+    ctx.lineTo(-43, -15);
+    ctx.lineTo(-33, -2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-27, 5);
+    ctx.lineTo(-43, 15);
+    ctx.lineTo(-33, 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
   }
 
   // 🐶 Rover: a leash of sparkles reels each target toward the focal point.
@@ -475,6 +567,54 @@ export class PetAnim {
       ctx.beginPath();
       ctx.moveTo(cur.x, cur.y - 16 * flash);
       ctx.lineTo(cur.x, cur.y);
+      ctx.stroke();
+    }
+  }
+
+  // Skybolt: draw a real flight line, falling bombs, and impact rings so the
+  // player sees each bubble get hit at the same moment the board changes.
+  _drawBomberFx(ctx, it, actP) {
+    const pts = it.targets;
+    if (!pts.length) return;
+    const first = pts[0];
+    const last = pts[pts.length - 1] || first;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = withAlpha(it.color, 0.38);
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.moveTo(first.x, first.y);
+    ctx.lineTo(last.x, last.y);
+    ctx.stroke();
+    ctx.strokeStyle = withAlpha("#ffffff", 0.75);
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(first.x, first.y);
+    ctx.lineTo(last.x, last.y);
+    ctx.stroke();
+
+    const n = pts.length || 1;
+    for (let k = 0; k < pts.length; k++) {
+      const t = pts[k];
+      const dropP = (k + 0.5) / n;
+      if (actP < dropP) {
+        const gap = Math.min(1, Math.max(0, (dropP - actP) * n * 1.4));
+        ctx.fillStyle = withAlpha("#1f2a3d", 0.9 - gap * 0.4);
+        ctx.beginPath();
+        ctx.arc(t.x, t.y - 8 - gap * 58, 4.2, 0, Math.PI * 2);
+        ctx.fill();
+        continue;
+      }
+      const age = it.hitAt[k] == null ? Math.max(0, actP - dropP) * it.act : Math.max(0, it.life - it.hitAt[k]);
+      const p = Math.min(1, age / 0.45);
+      const fade = 1 - p;
+      ctx.fillStyle = withAlpha(it.color, 0.22 * fade);
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, 12 + p * 20, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = withAlpha("#ffffff", 0.95 * fade);
+      ctx.lineWidth = 4 * fade + 1;
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, 7 + p * 28, 0, Math.PI * 2);
       ctx.stroke();
     }
   }
