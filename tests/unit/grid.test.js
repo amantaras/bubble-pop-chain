@@ -973,6 +973,29 @@ describe("grid / Board", () => {
       expect(b.cellsOfColor(9)).toEqual([]);
     });
 
+    it("clearableCellsOfColor includes coloured specials for destructive pet clears", () => {
+      const b = new Board(3, 2, 4, 1);
+      setGridTyped(b, [
+        [1, 2],
+        [1, 1],
+        [1, 1],
+      ]);
+      b.types[1][0] = LIGHTNING;
+      b.types[2][0] = COIN;
+      b.types[2][1] = STONE;
+
+      expect(b.cellsOfColor(1)).toEqual([
+        { c: 0, r: 0 },
+        { c: 1, r: 1 },
+      ]);
+      expect(b.clearableCellsOfColor(1)).toEqual([
+        { c: 0, r: 0 },
+        { c: 1, r: 0 },
+        { c: 1, r: 1 },
+        { c: 2, r: 0 },
+      ]);
+    });
+
     it("isolatedCells finds lone bubbles with no same-colour neighbour", () => {
       const b = new Board(3, 3, 4, 1);
       setGridTyped(b, [
@@ -988,6 +1011,19 @@ describe("grid / Board", () => {
       for (const cell of iso) {
         expect(b.getGroupAt(cell.c, cell.r).length).toBe(1);
       }
+    });
+
+    it("isolatedCells includes lone coloured specials for pet clears", () => {
+      const b = new Board(3, 3, 4, 1);
+      setGridTyped(b, [
+        [-1, -1, -1],
+        [-1, 2, -1],
+        [-1, 1, -1],
+      ]);
+      b.types[1][1] = LIGHTNING;
+      b.types[2][1] = STONE;
+
+      expect(b.isolatedCells()).toEqual([{ c: 1, r: 1 }]);
     });
 
     it("detects a lone-bubble jam: only isolated distinct colours remain", () => {
@@ -1026,6 +1062,18 @@ describe("grid / Board", () => {
       ]);
       // The requested count is respected.
       expect(b.mostIsolatedCells(2)).toHaveLength(2);
+    });
+
+    it("mostIsolatedCells can choose coloured specials for pet pick", () => {
+      const b = new Board(3, 3, 4, 1);
+      setGridTyped(b, [
+        [0, 0, 0],
+        [0, 2, 0],
+        [0, 0, 0],
+      ]);
+      b.types[1][1] = BOMB;
+
+      expect(b.mostIsolatedCells(1)).toEqual([{ c: 1, r: 1 }]);
     });
 
     it("columnCells lists a column's filled cells top→bottom (🌋 Magma)", () => {
@@ -1074,6 +1122,24 @@ describe("grid / Board", () => {
         { c: 1, r: 1 },
         { c: 2, r: 2 },
         { c: 3, r: 3 },
+      ]);
+    });
+
+    it("diagonalRun includes coloured specials in pet beams", () => {
+      const b = new Board(4, 4, 4, 1);
+      setGridTyped(b, [
+        [1, -1, -1, -1],
+        [-1, 1, -1, -1],
+        [-1, -1, 1, -1],
+        [-1, -1, -1, 2],
+      ]);
+      b.types[1][1] = LIGHTNING;
+      b.types[2][2] = BOMB;
+
+      expect(b.diagonalRun(3)).toEqual([
+        { c: 0, r: 0 },
+        { c: 1, r: 1 },
+        { c: 2, r: 2 },
       ]);
     });
 

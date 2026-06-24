@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Rover avatar">
+  <rect width="512" height="512" rx="92" fill="#2c1e16"/>
+  <circle cx="256" cy="270" r="166" fill="#c98345"/>
+  <path d="M126 190c-36 38-40 112 16 150l58-126zM386 190c36 38 40 112-16 150l-58-126z" fill="#7f4b2a"/>
+  <path d="M172 194c38-50 136-56 176 0" fill="none" stroke="#ffd59d" stroke-width="24" stroke-linecap="round"/>
+  <path d="M168 284c0-62 42-104 102-104 58 0 102 42 102 104 0 72-50 126-102 126-56 0-102-54-102-126z" fill="#e8ad70"/>
+  <circle cx="218" cy="276" r="16" fill="#21130e"/>
+  <circle cx="306" cy="276" r="16" fill="#21130e"/>
+  <path d="M238 322c18-18 48-18 66 0l-32 30z" fill="#3c2118"/>
+  <path d="M212 362c34 28 76 28 110 0" fill="none" stroke="#3c2118" stroke-width="15" stroke-linecap="round"/>
+</svg>

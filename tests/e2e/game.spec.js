@@ -33,6 +33,7 @@ async function unlockAllTools(page) {
       shuffle: 1,
       chainBolt: 1,
       pick: 1,
+      extraMoves: 1,
       magnet: 1,
     });
     window.__bpc.Storage.set("loadout", ["bomb", "colorClear", "magnet"]);
@@ -426,12 +427,15 @@ test.describe("core gameplay (real input)", () => {
 
   test("HUD shows level, target and moves", async ({ page }) => {
     await page.evaluate(() => {
+      window.__bpc.Economy.addCoins(123);
       window.__bpc.Economy.addPowerup("undo", 1);
       window.__bpc.game.startCampaign(1);
     });
     await expect(page.locator("#hud")).toBeVisible();
     await expect(page.locator("#hud-mode-label")).toHaveText("Level 1");
     await expect(page.locator("#hud-target")).not.toHaveText("0");
+    await expect(page.locator(".hud-top #hud-coins")).toHaveText("123");
+    await expect(page.locator(".hud-top .hud-coins-pill")).toBeVisible();
     await expect(page.locator("#hud-status")).toContainText("undo");
   });
 
@@ -548,6 +552,46 @@ test.describe("undo tool (real input)", () => {
     expect(
       await page.evaluate(() => window.__bpc.Economy.getPowerup("bomb"))
     ).toBe(beforeBombs);
+  });
+
+  test("the +3 Moves tool adds moves without changing the board", async ({ page }) => {
+    await page.evaluate(() => {
+      window.__bpc.Storage.set("maxUnlockedLevel", 22);
+      window.__bpc.Storage.set("loadout", ["extraMoves", "undo", null]);
+      window.__bpc.Storage.set("powerups", { extraMoves: 1, undo: 1 });
+      window.__bpc.game.startCampaign(1);
+    });
+
+    await expect(page.locator('#pu-slot-0[data-pu="extraMoves"]')).toBeVisible();
+    const before = await page.evaluate(() => {
+      const s = window.__bpc.game.session;
+      return {
+        moves: s.movesLeft,
+        remaining: s.board.countRemaining(),
+        stock: window.__bpc.Economy.getPowerup("extraMoves"),
+      };
+    });
+
+    await page.locator('#pu-slot-0[data-pu="extraMoves"]').click();
+    await expect(page.locator("#hud-moves")).toHaveText(String(before.moves + 3));
+    const after = await page.evaluate(() => {
+      const s = window.__bpc.game.session;
+      return {
+        moves: s.movesLeft,
+        remaining: s.board.countRemaining(),
+        stock: window.__bpc.Economy.getPowerup("extraMoves"),
+      };
+    });
+    expect(after.moves).toBe(before.moves + 3);
+    expect(after.remaining).toBe(before.remaining);
+    expect(after.stock).toBe(before.stock - 1);
+
+    const cell = await findGroupCell(page);
+    expect(cell).not.toBeNull();
+    await tapCell(page, cell.c, cell.r);
+    await page.waitForTimeout(200);
+    await page.locator('#pu-slot-1[data-pu="undo"]').click();
+    await expect(page.locator("#hud-moves")).toHaveText(String(before.moves + 3));
   });
 
   test("undo stock is limited", async ({ page }) => {
@@ -4363,19 +4407,41 @@ test.describe("persistence & PWA", () => {
     expect(json.name).toBe("Bubblit!");
   });
 
-  test("special bubble icon assets are local and reachable", async ({ page }) => {
-    const icons = [
-      "/assets/icons/game-icons/lightning-bolt.svg",
+  test("local SVG icon and pet avatar assets are reachable", async ({ page }) => {
+    const svgAssets = [
+      "/assets/icons/special/lightning-mark.svg",
       "/assets/icons/game-icons/bomb.svg",
       "/assets/icons/game-icons/padlock.svg",
       "/assets/icons/game-icons/snowflake.svg",
       "/assets/icons/game-icons/vine-leaf.svg",
       "/assets/icons/game-icons/coin.svg",
       "/assets/icons/game-icons/multiplication.svg",
+      "/assets/pets/avatars/sparky.svg",
+      "/assets/pets/avatars/clover.svg",
+      "/assets/pets/avatars/mochi.svg",
+      "/assets/pets/avatars/sprout.svg",
+      "/assets/pets/avatars/rover.svg",
+      "/assets/pets/avatars/whiskers.svg",
+      "/assets/pets/avatars/luma.svg",
+      "/assets/pets/avatars/quake.svg",
+      "/assets/pets/avatars/comet.svg",
+      "/assets/pets/avatars/talon.svg",
+      "/assets/pets/avatars/cyclone.svg",
+      "/assets/pets/avatars/magma.svg",
+      "/assets/pets/avatars/archer.svg",
+      "/assets/pets/avatars/amp.svg",
+      "/assets/pets/avatars/blaze.svg",
+      "/assets/pets/avatars/prism.svg",
+      "/assets/pets/avatars/draco.svg",
+      "/assets/pets/avatars/midas.svg",
+      "/assets/pets/avatars/tidal.svg",
+      "/assets/pets/avatars/aurora.svg",
+      "/assets/pets/avatars/gizmo.svg",
+      "/assets/pets/avatars/nova.svg",
     ];
-    for (const icon of icons) {
-      expect(icon).not.toMatch(/^https?:/);
-      const resp = await page.request.get(icon);
+    for (const asset of svgAssets) {
+      expect(asset).not.toMatch(/^https?:/);
+      const resp = await page.request.get(asset);
       expect(resp.ok()).toBe(true);
       expect(resp.headers()["content-type"] || "").toContain("image/svg");
     }
@@ -5207,7 +5273,10 @@ test.describe("pet companions (collection & buffs)", () => {
     // the player immediately knows what their new companion does.
     await expect(page.locator("#pet-reveal")).toBeVisible();
     await expect(page.locator("#pet-reveal-name")).toHaveText("Rover");
-    await expect(page.locator("#pet-reveal-icon")).toHaveText("🐶");
+    await expect(page.locator("#pet-reveal-icon img")).toHaveAttribute(
+      "src",
+      /\/assets\/pets\/avatars\/rover\.svg$/
+    );
     await expect(page.locator("#pet-reveal-rarity")).toHaveText("rare");
     await expect(page.locator("#pet-reveal-ability")).toContainText("colour");
     // "Equip & Play" equips the brand-new companion and dismisses the reveal.
@@ -5514,7 +5583,7 @@ test.describe("pet companions (collection & buffs)", () => {
       };
     });
     expect(launch.during).toBe(launch.before); // bombs have not landed yet
-    expect(launch.score).toBeGreaterThan(0);
+    expect(launch.score).toBe(0);
     expect(launch.hits).toBeGreaterThanOrEqual(4);
     expect(launch.busy).toBe(true);
     expect(launch.kind).toBe("bomber");
@@ -5528,11 +5597,65 @@ test.describe("pet companions (collection & buffs)", () => {
         after: g.session.board.countRemaining(),
         picking: !!g.session.petPicking,
         cleared: g.session.stats.cleared,
+        score: g.session.score,
       };
     });
     expect(landed.after).toBeLessThanOrEqual(launch.before - 4);
     expect(landed.picking).toBe(false);
     expect(landed.cleared).toBeGreaterThanOrEqual(4);
+    expect(landed.score).toBeGreaterThan(0);
+  });
+
+  test("the Skybolt bomber pet triggers lightning on its flight path", async ({ page }) => {
+    await page.evaluate(() => {
+      window.__bpc.Storage.grantPet("skybolt");
+      window.__bpc.game.equipPet("skybolt");
+    });
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    const launch = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++) {
+        for (let r = 0; r < b.rows; r++) {
+          b.grid[c][r] = -1;
+          b.types[c][r] = 0;
+          b.spriteGrid[c][r] = null;
+        }
+      }
+      const row = Math.floor(b.rows / 2);
+      const boltCol = Math.min(1, b.cols - 1);
+      const runLen = Math.min(4, b.cols);
+      for (let c = 0; c < runLen; c++) {
+        b.grid[c][row] = c % b.colorCount;
+        b.types[c][row] = 0;
+      }
+      for (let r = 0; r < b.rows; r++) {
+        b.grid[boltCol][r] = r % b.colorCount;
+        b.types[boltCol][r] = 0;
+      }
+      b.types[boltCol][row] = 4; // LIGHTNING in the bomber route.
+      b.restore(b.serialize(), b.serializeTypes());
+      b.layout(g.W, g.H, 92, 190);
+      g.session.petActive = window.__bpc.pets.petActive("skybolt", 1);
+      const before = b.countRemaining();
+      g._petBomber(g.session.petActive);
+      return { before, expectedCleared: b.rows + runLen - 1, busy: g.petAnim.busy };
+    });
+    expect(launch.busy).toBe(true);
+    await page.waitForFunction(() => !window.__bpc.game.petAnim.busy, null, {
+      timeout: 2500,
+    });
+    const landed = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      return {
+        after: g.session.board.countRemaining(),
+        score: g.session.score,
+        cleared: g.session.stats.cleared,
+      };
+    });
+    expect(launch.before - landed.after).toBeGreaterThanOrEqual(launch.expectedCleared);
+    expect(landed.cleared).toBeGreaterThanOrEqual(launch.expectedCleared);
+    expect(landed.score).toBeGreaterThan(0);
   });
 
   test("the cleanse pet (Whiskers) pops isolated bubbles immediately", async ({
@@ -5837,7 +5960,10 @@ test.describe("pet companions (collection & buffs)", () => {
   test("the HUD pet badge appears during a campaign level", async ({ page }) => {
     await page.evaluate(() => window.__bpc.game.startCampaign(2));
     await expect(page.locator("#hud-pet")).toBeVisible();
-    await expect(page.locator("#hud-pet-icon")).not.toHaveText("");
+    await expect(page.locator("#hud-pet-icon img")).toHaveAttribute(
+      "src",
+      /\/assets\/pets\/(avatars\/.+\.svg|kenney-space-shooter\/.+\.png)$/
+    );
   });
 
   test("an active pet plays an on-board ability animation", async ({ page }) => {
@@ -5888,6 +6014,96 @@ test.describe("pet companions (collection & buffs)", () => {
     await expect(page.locator("#pets")).toBeHidden();
     expect(await page.evaluate(() => window.__bpc.game.paused)).toBe(false);
     await expect(page.locator("#hud-pet")).toBeVisible();
+  });
+
+  test("a pet level-up gets a dedicated popup and can open the paused pet manager", async ({
+    page,
+  }) => {
+    await unlockAllPetFeatures(page);
+    await page.evaluate(() => {
+      const pets = window.__bpc.Storage.getPetState();
+      pets.owned.sparky.xp = 55;
+      window.__bpc.Storage.set("pets", pets);
+      window.__bpc.Storage.equipPet("sparky");
+      window.__bpc.game.startCampaign(2);
+      window.__bpc.game._awardPetXp();
+      window.__bpc.game._showPendingPetLevelUp();
+    });
+
+    await expect(page.locator("#pet-levelup")).toBeVisible();
+    await expect(page.locator("#pet-levelup-name")).toContainText("Sparky reached Lv.2");
+    await expect(page.locator("#pet-levelup-benefits")).toContainText("Tech choice ready");
+    await page.locator("#pet-levelup-open").click();
+    await expect(page.locator("#pets")).toBeVisible();
+    await expect(page.locator("#pet-detail")).toContainText("Sparky");
+    expect(await page.evaluate(() => window.__bpc.game.paused)).toBe(true);
+
+    await page.locator("#pets-back").click();
+    await expect(page.locator("#pets")).toBeHidden();
+    expect(await page.evaluate(() => window.__bpc.game.paused)).toBe(false);
+  });
+
+  test("an empty pet socket occasionally prompts the player to embue a gem", async ({
+    page,
+  }) => {
+    await unlockAllPetFeatures(page);
+    await page.evaluate(() => {
+      const pets = window.__bpc.Storage.getPetState();
+      pets.owned.sparky.xp = 70;
+      pets.owned.sparky.sockets = [];
+      pets.dust = 100;
+      window.__bpc.Storage.set("pets", pets);
+      window.__bpc.Storage.addGem("ruby:chipped", 1);
+      window.__bpc.Storage.equipPet("sparky");
+      window.__bpc.game.startCampaign(4);
+      window.__bpc.game._queuePetGemReminder(window.__bpc.game.session, { force: true });
+      window.__bpc.game._showPendingPetFollowup();
+    });
+
+    await expect(page.locator("#pet-gem-reminder")).toBeVisible();
+    await expect(page.locator("#pet-gem-reminder-title")).toContainText("Sparky has an empty socket");
+    await expect(page.locator("#pet-gem-reminder-benefits")).toContainText("1 gem in bag");
+    await page.locator("#pet-gem-reminder-open").click();
+    await expect(page.locator("#pets")).toBeVisible();
+    await expect(page.locator("#pet-detail")).toContainText("Sparky");
+    await expect(page.locator("#pet-gems .pg-picker-card")).toBeVisible();
+    await expect(page.locator("#gem-picker-embue")).toBeVisible();
+    expect(await page.evaluate(() => window.__bpc.game.paused)).toBe(true);
+
+    await page.locator("#gem-picker-cancel").click();
+    await page.locator("#pets-back").click();
+    await page.evaluate(() => {
+      window.__bpc.game._queuePetGemReminder(window.__bpc.game.session, { force: true });
+      window.__bpc.game._showPendingPetFollowup();
+    });
+    await expect(page.locator("#pet-gem-reminder")).toBeHidden();
+  });
+
+  test("the empty-socket prompt points gemless players toward forging", async ({
+    page,
+  }) => {
+    await unlockAllPetFeatures(page);
+    await page.evaluate(() => {
+      const pets = window.__bpc.Storage.getPetState();
+      pets.owned.sparky.xp = 70;
+      pets.owned.sparky.sockets = [];
+      pets.dust = 80;
+      pets.crates = 1;
+      window.__bpc.Storage.set("pets", pets);
+      window.__bpc.Storage.set("gems", {});
+      window.__bpc.Storage.equipPet("sparky");
+      window.__bpc.game.startCampaign(4);
+      window.__bpc.game._queuePetGemReminder(window.__bpc.game.session, { force: true });
+      window.__bpc.game._showPendingPetFollowup();
+    });
+
+    await expect(page.locator("#pet-gem-reminder")).toBeVisible();
+    await expect(page.locator("#pet-gem-reminder-desc")).toContainText("Pet crates can drop gems or Dust");
+    await expect(page.locator("#pet-gem-reminder-benefits")).toContainText("80 Dust");
+    await page.locator("#pet-gem-reminder-open").click();
+    await expect(page.locator("#pets")).toBeVisible();
+    await expect(page.locator("#gem-forge")).toBeVisible();
+    await expect(page.locator("#gemforge-body")).toContainText("Forge");
   });
 
   test("switching companion mid-level warns, then restarts on accept", async ({

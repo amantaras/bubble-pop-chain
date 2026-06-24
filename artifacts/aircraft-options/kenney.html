@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kenney Ship Options For Skybolt</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0d1422;
+      --panel: #172238;
+      --ink: #f7fbff;
+      --muted: #adbbd2;
+      --line: rgba(255,255,255,.12);
+      --accent: #80d8ff;
+      --hot: #ffd35b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font: 16px/1.4 Avenir Next, Trebuchet MS, sans-serif;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(128,216,255,.22), transparent 34rem),
+        radial-gradient(circle at 90% 10%, rgba(255,211,91,.16), transparent 30rem),
+        linear-gradient(180deg, #0d1422, #101827 52%, #0b101b);
+      color: var(--ink);
+    }
+    header, footer { max-width: 1180px; margin: 0 auto; padding-inline: 18px; }
+    header { padding-top: 34px; padding-bottom: 18px; }
+    h1 { margin: 0 0 8px; font-size: clamp(28px, 5vw, 52px); letter-spacing: 0; }
+    p { margin: 0; color: var(--muted); max-width: 820px; }
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 18px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(205px, 1fr));
+      gap: 14px;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--panel), black 7%);
+      min-height: 258px;
+      display: grid;
+      grid-template-rows: 46px 1fr auto;
+      overflow: hidden;
+    }
+    .label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      font-weight: 900;
+      letter-spacing: .02em;
+    }
+    .tag {
+      color: #07101c;
+      background: var(--hot);
+      border-radius: 999px;
+      padding: 3px 9px;
+      font-size: 13px;
+      font-weight: 900;
+    }
+    .stage {
+      display: grid;
+      place-items: center;
+      min-height: 146px;
+      padding: 18px;
+      background:
+        linear-gradient(45deg, rgba(255,255,255,.04) 25%, transparent 25% 75%, rgba(255,255,255,.04) 75%),
+        linear-gradient(45deg, rgba(255,255,255,.04) 25%, transparent 25% 75%, rgba(255,255,255,.04) 75%);
+      background-position: 0 0, 12px 12px;
+      background-size: 24px 24px;
+    }
+    .flight {
+      width: 154px;
+      height: 154px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle, rgba(128,216,255,.25), rgba(128,216,255,.04) 58%, transparent 72%);
+      filter: drop-shadow(0 0 18px rgba(128,216,255,.35));
+    }
+    img {
+      width: 118px;
+      max-height: 92px;
+      object-fit: contain;
+      image-rendering: auto;
+      transform: rotate(0deg);
+      filter: drop-shadow(0 8px 0 rgba(0,0,0,.28)) drop-shadow(0 0 10px rgba(255,255,255,.18));
+    }
+    .meta { padding: 12px; border-top: 1px solid var(--line); min-height: 86px; }
+    .name { font-weight: 900; }
+    .note { color: var(--muted); font-size: 13px; margin-top: 4px; }
+    footer { padding-top: 8px; padding-bottom: 34px; color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Kenney Ship Options</h1>
+    <p>These are from Kenney's Space Shooter Redux pack on OpenGameArt. License: CC0. Attribution to Kenney.nl is appreciated but not mandatory. Pick the letter you like.</p>
+  </header>
+  <main>
+    <section class="card"><div class="label">A <span class="tag">Blue</span></div><div class="stage"><div class="flight"><img alt="Ship 1 blue" src="kenney-ships/playerShip1_blue.png"></div></div><div class="meta"><div class="name">Ship 1 Blue</div><div class="note">Balanced, classic player ship.</div></div></section>
+    <section class="card"><div class="label">B <span class="tag">Green</span></div><div class="stage"><div class="flight"><img alt="Ship 1 green" src="kenney-ships/playerShip1_green.png"></div></div><div class="meta"><div class="name">Ship 1 Green</div><div class="note">Same shape, friendlier color.</div></div></section>
+    <section class="card"><div class="label">C <span class="tag">Orange</span></div><div class="stage"><div class="flight"><img alt="Ship 1 orange" src="kenney-ships/playerShip1_orange.png"></div></div><div class="meta"><div class="name">Ship 1 Orange</div><div class="note">Warmer arcade look.</div></div></section>
+    <section class="card"><div class="label">D <span class="tag">Red</span></div><div class="stage"><div class="flight"><img alt="Ship 1 red" src="kenney-ships/playerShip1_red.png"></div></div><div class="meta"><div class="name">Ship 1 Red</div><div class="note">High contrast, aggressive.</div></div></section>
+    <section class="card"><div class="label">E <span class="tag">Blue</span></div><div class="stage"><div class="flight"><img alt="Ship 2 blue" src="kenney-ships/playerShip2_blue.png"></div></div><div class="meta"><div class="name">Ship 2 Blue</div><div class="note">Wider and more aircraft-like.</div></div></section>
+    <section class="card"><div class="label">F <span class="tag">Green</span></div><div class="stage"><div class="flight"><img alt="Ship 2 green" src="kenney-ships/playerShip2_green.png"></div></div><div class="meta"><div class="name">Ship 2 Green</div><div class="note">Wider ship, softer color.</div></div></section>
+    <section class="card"><div class="label">G <span class="tag">Orange</span></div><div class="stage"><div class="flight"><img alt="Ship 2 orange" src="kenney-ships/playerShip2_orange.png"></div></div><div class="meta"><div class="name">Ship 2 Orange</div><div class="note">Probably best for Skybolt's bomb run.</div></div></section>
+    <section class="card"><div class="label">H <span class="tag">Red</span></div><div class="stage"><div class="flight"><img alt="Ship 2 red" src="kenney-ships/playerShip2_red.png"></div></div><div class="meta"><div class="name">Ship 2 Red</div><div class="note">Bold, readable, action-heavy.</div></div></section>
+    <section class="card"><div class="label">I <span class="tag">Blue</span></div><div class="stage"><div class="flight"><img alt="Ship 3 blue" src="kenney-ships/playerShip3_blue.png"></div></div><div class="meta"><div class="name">Ship 3 Blue</div><div class="note">Compact dart shape.</div></div></section>
+    <section class="card"><div class="label">J <span class="tag">Green</span></div><div class="stage"><div class="flight"><img alt="Ship 3 green" src="kenney-ships/playerShip3_green.png"></div></div><div class="meta"><div class="name">Ship 3 Green</div><div class="note">Compact and pet-friendly.</div></div></section>
+    <section class="card"><div class="label">K <span class="tag">Orange</span></div><div class="stage"><div class="flight"><img alt="Ship 3 orange" src="kenney-ships/playerShip3_orange.png"></div></div><div class="meta"><div class="name">Ship 3 Orange</div><div class="note">Compact, high visibility.</div></div></section>
+    <section class="card"><div class="label">L <span class="tag">Red</span></div><div class="stage"><div class="flight"><img alt="Ship 3 red" src="kenney-ships/playerShip3_red.png"></div></div><div class="meta"><div class="name">Ship 3 Red</div><div class="note">Small, sharp, readable.</div></div></section>
+  </main>
+  <footer>Tell me a letter, for example "use G". I can then vendor that PNG into the game, update Skybolt drawing/caching, and validate it.</footer>
+</body>
+</html>

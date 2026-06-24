@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Magma avatar">
+  <rect width="512" height="512" rx="92" fill="#2b1413"/>
+  <circle cx="256" cy="280" r="166" fill="#8b2c22"/>
+  <path d="M134 344c26-86 54-154 92-224 18 54 10 88-16 128 48-34 78-84 86-150 76 74 104 160 70 248-38 98-188 104-232-2z" fill="#ff6a2f"/>
+  <path d="M206 340c2-56 24-100 62-148 12 44 6 72-10 104 28-18 48-50 56-88 52 54 66 126 24 168-36 36-110 26-132-36z" fill="#ffd063"/>
+  <circle cx="228" cy="310" r="14" fill="#35120e"/>
+  <circle cx="306" cy="310" r="14" fill="#35120e"/>
+  <path d="M238 352c22 18 54 18 76 0" fill="none" stroke="#35120e" stroke-width="13" stroke-linecap="round"/>
+  <path d="M122 408h268" stroke="#4a1b18" stroke-width="24" stroke-linecap="round"/>
+</svg>

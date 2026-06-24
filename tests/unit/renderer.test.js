@@ -28,9 +28,10 @@ describe("special bubble icon assets", () => {
     const values = Object.values(SPECIAL_ICON_ASSETS);
     expect(values.length).toBeGreaterThanOrEqual(7);
     for (const asset of values) {
-      expect(asset).toMatch(/^\.\/assets\/icons\/game-icons\/.+\.svg$/);
+      expect(asset).toMatch(/^\.\/assets\/icons\/(game-icons|special)\/.+\.svg$/);
       expect(asset).not.toMatch(/^https?:/);
     }
+    expect(SPECIAL_ICON_ASSETS[4]).toBe("./assets/icons/special/lightning-mark.svg");
   });
 });
 

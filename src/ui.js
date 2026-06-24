@@ -75,6 +75,7 @@ import {
   PET_CATALOG,
   COSMETICS,
   getPet,
+  petAvatarSrc,
   getCosmetic,
   petBuffs,
   petActive,
@@ -161,6 +162,10 @@ class UIManager {
       "gem-forge", "gemforge-body", "gemforge-dust", "gemforge-back",
       "pause", "pause-sub", "pause-summary", "pause-resume", "pause-shop", "pause-themes", "pause-retry", "pause-menu",
       "pet-confirm", "pet-confirm-sub", "pet-confirm-ok", "pet-confirm-cancel",
+      "pet-levelup", "pet-levelup-icon", "pet-levelup-name", "pet-levelup-desc",
+      "pet-levelup-benefits", "pet-levelup-later", "pet-levelup-open",
+      "pet-gem-reminder", "pet-gem-reminder-icon", "pet-gem-reminder-title", "pet-gem-reminder-desc",
+      "pet-gem-reminder-benefits", "pet-gem-reminder-later", "pet-gem-reminder-open",
       "gem-remove", "gem-remove-sub", "gem-remove-ok", "gem-remove-cancel",
       "pet-reveal", "pet-reveal-confetti", "pet-reveal-congrats", "pet-reveal-glow",
       "pet-reveal-icon", "pet-reveal-name", "pet-reveal-rarity", "pet-reveal-ability",
@@ -338,6 +343,14 @@ class UIManager {
     // Switch-companion confirmation (only seen when changing pets mid-level).
     click("pet-confirm-cancel", () => this._cancelEquip());
     click("pet-confirm-ok", () => this._confirmEquip());
+
+    // Pet level-up moment: either continue, or jump straight into the manager.
+    click("pet-levelup-later", () => this.hidePetLevelUp());
+    click("pet-levelup-open", () => this.openPetsFromLevelUp());
+
+    // Socket reminder: open the right pet/gem surface from the prompt.
+    click("pet-gem-reminder-later", () => this.hidePetGemReminder());
+    click("pet-gem-reminder-open", () => this.openPetsFromGemReminder());
 
     // Gem-removal warning (gems shatter into a small dust refund when removed).
     click("gem-remove-cancel", () => this._cancelUnsocket());
@@ -715,7 +728,7 @@ class UIManager {
   // Opens the rich pet UI (#pets) as a full-screen solid overlay. When opened
   // over a running level the game is paused and input disabled; closing resumes
   // play. Opened from the menu it behaves like a normal screen.
-  openPetOverlay() {
+  openPetOverlay(opts = {}) {
     if (!this._petFeatureUnlocked("pets")) {
       const next = nextPetFeatureUnlock(Storage.get("maxUnlockedLevel"));
       this.toast(next ? `Pets unlock at Level ${next.level}` : "Pets are locked");
@@ -723,13 +736,19 @@ class UIManager {
     }
     const overGame = !!(this.cb.isLevelActive && this.cb.isLevelActive());
     this._petOverlayOverGame = overGame;
-    this._selectedPet = null;
+    this._selectedPet = opts.petId || null;
     if (overGame && this.cb.pauseGame) this.cb.pauseGame();
     this.hideModals();
     if (this.el["gem-forge"]) this.el["gem-forge"].classList.add("hidden");
     this.buildPets();
     this.refreshCoins();
     if (this.el["pets"]) this.el["pets"].classList.remove("hidden");
+    if (opts.openGemForge) {
+      this._gemTab = "forge";
+      this.openGemForge();
+    } else if (opts.openSocketPicker) {
+      this.openFirstEmptySocketPicker(opts.petId);
+    }
   }
 
   closePetOverlay() {
@@ -769,6 +788,21 @@ class UIManager {
     }
   }
 
+  _petAvatarHtml(pet, opts = {}) {
+    const size = opts.size ? ` pet-avatar-${opts.size}` : "";
+    const extra = opts.className ? ` ${opts.className}` : "";
+    const locked = !!opts.locked;
+    const src = !locked ? petAvatarSrc(pet) : null;
+    const fallback = opts.fallback != null ? opts.fallback : (pet && pet.icon) || "🐾";
+    const label = (pet && pet.name) || "Pet";
+    const hue = Number.isFinite(opts.hue) ? opts.hue : 0;
+    const style = hue ? ` style="filter:hue-rotate(${hue}deg)"` : "";
+    if (src) {
+      return `<span class="pet-avatar pet-avatar-imgwrap${size}${extra}"${style} aria-label="${label}"><img class="pet-avatar-img" src="${src}" alt=""></span>`;
+    }
+    return `<span class="pet-avatar pet-avatar-emoji${size}${extra}"${style} aria-label="${label}">${fallback}</span>`;
+  }
+
   _cancelEquip() {
     this._pendingEquipId = null;
     if (this.el["pet-confirm"]) this.el["pet-confirm"].classList.add("hidden");
@@ -784,6 +818,114 @@ class UIManager {
     this._petOverlayOverGame = false;
     if (this.el["pets"]) this.el["pets"].classList.add("hidden");
     if (this.cb.equipPetAndRestart) this.cb.equipPetAndRestart(id);
+  }
+
+  showPetLevelUp(info) {
+    const pet = info && getPet(info.petId);
+    const modal = this.el["pet-levelup"];
+    if (!pet || !modal) return;
+    this._pendingPetLevelUpPetId = pet.id;
+    if (this.el["pet-levelup-icon"]) {
+      this.el["pet-levelup-icon"].innerHTML = this._petAvatarHtml(pet, { size: "reveal" });
+    }
+    if (this.el["pet-levelup-name"]) {
+      this.el["pet-levelup-name"].textContent = `${pet.name} reached Lv.${info.level}!`;
+    }
+    const ability = (pet.ability && pet.ability.label) || (pet.active && pet.active.label) || "Companion ability";
+    if (this.el["pet-levelup-desc"]) {
+      this.el["pet-levelup-desc"].textContent =
+        `${ability} is stronger now. Review gems, party slots, and technology before the next run.`;
+    }
+    const benefits = this.el["pet-levelup-benefits"];
+    if (benefits) {
+      const chips = [
+        `Lv.${info.before} → Lv.${info.level}`,
+        pet.active ? "Active ability improved" : "Passive buff improved",
+      ];
+      if (info.techReady) chips.push("Tech choice ready");
+      if (info.socketsReady) chips.push("Gem socket unlocked");
+      benefits.innerHTML = chips.map((text) => `<span>${text}</span>`).join("");
+    }
+    modal.classList.remove("hidden");
+  }
+
+  hidePetLevelUp() {
+    this._pendingPetLevelUpPetId = null;
+    if (this.el["pet-levelup"]) this.el["pet-levelup"].classList.add("hidden");
+  }
+
+  openPetsFromLevelUp() {
+    const petId = this._pendingPetLevelUpPetId;
+    this._pendingPetLevelUpPetId = null;
+    if (this.el["pet-levelup"]) this.el["pet-levelup"].classList.add("hidden");
+    this.openPetOverlay({ petId });
+  }
+
+  showPetGemReminder(info) {
+    const pet = info && getPet(info.petId);
+    const modal = this.el["pet-gem-reminder"];
+    if (!pet || !modal) return;
+    this._pendingPetGemReminder = { ...info, petId: pet.id };
+    if (this.el["pet-gem-reminder-icon"]) {
+      this.el["pet-gem-reminder-icon"].innerHTML = this._petAvatarHtml(pet, { size: "reveal" });
+    }
+    if (this.el["pet-gem-reminder-title"]) {
+      this.el["pet-gem-reminder-title"].textContent = `${pet.name} has an empty socket`;
+    }
+    if (this.el["pet-gem-reminder-desc"]) {
+      this.el["pet-gem-reminder-desc"].textContent = info.gemCount > 0
+        ? `You have gems ready. Embue one now to boost ${pet.name}'s next run.`
+        : "No loose gems yet. Pet crates can drop gems or Dust, and Dust can be forged into new gems.";
+    }
+    const benefits = this.el["pet-gem-reminder-benefits"];
+    if (benefits) {
+      const chips = [`${info.emptySockets} empty socket${info.emptySockets === 1 ? "" : "s"}`];
+      if (info.gemCount > 0) chips.push(`${info.gemCount} gem${info.gemCount === 1 ? "" : "s"} in bag`);
+      else if (info.dust > 0) chips.push(`✨ ${info.dust} Dust for forging`);
+      else chips.push("Crates can drop gems & Dust");
+      if (info.crates > 0) chips.push(`${info.crates} crate${info.crates === 1 ? "" : "s"} ready`);
+      benefits.innerHTML = chips.map((text) => `<span>${text}</span>`).join("");
+    }
+    const open = this.el["pet-gem-reminder-open"];
+    if (open) open.textContent = info.gemCount > 0 ? "Socket Gem" : "Open Forge";
+    modal.classList.remove("hidden");
+  }
+
+  hidePetGemReminder() {
+    this._pendingPetGemReminder = null;
+    if (this.el["pet-gem-reminder"]) this.el["pet-gem-reminder"].classList.add("hidden");
+  }
+
+  openPetsFromGemReminder() {
+    const info = this._pendingPetGemReminder || {};
+    this._pendingPetGemReminder = null;
+    if (this.el["pet-gem-reminder"]) this.el["pet-gem-reminder"].classList.add("hidden");
+    this.openPetOverlay({
+      petId: info.petId,
+      openSocketPicker: (info.gemCount || 0) > 0,
+      openGemForge: !(info.gemCount > 0),
+    });
+  }
+
+  openFirstEmptySocketPicker(petId) {
+    const state = Storage.getPetState();
+    const owned = state.owned[petId];
+    if (!owned) return false;
+    const lvl = levelForXp(owned.xp || 0);
+    const max = socketsForLevel(lvl);
+    const sockets = Array.isArray(owned.sockets) ? owned.sockets : [];
+    for (let i = 0; i < max; i++) {
+      if (!sockets[i]) {
+        this._gemPicker = { petId, slot: i };
+        this._gemPickSel = null;
+        this._buildPetGems();
+        this._buildPetDetail(state.owned);
+        const socketRow = this.el["pet-detail"] && this.el["pet-detail"].querySelector(".pd-sockets");
+        if (socketRow && socketRow.scrollIntoView) socketRow.scrollIntoView({ behavior: "smooth", block: "center" });
+        return true;
+      }
+    }
+    return false;
   }
 
   // Big celebration when a brand-new companion is won (from a crate, the
@@ -819,7 +961,7 @@ class UIManager {
           ? "🎉 LEGENDARY Companion!"
           : "🎉 New Companion!";
     }
-    if (this.el["pet-reveal-icon"]) this.el["pet-reveal-icon"].textContent = pet.icon;
+    if (this.el["pet-reveal-icon"]) this.el["pet-reveal-icon"].innerHTML = this._petAvatarHtml(pet, { size: "reveal" });
     if (this.el["pet-reveal-name"]) this.el["pet-reveal-name"].textContent = pet.name;
     const rar = this.el["pet-reveal-rarity"];
     if (rar) {
@@ -1900,7 +2042,7 @@ class UIManager {
       agg.pets.forEach((pet) => {
         const tag = pet.isNew ? "New pet!" : "+XP (duplicate)";
         row(
-          pet.icon,
+          this._petAvatarHtml(pet, { size: "chest" }),
           `<b>${pet.name}</b> — ${tag}`,
           pet.premium ? "chest-pet premium" : "chest-pet"
         );
@@ -1947,7 +2089,7 @@ class UIManager {
       if (reward.pet) {
         const tag = reward.pet.isNew ? "New pet!" : "+XP (duplicate)";
         row(
-          reward.pet.icon,
+          this._petAvatarHtml(reward.pet, { size: "chest" }),
           `<b>${reward.pet.name}</b> — ${tag}`,
           reward.pet.premium ? "chest-pet premium" : "chest-pet"
         );
@@ -2423,7 +2565,7 @@ class UIManager {
       const p = petId ? getPet(petId) : null;
       const cls = role === "lead" ? "pp-slot pp-lead" : "pp-slot";
       if (!p) return `<div class="${cls} pp-empty" title="Empty support slot">＋</div>`;
-      return `<div class="${cls}" title="${p.name}"><span class="pp-icon">${p.icon}</span><span class="pp-role">${role === "lead" ? "Lead" : "Support"}</span></div>`;
+      return `<div class="${cls}" title="${p.name}">${this._petAvatarHtml(p, { size: "party", className: "pp-icon" })}<span class="pp-role">${role === "lead" ? "Lead" : "Support"}</span></div>`;
     };
     let html = `<div class="pp-title">Party</div><div class="pp-slots">`;
     html += slotHtml(lead ? lead.id : null, "lead");
@@ -2581,7 +2723,7 @@ class UIManager {
       const item = document.createElement("div");
       item.className = `store-item rarity-${pet.rarity}`;
       item.innerHTML =
-        `<span class="store-icon">${pet.icon}</span>` +
+        this._petAvatarHtml(pet, { size: "store", className: "store-icon" }) +
         `<div class="store-meta"><div class="store-name">${pet.name} ` +
         `<span class="pd-rarity tag-premium">premium</span></div>` +
         `<div class="store-sub">${pet.desc}</div>` +
@@ -2636,7 +2778,7 @@ class UIManager {
       const source = this._petAcquisitionText(pet, { short: true });
       const pendingTech = has && this.cb.petHasPendingTech && this.cb.petHasPendingTech(pet.id);
       card.innerHTML =
-        `<span class="pet-icon" style="filter:hue-rotate(${hue}deg)">${has ? pet.icon : (pet.premium ? "💎" : "❓")}</span>` +
+        this._petAvatarHtml(pet, { size: "card", className: "pet-icon", hue, locked: !has, fallback: pet.premium ? "💎" : "❓" }) +
         `<span class="pet-name">${has ? pet.name : (pet.premium ? "Premium" : "???")}</span>` +
         `<span class="pet-tag tag-${tag}">${has ? "Lv." + lvl : tag}</span>` +
         `<span class="pet-source">${source}</span>` +
@@ -2668,7 +2810,7 @@ class UIManager {
     const lvl = has ? levelForXp(owned[pet.id].xp || 0) : 1;
     const cos = has ? getCosmetic(owned[pet.id].cosmetic) : getCosmetic("default");
     head.innerHTML =
-      `<span class="pd-icon" style="filter:hue-rotate(${cos.hue}deg)">${pet.icon}</span>` +
+      this._petAvatarHtml(pet, { size: "detail", className: "pd-icon", hue: cos.hue }) +
       `<div class="pd-meta"><div class="pd-name">${pet.name} <span class="pd-rarity tag-${pet.rarity}">${pet.rarity}</span></div>` +
       `<div class="pd-desc">${pet.desc}</div>` +
       `<div class="pd-source">${this._petAcquisitionText(pet)}</div>` +
@@ -3522,7 +3664,7 @@ class UIManager {
       chip.dataset.cos = cos.id;
       if (selected === cos.id) chip.classList.add("selected");
       chip.innerHTML =
-        `<span class="cos-swatch" style="filter:hue-rotate(${cos.hue}deg)">${pet.icon}</span>` +
+        this._petAvatarHtml(pet, { size: "cos", className: "cos-swatch", hue: cos.hue }) +
         `<span class="cos-name">${cos.name}</span>` +
         (has
           ? ""
@@ -3565,8 +3707,8 @@ class UIManager {
     const icon = this.el["hud-pet-icon"];
     const buff = this.el["hud-pet-buff"];
     if (icon) {
-      icon.textContent = def.icon;
-      icon.style.filter = `hue-rotate(${cos.hue}deg)`;
+      icon.innerHTML = this._petAvatarHtml(def, { size: "hud", hue: cos.hue });
+      icon.style.filter = "";
     }
     if (buff) {
       const label = def.active ? def.active.label : def.ability.label;
@@ -3848,6 +3990,8 @@ class UIManager {
     if (this.el["tool-unlock"]) this.el["tool-unlock"].classList.add("hidden");
     if (this.el["chest"]) this.el["chest"].classList.add("hidden");
     if (this.el["pet-confirm"]) this.el["pet-confirm"].classList.add("hidden");
+    if (this.el["pet-levelup"]) this.el["pet-levelup"].classList.add("hidden");
+    if (this.el["pet-gem-reminder"]) this.el["pet-gem-reminder"].classList.add("hidden");
     if (this.el["pet-reveal"]) this.el["pet-reveal"].classList.add("hidden");
   }
 

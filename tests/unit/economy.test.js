@@ -87,6 +87,7 @@ describe("economy", () => {
       "pick",
       "paint",
       "chainBolt",
+      "extraMoves",
       "magnet",
     ]);
     expect(unlockedPowerups(6)).toEqual(["undo"]);
@@ -120,11 +121,14 @@ describe("economy", () => {
     expect(resolveRewardForUnlocks({ coins: 40, powerup: "bomb" })).toEqual({ coins: 40, powerup: "bomb" });
   });
 
-  it("catalogs the Magnet, Chain Bolt, Pick and Paint with the Magnet most expensive", () => {
-    for (const t of ["magnet", "chainBolt", "pick", "paint"]) {
+  it("catalogs the Magnet, Chain Bolt, Pick, Paint and +3 Moves with the Magnet most expensive", () => {
+    for (const t of ["magnet", "chainBolt", "pick", "paint", "extraMoves"]) {
       expect(POWERUP_INFO[t]).toBeTruthy();
       expect(POWERUP_INFO[t].price).toBeGreaterThan(0);
     }
+    expect(POWERUP_INFO.extraMoves.moves).toBe(3);
+    expect(POWERUP_INFO.extraMoves.price).toBeGreaterThan(POWERUP_INFO.chainBolt.price);
+    expect(POWERUP_INFO.extraMoves.price).toBeLessThan(POWERUP_INFO.magnet.price);
     expect(POWERUP_INFO.magnet.price).toBe(500);
     // The Magnet is the dearest power-up of all.
     const prices = Object.values(POWERUP_INFO).map((p) => p.price);

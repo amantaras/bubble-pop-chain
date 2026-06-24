@@ -118,16 +118,18 @@ never re‑discovered the hard way.
   **Color Clear** (one colour), **Shuffle**, **Paint** (`grid.suggestRecolors`/
   `recolorCell` — tap one recolourable bubble, then choose from the three
   impact-ranked colour swatches that create the strongest next group),
-  **Chain Bolt** (`grid.crossCells`, full row + column), **Pick** (single bubble; when aimed at a special bubble it
+  **Chain Bolt** (`grid.crossCells`, full row + column), **+3 Moves** (immediate
+  rescue tool for move-limited levels; spends one charge, adds exactly three
+  moves, and leaves the board untouched), **Pick** (single bubble; when aimed at a special bubble it
   also triggers that bubble's effect — lightning strike, bomb blast, multiplier,
   coin payout, vine cue), and the premium **Magnet**
   (`grid.magnetGather`) — arm it, tap a plain bubble, then lock a **circular
   strength dial** that pops up centred over the board (`#magnet-gauge`, a needle
   sweeping a 270° arc, swept in `Game.update`; the overlay is pointer-events:none
-  Any tool-driven clear (bomb/color-clear/chain-bolt/pick) and Charged Blast now
-  applies the full special set in the final cleared cells — lightning and bomb
-  strike expansion plus multiplier score scaling, coin payouts, and vine cue.
-  so the locking board tap still registers). The **green sweet spot is
+  so the locking board tap still registers). Any tool-driven clear (bomb/color-clear/chain-bolt/pick), Charged Blast,
+  and destructive pet ability clear applies the full special set in the final
+  cleared cells — lightning and bomb strike expansion plus multiplier score
+  scaling, coin payouts, and vine cue. The **green sweet spot is
   randomised** each use (`magnet.sweet` ≈ 0.22–0.78; the `.mg-ring` is rotated to
   match) so the player can't just lock dead-centre; strength tapers from full on
   the sweet spot to zero `MAGNET_HALF` away. The closer to green, the more of
@@ -152,7 +154,8 @@ never re‑discovered the hard way.
   five campaign levels keep the HUD quick-access rail, loadout picker, and tool
   shop quiet. Tools then unlock one at a time as campaign progress opens the
   next level: Undo at Level 6, Shuffle at 8,
-  Bomb at 10, Color Clear at 13, Pick at 16, Paint at 18, Chain Bolt at 20, and Magnet at 24. The shop and
+  Bomb at 10, Color Clear at 13, Pick at 16, Paint at 18, Chain Bolt at 20,
+  +3 Moves at 22, and Magnet at 24. The shop and
   loadout picker only list unlocked tools; before Level 6 they show a small
   "Tools unlock after Level 5" empty state, and the Starter Pack describes its
   locked contents as a future tool stash instead of spoiling the full toolbox.
@@ -357,9 +360,10 @@ never re‑discovered the hard way.
   "$" glyph, and Vine curling green tendrils + leaf dots (`renderer.js`). These
   procedural marks are now reinforced with local white SVG overlays from
   **Game-icons.net** (`assets/icons/game-icons/`, CC BY 3.0 attribution recorded
-  in that folder's `README.txt`; no remote runtime loading) so special bubbles
-  read more clearly on mobile while retaining a fallback if an icon is still
-  decoding. All
+  in that folder's `README.txt`; no remote runtime loading), with Lightning using
+  a custom local high-contrast mark (`assets/icons/special/lightning-mark.svg`),
+  so special bubbles read more clearly on mobile while retaining a fallback if
+  an icon is still decoding. All
   types are part of the save/resume snapshot. The tutorial
   teaches Lightning (`grant: "lightning"` → `Game._placeTutorialLightning`),
   Stone (`grant: "stone"` → `Game._placeTutorialStone`, advancing on
@@ -886,7 +890,11 @@ never re‑discovered the hard way.
   to pull farther back. **Skybolt ✈️** (`bomber`, legendary) is an earnable aircraft
   that picks the densest horizontal, vertical, or diagonal flight path
   (`grid.bomberRun`) and drops one-bubble bombs along it (`_petBomber`), scoring,
-  bursting, then settling once after the flyby. Four **elemental** active board pets round out the free roster:
+  bursting, then settling once after the flyby. Its flyby uses a local **Kenney
+  Space Shooter Redux** CC0 ship sprite (`assets/pets/kenney-space-shooter/
+  playerShip3_red.png`, attribution note in that folder's `README.txt`) through
+  `PetAnim`'s generic `opts.sprite` image path, with the old procedural Canvas
+  aircraft kept as a loading/test fallback. Four **elemental** active board pets round out the free roster:
   **Quake 🌍** (`quake`, rare) is a *match-maker* — a board-wide tremor that
   resettles every bubble so identical colours land together in big connected
   groups (`grid.quakeRegroup` → `_petQuake`; colours are conserved, it creates
@@ -895,8 +903,8 @@ never re‑discovered the hard way.
   also non-destructive); **Magma 🌋** (`magma`, epic) erupts under the fullest
   lane(s) and clears whole **vertical columns** (`grid.fullestColumns`/
   `columnCells` → `_petMagma`; lanes cleared scale with level via the `active`
-  `count`); and **Tidal 🌊** (`tidal`, legendary) floods away **every bubble of
-  the dominant colour** in one wave (`grid.dominantColor`/`cellsOfColor` →
+  `count`); and **Tidal 🌊** (`tidal`, legendary) floods away **every poppable bubble of
+  the dominant colour** in one wave (`grid.dominantColor`/`clearableCellsOfColor` →
   `_petTidal`). One **premium**
   active pet, **Nova 🛸** (a `shooter`), is an autonomous alien **gunship** that
   patrols the base of the board in real time (`AlienShip` in `animations.js`),
@@ -917,7 +925,8 @@ never re‑discovered the hard way.
   `session.petTimer`).
   When an active pet fires, it plays an on-board **ability animation** (`PetAnim`
   in `animations.js`, ticked/drawn from the game loop via `game.petAnim`): the
-  equipped pet's emoji flies in and performs its move — **Rover 🐶** dashes in
+  equipped pet's emoji, or a local sprite supplied through `opts.sprite`, flies
+  in and performs its move — **Rover 🐶** dashes in
   and reels the colour together with a sparkle "leash" (`gather`), **Whiskers
   🐱** pounces and claw-slashes the lone bubbles (`cleanse`), **Comet ☄️**
   streaks in diagonally and fires a bright beam along the popped streak
@@ -993,7 +1002,10 @@ never re‑discovered the hard way.
   — surprise you out of an ordinary crate (`rollCrate`'s premium roll, which
   draws from `cratePremiumPets`). **Nova is flagged `storeOnly`** so it is
   excluded from `cratePremiumPets` and can be obtained **only with real money**
-  in the store (never a crate drop). The store also sells a real-money
+  in the store (never a crate drop). Every catalog pet has local avatar art
+  (`assets/pets/avatars/*.svg`, original project artwork) rendered through
+  `visual.avatar`, with Skybolt using its Kenney ship PNG so its card/reveal/HUD
+  image matches the in-board flyby. The store also sells a real-money
   **Legendary Crate** (`LEGENDARY_CRATE`, `crate_legendary` IAP, boosted odds
   via `rollLegendaryCrate` → always legendary, often premium;
   `game.buyLegendaryCrate`). Cosmetic tints (`COSMETICS`, hue-rotate) are
@@ -1019,6 +1031,16 @@ never re‑discovered the hard way.
   toast +XP — the fanfare is reserved for genuinely new pets. The reveal's
   animations live on non-clickable layers (confetti/glow/rays/icon) so the
   buttons stay click-stable for Playwright.
+  When the equipped pet gains a **new level**, `main.js` queues a dedicated
+  `#pet-levelup` modal (`UI.showPetLevelUp`) on top of the end-of-run recap,
+  calling out the level jump plus any pending tech choice or newly unlocked gem
+  socket. Its **Open Pets** action opens `#pets` with that pet selected; if a live
+  board is still present, the existing pet manager pause path freezes gameplay
+  while the player adjusts tech, gems, party slots, or equipment.
+  If the equipped pet has an unlocked **empty gem socket**, `main.js` may queue a
+  once-per-level `#pet-gem-reminder` after the recap/follow-up chain; it routes
+  players with loose gems straight to the socket picker, and gemless players to
+  the Gem Forge/crate/Dust explanation instead of nagging every run.
   **Pet manager overlay** (`ui.js` `openPetOverlay`/`closePetOverlay`): `#pets`
   is a **solid-background overlay** (not a routed `.screen`) reached two ways —
   the menu **Pets** tile, or by **tapping the in-game `#hud-pet` badge** (now a
@@ -1338,7 +1360,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 628 unit tests + 516 E2E
+- **Current baseline (keep growing, never shrink)**: 634 unit tests + 518 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

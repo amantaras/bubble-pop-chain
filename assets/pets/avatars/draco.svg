@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Draco avatar">
+  <rect width="512" height="512" rx="92" fill="#171f2c"/>
+  <circle cx="256" cy="278" r="166" fill="#2c9b64"/>
+  <path d="M150 250c18-82 82-136 160-112 78 24 116 114 72 188-44 76-160 90-214 18-20-28-26-62-18-94z" fill="#65d783"/>
+  <path d="M186 184l-54-82 102 32zM334 184l54-82-102 32z" fill="#4cb66b" stroke="#b9ffc1" stroke-width="12" stroke-linejoin="round"/>
+  <path d="M252 126l-36 70h72z" fill="#e6ff7a" stroke="#ffffff" stroke-width="10" stroke-linejoin="round"/>
+  <circle cx="224" cy="284" r="14" fill="#10261b"/>
+  <circle cx="308" cy="284" r="14" fill="#10261b"/>
+  <path d="M238 328c22 18 54 18 76 0" fill="none" stroke="#10261b" stroke-width="13" stroke-linecap="round"/>
+  <path d="M174 370c46 34 122 36 176 2" fill="none" stroke="#245f3d" stroke-width="20" stroke-linecap="round"/>
+</svg>

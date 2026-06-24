@@ -24,6 +24,8 @@ export const VINE = 9; // creeping threat — every resolved move it spreads int
 //                        an adjacent ordinary bubble. Pop its cluster to clear
 //                        it. A normal coloured bubble for matching; no AoE.
 
+const COLORED_POP_TYPES = new Set([NORMAL, LIGHTNING, BOMB, MULTIPLIER, COIN, VINE]);
+
 // How long a magnet-pulled bubble takes to glide to its new cell (seconds).
 // Deliberately slower than the snappy gravity settle so the player can see the
 // bubbles physically travel and re-locate across the board.
@@ -348,6 +350,10 @@ export class Board {
 
   isVine(c, r) {
     return this.types[c] && this.types[c][r] === VINE;
+  }
+
+  _isColoredPopTarget(c, r) {
+    return this.grid[c]?.[r] !== -1 && COLORED_POP_TYPES.has(this.types[c]?.[r]);
   }
 
   // How many vine (creeping threat) bubbles are currently on the board.
@@ -1107,22 +1113,32 @@ export class Board {
     return out;
   }
 
-  // Lone, "difficult" bubbles: NORMAL cells whose connected group is just
-  // themselves (no same-colour neighbour and not bridged by a rainbow). These
-  // are the hardest to clear, so the "cleanse" pet companion zaps them.
+  // All coloured poppable cells of a given colour. Destructive pet clears use
+  // this so a same-colour lightning/bomb/coin/vine bubble keeps its effect.
+  clearableCellsOfColor(color) {
+    const out = [];
+    for (let c = 0; c < this.cols; c++)
+      for (let r = 0; r < this.rows; r++)
+        if (this.grid[c][r] === color && this._isColoredPopTarget(c, r))
+          out.push({ c, r });
+    return out;
+  }
+
+  // Lone, "difficult" bubbles: coloured poppable cells whose connected group is
+  // just themselves (no same-colour neighbour and not bridged by a rainbow).
+  // These are the hardest to clear, so the "cleanse" pet companion zaps them.
   isolatedCells() {
     const out = [];
     for (let c = 0; c < this.cols; c++)
       for (let r = 0; r < this.rows; r++) {
-        if (this.grid[c][r] === -1 || this.types[c][r] !== NORMAL) continue;
-        if (this.isRainbow(c, r)) continue;
+        if (!this._isColoredPopTarget(c, r)) continue;
         if (this.getGroupAt(c, r).length === 1) out.push({ c, r });
       }
     return out;
   }
 
-  // Rank the MOST ISOLATED bubbles — NORMAL cells walled in on most sides by an
-  // edge, an empty cell, or a DIFFERENT colour (a same-colour or rainbow
+  // Rank the MOST ISOLATED bubbles — coloured poppable cells walled in on most
+  // sides by an edge, an empty cell, or a DIFFERENT colour (a same-colour or rainbow
   // neighbour does NOT count as isolating). The harder a bubble is to ever
   // match, the higher it scores; true singletons (group of 1, which tapping can
   // never clear) always outrank merely-surrounded bubbles. Returns up to
@@ -1139,8 +1155,7 @@ export class Board {
     for (let c = 0; c < this.cols; c++)
       for (let r = 0; r < this.rows; r++) {
         const col = this.grid[c][r];
-        if (col === -1 || this.types[c][r] !== NORMAL) continue;
-        if (this.isRainbow(c, r)) continue;
+        if (!this._isColoredPopTarget(c, r)) continue;
         let iso = 0;
         for (const [dc, dr] of dirs) {
           const nc = c + dc;
@@ -1152,8 +1167,11 @@ export class Board {
           const o = this.grid[nc][nr];
           if (o === -1) {
             iso++; // an empty neighbour isolates
-          } else if (o !== col && this.types[nc][nr] !== RAINBOW) {
-            iso++; // a different (non-wildcard) colour isolates
+          } else if (
+            this.types[nc][nr] !== RAINBOW &&
+            !(o === col && this._isColoredPopTarget(nc, nr))
+          ) {
+            iso++; // a blocker or different non-wildcard colour isolates
           }
         }
         const singleton = this.getGroupAt(c, r).length === 1;
@@ -1167,7 +1185,7 @@ export class Board {
     return scored.slice(0, Math.max(0, count)).map(({ c, r }) => ({ c, r }));
   }
 
-  // Longest straight diagonal run (↘ or ↗) of same-colour NORMAL bubbles. The
+  // Longest straight diagonal run (↘ or ↗) of same-colour poppable bubbles. The
   // orthogonal flood-fill that powers tapping can never clear a pure diagonal,
   // so the "diagonal" pet companion blasts the longest such streak. Returns the
   // cells of the best run (length >= minLen), or [] if none qualifies.
@@ -1183,11 +1201,11 @@ export class Board {
       r >= 0 &&
       r < this.rows &&
       this.grid[c][r] === color &&
-      this.types[c][r] === NORMAL;
+      this._isColoredPopTarget(c, r);
     for (let c = 0; c < this.cols; c++) {
       for (let r = 0; r < this.rows; r++) {
         const color = this.grid[c][r];
-        if (color === -1 || this.types[c][r] !== NORMAL) continue;
+        if (!this._isColoredPopTarget(c, r)) continue;
         for (const [dc, dr] of dirs) {
           // Only start counting at a run's top end (nothing same-colour
           // behind us), so each maximal run is measured exactly once.

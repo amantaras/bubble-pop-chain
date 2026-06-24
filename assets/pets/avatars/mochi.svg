@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mochi avatar">
+  <rect width="512" height="512" rx="92" fill="#35213a"/>
+  <circle cx="256" cy="270" r="168" fill="#f4b1d2"/>
+  <path d="M140 278c0-86 54-146 134-146s136 60 136 146c0 88-56 146-136 146s-134-58-134-146z" fill="#ffe4ef"/>
+  <path d="M190 168c38-44 126-50 170-2" fill="none" stroke="#ffffff" stroke-width="22" stroke-linecap="round" opacity=".75"/>
+  <circle cx="226" cy="292" r="14" fill="#392033"/>
+  <circle cx="312" cy="292" r="14" fill="#392033"/>
+  <path d="M242 336c20 18 52 18 72 0" fill="none" stroke="#392033" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="190" cy="318" r="20" fill="#ff9dbc" opacity=".75"/>
+  <circle cx="350" cy="318" r="20" fill="#ff9dbc" opacity=".75"/>
+  <path d="M158 404c64 42 166 42 226 0" fill="none" stroke="#d875a6" stroke-width="22" stroke-linecap="round"/>
+</svg>

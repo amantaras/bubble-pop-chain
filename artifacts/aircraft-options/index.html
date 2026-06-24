@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Skybolt Aircraft Options</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #111827;
+      --panel: #182132;
+      --ink: #f8fbff;
+      --muted: #aebbd0;
+      --line: rgba(255,255,255,.12);
+      --accent: #80d8ff;
+      --hot: #ffd35b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font: 16px/1.4 Avenir Next, Trebuchet MS, sans-serif;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(128,216,255,.22), transparent 34rem),
+        radial-gradient(circle at 90% 10%, rgba(255,211,91,.16), transparent 30rem),
+        var(--bg);
+      color: var(--ink);
+    }
+    header {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 34px 18px 18px;
+    }
+    h1 { margin: 0 0 8px; font-size: clamp(28px, 5vw, 52px); letter-spacing: 0; }
+    p { margin: 0; color: var(--muted); max-width: 760px; }
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 18px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 14px;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--panel), black 8%);
+      min-height: 250px;
+      display: grid;
+      grid-template-rows: 44px 1fr auto;
+      overflow: hidden;
+    }
+    .label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      font-weight: 800;
+    }
+    .tag {
+      color: #08111d;
+      background: var(--hot);
+      border-radius: 999px;
+      padding: 3px 9px;
+      font-size: 13px;
+      font-weight: 900;
+    }
+    .stage {
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background:
+        linear-gradient(45deg, rgba(255,255,255,.04) 25%, transparent 25% 75%, rgba(255,255,255,.04) 75%),
+        linear-gradient(45deg, rgba(255,255,255,.04) 25%, transparent 25% 75%, rgba(255,255,255,.04) 75%);
+      background-position: 0 0, 12px 12px;
+      background-size: 24px 24px;
+    }
+    .bubble-glow {
+      width: 132px;
+      height: 132px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(128,216,255,.26), rgba(128,216,255,.04) 58%, transparent 70%);
+      filter: drop-shadow(0 0 18px rgba(128,216,255,.35));
+    }
+    img {
+      width: 92px;
+      height: 92px;
+      object-fit: contain;
+      transform: rotate(-45deg);
+      filter: drop-shadow(0 3px 0 rgba(0,0,0,.45));
+    }
+    .meta {
+      padding: 12px;
+      border-top: 1px solid var(--line);
+      min-height: 82px;
+    }
+    .name { font-weight: 900; }
+    .note { color: var(--muted); font-size: 13px; margin-top: 4px; }
+    footer {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 8px 18px 34px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Skybolt Aircraft Options</h1>
+    <p>Pick the letter you like. These are Game-icons SVGs, free to use under CC BY 3.0 with attribution, matching the repo's existing icon license setup.</p>
+  </header>
+  <main>
+    <section class="card"><div class="label">A <span class="tag">Plane</span></div><div class="stage"><div class="bubble-glow"><img alt="Commercial airplane" src="https://raw.githubusercontent.com/game-icons/icons/master/delapouite/commercial-airplane.svg"></div></div><div class="meta"><div class="name">Commercial Airplane</div><div class="note">Full silhouette, current replacement.</div></div></section>
+    <section class="card"><div class="label">B <span class="tag">Plane</span></div><div class="stage"><div class="bubble-glow"><img alt="Airplane departure" src="https://raw.githubusercontent.com/game-icons/icons/master/delapouite/airplane-departure.svg"></div></div><div class="meta"><div class="name">Airplane Departure</div><div class="note">Simple side-ish plane shape, less bulky.</div></div></section>
+    <section class="card"><div class="label">C <span class="tag">Plane</span></div><div class="stage"><div class="bubble-glow"><img alt="Airplane arrival" src="https://raw.githubusercontent.com/game-icons/icons/master/delapouite/airplane-arrival.svg"></div></div><div class="meta"><div class="name">Airplane Arrival</div><div class="note">Similar to B, alternate wing angle.</div></div></section>
+    <section class="card"><div class="label">D <span class="tag">Jet</span></div><div class="stage"><div class="bubble-glow"><img alt="Jet fighter" src="https://raw.githubusercontent.com/game-icons/icons/master/delapouite/jet-fighter.svg"></div></div><div class="meta"><div class="name">Jet Fighter</div><div class="note">Sharper combat jet, previously disliked.</div></div></section>
+    <section class="card"><div class="label">E <span class="tag">Stealth</span></div><div class="stage"><div class="bubble-glow"><img alt="Stealth bomber" src="https://raw.githubusercontent.com/game-icons/icons/master/delapouite/stealth-bomber.svg"></div></div><div class="meta"><div class="name">Stealth Bomber</div><div class="note">Wide triangular arcade bomber.</div></div></section>
+    <section class="card"><div class="label">F <span class="tag">Classic</span></div><div class="stage"><div class="bubble-glow"><img alt="Biplane" src="https://raw.githubusercontent.com/game-icons/icons/master/quoting/biplane.svg"></div></div><div class="meta"><div class="name">Biplane</div><div class="note">Cute, playful, less military.</div></div></section>
+    <section class="card"><div class="label">G <span class="tag">Plane</span></div><div class="stage"><div class="bubble-glow"><img alt="Airplane" src="https://raw.githubusercontent.com/game-icons/icons/master/skoll/airplane.svg"></div></div><div class="meta"><div class="name">Skoll Airplane</div><div class="note">Chunky small-game silhouette.</div></div></section>
+    <section class="card"><div class="label">H <span class="tag">Drone</span></div><div class="stage"><div class="bubble-glow"><img alt="Delivery drone" src="https://raw.githubusercontent.com/game-icons/icons/master/delapouite/delivery-drone.svg"></div></div><div class="meta"><div class="name">Delivery Drone</div><div class="note">Modern, pet-like, not exactly an aircraft.</div></div></section>
+    <section class="card"><div class="label">I <span class="tag">Heli</span></div><div class="stage"><div class="bubble-glow"><img alt="Helicopter" src="https://raw.githubusercontent.com/game-icons/icons/master/delapouite/helicopter.svg"></div></div><div class="meta"><div class="name">Helicopter</div><div class="note">Readable vehicle, different flight vibe.</div></div></section>
+    <section class="card"><div class="label">J <span class="tag">Space</span></div><div class="stage"><div class="bubble-glow"><img alt="Spaceship" src="https://raw.githubusercontent.com/game-icons/icons/master/delapouite/spaceship.svg"></div></div><div class="meta"><div class="name">Spaceship</div><div class="note">Arcade sci-fi ship, likely strong in motion.</div></div></section>
+    <section class="card"><div class="label">K <span class="tag">UFO</span></div><div class="stage"><div class="bubble-glow"><img alt="UFO" src="https://raw.githubusercontent.com/game-icons/icons/master/delapouite/ufo.svg"></div></div><div class="meta"><div class="name">UFO</div><div class="note">Playful alien option, less airplane-like.</div></div></section>
+    <section class="card"><div class="label">L <span class="tag">Rocket</span></div><div class="stage"><div class="bubble-glow"><img alt="Rocket flight" src="https://raw.githubusercontent.com/game-icons/icons/master/lorc/rocket-flight.svg"></div></div><div class="meta"><div class="name">Rocket Flight</div><div class="note">Fast projectile feel, more missile than pet.</div></div></section>
+  </main>
+  <footer>Tell me the letter you prefer, for example: "use F". I will vendor that exact SVG locally, update Skybolt, cache it offline, and validate it.</footer>
+</body>
+</html>

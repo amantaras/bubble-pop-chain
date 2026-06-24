@@ -97,6 +97,7 @@ import {
   neutralBuffs,
   petActive,
   shooterStats,
+  petSpriteSrc,
   levelForXp,
   rollCrate,
   rollLegendaryCrate,
@@ -521,13 +522,24 @@ class Game {
     if (!eq) return "";
     const before = levelForXp(eq.xp || 0);
     Storage.addPetXp(eq.id, PET_XP_PER_LEVEL);
-    const after = levelForXp((eq.xp || 0) + PET_XP_PER_LEVEL);
+    const afterXp = (eq.xp || 0) + PET_XP_PER_LEVEL;
+    const after = levelForXp(afterXp);
     const pet = getPet(eq.id);
     const name = pet ? `${pet.icon} ${pet.name}` : "Pet";
     if (after > before) {
       // A level-up may unlock a new tech-tree tier to pick.
       const tech = Storage.getPetTech(eq.id);
-      const pick = hasPendingTech(tech, after) ? " — pick an upgrade in Pets!" : "";
+      const techReady = hasPendingTech(tech, after);
+      const socketsReady = socketsForLevel(after) > socketsForLevel(before);
+      this._pendingPetLevelUp = {
+        petId: eq.id,
+        before,
+        level: after,
+        xp: afterXp,
+        techReady,
+        socketsReady,
+      };
+      const pick = techReady ? " — pick an upgrade in Pets!" : "";
       return `🐾 ${name} reached Lv.${after}!${pick}`;
     }
     return `🐾 ${name} +${PET_XP_PER_LEVEL} XP`;
@@ -2106,6 +2118,58 @@ class Game {
     return { cells: out, hitLightning, hitBomb };
   }
 
+  _petPopCells(cells, rawPoints, opts = {}) {
+    const s = this.session;
+    if (!s || s.ended || !cells || !cells.length) return null;
+    const strike = this._resolveSpecialStrikes(cells);
+    const resolved = strike.cells;
+    if (!resolved.length) return null;
+    const anchor = opts.anchor || s.board.targetPixel(resolved[0].c, resolved[0].r);
+    const basePoints = Math.round(
+      feverPoints(rawPoints, s.feverActive) * s.petBuffs.scoreMult
+    );
+    const multCount = resolved.filter((p) => s.board.isMultiplier(p.c, p.r)).length;
+    const scoreMult = multCount > 0 ? Math.min(8, Math.pow(2, multCount)) : 1;
+    const points = basePoints * scoreMult;
+    const coinCount = resolved.filter((p) => s.board.isCoin(p.c, p.r)).length;
+    const vinePopped = resolved.some((p) => s.board.isVine(p.c, p.r));
+    s.score += points;
+    if (strike.hitLightning) {
+      this.floating.spawn(anchor.x, anchor.y - 28, "⚡ ZAP!", "#9fe8ff", 30);
+      Audio.powerup();
+      this._tut("lightning");
+    }
+    if (strike.hitBomb) {
+      this.floating.spawn(anchor.x, anchor.y - 28, "💥 BOOM!", "#ffb066", 30);
+      Audio.powerup();
+      this._tut("bombbubble");
+    }
+    if (multCount > 0) {
+      this.floating.spawn(anchor.x, anchor.y - 28, `✨ ×${scoreMult}!`, "#ffd35b", 32);
+      Audio.powerup();
+      this._tut("multiplier");
+    }
+    if (coinCount > 0) {
+      const coinsDropped = coinCount * COIN_BUBBLE_VALUE;
+      if (s.mode !== "tutorial") {
+        Economy.addCoins(coinsDropped);
+        if (s.stats) s.stats.coinBubbles = (s.stats.coinBubbles || 0) + coinCount;
+      }
+      this.floating.spawn(anchor.x, anchor.y - 28, `🪙 +${coinsDropped}`, "#ffe08a", 30);
+      Audio.powerup();
+      this._tut("coinbubble");
+    }
+    if (vinePopped) this._tut("vine");
+    this._popCells(
+      resolved,
+      points,
+      opts.groupSize || resolved.length,
+      1,
+      opts.shakePower || (strike.hitLightning || strike.hitBomb ? 1.2 : 1)
+    );
+    return { cells: resolved, points, hitLightning: strike.hitLightning, hitBomb: strike.hitBomb };
+  }
+
   popAt(c, r) {
     const s = this.session;
     s.preview = null;
@@ -3025,22 +3089,23 @@ class Game {
       return;
     }
     const raw = cells.length * (path.good ? 26 : 18);
-    const points = Math.round(
-      feverPoints(raw, s.feverActive) * s.petBuffs.scoreMult
-    );
-    s.score += points;
     const targets = cells.map((cell) => s.board.targetPixel(cell.c, cell.r));
     const anchorPx = s.board.targetPixel(aim.anchor.c, aim.anchor.r);
     this.petAnim.play({
       kind: "arrow",
       icon: this._equippedPetIcon("🏹"),
+      sprite: this._equippedPetSprite(),
       anchor: anchorPx,
       targets,
       color: "#c9ff7a",
       shotDx: path.shotDx,
       shotDy: path.shotDy,
     });
-    this._popCells(cells, points, cells.length, 1, 0.9 + path.strength * 0.35);
+    this._petPopCells(cells, raw, {
+      anchor: anchorPx,
+      groupSize: cells.length,
+      shakePower: 0.9 + path.strength * 0.35,
+    });
     Audio.powerup();
     vibrate(path.good ? 30 : 12);
     this.floating.spawn(anchorPx.x, anchorPx.y - 36, path.good ? "Bullseye!" : "Arrow!", path.good ? "#b7ff5b" : "#c9ff7a", 28);
@@ -3086,10 +3151,6 @@ class Game {
       return palette[idx] || "#9be7ff";
     });
     const raw = cells.length * 14;
-    const points = Math.round(
-      feverPoints(raw, s.feverActive) * s.petBuffs.scoreMult
-    );
-    s.score += points;
     // Pet ability flourish over the cleared bubbles.
     const anchor = pixels.reduce(
       (a, t) => ({ x: a.x + t.x / pixels.length, y: a.y + t.y / pixels.length }),
@@ -3098,20 +3159,12 @@ class Game {
     this.petAnim.play({
       kind: "cleanse",
       icon: this._equippedPetIcon("🐱"),
+      sprite: this._equippedPetSprite(),
       anchor,
       targets: pixels,
       color: "#9be7ff",
     });
-    for (let i = 0; i < cells.length; i++) {
-      const cell = cells[i];
-      const t = pixels[i];
-      const fx = s.board.forceRemove(cell.c, cell.r);
-      if (!fx) continue;
-      if (s.stats) s.stats.cleared += 1;
-      this.particles.burst(t.x, t.y, hexes[i] || "#9be7ff", 12, 0.7);
-      this.particles.sparkle(t.x, t.y, "#ffffff", 6);
-    }
-    s.board.settle();
+    this._petPopCells(cells, raw, { anchor, groupSize: cells.length, shakePower: 0.8 });
     this.shake.add(0.14 + cells.length * 0.03);
     Audio.powerup();
     this.floating.spawn(anchor.x, anchor.y - 36, "Pounce!", "#9be7ff", 26);
@@ -3138,6 +3191,7 @@ class Game {
     this.petAnim.play({
       kind: "gather",
       icon: this._equippedPetIcon("🐶"),
+      sprite: this._equippedPetSprite(),
       anchor: anchorPx,
       targets,
       // Track the live board: if the player pops the anchor or any of these
@@ -3160,10 +3214,6 @@ class Game {
     const cells = s.board.diagonalRun(3);
     if (cells.length < 3) return;
     const raw = cells.length * 16;
-    const points = Math.round(
-      feverPoints(raw, s.feverActive) * s.petBuffs.scoreMult
-    );
-    s.score += points;
     const targets = cells.map((cell) => s.board.targetPixel(cell.c, cell.r));
     const anchor = targets.reduce(
       (a, t) => ({ x: a.x + t.x / targets.length, y: a.y + t.y / targets.length }),
@@ -3172,11 +3222,12 @@ class Game {
     this.petAnim.play({
       kind: "diagonal",
       icon: this._equippedPetIcon("☄️"),
+      sprite: this._equippedPetSprite(),
       anchor,
       targets,
       color: "#ffd35b",
     });
-    this._popCells(cells, points, cells.length, 1, 0.7);
+    this._petPopCells(cells, raw, { anchor, groupSize: cells.length, shakePower: 0.7 });
     Audio.powerup();
     this.floating.spawn(anchor.x, anchor.y - 36, "Streak!", "#ffd35b", 26);
     this.refreshHud();
@@ -3205,10 +3256,6 @@ class Game {
       return palette[idx] || "#ffd35b";
     });
     const raw = cells.length * 16;
-    const points = Math.round(
-      feverPoints(raw, s.feverActive) * s.petBuffs.scoreMult
-    );
-    s.score += points;
     // The pick now resolves the board itself when the animation finishes, so
     // afterMove must defer win/deadlock checks until then (guarded by this flag).
     s.petPicking = true;
@@ -3219,6 +3266,7 @@ class Game {
     this.petAnim.play({
       kind: "pick",
       icon: this._equippedPetIcon("🦅"),
+      sprite: this._equippedPetSprite(),
       anchor,
       targets: pixels,
       color: "#ffd35b",
@@ -3226,12 +3274,6 @@ class Game {
         const cell = cells[i];
         const t = pixels[i];
         if (!cell || !t) return;
-        // Destroy the bubble right as the beak lands on it — but only if it's
-        // still there (it may have been popped by the player mid-flourish).
-        if (s.board && s.board.grid[cell.c][cell.r] !== -1) {
-          s.board.forceRemove(cell.c, cell.r);
-          if (s.stats) s.stats.cleared += 1;
-        }
         this.particles.burst(t.x, t.y, hexes[i] || "#ffd35b", 12, 0.7);
         this.particles.sparkle(t.x, t.y, "#ffffff", 6);
         this.shake.add(0.12);
@@ -3239,9 +3281,9 @@ class Game {
         vibrate(8);
       },
       onDone: () => {
-        // All pecks have landed: drop everything into place, then let the board
-        // resolve normally (win / deadlock / next pet action).
-        if (s.board) s.board.settle();
+        // All pecks have landed: clear through the shared special-aware path,
+        // then let the board resolve normally (win / deadlock / next pet action).
+        this._petPopCells(cells, raw, { anchor, groupSize: cells.length, shakePower: 0.8 });
         s.petPicking = false;
         this.refreshHud();
         this.afterMove();
@@ -3264,6 +3306,7 @@ class Game {
     this.petAnim.play({
       kind: "gather",
       icon: this._equippedPetIcon("🖌️"),
+      sprite: this._equippedPetSprite(),
       anchor: anchorPx,
       targets,
       color: "#ff8bd1",
@@ -3291,6 +3334,7 @@ class Game {
     this.petAnim.play({
       kind: "cleanse",
       icon: this._equippedPetIcon("🌍"),
+      sprite: this._equippedPetSprite(),
       anchor,
       targets,
       color: "#c9a16b",
@@ -3318,6 +3362,7 @@ class Game {
     this.petAnim.play({
       kind: "gather",
       icon: this._equippedPetIcon("🌪️"),
+      sprite: this._equippedPetSprite(),
       anchor,
       targets,
       color: "#8fe3ff",
@@ -3337,10 +3382,6 @@ class Game {
     for (const c of cols) cells = cells.concat(s.board.columnCells(c));
     if (!cells.length) return;
     const raw = cells.length * 15;
-    const points = Math.round(
-      feverPoints(raw, s.feverActive) * s.petBuffs.scoreMult
-    );
-    s.score += points;
     const targets = cells.map((cell) => s.board.targetPixel(cell.c, cell.r));
     const anchor = targets.reduce(
       (a, t) => ({ x: a.x + t.x / targets.length, y: a.y + t.y / targets.length }),
@@ -3349,11 +3390,12 @@ class Game {
     this.petAnim.play({
       kind: "diagonal",
       icon: this._equippedPetIcon("🌋"),
+      sprite: this._equippedPetSprite(),
       anchor,
       targets,
       color: "#ff7a3c",
     });
-    this._popCells(cells, points, cells.length, 1, 1.1);
+    this._petPopCells(cells, raw, { anchor, groupSize: cells.length, shakePower: 1.1 });
     Audio.powerup();
     this.floating.spawn(anchor.x, anchor.y - 36, "Magma!", "#ff7a3c", 28);
     this.refreshHud();
@@ -3365,13 +3407,11 @@ class Game {
     const s = this.session;
     const color = s.board.dominantColor();
     if (color === null || color === undefined) return;
-    const cells = s.board.cellsOfColor(color);
+    const cells = s.board.clearableCellsOfColor
+      ? s.board.clearableCellsOfColor(color)
+      : s.board.cellsOfColor(color);
     if (cells.length < 2) return;
     const raw = cells.length * 15;
-    const points = Math.round(
-      feverPoints(raw, s.feverActive) * s.petBuffs.scoreMult
-    );
-    s.score += points;
     const targets = cells.map((cell) => s.board.targetPixel(cell.c, cell.r));
     const anchor = targets.reduce(
       (a, t) => ({ x: a.x + t.x / targets.length, y: a.y + t.y / targets.length }),
@@ -3380,11 +3420,12 @@ class Game {
     this.petAnim.play({
       kind: "cleanse",
       icon: this._equippedPetIcon("🌊"),
+      sprite: this._equippedPetSprite(),
       anchor,
       targets,
       color: "#3fb6ff",
     });
-    this._popCells(cells, points, cells.length, 1, 1.2);
+    this._petPopCells(cells, raw, { anchor, groupSize: cells.length, shakePower: 1.2 });
     Audio.powerup();
     this.floating.spawn(anchor.x, anchor.y - 36, "Tidal Wave!", "#3fb6ff", 30);
     this.refreshHud();
@@ -3398,10 +3439,6 @@ class Game {
     const cells = s.board.bomberRun(Math.max(1, act.count || 4), s.board.rng);
     if (!cells.length) return;
     const raw = cells.length * 17;
-    const points = Math.round(
-      feverPoints(raw, s.feverActive) * s.petBuffs.scoreMult
-    );
-    s.score += points;
     const targets = cells.map((cell) => s.board.targetPixel(cell.c, cell.r));
     const palette = this.theme.bubbles;
     const hexes = cells.map((cell) => {
@@ -3416,6 +3453,7 @@ class Game {
     this.petAnim.play({
       kind: "bomber",
       icon: this._equippedPetIcon("✈️"),
+      sprite: this._equippedPetSprite(),
       anchor,
       targets,
       color: "#ffdf6b",
@@ -3423,10 +3461,6 @@ class Game {
         const cell = cells[i];
         const p = targets[i];
         if (!cell || !p) return;
-        if (s.board && s.board.grid[cell.c][cell.r] !== -1) {
-          const fx = s.board.forceRemove(cell.c, cell.r);
-          if (fx && s.stats) s.stats.cleared += 1;
-        }
         this.particles.burst(p.x, p.y, hexes[i] || "#ffdf6b", 20, 1.1);
         this.particles.sparkle(p.x, p.y, "#ffffff", 10);
         this.shake.add(0.12);
@@ -3434,7 +3468,7 @@ class Game {
         vibrate(8);
       },
       onDone: () => {
-        if (s.board) s.board.settle();
+        this._petPopCells(cells, raw, { anchor, groupSize: cells.length, shakePower: 1.2 });
         s.petPicking = false;
         this.shake.add(0.18 + cells.length * 0.03);
         this.refreshHud();
@@ -3454,11 +3488,9 @@ class Game {
     if (!s || s.ended) return false;
     const cell = s.board.bottomBubble(c);
     if (!cell) return false;
-    const points = Math.round(
-      feverPoints(12, s.feverActive) * s.petBuffs.scoreMult
-    );
-    s.score += points;
-    this._popCells([cell], points, 1, 1, 0.5);
+    const anchor = s.board.targetPixel(cell.c, cell.r);
+    const res = this._petPopCells([cell], 12, { anchor, groupSize: 1, shakePower: 0.5 });
+    if (!res) return false;
     if (s.stats) s.stats.shipHits = (s.stats.shipHits || 0) + 1;
     this.refreshHud();
     this._afterShip();
@@ -3473,13 +3505,9 @@ class Game {
     const cells = s.board.bottomBlock(centerCol, 1, 2);
     if (!cells.length) return;
     const raw = cells.length * 18;
-    const points = Math.round(
-      feverPoints(raw, s.feverActive) * s.petBuffs.scoreMult
-    );
-    s.score += points;
-    this._popCells(cells, points, cells.length, 1, 1.2);
-    if (s.stats) s.stats.shipHits = (s.stats.shipHits || 0) + cells.length;
     const px = s.board.targetPixel(centerCol, s.board.rows - 1);
+    this._petPopCells(cells, raw, { anchor: px, groupSize: cells.length, shakePower: 1.2 });
+    if (s.stats) s.stats.shipHits = (s.stats.shipHits || 0) + cells.length;
     this.floating.spawn(px.x, px.y - 30, "NUKE!", "#ff7bf0", 30);
     Audio.powerup();
     this.refreshHud();
@@ -3506,6 +3534,11 @@ class Game {
       if (def && def.icon) return def.icon;
     }
     return fallback;
+  }
+
+  _equippedPetSprite() {
+    const eq = Storage.getEquippedPet && Storage.getEquippedPet();
+    return eq && eq.id ? petSpriteSrc(eq.id) : null;
   }
 
   _popCells(cells, points, groupSize, combo, shakePower = 1) {
@@ -3588,6 +3621,31 @@ class Game {
       this.refreshHud();
       return;
     }
+    if (type === "extraMoves") {
+      const moves = Math.max(1, (POWERUP_INFO.extraMoves && POWERUP_INFO.extraMoves.moves) || 3);
+      if (s.mode === "timeattack" || !Number.isFinite(s.movesLeft) || s.movesLeft >= 9000) {
+        UI.toast("No move limit here");
+        return;
+      }
+      if (!inTutorial && !Economy.usePowerup(type)) return;
+      s.movesLeft += moves;
+      if (Array.isArray(s.undoStack)) {
+        s.undoStack.forEach((snap) => {
+          if (snap && Number.isFinite(snap.movesLeft)) snap.movesLeft += moves;
+        });
+      }
+      this._markPowerupUsed();
+      if (s.stats) s.stats.powerups += 1;
+      s.armed = null;
+      Audio.powerup();
+      vibrate(12);
+      UI.clearArmedPowerups();
+      UI.updatePowerups();
+      UI.toast(`＋${moves} moves!`);
+      this.refreshHud();
+      this._tut("powerup");
+      return;
+    }
     if (type === "shuffle") {
       if (!inTutorial) Economy.usePowerup(type);
       this._markPowerupUsed();
@@ -3631,6 +3689,7 @@ class Game {
         chainBolt: "Tap to fire a row + column bolt",
         pick: "Tap a single bubble to remove it",
         magnet: "Tap a plain bubble to aim the magnet",
+        extraMoves: "Adds moves immediately",
       }[type];
       UI.toast(hint || "Tap the board");
     }
@@ -4199,6 +4258,8 @@ class Game {
           showNext: s.level.id < LEVEL_COUNT,
           showDouble: Monetization.canShowRewardedAd() && !Monetization.isAdsRemoved(),
         });
+        this._queuePetGemReminder(s);
+        this._showPendingPetFollowup();
         await Monetization.maybeShowInterstitial(s.level.id);
       } else {
         Audio.lose();
@@ -4216,6 +4277,8 @@ class Game {
           tip: this._loseTip(s, reason),
           tools: this._loseToolHints(s.level),
         });
+        this._queuePetGemReminder(s);
+        this._showPendingPetFollowup();
       }
     } else if (s.mode === "endless") {
       const prevBest = Storage.get("highScoreEndless");
@@ -4230,6 +4293,7 @@ class Game {
         showRevive: !s.revived && Monetization.canShowRewardedAd(),
         title: s.score > prevBest ? "New Best!" : "Game Over",
       });
+      this._showPendingPetFollowup();
     } else if (s.mode === "daily") {
       const goals = s.goals || getDailyGoals(s.level);
       const stars = dailyStarsForScore(goals, s.score);
@@ -4260,6 +4324,7 @@ class Game {
         showNext: false,
         showDouble: Monetization.canShowRewardedAd() && !Monetization.isAdsRemoved(),
       });
+      this._showPendingPetFollowup();
     } else if (s.mode === "tournament") {
       const goals = s.goals || getTournamentGoals(s.level);
       const rank = tournamentRank(goals, s.score);
@@ -4285,6 +4350,7 @@ class Game {
         showNext: false,
         showDouble: Monetization.canShowRewardedAd() && !Monetization.isAdsRemoved(),
       });
+      this._showPendingPetFollowup();
     } else if (s.mode === "timeattack") {
       const prevBest = Storage.get("highScoreTimeAttack");
       const isNewBest = s.score > prevBest;
@@ -4313,6 +4379,7 @@ class Game {
         showNext: false,
         showDouble: Monetization.canShowRewardedAd() && !Monetization.isAdsRemoved(),
       });
+      this._showPendingPetFollowup();
     } else if (s.mode === "puzzle") {
       const idx = s.level.puzzleIndex;
       if (won) {
@@ -4347,6 +4414,7 @@ class Game {
           showNext: idx + 1 < PUZZLE_COUNT,
           showDouble: Monetization.canShowRewardedAd() && !Monetization.isAdsRemoved(),
         });
+        this._showPendingPetFollowup();
       } else {
         Audio.lose();
         // No revive: a puzzle is defined by its fixed move budget, so the only
@@ -4376,6 +4444,59 @@ class Game {
   _showPendingProgressUnlock() {
     if (!this._pendingToolUnlock) return false;
     UI.showToolUnlock(this._pendingToolUnlock);
+    return true;
+  }
+
+  _showPendingPetLevelUp() {
+    if (!this._pendingPetLevelUp) return false;
+    const info = this._pendingPetLevelUp;
+    this._pendingPetLevelUp = null;
+    UI.showPetLevelUp(info);
+    return true;
+  }
+
+  _showPendingPetGemReminder() {
+    if (!this._pendingPetGemReminder) return false;
+    const info = this._pendingPetGemReminder;
+    this._pendingPetGemReminder = null;
+    UI.showPetGemReminder(info);
+    return true;
+  }
+
+  _showPendingPetFollowup() {
+    if (this._showPendingPetLevelUp()) return true;
+    return this._showPendingPetGemReminder();
+  }
+
+  _queuePetGemReminder(session, opts = {}) {
+    if (!this._petFeatureUnlocked("gems")) return false;
+    if (!session || !session.level || session.mode !== "campaign") return false;
+    if (this._pendingToolUnlock || this._pendingPetLevelUp) return false;
+    const levelId = session.level.id || 0;
+    const key = `${session.mode}:${levelId}`;
+    if (!this._petGemReminderShown) this._petGemReminderShown = new Set();
+    if (this._petGemReminderShown.has(key)) return false;
+    if (!opts.force && levelId % 4 !== 0) return false;
+    const eq = Storage.getEquippedPet();
+    if (!eq || !eq.id) return false;
+    const lvl = levelForXp(eq.xp || 0);
+    const max = socketsForLevel(lvl);
+    if (max <= 0) return false;
+    const sockets = Storage.getSockets(eq.id);
+    let emptySockets = 0;
+    for (let i = 0; i < max; i++) if (!sockets[i]) emptySockets++;
+    if (emptySockets <= 0) return false;
+    const gems = Storage.getGems();
+    const gemCount = Object.keys(gems).reduce((sum, gemKey) => sum + Math.max(0, gems[gemKey] || 0), 0);
+    this._pendingPetGemReminder = {
+      petId: eq.id,
+      level: lvl,
+      emptySockets,
+      gemCount,
+      dust: Storage.getDust(),
+      crates: Storage.getPetState().crates || 0,
+    };
+    this._petGemReminderShown.add(key);
     return true;
   }
 
@@ -4482,7 +4603,22 @@ class Game {
     else if (reward.type === "petxp") {
       const pet = Storage.getEquippedPet();
       if (!pet) return false;
-      Storage.addPetXp(pet.id, reward.amount || 0);
+      const amount = reward.amount || 0;
+      const before = levelForXp(pet.xp || 0);
+      const afterXp = (pet.xp || 0) + amount;
+      Storage.addPetXp(pet.id, amount);
+      const after = levelForXp(afterXp);
+      if (after > before) {
+        this._pendingPetLevelUp = {
+          petId: pet.id,
+          before,
+          level: after,
+          xp: afterXp,
+          techReady: hasPendingTech(Storage.getPetTech(pet.id), after),
+          socketsReady: socketsForLevel(after) > socketsForLevel(before),
+        };
+        this._showPendingPetLevelUp();
+      }
       UI.updatePetHud(Storage.getEquippedPet());
     } else if (reward.type === "dust") Storage.addDust(reward.amount || 0);
     else if (reward.type === "crate") Storage.addCrates(reward.amount || 1);
@@ -4504,7 +4640,7 @@ class Game {
     if (specials.lightning || specials.bomb) add("colorClear"), add("chainBolt");
     if (level && level.objective && level.objective.type === "group") add("magnet"), add("paint"), add("colorClear");
     if (level && level.objective && level.objective.type === "combo") add("shuffle"), add("paint"), add("magnet");
-    if (level && level.moves <= 10) add("undo"), add("shuffle");
+    if (level && level.moves <= 10) add("extraMoves"), add("undo"), add("shuffle");
     add("undo");
     add("shuffle");
     add("bomb");

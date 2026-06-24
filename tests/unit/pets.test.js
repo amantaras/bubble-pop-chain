@@ -50,6 +50,8 @@ import {
   isPetFeatureUnlocked,
   petFeaturesUnlockedBetween,
   nextPetFeatureUnlock,
+  petAvatarSrc,
+  petSpriteSrc,
 } from "../../src/pets.js";
 import { makeRng } from "../../src/rng.js";
 
@@ -86,6 +88,24 @@ describe("pets catalog", () => {
       expect(passive || active).toBe(true);
       expect(passive && active).toBe(false);
     }
+  });
+
+  it("exposes local avatar art for every pet and animation sprites where needed", () => {
+    const skyboltAsset = "./assets/pets/kenney-space-shooter/playerShip3_red.png";
+    for (const pet of PET_CATALOG) {
+      const avatar = petAvatarSrc(pet);
+      expect(avatar).toBeTruthy();
+      expect(avatar).toMatch(/^\.\/assets\/pets\/(avatars\/.+\.svg|kenney-space-shooter\/.+\.png)$/);
+      expect(avatar).not.toMatch(/^https?:/);
+    }
+    expect(petAvatarSrc("skybolt")).toBe(skyboltAsset);
+    expect(petSpriteSrc("skybolt")).toBe(skyboltAsset);
+    expect(petAvatarSrc({ id: "skybolt", name: "Skybolt" })).toBe(skyboltAsset);
+    expect(petSpriteSrc({ id: "skybolt", name: "Skybolt" })).toBe(skyboltAsset);
+    expect(petAvatarSrc("rover")).toBe("./assets/pets/avatars/rover.svg");
+    expect(petSpriteSrc("rover")).toBe("./assets/pets/avatars/rover.svg");
+    expect(petAvatarSrc("missing")).toBeNull();
+    expect(petSpriteSrc(null)).toBeNull();
   });
 
   it("only premium pets carry a price/product", () => {

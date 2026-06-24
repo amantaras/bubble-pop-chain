@@ -832,6 +832,18 @@ body {
   font-size: 16px;
   padding: 9px 16px;
 }
+.hud-coins-pill {
+  min-width: 72px;
+  justify-content: center;
+  padding: 8px 12px;
+  background:
+    radial-gradient(circle at 28% 18%, rgba(255, 246, 194, 0.18), transparent 34%),
+    rgba(6, 10, 24, 0.66);
+  border-color: rgba(255, 211, 91, 0.28);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(14px) saturate(1.18);
+  -webkit-backdrop-filter: blur(14px) saturate(1.18);
+}
 .coin-dot {
   width: 14px;
   height: 14px;
@@ -1220,7 +1232,7 @@ body {
 .hud-bottom {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 10px;
   margin-top: 12px;
 }
@@ -2507,6 +2519,67 @@ body {
 .pet-card .pet-icon {
   font-size: 34px;
 }
+.pet-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  line-height: 1;
+}
+.pet-avatar-imgwrap {
+  overflow: visible;
+}
+.pet-avatar-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.24)) drop-shadow(0 0 8px rgba(255, 255, 255, 0.16));
+  pointer-events: none;
+}
+.pet-avatar-card {
+  width: 46px;
+  height: 40px;
+  font-size: 34px;
+}
+.pet-avatar-detail {
+  width: 58px;
+  height: 52px;
+  font-size: 44px;
+}
+.pet-avatar-store {
+  width: 42px;
+  height: 38px;
+  font-size: 28px;
+}
+.pet-avatar-party {
+  width: 30px;
+  height: 28px;
+  font-size: 24px;
+}
+.pet-avatar-chest {
+  width: 30px;
+  height: 28px;
+  font-size: 22px;
+}
+.pet-avatar-cos {
+  width: 24px;
+  height: 24px;
+  font-size: 18px;
+}
+.pet-avatar-hud {
+  width: 24px;
+  height: 24px;
+  font-size: 20px;
+}
+.pet-avatar-reveal {
+  width: 118px;
+  height: 104px;
+  font-size: 88px;
+}
+.pet-avatar-reveal .pet-avatar-img {
+  filter: drop-shadow(0 12px 0 rgba(0, 0, 0, 0.22)) drop-shadow(0 0 18px var(--pr-color));
+}
 .pet-card .pet-name {
   font-size: 12px;
   font-weight: 700;
@@ -2664,12 +2737,96 @@ body {
 .pr-icon {
   position: relative;
   z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 88px;
   line-height: 1;
   filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.45));
 }
 .pr-icon.pr-pop {
   animation: pr-icon-pop 0.7s cubic-bezier(0.18, 1.4, 0.4, 1) both;
+}
+#pet-levelup {
+  z-index: 66;
+}
+#pet-gem-reminder {
+  z-index: 66;
+}
+.pet-levelup-card {
+  text-align: center;
+  overflow: hidden;
+}
+.pet-gem-card {
+  text-align: center;
+  overflow: hidden;
+}
+.plu-kicker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 4px 12px;
+  border: 1px solid rgba(94, 234, 255, 0.35);
+  border-radius: 999px;
+  color: var(--accent);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 12px;
+  background: rgba(94, 234, 255, 0.1);
+}
+.plu-stage {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 132px;
+  height: 132px;
+  margin: 16px auto 8px;
+  border-radius: 34px;
+  background: radial-gradient(circle at 50% 40%, rgba(94, 234, 255, 0.24), rgba(126, 87, 255, 0.08) 62%, transparent 72%);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255,255,255,0.08);
+}
+.plu-stage::before {
+  content: "";
+  position: absolute;
+  inset: -22px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, rgba(94, 234, 255, 0.34), transparent 18deg 48deg, rgba(255, 207, 90, 0.28) 70deg, transparent 92deg 132deg, rgba(255, 111, 180, 0.25) 150deg, transparent 174deg 360deg);
+  animation: pr-spin 10s linear infinite;
+  opacity: 0.8;
+}
+.plu-stage .pet-avatar {
+  position: relative;
+  z-index: 1;
+}
+.pgr-stage {
+  background: radial-gradient(circle at 50% 40%, rgba(255, 211, 91, 0.26), rgba(94, 234, 255, 0.1) 58%, transparent 72%);
+}
+.pgr-kicker {
+  color: #ffd35b;
+  border-color: rgba(255, 211, 91, 0.4);
+  background: rgba(255, 211, 91, 0.1);
+}
+.plu-benefits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin: 14px 0 18px;
+}
+.plu-benefits span {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  font-weight: 800;
 }
 .pr-name {
   position: relative;
@@ -2734,6 +2891,9 @@ body {
   align-items: flex-start;
 }
 .pd-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 44px;
 }
 .pd-name {

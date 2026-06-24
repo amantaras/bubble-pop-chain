@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Midas avatar">
+  <rect width="512" height="512" rx="92" fill="#2d220f"/>
+  <circle cx="256" cy="278" r="166" fill="#b98522"/>
+  <path d="M146 260c12-78 74-132 148-120 78 14 126 92 104 166-24 82-120 126-194 84-48-28-68-78-58-130z" fill="#ffd257"/>
+  <path d="M188 162l36-62 34 54 48-70 24 82 64-8-42 66H166z" fill="#fff09a" stroke="#7b5414" stroke-width="10" stroke-linejoin="round"/>
+  <circle cx="226" cy="298" r="14" fill="#33220e"/>
+  <circle cx="306" cy="298" r="14" fill="#33220e"/>
+  <path d="M238 340c22 18 54 18 76 0" fill="none" stroke="#33220e" stroke-width="13" stroke-linecap="round"/>
+  <circle cx="380" cy="374" r="30" fill="#fff09a" stroke="#7b5414" stroke-width="10"/>
+  <path d="M374 354v40M360 374h40" stroke="#7b5414" stroke-width="8" stroke-linecap="round"/>
+</svg>

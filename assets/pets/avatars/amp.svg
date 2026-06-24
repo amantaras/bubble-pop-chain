@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Amp avatar">
+  <rect width="512" height="512" rx="92" fill="#152038"/>
+  <circle cx="256" cy="276" r="166" fill="#1d74c8"/>
+  <path d="M156 262c16-82 82-136 154-116 76 20 116 102 86 176-32 82-138 112-206 56-32-28-44-72-34-116z" fill="#80d8ff"/>
+  <path d="M248 112l-48 134h56l-30 126 102-166h-58l42-94z" fill="#fff062" stroke="#ffffff" stroke-width="10" stroke-linejoin="round"/>
+  <circle cx="218" cy="300" r="13" fill="#12223a"/>
+  <circle cx="304" cy="300" r="13" fill="#12223a"/>
+  <path d="M236 340c22 18 54 18 76 0" fill="none" stroke="#12223a" stroke-width="13" stroke-linecap="round"/>
+  <path d="M134 210c-24 18-40 44-46 78M394 210c24 18 40 44 46 78" fill="none" stroke="#fff062" stroke-width="14" stroke-linecap="round"/>
+</svg>

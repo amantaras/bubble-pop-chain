@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Quake avatar">
+  <rect width="512" height="512" rx="92" fill="#251d16"/>
+  <circle cx="256" cy="274" r="166" fill="#7c5a38"/>
+  <path d="M154 260c10-78 72-132 150-118 74 12 122 86 104 158-18 76-98 122-172 94-58-22-92-74-82-134z" fill="#b98b54"/>
+  <path d="M146 218c42-46 138-72 214-28" fill="none" stroke="#e3c48f" stroke-width="20" stroke-linecap="round"/>
+  <path d="M214 142l28 54-52 44 82-18-20 86 76-114-60 10 32-62z" fill="#5c3f2b" opacity=".85"/>
+  <circle cx="222" cy="304" r="14" fill="#24170f"/>
+  <circle cx="310" cy="304" r="14" fill="#24170f"/>
+  <path d="M236 346c22 18 54 18 76 0" fill="none" stroke="#24170f" stroke-width="13" stroke-linecap="round"/>
+  <path d="M122 400c44 18 74 18 116 0 44 20 90 20 132 0" fill="none" stroke="#e3c48f" stroke-width="16" stroke-linecap="round"/>
+</svg>

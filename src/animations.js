@@ -105,6 +105,21 @@ function withAlpha(hex, a) {
   return `rgba(${r},${g},${b},${Math.max(0, Math.min(1, a))})`;
 }
 
+const SKYBOLT_AIRCRAFT_ASSET = "./assets/pets/kenney-space-shooter/playerShip3_red.png";
+const spriteImages = new Map();
+
+function spriteImage(path) {
+  if (!path) return null;
+  if (typeof Image === "undefined") return null;
+  let img = spriteImages.get(path);
+  if (!img) {
+    img = new Image();
+    img.src = path;
+    spriteImages.set(path, img);
+  }
+  return img;
+}
+
 export class PetAnim {
   constructor() {
     this.items = [];
@@ -126,6 +141,7 @@ export class PetAnim {
   // Trigger a pet ability animation.
   //   opts.kind       — "gather" | "cleanse" | "pick" | "diagonal" | "arrow" | "bomber"
   //   opts.icon       — pet emoji to fly across the screen
+  //   opts.sprite     — optional local image asset to draw instead of the emoji
   //   opts.anchor     — { x, y } focal point of the ability (pixels)
   //   opts.targets    — [{ x, y }, ...] affected bubble centres (pixels)
   //   opts.color      — accent colour for trails/sparkles
@@ -170,9 +186,12 @@ export class PetAnim {
       : kind === "pick"
         ? Math.max(0.7, targets.length * 0.34)
         : 0.6;
+    const sprite = opts.sprite || (kind === "bomber" ? SKYBOLT_AIRCRAFT_ASSET : null);
+    if (sprite) spriteImage(sprite);
     this.items.push({
       kind,
       icon: opts.icon || "🐾",
+      sprite,
       color: opts.color || "#9be7ff",
       cx,
       cy,
@@ -416,7 +435,8 @@ export class PetAnim {
     ctx.translate(px, py);
     ctx.rotate(rot);
     ctx.scale(scale, scale);
-    if (it.kind === "bomber") this._drawAircraft(ctx, it.color);
+    if (it.sprite) this._drawPetSprite(ctx, it);
+    else if (it.kind === "bomber") this._drawAircraftFallback(ctx, it.color);
     else {
       ctx.font = "44px -apple-system, system-ui, sans-serif";
       ctx.textAlign = "center";
@@ -426,7 +446,51 @@ export class PetAnim {
     ctx.restore();
   }
 
-  _drawAircraft(ctx, color) {
+  _drawPetSprite(ctx, it) {
+    const img = spriteImage(it.sprite);
+    if (img && img.complete && img.naturalWidth > 0 && typeof ctx.drawImage === "function") {
+      const width = it.kind === "bomber" ? 86 : 70;
+      const height = width * (img.naturalHeight / img.naturalWidth);
+      ctx.save();
+      ctx.shadowColor = withAlpha(it.color, 0.75);
+      ctx.shadowBlur = 12;
+      if (it.kind === "bomber") ctx.rotate(Math.PI / 2);
+      ctx.drawImage(img, -width / 2, -height / 2, width, height);
+      if (it.kind === "bomber") {
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "#ff8f5a";
+        ctx.beginPath();
+        ctx.moveTo(0, height / 2 - 4);
+        ctx.lineTo(-11, height / 2 + 17);
+        ctx.lineTo(0, height / 2 + 8);
+        ctx.lineTo(11, height / 2 + 17);
+        ctx.lineTo(0, height / 2 - 4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "#ffd35b";
+        ctx.beginPath();
+        ctx.moveTo(0, height / 2 + 2);
+        ctx.lineTo(-6, height / 2 + 12);
+        ctx.lineTo(0, height / 2 + 8);
+        ctx.lineTo(6, height / 2 + 12);
+        ctx.lineTo(0, height / 2 + 2);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+      return;
+    }
+
+    if (it.kind === "bomber") this._drawAircraftFallback(ctx, it.color);
+    else {
+      ctx.font = "44px -apple-system, system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(it.icon, 0, 0);
+    }
+  }
+
+  _drawAircraftFallback(ctx, color) {
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
     ctx.lineWidth = 2.4;

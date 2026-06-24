@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Cyclone avatar">
+  <rect width="512" height="512" rx="92" fill="#13283a"/>
+  <circle cx="256" cy="272" r="166" fill="#4aa5c7"/>
+  <path d="M132 328c36 56 128 86 208 40 76-44 80-142 18-182-56-36-138-10-162 50 46-38 110-34 138 4 26 36 8 88-36 108-50 24-112 4-166-20z" fill="#d8fbff" opacity=".92"/>
+  <path d="M166 202c44-52 132-78 210-34" fill="none" stroke="#8defff" stroke-width="24" stroke-linecap="round"/>
+  <path d="M206 284c16-36 78-48 110-18 34 32 12 84-38 96-46 10-92-18-104-58z" fill="#eafcff"/>
+  <circle cx="228" cy="300" r="13" fill="#143047"/>
+  <circle cx="300" cy="300" r="13" fill="#143047"/>
+  <path d="M240 338c18 14 46 14 64 0" fill="none" stroke="#143047" stroke-width="12" stroke-linecap="round"/>
+</svg>

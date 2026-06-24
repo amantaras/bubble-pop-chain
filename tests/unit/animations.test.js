@@ -28,6 +28,7 @@ function mockCtx() {
     arc: rec("arc"),
     stroke: rec("stroke"),
     fill: rec("fill"),
+    drawImage: rec("drawImage"),
     fillText: rec("fillText"),
     strokeText: rec("strokeText"),
     createRadialGradient: () => ({ addColorStop() {} }),
@@ -67,6 +68,19 @@ describe("PetAnim — pet ability animations", () => {
     pa.play({ targets: [{ x: 10, y: 10 }] });
     expect(pa.items[0].kind).toBe("gather");
     expect(pa.items[0].icon).toBe("🐾");
+  });
+
+  it("accepts a local sprite asset for pet animations", () => {
+    const pa = new PetAnim();
+    pa.play({
+      kind: "gather",
+      icon: "🐾",
+      sprite: "./assets/pets/example.png",
+      anchor: { x: 20, y: 20 },
+      targets: [{ x: 10, y: 10 }],
+    });
+    expect(pa.items[0].sprite).toBe("./assets/pets/example.png");
+    expect(() => pa.draw(mockCtx())).not.toThrow();
   });
 
   it("derives the focal point from targets when no anchor is given", () => {

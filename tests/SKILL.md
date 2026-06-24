@@ -194,16 +194,19 @@ npm run dev                 # alias for npm run serve
   unowned, default Sparky `tech:[]`, no-op on unowned).
   plus the grid helpers it relies on
   (dominant colour, first-cell-of-colour, isolated-cell detection,
-  most-isolated-cell ranking for the Talon pick pet, deterministic
+  most-isolated-cell ranking for the Talon pick pet, coloured-special target
+  inclusion for destructive pet helpers, Tidal's special-aware colour clear scan, deterministic
   `arrowRay` pathing for Archer's drag skill shot, and `bomberRun` route
-  selection for Skybolt's horizontal/vertical/diagonal flyby),
+  selection for Skybolt's horizontal/vertical/diagonal flyby), local pet avatar
+  metadata for every catalog pet (original SVG portraits plus Skybolt's Kenney
+  ship PNG), plus `PetAnim`'s local sprite hook used by Skybolt's Kenney Space Shooter Redux ship asset,
   special bubbles (rainbow wildcard + ice two-hit + lightning row/column
   strike + bomb 3×3 detonation + multiplier gold-score-boost + coin
   treasure-drop + vine creeping-threat spread + stone
   locked-bubble: never tappable, shattered
   only by an adjacent pop, and excluded from `hasMoves`) with type round-trip,
   plus renderer coverage that special-bubble SVG overlays use local vendored
-  Game-icons assets only, the
+  assets (Game-icons plus the custom high-contrast lightning mark), the
   last-bubble finale animator (`BubbleFinale`: variant clamping to 0–4,
   onExplode fires exactly once at the glow→blast boundary, onDone fires once at
   completion, cancel, and draw in both phases) plus the grid helpers it relies
@@ -225,7 +228,7 @@ npm run dev                 # alias for npm run serve
   the real save), the forced `?e2e=1&splash=1` animated startup splash handoff,
   grouped menu/level-map/shop/themes
   navigation, popping via real taps, scoring, win/lose, revive and double-coins
-  rewarded-ad flows, endless refill, daily streak, the full power-up/tool set,
+  rewarded-ad flows, endless refill, daily streak, top-HUD coin balance, the full power-up/tool set,
   the Paint tool's smart three-colour picker and repaint flow,
   progressive tool unlocks (fresh players see no HUD/shop/loadout tools or locked
   Pick rescue prompts, Level 5→6 shows the **New Tool Unlocked!** mini-tutorial before starting the next
@@ -324,6 +327,12 @@ npm run dev                 # alias for npm run serve
   Pets screen shows the party panel with a lead slot, adding a support pet folds
   its buffs into the equipped party, and a matching party grants a set synergy
   bonus,
+  a pet level-up shows the dedicated `#pet-levelup` popup with tech/socket
+  benefit chips and its **Open Pets** action selects that pet while pausing the
+  live board,
+  an equipped pet with unlocked empty sockets can show the occasional
+  `#pet-gem-reminder`, whose CTA opens the socket picker when loose gems exist
+  or the Gem Forge when the player has only Dust/crates,
   winning a new pet fires the `#pet-reveal` celebration showing its name/rarity/
   ability with an Equip & Play CTA, equipping
   refreshes the live
@@ -332,7 +341,8 @@ npm run dev                 # alias for npm run serve
   for a real player pull, preserves the shot on a too-short release, updates the
   HUD priority text, then fires horizontal and diagonal line shots opposite the
   pull with a dedicated arrow animation, the Skybolt bomber pet drops bombs along
-  a flight path, the pick pet (Talon)
+  a flight path using its local Kenney ship sprite and triggers lightning struck
+  by that route, the pick pet (Talon)
   picks off the most isolated bubbles one by one, premium IAP grants ownership,
   HUD pet badge),
   the pet gems & sockets flow (the Pets screen shows the `#pet-gems` panel with
@@ -361,7 +371,8 @@ npm run dev                 # alias for npm run serve
   falling gift/problem anti-idle rules (ambient tokens do not spawn before board
   interaction, the event clock pauses after board inactivity, and a real board
   pop arms the next ambient token),
-  buying a power-up refreshing the HUD tool-slot count,
+  buying a power-up refreshing the HUD tool-slot count, the +3 Moves tool adding
+  exactly three moves without changing the board,
   a performance guard (a heavy pop storm keeps the particle pool capped and it
   still drains to empty afterwards, with sprite particles separately capped), and the gated
   step-by-step tutorial (first-run auto-open, How to Play replay, skip, the

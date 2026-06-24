@@ -7,7 +7,7 @@ import { RAINBOW, ICE, ICE_CRACKED, NORMAL, LIGHTNING, STONE, BOMB, MULTIPLIER, 
 export const CB_SYMBOLS = ["●", "▲", "■", "◆", "★", "✚", "▼", "⬢"];
 
 export const SPECIAL_ICON_ASSETS = {
-  [LIGHTNING]: "./assets/icons/game-icons/lightning-bolt.svg",
+  [LIGHTNING]: "./assets/icons/special/lightning-mark.svg",
   [STONE]: "./assets/icons/game-icons/padlock.svg",
   [BOMB]: "./assets/icons/game-icons/bomb.svg",
   [MULTIPLIER]: "./assets/icons/game-icons/multiplication.svg",

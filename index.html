@@ -55,6 +55,7 @@
             <span class="hud-value" id="hud-moves">0</span>
           </div>
         </div>
+        <div class="coins-pill hud-coins-pill" aria-label="Coins"><span class="coin-dot"></span><span id="hud-coins">0</span></div>
         <button class="icon-btn" id="btn-sound" aria-label="Sound">♪</button>
       </div>
       <div class="hud-progress">
@@ -83,7 +84,6 @@
         </div>
       </div>
       <div class="hud-bottom">
-        <div class="coins-pill"><span class="coin-dot"></span><span id="hud-coins">0</span></div>
         <div class="powerups" id="powerups">
           <button class="powerup-btn" id="pu-slot-0" data-slot="0" aria-label="Power-up slot 1">
             <span class="pu-icon"></span><span class="pu-count"></span>
@@ -535,6 +535,40 @@
         <div class="modal-buttons">
           <button class="btn btn-ghost" id="pet-confirm-cancel">Cancel</button>
           <button class="btn btn-primary" id="pet-confirm-ok">Switch &amp; restart</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pet level-up celebration shown after a companion gains a new level -->
+    <div id="pet-levelup" class="overlay modal hidden" role="dialog" aria-modal="true" aria-label="Pet level up">
+      <div class="modal-card pet-levelup-card">
+        <div class="plu-kicker">Companion Level Up</div>
+        <div class="plu-stage" id="pet-levelup-icon">🐾</div>
+        <h2 class="modal-title" id="pet-levelup-name">Pet reached Lv.2!</h2>
+        <p class="modal-sub" id="pet-levelup-desc">
+          Their companion power just got stronger.
+        </p>
+        <div class="plu-benefits" id="pet-levelup-benefits"></div>
+        <div class="modal-buttons">
+          <button class="btn btn-ghost" id="pet-levelup-later">Later</button>
+          <button class="btn btn-primary" id="pet-levelup-open">Open Pets</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gem socket reminder shown occasionally when the equipped pet has empty sockets -->
+    <div id="pet-gem-reminder" class="overlay modal hidden" role="dialog" aria-modal="true" aria-label="Pet gem reminder">
+      <div class="modal-card pet-gem-card">
+        <div class="plu-kicker pgr-kicker">Gem Socket Ready</div>
+        <div class="plu-stage pgr-stage" id="pet-gem-reminder-icon">💎</div>
+        <h2 class="modal-title" id="pet-gem-reminder-title">Power up your pet</h2>
+        <p class="modal-sub" id="pet-gem-reminder-desc">
+          Your companion has an empty gem socket.
+        </p>
+        <div class="plu-benefits" id="pet-gem-reminder-benefits"></div>
+        <div class="modal-buttons">
+          <button class="btn btn-ghost" id="pet-gem-reminder-later">Later</button>
+          <button class="btn btn-primary" id="pet-gem-reminder-open">Open Pets</button>
         </div>
       </div>
     </div>

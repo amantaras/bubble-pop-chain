@@ -216,29 +216,36 @@ export const RARITY_WEIGHTS = {
 // exception is the premium **Nova** gunship: a paid, spectacle-grade active pet
 // (an autonomous shooter) reserved for players who buy it — powerful, but it
 // only speeds up clears the player could achieve anyway.
+const petAvatar = (id) => `./assets/pets/avatars/${id}.svg`;
+
 export const PET_CATALOG = [
   {
     id: "sparky", name: "Sparky", icon: "⚡", rarity: "common", premium: false,
+    visual: { avatar: petAvatar("sparky") },
     desc: "An energetic spark that charges your blast meter faster.",
     ability: { key: "powerMult", per: 0.08, label: "Charge fills faster" },
   },
   {
     id: "clover", name: "Clover", icon: "🍀", rarity: "common", premium: false,
+    visual: { avatar: petAvatar("clover") },
     desc: "A lucky sprite that sniffs out extra coins.",
     ability: { key: "coinMult", per: 0.05, label: "More coins per level" },
   },
   {
     id: "mochi", name: "Mochi", icon: "🍡", rarity: "common", premium: false,
+    visual: { avatar: petAvatar("mochi") },
     desc: "A sweet little charm that keeps your score streaks tasting better.",
     ability: { key: "scoreMult", per: 0.035, label: "More score per pop" },
   },
   {
     id: "sprout", name: "Sprout", icon: "🌱", rarity: "common", premium: false,
+    visual: { avatar: petAvatar("sprout") },
     desc: "A tiny green helper that warms up your Fever gauge over long runs.",
     ability: { key: "feverMult", per: 0.045, label: "Fever fills faster" },
   },
   {
     id: "rover", name: "Rover", icon: "🐶", rarity: "rare", premium: false,
+    visual: { avatar: petAvatar("rover") },
     desc: "A loyal pup that fetches a whole colour together for you.",
     active: {
       type: "gather", baseCooldown: 6, minCooldown: 3,
@@ -247,6 +254,7 @@ export const PET_CATALOG = [
   },
   {
     id: "whiskers", name: "Whiskers", icon: "🐱", rarity: "rare", premium: false,
+    visual: { avatar: petAvatar("whiskers") },
     desc: "A sharp-eyed cat that pounces on lone, hard-to-match bubbles.",
     active: {
       type: "cleanse", baseCooldown: 5, minCooldown: 3, baseCount: 1, countPer: 1,
@@ -255,6 +263,7 @@ export const PET_CATALOG = [
   },
   {
     id: "luma", name: "Luma", icon: "🖌️", rarity: "rare", premium: false,
+    visual: { avatar: petAvatar("luma") },
     desc: "A bright brush spirit that paints nearby bubbles to match a tricky anchor, setting up a new cluster for your next pop.",
     active: {
       type: "paint", baseCooldown: 6, minCooldown: 3, baseCount: 3, countPer: 0.5,
@@ -263,6 +272,7 @@ export const PET_CATALOG = [
   },
   {
     id: "quake", name: "Quake", icon: "🌍", rarity: "rare", premium: false,
+    visual: { avatar: petAvatar("quake") },
     desc: "A rumbling earth spirit whose tremor resettles the whole board, dropping matching colours together into fresh, ready-to-pop groups.",
     active: {
       type: "quake", baseCooldown: 6, minCooldown: 3,
@@ -271,6 +281,7 @@ export const PET_CATALOG = [
   },
   {
     id: "comet", name: "Comet", icon: "☄️", rarity: "epic", premium: false,
+    visual: { avatar: petAvatar("comet") },
     desc: "A streaking comet that blasts a diagonal line of bubbles off the board — a row the flood-fill can never clear.",
     active: {
       type: "diagonal", baseCooldown: 6, minCooldown: 3,
@@ -279,6 +290,7 @@ export const PET_CATALOG = [
   },
   {
     id: "talon", name: "Talon", icon: "🦅", rarity: "epic", premium: false,
+    visual: { avatar: petAvatar("talon") },
     desc: "A keen-eyed hawk that swoops on the most isolated bubbles and picks them off one by one.",
     active: {
       type: "pick", baseCooldown: 6, minCooldown: 3, baseCount: 2, countPer: 1,
@@ -287,6 +299,7 @@ export const PET_CATALOG = [
   },
   {
     id: "cyclone", name: "Cyclone", icon: "🌪️", rarity: "epic", premium: false,
+    visual: { avatar: petAvatar("cyclone") },
     desc: "A whirling tornado that sorts each column by colour, stacking matching bubbles into tall, ready-to-pop vertical runs.",
     active: {
       type: "cyclone", baseCooldown: 6, minCooldown: 3,
@@ -295,6 +308,7 @@ export const PET_CATALOG = [
   },
   {
     id: "magma", name: "Magma", icon: "🌋", rarity: "epic", premium: false,
+    visual: { avatar: petAvatar("magma") },
     desc: "A molten volcano that erupts beneath the busiest lane and clears whole vertical columns of bubbles.",
     active: {
       type: "magma", baseCooldown: 7, minCooldown: 4, baseCount: 1, countPer: 0.25,
@@ -303,6 +317,7 @@ export const PET_CATALOG = [
   },
   {
     id: "archer", name: "Archer", icon: "🏹", rarity: "epic", premium: false,
+    visual: { avatar: petAvatar("archer") },
     desc: "A focused companion that readies a skill-shot arrow. Pull back, release in the green power band, and shoot the opposite way through a line of bubbles.",
     active: {
       type: "archer", baseCooldown: 7, minCooldown: 4, baseCount: 2, countPer: 0.35,
@@ -311,6 +326,10 @@ export const PET_CATALOG = [
   },
   {
     id: "skybolt", name: "Skybolt", icon: "✈️", rarity: "legendary", premium: false,
+    visual: {
+      avatar: "./assets/pets/kenney-space-shooter/playerShip3_red.png",
+      sprite: "./assets/pets/kenney-space-shooter/playerShip3_red.png",
+    },
     desc: "A daring aircraft that sweeps across the board horizontally, vertically, or diagonally, dropping bombs along the busiest route.",
     active: {
       type: "bomber", baseCooldown: 8, minCooldown: 5, baseCount: 4, countPer: 0.35,
@@ -319,31 +338,37 @@ export const PET_CATALOG = [
   },
   {
     id: "amp", name: "Amp", icon: "🔋", rarity: "epic", premium: false,
+    visual: { avatar: petAvatar("amp") },
     desc: "A humming battery buddy that turns every good pop into more Charge.",
     ability: { key: "powerMult", per: 0.1, label: "Charge surges faster" },
   },
   {
     id: "blaze", name: "Blaze", icon: "🔥", rarity: "epic", premium: false,
+    visual: { avatar: petAvatar("blaze") },
     desc: "A fiery friend that whips your Fever gauge into shape.",
     ability: { key: "feverMult", per: 0.08, label: "Fever fills faster" },
   },
   {
     id: "prism", name: "Prism", icon: "🔮", rarity: "epic", premium: false,
+    visual: { avatar: petAvatar("prism") },
     desc: "A glassy focus stone that starts each level with a useful Charge spark.",
     ability: { key: "startCharge", per: 0.055, label: "Start partly charged" },
   },
   {
     id: "draco", name: "Draco", icon: "🐉", rarity: "legendary", premium: false,
+    visual: { avatar: petAvatar("draco") },
     desc: "A rare dragon hatchling — the mightiest score booster you can win.",
     ability: { key: "scoreMult", per: 0.05, label: "Big score boost" },
   },
   {
     id: "midas", name: "Midas", icon: "👑", rarity: "legendary", premium: false,
+    visual: { avatar: petAvatar("midas") },
     desc: "A golden patron that turns patient progression into bigger coin hauls.",
     ability: { key: "coinMult", per: 0.085, label: "Massive coin boost" },
   },
   {
     id: "tidal", name: "Tidal", icon: "🌊", rarity: "legendary", premium: false,
+    visual: { avatar: petAvatar("tidal") },
     desc: "A legendary tide spirit whose flood sweeps every bubble of the board's most common colour clean away in one mighty wave.",
     active: {
       type: "tidal", baseCooldown: 8, minCooldown: 5,
@@ -352,18 +377,21 @@ export const PET_CATALOG = [
   },
   {
     id: "aurora", name: "Aurora", icon: "🌈", rarity: "legendary", premium: true,
+    visual: { avatar: petAvatar("aurora") },
     price: "$2.99", product: "pet_aurora",
     desc: "A shimmering premium spirit that showers you with coins.",
     ability: { key: "coinMult", per: 0.1, label: "Huge coin boost" },
   },
   {
     id: "gizmo", name: "Gizmo", icon: "🤖", rarity: "legendary", premium: true,
+    visual: { avatar: petAvatar("gizmo") },
     price: "$2.99", product: "pet_gizmo",
     desc: "A premium bot that boots up every level fully charged.",
     ability: { key: "startCharge", per: 0.1, label: "Start charged up" },
   },
   {
     id: "nova", name: "Nova", icon: "🛸", rarity: "legendary", premium: true,
+    visual: { avatar: petAvatar("nova") },
     storeOnly: true, price: "$4.99", product: "pet_nova",
     desc:
       "A premium alien gunship that patrols the base of the board and auto-blasts the lowest bubbles. Level it up for faster cannons, parallel fire, then board-clearing nukes.",
@@ -435,6 +463,17 @@ export const COSMETICS = [
 
 export function getPet(id) {
   return PET_CATALOG.find((p) => p.id === id) || null;
+}
+
+export function petAvatarSrc(petOrId) {
+  const pet = typeof petOrId === "string" ? getPet(petOrId) : (petOrId && petOrId.visual ? petOrId : getPet(petOrId && petOrId.id));
+  return pet && pet.visual && pet.visual.avatar ? pet.visual.avatar : null;
+}
+
+export function petSpriteSrc(petOrId) {
+  const pet = typeof petOrId === "string" ? getPet(petOrId) : (petOrId && petOrId.visual ? petOrId : getPet(petOrId && petOrId.id));
+  if (!pet || !pet.visual) return null;
+  return pet.visual.sprite || pet.visual.avatar || null;
 }
 
 export function getCosmetic(id) {

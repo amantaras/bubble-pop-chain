@@ -10,6 +10,7 @@ export const POWERUP_INFO = {
   shuffle: { name: "Shuffle", icon: "🔀", desc: "Reshuffles the board", price: 100 },
   chainBolt: { name: "Chain Bolt", icon: "⚡", desc: "Clears a full row and column", price: 300 },
   pick: { name: "Pick", icon: "🔨", desc: "Removes a single bubble", price: 120 },
+  extraMoves: { name: "+3 Moves", icon: "＋", desc: "Adds 3 moves to a move-limited level", price: 360, moves: 3 },
   magnet: { name: "Magnet", icon: "🧲", desc: "Pull same-color bubbles together — time the gauge!", price: 500 },
 };
 
@@ -21,6 +22,7 @@ export const POWERUP_UNLOCKS = [
   { type: "pick", level: 16, lesson: "Tap Pick, then tap one bubble. Use it to remove a lone blocker, trigger a special bubble, or rescue a board that is almost solved." },
   { type: "paint", level: 18, lesson: "Tap Paint, choose one bubble, then pick from the three suggested colours. The best swatch makes the biggest new group for your next pop." },
   { type: "chainBolt", level: 20, lesson: "Tap Chain Bolt, then tap a cell. It clears that whole row and column, and any special bubbles in the strike can chain for extra impact." },
+  { type: "extraMoves", level: 22, lesson: "Tap +3 Moves when a move-limited level is almost solved. It spends one charge immediately and gives you three more moves without changing the board." },
   { type: "magnet", level: 24, lesson: "Tap Magnet, choose a plain bubble, then tap again when the dial hits green. A strong lock pulls that colour into one giant poppable cluster." },
 ];
 
