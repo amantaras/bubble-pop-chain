@@ -66,7 +66,8 @@ npm run dev                 # alias for npm run serve
   behaviour: RNG determinism, level difficulty curve, scoring/combo math,
   flood-fill + gravity + column collapse, power-up effects (including Paint's
   impact-ranked recolour suggestions), the coin economy,
-  daily-streak rules, theme unlock logic, storage persistence, the
+  daily-streak rules, theme unlock logic + derived UI chrome tokens
+  (`themeTokens`/`applyThemeCss` writing `--ui-*` CSS variables), storage persistence, the
   monetization cadence (forced interstitials gated until level 7), gesture
   swipe classification, the Power-meter charge curve + Charged-Blast AoE,
   Fever-mode scoring (gauge gain + double-points), the combo escalator

@@ -164,12 +164,73 @@ export function isThemeUnlocked(theme, totalStars, ownedThemes) {
   return totalStars >= theme.unlockStars;
 }
 
+function hexToRgb(hex) {
+  const raw = String(hex || "").replace("#", "");
+  if (raw.length !== 6) return { r: 91, g: 227, b: 255 };
+  const n = Number.parseInt(raw, 16);
+  if (!Number.isFinite(n)) return { r: 91, g: 227, b: 255 };
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+function alpha(hex, a) {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
+function contrastText(hex) {
+  const { r, g, b } = hexToRgb(hex);
+  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return luminance > 0.62 ? "#08122a" : "#ffffff";
+}
+
+export function themeTokens(theme) {
+  const t = getTheme(theme?.id || theme);
+  const [primary = "#5be3ff", secondary = "#b06bff", success = "#5bff9b", reward = "#ffd35b"] = t.bubbles || [];
+  return {
+    primary,
+    secondary,
+    success,
+    reward,
+    onPrimary: contrastText(primary),
+    surface: alpha(t.bg1, 0.86),
+    surfaceStrong: alpha(t.bg0, 0.78),
+    surfaceTint: alpha(primary, 0.14),
+    surfaceTint2: alpha(secondary, 0.12),
+    border: alpha(primary, 0.32),
+    borderStrong: alpha(primary, 0.48),
+    glow: alpha(primary, 0.34),
+    glowStrong: alpha(primary, 0.58),
+    gradient: `linear-gradient(135deg, ${primary}, ${secondary})`,
+    gradientSoft: `linear-gradient(180deg, ${alpha(primary, 0.16)}, rgba(255, 255, 255, 0.06))`,
+    gradientPanel: `linear-gradient(145deg, ${alpha(primary, 0.13)}, rgba(255, 255, 255, 0.055))`,
+    gradientWarm: `linear-gradient(135deg, ${reward}, ${primary})`,
+  };
+}
+
 // Apply a theme's background to the CSS custom properties.
 export function applyThemeCss(theme) {
+  const tokens = themeTokens(theme);
   const r = document.documentElement.style;
   r.setProperty("--bg-0", theme.bg0);
   r.setProperty("--bg-1", theme.bg1);
   r.setProperty("--bg-2", theme.bg1);
+  r.setProperty("--ui-accent", tokens.primary);
+  r.setProperty("--ui-accent-2", tokens.secondary);
+  r.setProperty("--ui-success", tokens.success);
+  r.setProperty("--ui-reward", tokens.reward);
+  r.setProperty("--ui-on-accent", tokens.onPrimary);
+  r.setProperty("--ui-surface", tokens.surface);
+  r.setProperty("--ui-surface-strong", tokens.surfaceStrong);
+  r.setProperty("--ui-surface-tint", tokens.surfaceTint);
+  r.setProperty("--ui-surface-tint-2", tokens.surfaceTint2);
+  r.setProperty("--ui-border", tokens.border);
+  r.setProperty("--ui-border-strong", tokens.borderStrong);
+  r.setProperty("--ui-glow", tokens.glow);
+  r.setProperty("--ui-glow-strong", tokens.glowStrong);
+  r.setProperty("--ui-gradient", tokens.gradient);
+  r.setProperty("--ui-gradient-soft", tokens.gradientSoft);
+  r.setProperty("--ui-gradient-panel", tokens.gradientPanel);
+  r.setProperty("--ui-gradient-warm", tokens.gradientWarm);
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute("content", theme.bg0);
 }

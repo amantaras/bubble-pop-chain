@@ -1306,7 +1306,7 @@ src/
   input.js          # Pointer input + vibrate() (guarded for iOS)
   audio.js          # WebAudio (unlocked on first pointerdown); pop/powerup/fever/blast/click/win/lose/coin SFX + per-theme music
   storage.js        # Storage singleton over localStorage (bpc_save_v1)
-  themes.js         # Theme catalog + unlock logic + applyThemeCss
+  themes.js         # Theme catalog + unlock logic + themeTokens/applyThemeCss UI chrome vars
   levels.js         # LEVEL_COUNT=9999 (endless), getLevel(id) generative + DIFFICULTY_CAP, world/proc chapters
   scoring.js        # groupScore, comboMultiplier, clearBonus, starsForScore
   rng.js            # mulberry32 seeded RNG, todayKey

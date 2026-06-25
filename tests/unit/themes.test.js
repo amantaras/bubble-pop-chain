@@ -3,6 +3,7 @@ import {
   THEMES,
   getTheme,
   isThemeUnlocked,
+  themeTokens,
   applyThemeCss,
 } from "../../src/themes.js";
 
@@ -52,5 +53,24 @@ describe("themes", () => {
     applyThemeCss(getTheme("aurora"));
     const root = document.documentElement.style;
     expect(root.getPropertyValue("--bg-0")).toBe(getTheme("aurora").bg0);
+    expect(root.getPropertyValue("--ui-accent")).toBe(getTheme("aurora").bubbles[0]);
+    expect(root.getPropertyValue("--ui-gradient")).toContain(getTheme("aurora").bubbles[1]);
+  });
+
+  it("themeTokens derives stable chrome tokens from each theme palette", () => {
+    for (const t of THEMES) {
+      const tokens = themeTokens(t);
+      expect(tokens.primary).toBe(t.bubbles[0]);
+      expect(tokens.secondary).toBe(t.bubbles[1]);
+      expect(tokens.surface).toMatch(/^rgba\(/);
+      expect(tokens.border).toMatch(/^rgba\(/);
+      expect(tokens.gradient).toContain(t.bubbles[0]);
+      expect(tokens.gradient).toContain(t.bubbles[1]);
+      expect(["#08122a", "#ffffff"]).toContain(tokens.onPrimary);
+    }
+  });
+
+  it("themeTokens falls back to aurora for unknown themes", () => {
+    expect(themeTokens("nope").primary).toBe(getTheme("aurora").bubbles[0]);
   });
 });

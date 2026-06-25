@@ -4368,6 +4368,14 @@ test.describe("themes (UI)", () => {
   test("buying and applying a priced theme updates the background", async ({
     page,
   }) => {
+    const before = await page.evaluate(() => {
+      const s = getComputedStyle(document.documentElement);
+      return {
+        bg: s.getPropertyValue("--bg-0").trim(),
+        accent: s.getPropertyValue("--ui-accent").trim(),
+        gradient: s.getPropertyValue("--ui-gradient").trim(),
+      };
+    });
     // Grant enough coins for a priced theme.
     await page.evaluate(() => window.__bpc.Economy.addCoins(2000));
     await page.locator("#btn-themes").click();
@@ -4388,6 +4396,18 @@ test.describe("themes (UI)", () => {
       getComputedStyle(document.documentElement).getPropertyValue("--bg-0").trim()
     );
     expect(bg.length).toBeGreaterThan(0);
+    expect(bg).not.toBe(before.bg);
+    const chrome = await page.evaluate(() => {
+      const s = getComputedStyle(document.documentElement);
+      return {
+        accent: s.getPropertyValue("--ui-accent").trim(),
+        gradient: s.getPropertyValue("--ui-gradient").trim(),
+      };
+    });
+    expect(chrome.accent).toBe("#ff7eb6");
+    expect(chrome.accent).not.toBe(before.accent);
+    expect(chrome.gradient).toContain("#ff7eb6");
+    expect(chrome.gradient).not.toBe(before.gradient);
   });
 
   test("themes resolve distinct live background motifs and reduced motion reaches the renderer", async ({

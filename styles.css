@@ -8,6 +8,23 @@
   --text-dim: #9aa6cc;
   --accent: #5be3ff;
   --accent-2: #b06bff;
+  --ui-accent: #5be3ff;
+  --ui-accent-2: #b06bff;
+  --ui-success: #5bff9b;
+  --ui-reward: #ffd35b;
+  --ui-on-accent: #08122a;
+  --ui-surface: rgba(27, 33, 71, 0.86);
+  --ui-surface-strong: rgba(11, 16, 32, 0.78);
+  --ui-surface-tint: rgba(91, 227, 255, 0.14);
+  --ui-surface-tint-2: rgba(176, 107, 255, 0.12);
+  --ui-border: rgba(91, 227, 255, 0.32);
+  --ui-border-strong: rgba(91, 227, 255, 0.48);
+  --ui-glow: rgba(91, 227, 255, 0.34);
+  --ui-glow-strong: rgba(91, 227, 255, 0.58);
+  --ui-gradient: linear-gradient(135deg, #5be3ff, #b06bff);
+  --ui-gradient-soft: linear-gradient(180deg, rgba(91, 227, 255, 0.16), rgba(255, 255, 255, 0.06));
+  --ui-gradient-panel: linear-gradient(145deg, rgba(91, 227, 255, 0.13), rgba(255, 255, 255, 0.055));
+  --ui-gradient-warm: linear-gradient(135deg, #ffd35b, #5be3ff);
   --good: #5bff9b;
   --bad: #ff6b8b;
   --gold: #ffd35b;
@@ -252,10 +269,10 @@ body {
   transform: scale(0.96);
 }
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  color: #08122a;
+  background: var(--ui-gradient, linear-gradient(135deg, var(--accent), var(--accent-2)));
+  color: var(--ui-on-accent, #08122a);
   border: none;
-  box-shadow: 0 8px 26px rgba(91, 227, 255, 0.35);
+  box-shadow: 0 8px 26px var(--ui-glow, rgba(91, 227, 255, 0.35));
 }
 .btn-ghost {
   background: transparent;
@@ -467,8 +484,8 @@ body {
   gap: 10px;
   padding: 10px 12px;
   border-radius: 14px;
-  border: 1px solid rgba(91, 227, 255, 0.28);
-  background: linear-gradient(135deg, rgba(91, 227, 255, 0.12), rgba(255, 211, 91, 0.08));
+  border: 1px solid var(--ui-border, rgba(91, 227, 255, 0.28));
+  background: linear-gradient(135deg, var(--ui-surface-tint, rgba(91, 227, 255, 0.12)), rgba(255, 211, 91, 0.08));
 }
 .nut-icon {
   width: 34px;
@@ -499,8 +516,8 @@ body {
   gap: 10px;
   padding: 11px 12px;
   border-radius: 14px;
-  border: 1px solid rgba(138, 255, 193, 0.3);
-  background: linear-gradient(135deg, rgba(138, 255, 193, 0.14), rgba(91, 208, 255, 0.1));
+  border: 1px solid color-mix(in srgb, var(--ui-success, #8affc1) 42%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--ui-success, #8affc1) 16%, transparent), var(--ui-surface-tint, rgba(91, 208, 255, 0.1)));
 }
 .cfc-icon {
   width: 34px;
@@ -508,8 +525,8 @@ body {
   display: grid;
   place-items: center;
   border-radius: 10px;
-  color: #06281c;
-  background: linear-gradient(135deg, #8affc1, #5bd0ff);
+  color: var(--ui-on-accent, #06281c);
+  background: linear-gradient(135deg, var(--ui-success, #8affc1), var(--ui-accent, #5bd0ff));
   font-size: 15px;
   font-weight: 900;
 }
@@ -1118,14 +1135,14 @@ body {
   background: linear-gradient(90deg, rgba(255, 211, 91, 0.25), rgba(255, 91, 138, 0.2));
 }
 .hud-status-chip.hint {
-  border-color: rgba(91, 227, 255, 0.36);
-  background: rgba(91, 227, 255, 0.14);
+  border-color: var(--ui-border, rgba(91, 227, 255, 0.36));
+  background: var(--ui-surface-tint, rgba(91, 227, 255, 0.14));
 }
 .hud-status-chip.priority {
   color: #fff;
-  border-color: rgba(183, 255, 91, 0.48);
-  background: linear-gradient(90deg, rgba(75, 226, 179, 0.22), rgba(255, 211, 91, 0.16));
-  box-shadow: 0 0 0 1px rgba(183, 255, 91, 0.12), 0 10px 22px rgba(0, 0, 0, 0.22);
+  border-color: var(--ui-border-strong, rgba(183, 255, 91, 0.48));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ui-success, #4be2b3) 24%, transparent), color-mix(in srgb, var(--ui-reward, #ffd35b) 18%, transparent));
+  box-shadow: 0 0 0 1px var(--ui-glow, rgba(183, 255, 91, 0.12)), 0 10px 22px rgba(0, 0, 0, 0.22);
 }
 /* Bonus-objective chip: an optional per-level challenge for extra coins. */
 .hud-objective {
@@ -1138,16 +1155,16 @@ body {
   font-size: 12px;
   font-weight: 700;
   color: var(--text-dim);
-  background: rgba(91, 227, 255, 0.1);
-  border: 1px solid rgba(91, 227, 255, 0.28);
+  background: var(--ui-surface-tint, rgba(91, 227, 255, 0.1));
+  border: 1px solid var(--ui-border, rgba(91, 227, 255, 0.28));
 }
 .hud-objective .hud-objective-icon {
   font-size: 13px;
   line-height: 1;
 }
 .hud-objective.met {
-  color: var(--bg);
-  background: linear-gradient(90deg, #5be3ff, #7c5cff);
+  color: var(--ui-on-accent, #08122a);
+  background: var(--ui-gradient, linear-gradient(90deg, #5be3ff, #7c5cff));
   border-color: transparent;
 }
 .power-meter {
@@ -1784,8 +1801,8 @@ body {
   margin: 0 0 2px;
   padding: 6px;
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(12, 16, 34, 0.88);
+  border: 1px solid var(--ui-border, rgba(255, 255, 255, 0.1));
+  background: var(--ui-surface, rgba(12, 16, 34, 0.88));
   backdrop-filter: blur(14px);
 }
 .shop-filter {
@@ -1806,9 +1823,9 @@ body {
 }
 .shop-filter.active {
   color: var(--text);
-  border-color: rgba(255, 211, 91, 0.36);
-  background: linear-gradient(180deg, rgba(255, 211, 91, 0.15), rgba(255, 255, 255, 0.06));
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 8px 22px rgba(0, 0, 0, 0.18);
+  border-color: var(--ui-border-strong, rgba(255, 211, 91, 0.36));
+  background: var(--ui-gradient-soft, linear-gradient(180deg, rgba(255, 211, 91, 0.15), rgba(255, 255, 255, 0.06)));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 8px 22px var(--ui-glow, rgba(0, 0, 0, 0.18));
 }
 .shop-filter span {
   font-size: 12px;
@@ -2797,8 +2814,8 @@ body {
   margin: -2px 0 12px;
   padding: 6px;
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(12, 16, 34, 0.86);
+  border: 1px solid var(--ui-border, rgba(255, 255, 255, 0.1));
+  background: var(--ui-surface, rgba(12, 16, 34, 0.86));
   backdrop-filter: blur(14px);
 }
 .pet-tab {
@@ -2818,9 +2835,9 @@ body {
 }
 .pet-tab.active {
   color: var(--text);
-  border-color: rgba(91, 227, 255, 0.34);
-  background: linear-gradient(180deg, rgba(91, 227, 255, 0.16), rgba(255, 255, 255, 0.06));
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 8px 22px rgba(0, 0, 0, 0.18);
+  border-color: var(--ui-border-strong, rgba(91, 227, 255, 0.34));
+  background: var(--ui-gradient-soft, linear-gradient(180deg, rgba(91, 227, 255, 0.16), rgba(255, 255, 255, 0.06)));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 8px 22px var(--ui-glow, rgba(0, 0, 0, 0.18));
 }
 .pt-icon {
   font-size: 18px;
@@ -3410,8 +3427,8 @@ body {
   font-weight: 600;
   padding: 3px 8px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #7b53c9, #b07be8);
-  color: #fff;
+  background: var(--ui-gradient, linear-gradient(135deg, #7b53c9, #b07be8));
+  color: var(--ui-on-accent, #fff);
 }
 .pp-syn-none {
   font-size: 11px;
@@ -3704,8 +3721,8 @@ body {
   transition: background 0.15s, color 0.15s;
 }
 .pg-tab.active {
-  background: linear-gradient(135deg, #7b53c9, #b07be8);
-  color: #fff;
+  background: var(--ui-gradient, linear-gradient(135deg, #7b53c9, #b07be8));
+  color: var(--ui-on-accent, #fff);
 }
 .pg-auto-forge {
   margin: -2px 0 10px;
@@ -4510,7 +4527,7 @@ body {
 .pet-craft-btn {
   width: 100%;
   margin-top: 12px;
-  background: linear-gradient(135deg, #7b53c9, #b07be8);
+  background: var(--ui-gradient, linear-gradient(135deg, #7b53c9, #b07be8));
 }
 .pet-craft-btn.locked {
   opacity: 0.55;
@@ -5123,14 +5140,14 @@ body {
 }
 .win-reward-card.best,
 .win-reward-card.theme {
-  border-color: rgba(91, 227, 255, 0.28);
-  background: linear-gradient(145deg, rgba(91, 227, 255, 0.13), rgba(255, 255, 255, 0.055));
+  border-color: var(--ui-border, rgba(91, 227, 255, 0.28));
+  background: var(--ui-gradient-panel, linear-gradient(145deg, rgba(91, 227, 255, 0.13), rgba(255, 255, 255, 0.055)));
 }
 .win-reward-card.pet,
 .win-reward-card.boss,
 .win-reward-card.tool {
-  border-color: rgba(176, 123, 232, 0.28);
-  background: linear-gradient(145deg, rgba(176, 123, 232, 0.13), rgba(255, 255, 255, 0.055));
+  border-color: color-mix(in srgb, var(--ui-accent-2, #b07be8) 32%, transparent);
+  background: linear-gradient(145deg, var(--ui-surface-tint-2, rgba(176, 123, 232, 0.13)), rgba(255, 255, 255, 0.055));
 }
 .win-ceremony {
   display: grid;
