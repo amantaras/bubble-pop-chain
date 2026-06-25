@@ -165,7 +165,9 @@ npm run dev                 # alias for npm run serve
   `gemBuffLabel` human-readable effect strings (`+12% Score`, `+6% all stats`,
   `-3 move ability cooldown`, junk→""), **gem fusion**
   (`FUSE_COUNT`=3, `nextGemTier` ladder chipped→polished→brilliant→null,
-  `canFuseTier`, `fusedGemKey` maps a key one tier up / null at the top or junk),
+  `canFuseTier`, `fusedGemKey` maps a key one tier up / null at the top or junk,
+  `autoFuseInventory` plans the maximum dust-free cascade across every loose
+  eligible stack while preserving top-tier/surplus/unknown keys),
   and
   `rollGem` seeded determinism + `tierBias` nudging toward higher tiers. Storage
   coverage adds the gem inventory (`addGem`/`gemCount`/`spendGem`/`getGems`
@@ -226,25 +228,27 @@ npm run dev                 # alias for npm run serve
   pointer taps on the `<canvas>`. They cover: the `?e2e=1`-only **Test Lab**
   save/progression helper (hidden in normal play; reset/jump/grant buttons mutate
   the real save), the forced `?e2e=1&splash=1` animated startup splash handoff,
-  grouped menu/level-map/shop/themes
+  grouped, compact menu/level-map/shop/themes
   navigation, popping via real taps, scoring, win/lose, revive and double-coins
   rewarded-ad flows, endless refill, daily streak, top-HUD coin balance, the full power-up/tool set,
+  local SVG tool icons in the HUD, Shop, loadout picker, and Tool Unlock modal,
   the Paint tool's smart three-colour picker and repaint flow,
   progressive tool unlocks (fresh players see no HUD/shop/loadout tools or locked
   Pick rescue prompts, Level 5→6 shows the **New Tool Unlocked!** mini-tutorial before starting the next
-  level, and claiming the win bonus after the reward chest also opens that popup), the win reward ceremony tracker (Chest → Pick bonus → Next unlock stage states), progressive pet unlocks (fresh players do not see the Pets tile,
+  level, and claiming the win bonus after the reward chest also opens that popup), the win reward ceremony tracker (Chest → Pick bonus → Next unlock stage states) and structured win reward cards for coins/new best/objective/milestone rewards, progressive pet unlocks (fresh players do not see the Pets tile,
   Level 11→12 shows the pet feature unlock window, grants/equips Sparky, early
   pet-economy unlocks grant two starter crates and Pet Dust, then
   starts the next level with the HUD pet badge), the level-map **Current focus**
   card and **Next unlock** teaser, pre-level briefings before a map cell starts play (including replay records), post-win bonus choices
   after opening the reward chest, smart suggested loadouts in the long-press picker,
-  retry coaching on campaign losses, shop purchases, shop affordability affordances (`.cannot-afford`/`.need-coins`),
+  retry coaching on campaign losses, shop purchases, the Shop category filters
+  (Featured, Tools, Coins, Offers), shop affordability affordances (`.cannot-afford`/`.need-coins`),
   the in-game pause overlay (`#pause`) freezing the level, resuming, and routing
-  to Menu, HUD status chips including the current-priority chip, hold-to-buy auto-repeat (a held buy button keeps purchasing at the
+  to Menu, compact HUD status chips including the current-priority chip, hold-to-buy auto-repeat (a held buy button keeps purchasing at the
   configured rate, shows live buying/limit feedback, respects the visible
   hold-purchase limit preference, and stops when coins run out), "remove ads", theme buy/apply,
   sound toggle, PWA service-worker
-  registration, manifest reachability, local special-bubble SVG asset
+  registration, manifest reachability, local special-bubble and tool SVG asset
   reachability, progress persistence across reloads,
   resuming an in-progress campaign level (save & Continue), real-input
   gestures (long-press Preview, double-tap Charged Blast, swipe row-shift),
@@ -291,10 +295,11 @@ npm run dev                 # alias for npm run serve
   records a best shown on the level map, beating a prior best celebrates a
   "New best score"),
   the world-map chapter headers on the level map (5 authored themed chapters
-  with level ranges, plus procedural chapters revealed past level 40 with
-  generated level cells), the per-level bonus objectives (HUD chip shown on
-  ordinary levels +
-  hidden on milestones, meeting one pays a coin bonus on the win screen),
+  with level ranges, current/completed/path/world cell state, milestone badge
+  shells, plus procedural chapters revealed past level 40 with generated level
+  cells), the per-level bonus objectives (active objectives show
+  as compact priority HUD status, the achieved objective chip appears once met,
+  milestones stay hidden, and meeting one pays a coin bonus on the win screen),
   the season pass (Season screen lists the 10-tier ladder, earning XP unlocks +
   pays out a free tier, locked tool rewards display/claim as coins, the premium
   track is gated until the pass is purchased, and the menu badge appears when a reward is claimable),
@@ -316,6 +321,8 @@ npm run dev                 # alias for npm run serve
   level, and waits for earlier pop sprites to finish before starting),
   the pet companions flow (with pet progression unlocked for these mature-system
   tests: Pets screen with Sparky owned/equipped,
+  collection-first Pets tabs (Companions, Party, Gems, Store), socket flows that
+  route directly to the Gems tab, and the Store tab containing crates/premium pets,
   guided pet-detail chips/actions and the `#pet-gem-tip` socket guidance strip,
   buy + open a crate grants a pet, pet detail/cards explain crate/craft versus
   premium/store-only acquisition, the Pet Store sells premium pets + a
@@ -361,7 +368,9 @@ npm run dev                 # alias for npm run serve
   gem-picker overlay, **the Bag grid (`.pg-grid2 .pg-cell`) selects a gem and
   surfaces its detail (`.pg-sel-buff`) + a fusion action**, a `.pg-fuse-btn`
   merges 3 same-tier gems through the UI, and the Fuse button is disabled below
-  3 gems),
+  3 gems, plus `.pg-auto-forge-btn` Auto Forge Max upgrades every eligible loose
+  stack through the real UI without spending Dust and disables once no stack can
+  improve),
   the pet technology tree flow (the pet detail shows the `#pet-detail .pd-tech`
   tree with a pending pick at Lv.2 and locked future tiers, picking a node
   records it and raises the pet's live buff (chosen node shown locked-in), a

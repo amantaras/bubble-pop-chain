@@ -248,8 +248,11 @@ never re‑discovered the hard way.
   unlocked tools that fit that board (falling back to Undo/Shuffle/Bomb).
   Tapping a slot the player has **no charges of** (`armPowerup` sees
   `Economy.getPowerup(type) <= 0`) doesn't just toast — it opens the shop
-  focused on that tool (`UI.openShopForPowerup`: pauses the live level, scrolls
-  to + glows the matching `.shop-item[data-pu]`). `shop-back` routes through
+  focused on that tool (`UI.openShopForPowerup`: pauses the live level, switches
+  the shop to the **Tools** filter, then scrolls to + glows the matching
+  `.shop-item[data-pu]`). The normal Shop entry opens on the **Featured** filter,
+  with category pills for Featured, Tools, Coins, and Offers so the dense economy
+  surfaces stay scannable. `shop-back` routes through
   `UI.closeShop`, which resumes the paused level when the shop was opened
   mid-game (`_shopOverGame`) instead of dropping to the menu.
 - **In-game pause + HUD status** (`ui.js` `openPauseOverlay`/`closePauseOverlay`/
@@ -263,8 +266,11 @@ never re‑discovered the hard way.
   feeds a compact `#hud-status` strip with a first-position **current priority**
   chip when something needs attention (Archer shot, armed tool, vines, boss
   target, downpour soon, bonus objective, pet next), followed by existing session
-  facts (Blast ready / charge close, Fever, hint on, undo count, shift tokens, pet soon). Display
-  polish only — no save field, no tutorial step.
+  facts (Blast ready / charge close, Fever, hint on, undo count, shift tokens, pet soon). On narrow
+  screens the HUD uses tighter spacing, slimmer meters, and smaller quick-slot
+  buttons so the board keeps more vertical space. The menu CTA/secondary tile
+  hierarchy is likewise compacted so Play/Continue stay dominant while meta
+  tiles scan faster. Display polish only — no save field, no tutorial step.
 - **Undo tool** (`economy.js` `POWERUP_INFO.undo`, `main.js` `_pushUndo`/
   `canUndo`/`undoMove`): Undo is now a normal loadout tool, unlocked at Level 6
   and consumed from the player's power-up inventory (`Economy.usePowerup("undo")`).
@@ -453,6 +459,14 @@ never re‑discovered the hard way.
   save so it is **one-time only** (a second buy returns `{ ok:false, owned:true }`
   and the shop renders "Owned ✓"). `starterPack` deep-merges into old saves. Meta
   IAP — **no tutorial step**.
+- **Tool icon language** (`economy.js` `POWERUP_INFO.iconAsset`, `ui.js`
+  `toolIconHtml`): every power-up keeps its emoji `icon` as a text fallback, but
+  now also declares a local SVG under `assets/icons/tools/`. The HUD slots,
+  Shop tool rows/empty states, Starter Pack tool list, level briefing suggested
+  tools, level-map next-unlock teaser, loadout picker, and Tool Unlock modal all
+  render through the same helper so tools look consistent while still falling
+  back if an image fails to load. New tool icons must be relative local assets,
+  added to `sw.js` `ASSETS`, and covered by the economy metadata test.
 - **Win-screen reward chest** (`ui.js` `showWin`/`openWinChest`, `#win`): coins
   are credited to `Economy` *before* `showWin`, so the chest is purely
   presentational. A compact **reward ceremony tracker** (`#win-ceremony`) appears
@@ -469,8 +483,12 @@ never re‑discovered the hard way.
   reward reveals (`.revealed`, `wc-reveal` fade-up), the coins count up
   (`_animateCoins` from 0 to `_winCoinsPending`), and the **Double coins**
   rewarded-ad offer (`#win-double`) is shown only if `_winShowDouble`. The
-  reward text still lives in `#win-reward` inside the sealed block, so
-  `toContainText` assertions read it regardless of visibility.
+  reward text still lives in `#win-reward` inside the sealed block, rendered as
+  `.win-reward-card` items by `_renderWinRewardCards` (base coins, new best,
+  bonus/objective coins, tools, pet/crate, boss/theme moments). The card labels
+  preserve the original reward strings, so `toContainText` assertions and any
+  assistive reading still see the same reward text while the visual layout reads
+  as distinct reward items.
   Campaign wins also reveal a one-time **Pick a bonus** row after the chest opens
   (`#win-choice`): up to three additive options such as extra coins, Season XP,
   a suggested tool charge, pet XP, Pet Dust, or an occasional crate depending on progression.
@@ -690,6 +708,11 @@ never re‑discovered the hard way.
   unlocked suggested tools. Replays also show the stored stars/best score in
   `#brief-replay` and relabel the primary action to **Replay**. `#brief-start` is the only path that calls
   `startLevel`, so map clicks now preview instead of launching immediately.
+  Map cells also carry visual journey state from `buildLevelMap`: `data-level`,
+  `data-world`/`data-chapter-id`, `completed`, `current` (`aria-current="step"`),
+  `locked`, and row-boundary classes for CSS path connectors. The current level
+  gets the strongest highlight, completed cells stay readable, and treasure/boss
+  milestones get distinct badge shells beyond emoji alone.
   `levelScores` is a new `DEFAULT_SAVE` field, so old saves auto-default to `{}`.
   Like stars/achievements this meta-progression display gets **no tutorial
   step**.
@@ -731,9 +754,11 @@ never re‑discovered the hard way.
   player's progress (`renderEnd = min(LEVEL_COUNT, max(AUTHORED_LEVELS,
   (ceil(maxUnlocked/CHAPTER_SIZE)+1)*CHAPTER_SIZE))`), so the DOM grows with
   progress, not to 9999 — inserting a full-width `.chapter-header` (icon, name,
-  level range, plus a `done ✓` / `locked` state from `maxUnlockedLevel`) before
-  the first level of each chapter (via `chapterForLevel(i)`, so procedural
-  chapters render). Like other map/meta displays this gets **no tutorial step**.
+  level range, `data-world`, plus a `done ✓` / `locked` state from
+  `maxUnlockedLevel`) before the first level of each chapter (via
+  `chapterForLevel(i)`, so procedural chapters render). CSS uses those world
+  markers to tint path connectors and chapter bands without changing gameplay
+  difficulty. Like other map/meta displays this gets **no tutorial step**.
 - **Bonus objectives** (`levels.js` `objectiveForLevel`, `main.js`
   `_trackObjective`/`_markPowerupUsed`, `ui.js` `updateObjective`): every
   ordinary campaign level carries an **optional bonus objective** layered on top
@@ -750,9 +775,11 @@ never re‑discovered the hard way.
   the resume snapshot): combo/group latch as soon as reached during `popAt`
   (`_trackObjective`); `usedPowerup` is set whenever a tool is spent
   (`applyPowerup`/`lockMagnet`/shuffle via `_markPowerupUsed`) and `nopowerup`
-  resolves at `_finish`. The HUD shows a **🎯 objective chip** (`#hud-objective`,
-  hidden on boss/non-campaign, lit `.met` with a ✓ when achieved) and a brief
-  intro toast at level start. Like other meta/challenge displays it gets **no
+  resolves at `_finish`. Active objectives surface as the current-priority item
+  in the compact `#hud-status` strip; the separate **🎯 objective chip**
+  (`#hud-objective`) is reserved for the achieved state, lit `.met` with a ✓.
+  Boss/non-campaign levels hide it, and a brief intro toast still appears at
+  level start. Like other meta/challenge displays it gets **no
   tutorial step**.
 - **Season Pass / Battle Pass** (`season.js`, pure; `storage.js` `season`;
   `monetization.js` `season_premium` product; `main.js`
@@ -1010,11 +1037,13 @@ never re‑discovered the hard way.
   via `rollLegendaryCrate` → always legendary, often premium;
   `game.buyLegendaryCrate`). Cosmetic tints (`COSMETICS`, hue-rotate) are
   coin-bought. The
-  **Pets screen** (`ui.js` `buildPets`, `#pets`, menu button) shows the crate
-  panel with local layered `.crate-art` CSS (standard and legendary variants),
-  the **Pet Store** (`_buildPetStore`, `#pet-store` — premium pets + Legendary
-  Crate), the catalog grid (`.pet-card`, locked/owned/equipped), and a detail
-  pane (XP bar, equip, premium buy, cosmetics). Pet cards and detail panes also
+  **Pets screen** (`ui.js` `buildPets`, `#pets`, menu button) is organized as a
+  collection-first tabbed manager: **Companions** (catalog grid + detail pane),
+  **Party** (`#pet-party` lead/support/synergy controls), **Gems** (`#pet-gems`
+  socket picker/launcher + `#pet-gem-tip`), and **Store** (crate panel with local
+  layered `.crate-art` CSS plus `_buildPetStore` premium pets + Legendary Crate).
+  Socket reminder and empty-socket flows open directly onto the Gems tab, while
+  normal Pets entry defaults to Companions. Pet cards and detail panes also
   explain acquisition clearly: normal pets say they come from their rarity's Pet
   Crates and can be crafted with Pet Dust, premium pets say they are premium and
   may rarely appear in crates, and Nova's store-only copy says it never drops
@@ -1112,7 +1141,13 @@ never re‑discovered the hard way.
   keeps gems from crowding the pet roster. Inside the Gem Forge body
   (`#gemforge-body`) is the **tabbed manager** (`_renderGemManager` →
   `_buildGemBag`/`_buildGemForge`) built to a **market-standard inventory
-  pattern** so it never becomes the old wall of 18 big labelled cards: the
+  pattern** with a global **Auto Forge Max** button (`.pg-auto-forge-btn`) above
+  the tabs' content. Auto Forge Max is deliberately **dust-free**: it runs the
+  same 3→1 fusion rule across every loose, eligible stack and cascades weak gems
+  as far up the tier ladder as possible (e.g. 9 chipped ruby → 1 brilliant ruby),
+  then disables when no 3-of-a-kind upgrade remains; explicit ladder buttons are
+  still the only path that can spend Pet Dust. The manager avoids the old wall
+  of 18 big labelled cards: the
   **🎒 Bag** tab (`.pg-tabs`/`.pg-tab[data-tab]`) shows a
   **dense 5-column grid of small gem icons** (`.pg-grid2` › `.pg-cell
   [data-gem="type:tier"]`, each a tier-colour-bordered square with a count badge

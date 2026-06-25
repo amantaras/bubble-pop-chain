@@ -278,6 +278,38 @@ export function fusedGemKey(key) {
   return up ? gemKey(g.type, up) : null;
 }
 
+// Plan the maximum dust-free fusion pass for a loose gem inventory. It walks
+// each gem type from weakest to strongest, so newly-created polished gems can
+// immediately roll into brilliant gems when there are enough of them. Unknown
+// keys are preserved untouched in the returned inventory.
+export function autoFuseInventory(gems = {}) {
+  const next = {};
+  for (const [key, count] of Object.entries(gems || {})) {
+    const n = Math.floor(count || 0);
+    if (n > 0) next[key] = n;
+  }
+  const upgrades = [];
+  for (const def of GEM_CATALOG) {
+    for (let i = 0; i < GEM_TIERS.length - 1; i++) {
+      const from = gemKey(def.type, GEM_TIERS[i].id);
+      const to = gemKey(def.type, GEM_TIERS[i + 1].id);
+      const count = Math.floor((next[from] || 0) / FUSE_COUNT);
+      if (count <= 0) continue;
+      const spent = count * FUSE_COUNT;
+      next[from] -= spent;
+      if (next[from] <= 0) delete next[from];
+      next[to] = (next[to] || 0) + count;
+      upgrades.push({ from, to, count });
+    }
+  }
+  return {
+    gems: next,
+    upgrades,
+    made: upgrades.reduce((sum, u) => sum + u.count, 0),
+    spent: upgrades.reduce((sum, u) => sum + u.count * FUSE_COUNT, 0),
+  };
+}
+
 // Roll a random gem (as a "type:tier" key). `rng` returns [0,1). Lower tiers are
 // far more common; `opts.tierBias` (0..1, default 0) nudges toward better tiers
 // (used by richer sources like the Legendary crate / boss events).

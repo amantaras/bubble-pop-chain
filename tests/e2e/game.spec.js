@@ -335,16 +335,27 @@ test.describe("menu & navigation (UI)", () => {
   test("Play opens the level map with level 1 unlocked", async ({ page }) => {
     await page.locator("#btn-play").click();
     await expect(page.locator("#levelmap")).toBeVisible();
-    await expect(page.locator(".level-cell").first()).toContainText("1");
+    const first = page.locator(".level-cell").first();
+    await expect(first).toContainText("1");
+    await expect(first).toHaveClass(/current/);
+    await expect(first).toHaveAttribute("aria-current", "step");
+    await expect(first).toHaveAttribute("data-world", "1");
     await expect(page.locator(".level-cell.locked").first()).toBeVisible();
   });
   
   test("level map previews the next progression unlock", async ({ page }) => {
+    await page.evaluate(() => {
+      window.__bpc.Storage.recordLevelResult(1, 3);
+      window.__bpc.Storage.set("maxUnlockedLevel", 6);
+    });
     await page.locator("#btn-play").click();
-    await expect(page.locator(".current-focus-card")).toContainText("Current focus: Clear Level 1");
-    await expect(page.locator(".current-focus-card")).toContainText("Undo at Level 6");
-    await expect(page.locator(".next-unlock-teaser")).toContainText("Next unlock: Undo");
-    await expect(page.locator(".next-unlock-teaser")).toContainText("Level 6");
+    await expect(page.locator(".current-focus-card")).toContainText("Current focus: Clear Level 6");
+    await expect(page.locator(".next-unlock-teaser")).toContainText("Next unlock: Shuffle");
+    await expect(page.locator(".next-unlock-teaser")).toContainText("Level 8");
+    await expect(page.locator('.level-cell[data-level="1"]')).toHaveClass(/completed/);
+    await expect(page.locator('.level-cell[data-level="6"]')).toHaveClass(/current/);
+    await expect(page.locator('.level-cell[data-level="1"]')).toHaveClass(/path-row-start/);
+    await expect(page.locator('.level-cell[data-level="4"]')).toHaveClass(/path-row-end/);
   });
 
   test("level map opens a briefing before starting a level", async ({ page }) => {
@@ -387,11 +398,16 @@ test.describe("menu & navigation (UI)", () => {
   test("Shop and Themes open and Back returns to menu", async ({ page }) => {
     await page.locator("#btn-shop").click();
     await expect(page.locator("#shop")).toBeVisible();
+    await expect(page.locator('.shop-filter[data-shop-filter="featured"].active')).toBeVisible();
     await expect(page.locator(".shop-section-title")).toHaveText([
       "Featured",
-      "Power-ups",
-      "Coins & Upgrades",
     ]);
+    await page.locator('.shop-filter[data-shop-filter="tools"]').click();
+    await expect(page.locator(".shop-section-title")).toHaveText(["Tools"]);
+    await page.locator('.shop-filter[data-shop-filter="coins"]').click();
+    await expect(page.locator(".shop-section-title")).toHaveText(["Coins"]);
+    await page.locator('.shop-filter[data-shop-filter="offers"]').click();
+    await expect(page.locator(".shop-section-title")).toHaveText(["Offers"]);
     await page.locator("#shop-back").click();
     await expect(page.locator("#menu")).toBeVisible();
 
@@ -563,6 +579,7 @@ test.describe("undo tool (real input)", () => {
     });
 
     await expect(page.locator('#pu-slot-0[data-pu="extraMoves"]')).toBeVisible();
+  await expect(page.locator('#pu-slot-0 .pu-icon img[src$="extra-moves.svg"]')).toBeVisible();
     const before = await page.evaluate(() => {
       const s = window.__bpc.game.session;
       return {
@@ -1191,6 +1208,7 @@ test.describe("campaign progression", () => {
     await expect(page.locator("#win-chest")).toBeVisible();
     await page.locator("#win-chest").click();
     await expect(page.locator("#win-reward-reveal")).toBeVisible();
+    await expect(page.locator("#win-reward .win-reward-card").first()).toBeVisible();
 
     // Coins count up to a positive total in the recap window.
     await expect
@@ -1321,9 +1339,11 @@ test.describe("milestone events (every 5 levels)", () => {
     await expect(page.locator(".level-cell").nth(4)).toHaveClass(
       /milestone-treasure/
     );
+    await expect(page.locator('.level-cell[data-level="5"] .lvl-badge')).toBeVisible();
     await expect(page.locator(".level-cell").nth(9)).toHaveClass(
       /milestone-boss/
     );
+    await expect(page.locator('.level-cell[data-level="10"] .lvl-badge')).toBeVisible();
   });
 
   test("the level map groups levels into themed chapter headers", async ({
@@ -1335,6 +1355,7 @@ test.describe("milestone events (every 5 levels)", () => {
     const headers = page.locator(".chapter-header");
     await expect(headers).toHaveCount(5);
     await expect(headers.first()).toContainText("1–8");
+    await expect(headers.first()).toHaveAttribute("data-world", "1");
     await expect(headers.nth(1)).toContainText("9–16");
     await expect(headers.last()).toContainText("33–40");
   });
@@ -2180,6 +2201,7 @@ test.describe("power-ups (UI arm + apply)", () => {
 
     // The picker lists every power-up, including ones not in the loadout.
     await expect(page.locator('#loadout-list [data-pu="shuffle"]')).toBeVisible();
+    await expect(page.locator('#loadout-list [data-pu="shuffle"] .li-icon img[src$="shuffle.svg"]')).toBeVisible();
     await expect(page.locator('#loadout-list [data-pu="paint"]')).toBeVisible();
 
     // Choosing Shuffle equips it in slot 0 and closes the picker.
@@ -2278,8 +2300,10 @@ test.describe("power-ups (UI arm + apply)", () => {
   test("shop rows show when a power-up is not affordable", async ({ page }) => {
     await page.evaluate(() => window.__bpc.Storage.set("coins", 0));
     await page.locator("#btn-shop").click();
+    await page.locator('.shop-filter[data-shop-filter="tools"]').click();
     const bomb = page.locator('#shop-list .shop-item[data-pu="bomb"]');
     await expect(bomb).toHaveClass(/cannot-afford/);
+    await expect(bomb.locator('.si-icon img[src$="bomb.svg"]')).toBeVisible();
     await expect(bomb.locator(".buy-btn")).toHaveClass(/need-coins/);
   });
 });
@@ -2292,8 +2316,10 @@ test.describe("progressive tool unlocks", () => {
   }) => {
     await page.locator("#btn-shop").click();
     await expect(page.locator("#shop")).toBeVisible();
+    await page.locator('.shop-filter[data-shop-filter="tools"]').click();
     await expect(page.locator(".shop-empty-tools")).toContainText("Tools unlock after Level 5");
     await expect(page.locator('#shop-list .shop-item[data-pu]')).toHaveCount(0);
+    await page.locator('.shop-filter[data-shop-filter="featured"]').click();
     await expect(page.locator(".shop-starter .si-desc")).toContainText("tool stash unlocks as you progress");
     await page.locator("#shop-back").click();
 
@@ -2350,6 +2376,7 @@ test.describe("progressive tool unlocks", () => {
     await page.locator("#win-next").click();
     await expect(page.locator("#tool-unlock")).toBeVisible();
     await expect(page.locator("#tool-unlock-name")).toHaveText("Undo");
+    await expect(page.locator('#tool-unlock-icon img[src$="undo.svg"]')).toBeVisible();
     await expect(page.locator("#tool-unlock-level")).toContainText("Level 6");
     await expect(page.locator("#tool-unlock-lesson")).toContainText("restores the board");
 
@@ -2488,6 +2515,7 @@ test.describe("hold-to-buy (auto-repeat purchase)", () => {
     await page.evaluate(() => window.__bpc.Economy.addCoins(100000));
     await page.locator("#btn-shop").click();
     await expect(page.locator("#shop")).toBeVisible();
+    await page.locator('.shop-filter[data-shop-filter="tools"]').click();
 
     const before = await page.evaluate(() =>
       window.__bpc.Economy.getPowerup("bomb"),
@@ -2505,6 +2533,7 @@ test.describe("hold-to-buy (auto-repeat purchase)", () => {
     await page.evaluate(() => window.__bpc.Economy.addCoins(100000));
     await page.locator("#btn-shop").click();
     await expect(page.locator("#shop")).toBeVisible();
+    await page.locator('.shop-filter[data-shop-filter="tools"]').click();
 
     // Speed up the repeat so the test is fast and deterministic.
     await page.evaluate(() => {
@@ -2549,6 +2578,7 @@ test.describe("hold-to-buy (auto-repeat purchase)", () => {
     await page.evaluate(() => window.__bpc.Economy.addCoins(100000));
     await page.locator("#btn-shop").click();
     await expect(page.locator("#shop")).toBeVisible();
+    await page.locator('.shop-filter[data-shop-filter="tools"]').click();
 
     await page.evaluate(() => {
       const settings = { ...window.__bpc.Storage.get("settings"), buyBatchMax: 4 };
@@ -2607,6 +2637,7 @@ test.describe("hold-to-buy (auto-repeat purchase)", () => {
     await page.evaluate(() => window.__bpc.Economy.addCoins(100000));
     await page.locator("#btn-shop").click();
     await expect(page.locator("#shop")).toBeVisible();
+    await page.locator('.shop-filter[data-shop-filter="tools"]').click();
 
     const buy = page.locator('#shop-list .shop-item[data-pu="pick"] .buy-btn');
     const before = await page.evaluate(() =>
@@ -2628,6 +2659,7 @@ test.describe("hold-to-buy (auto-repeat purchase)", () => {
     await page.evaluate(() => window.__bpc.Economy.addCoins(100000));
     await page.locator("#btn-shop").click();
     await expect(page.locator("#shop")).toBeVisible();
+    await page.locator('.shop-filter[data-shop-filter="tools"]').click();
 
     await page.evaluate(() => {
       const settings = { ...window.__bpc.Storage.get("settings"), buyBatchMax: 99 };
@@ -2656,6 +2688,7 @@ test.describe("hold-to-buy (auto-repeat purchase)", () => {
     await page.evaluate(() => window.__bpc.Economy.addCoins(100000));
     await page.locator("#btn-pets").click();
     await expect(page.locator("#pets")).toBeVisible();
+    await page.locator('.pet-tab[data-pet-tab="store"]').click();
 
     await page.evaluate(() => {
       const settings = { ...window.__bpc.Storage.get("settings"), buyBatchMax: 3 };
@@ -2683,6 +2716,7 @@ test.describe("hold-to-buy (auto-repeat purchase)", () => {
   }) => {
     await page.locator("#btn-shop").click();
     await expect(page.locator("#shop")).toBeVisible();
+    await page.locator('.shop-filter[data-shop-filter="tools"]').click();
 
     // Probe one bomb's price, then set coins to exactly 2× that and rebuild
     // the shop so only two purchases are affordable.
@@ -3804,6 +3838,7 @@ test.describe("per-level best score", () => {
     await clearBoardByFinalPair(page);
     await expect(page.locator("#win")).toBeVisible();
     await expect(page.locator("#win-reward")).toContainText("New best score");
+    await expect(page.locator("#win-reward .win-reward-card.best")).toContainText("New best score");
   });
 });
 
@@ -3811,16 +3846,30 @@ test.describe("per-level best score", () => {
 test.describe("bonus objectives", () => {
   test.beforeEach(({ page }) => openGame(page));
 
-  test("ordinary levels surface a bonus-objective chip in the HUD", async ({
+  test("ordinary levels surface bonus objective status in the HUD", async ({
     page,
   }) => {
     await page.evaluate(() => window.__bpc.game.startCampaign(3));
     await page.waitForTimeout(500);
-    await expect(page.locator("#hud-objective")).toBeVisible();
     const label = await page.evaluate(
       () => window.__bpc.getLevel(3).objective.label
     );
-    await expect(page.locator("#hud-objective-text")).toContainText(label);
+    const compact = label
+      .replace(/^Pop a group of\s*/i, "Group ")
+      .replace(/^Reach a\s*/i, "Reach ")
+      .replace(/^Clear without spending a power-up$/i, "No tools")
+      .replace(/\s+/g, " ")
+      .trim();
+    await expect(page.locator("#hud-objective")).toHaveClass(/hidden/);
+    await expect(page.locator("#hud-objective-text")).toHaveText("");
+    await expect(page.locator("#hud-status")).toContainText(compact);
+
+    await page.evaluate(() => {
+      window.__bpc.game.session.objectiveMet = true;
+      window.__bpc.game.refreshHud();
+    });
+    await expect(page.locator("#hud-objective")).toBeVisible();
+    await expect(page.locator("#hud-objective-text")).toContainText("Bonus ✓");
   });
 
   test("milestone levels carry no bonus objective", async ({ page }) => {
@@ -3842,6 +3891,7 @@ test.describe("bonus objectives", () => {
     await clearBoardByFinalPair(page);
     await expect(page.locator("#win")).toBeVisible();
     await expect(page.locator("#win-reward")).toContainText("Objective");
+    await expect(page.locator("#win-reward .win-reward-card.objective")).toContainText("Objective");
     const after = await page.evaluate(() => window.__bpc.Economy.coins);
     expect(after).toBeGreaterThan(before);
   });
@@ -4142,6 +4192,7 @@ test.describe("shop & monetization (UI)", () => {
 
   test("daily free-coins ad reward escalates and caps at 3/day", async ({ page }) => {
     await page.locator("#btn-shop").click();
+    await page.locator('.shop-filter[data-shop-filter="coins"]').click();
     const claim = async () => {
       await page.locator("#shop-free-coins").click();
       await expect(page.locator("#ad-overlay")).toBeVisible();
@@ -4167,9 +4218,12 @@ test.describe("shop & monetization (UI)", () => {
       window.__bpc.Monetization.setDevelopmentRewardedFallback(false);
     });
     await page.locator("#btn-shop").click();
+    await page.locator('.shop-filter[data-shop-filter="coins"]').click();
     await expect(page.locator("#shop-free-coins")).toHaveText("Unavailable");
     await expect(page.locator("#shop-free-coins")).toBeDisabled();
-    await expect(page.locator("#shop-list button", { hasText: "Unavailable" })).toHaveCount(4);
+    await expect(page.locator("#shop-list button", { hasText: "Unavailable" })).toHaveCount(3);
+    await page.locator('.shop-filter[data-shop-filter="offers"]').click();
+    await expect(page.locator("#shop-list button", { hasText: "Unavailable" })).toHaveCount(1);
   });
 
   test("buying a power-up deducts coins; insufficient funds is blocked", async ({
@@ -4177,15 +4231,18 @@ test.describe("shop & monetization (UI)", () => {
   }) => {
     await unlockAllTools(page);
     await page.locator("#btn-shop").click();
+    await page.locator('.shop-filter[data-shop-filter="tools"]').click();
     // With 0 coins, buying the bomb (150) must fail with a toast.
     await page.locator("#shop-list button", { hasText: /^150$/ }).click();
     await expect(page.locator("#toast")).toContainText("Not enough");
 
     // Earn coins via the free daily ad reward, then the purchase succeeds.
+    await page.locator('.shop-filter[data-shop-filter="coins"]').click();
     await page.locator("#shop-free-coins").click(); // +150
     await page.waitForTimeout(2400);
     await page.locator("#shop-free-coins").click(); // +250 -> 400
     await page.waitForTimeout(2400);
+    await page.locator('.shop-filter[data-shop-filter="tools"]').click();
     const bombBefore = await page.evaluate(() =>
       window.__bpc.Economy.getPowerup("bomb")
     );
@@ -4239,6 +4296,7 @@ test.describe("shop & monetization (UI)", () => {
     page,
   }) => {
     await page.locator("#btn-shop").click();
+    await page.locator('.shop-filter[data-shop-filter="offers"]').click();
     await page.locator("#shop-list button", { hasText: "$2.99" }).click();
     await expect(page.locator("#shop-list button", { hasText: "Owned" })).toBeVisible();
     const removed = await page.evaluate(() => window.__bpc.Monetization.isAdsRemoved());
@@ -5057,8 +5115,8 @@ test.describe("pet companions (collection & buffs)", () => {
   }) => {
     await page.locator("#btn-pets").click();
     await expect(page.locator("#pets")).toBeVisible();
-    // Starter state: Sparky owned + equipped, one free crate to open.
-    await expect(page.locator("#pets-crate .crate-art-pet")).toBeVisible();
+    await expect(page.locator('.pet-tab[data-pet-tab="companions"].active')).toBeVisible();
+    await expect(page.locator('.pet-tab[data-pet-tab="store"]')).toBeVisible();
     await expect(page.locator('.pet-card[data-pet="sparky"]')).toHaveClass(/owned/);
     await expect(page.locator('.pet-card[data-pet="sparky"]')).toHaveClass(/equipped/);
     await expect(page.locator("#pet-detail .pd-guide-chip")).toHaveText([
@@ -5069,7 +5127,15 @@ test.describe("pet companions (collection & buffs)", () => {
     ]);
     await expect(page.locator("#pet-detail .pd-action-row")).toBeVisible();
     await expect(page.locator("#pet-detail .pd-forge-btn")).toBeVisible();
+    await page.locator('.pet-card[data-pet="clover"]').click();
+    await expect(page.locator('.pet-card[data-pet="clover"]')).toHaveClass(/selected/);
+    await page.locator('.pet-tab[data-pet-tab="gems"]').click();
     await expect(page.locator("#pet-gem-tip")).toContainText("Tap a pet");
+    await page.locator('.pet-tab[data-pet-tab="companions"]').click();
+    await expect(page.locator('.pet-card[data-pet="clover"]')).toHaveClass(/selected/);
+    await page.locator('.pet-tab[data-pet-tab="store"]').click();
+    // Starter state: one free crate to open is now in the Store tab.
+    await expect(page.locator("#pets-crate .crate-art-pet")).toBeVisible();
     const state = await page.evaluate(() => window.__bpc.Storage.getPetState());
     expect(state.equipped).toBe("sparky");
     expect(state.crates).toBeGreaterThanOrEqual(1);
@@ -5080,6 +5146,7 @@ test.describe("pet companions (collection & buffs)", () => {
   test("buying then opening a crate grants a pet", async ({ page }) => {
     await page.evaluate(() => window.__bpc.Economy.addCoins(1000));
     await page.locator("#btn-pets").click();
+    await page.locator('.pet-tab[data-pet-tab="store"]').click();
 
     // Buy a crate, then open everything we have.
     await page.locator("#crate-buy").click();
@@ -5163,6 +5230,7 @@ test.describe("pet companions (collection & buffs)", () => {
 
   test("the Pets screen shows the party panel with a lead slot", async ({ page }) => {
     await page.locator("#btn-pets").click();
+    await page.locator('.pet-tab[data-pet-tab="party"]').click();
     await expect(page.locator("#pet-party")).toBeVisible();
     // The equipped pet appears in the lead slot.
     await expect(page.locator("#pet-party .pp-lead")).toBeVisible();
@@ -5209,6 +5277,7 @@ test.describe("pet companions (collection & buffs)", () => {
   test("Pet Store sells premium pets and a legendary crate", async ({ page }) => {
     await page.evaluate(() => window.__bpc.Economy.addCoins(1000));
     await page.locator("#btn-pets").click();
+    await page.locator('.pet-tab[data-pet-tab="store"]').click();
     await expect(page.locator("#pet-store")).toBeVisible();
     // The premium pets (aurora/gizmo) are listed with real-money buy buttons.
     await expect(page.locator('#pet-store .store-buy[data-pet="aurora"]')).toBeVisible();
@@ -5247,12 +5316,14 @@ test.describe("pet companions (collection & buffs)", () => {
     await page.locator('.pet-card[data-pet="nova"]').click();
     await expect(page.locator("#pet-detail .pd-source")).toContainText("Store only");
     await expect(page.locator("#pet-detail .pd-source")).toContainText("never drops from crates");
+    await page.locator('.pet-tab[data-pet-tab="store"]').click();
     await expect(page.locator('#pet-store .store-buy[data-pet="nova"]')).toBeVisible();
     await expect(page.locator("#pet-store")).toContainText("Store only");
   });
 
   test("buying a premium pet from the store unlocks it", async ({ page }) => {
     await page.locator("#btn-pets").click();
+    await page.locator('.pet-tab[data-pet-tab="store"]').click();
     await expect(page.locator("#pet-store")).toBeVisible();
     await page.locator('#pet-store .store-buy[data-pet="aurora"]').click();
     await expect
@@ -5293,6 +5364,7 @@ test.describe("pet companions (collection & buffs)", () => {
     page,
   }) => {
     await page.locator("#btn-pets").click();
+    await page.locator('.pet-tab[data-pet-tab="store"]').click();
     await page.locator('#pet-store .store-buy[data-pet="aurora"]').click();
     await expect(page.locator("#pet-reveal")).toBeVisible();
     await expect(page.locator("#pet-reveal-name")).toHaveText("Aurora");
@@ -6065,6 +6137,7 @@ test.describe("pet companions (collection & buffs)", () => {
     await expect(page.locator("#pet-gem-reminder-benefits")).toContainText("1 gem in bag");
     await page.locator("#pet-gem-reminder-open").click();
     await expect(page.locator("#pets")).toBeVisible();
+    await expect(page.locator('.pet-tab[data-pet-tab="gems"].active')).toBeVisible();
     await expect(page.locator("#pet-detail")).toContainText("Sparky");
     await expect(page.locator("#pet-gems .pg-picker-card")).toBeVisible();
     await expect(page.locator("#gem-picker-embue")).toBeVisible();
@@ -6354,6 +6427,7 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
 
   test("the Pets screen launches a dedicated Gem Forge with Bag & Forge tabs", async ({ page }) => {
     await page.locator("#btn-pets").click();
+    await page.locator('.pet-tab[data-pet-tab="gems"]').click();
     // The Pets screen now shows a compact launcher card, not the full panel.
     await expect(page.locator("#gem-launch")).toBeVisible();
     await page.locator("#gem-launch").click();
@@ -6776,6 +6850,7 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
   test("the gem inventory shows a Fuse button that merges through the UI", async ({ page }) => {
     await page.evaluate(() => window.__bpc.Storage.addGem("sapphire:chipped", 3));
     await page.locator("#btn-pets").click();
+    await page.locator('.pet-tab[data-pet-tab="gems"]').click();
     await page.locator("#gem-launch").click();
     const fuse = page.locator('.pg-fuse-btn[data-gem="sapphire:chipped"]');
     await expect(fuse).toBeVisible();
@@ -6795,10 +6870,55 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
   test("the Fuse button is disabled below 3 gems", async ({ page }) => {
     await page.evaluate(() => window.__bpc.Storage.addGem("amber:chipped", 2));
     await page.locator("#btn-pets").click();
+    await page.locator('.pet-tab[data-pet-tab="gems"]').click();
     await page.locator("#gem-launch").click();
     const fuse = page.locator('.pg-fuse-btn[data-gem="amber:chipped"]');
     await expect(fuse).toBeVisible();
     await expect(fuse).toBeDisabled();
+  });
+
+  test("Auto Forge Max upgrades every eligible loose gem stack through the UI", async ({ page }) => {
+    await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      const { GEM_CATALOG, GEM_TIERS, gemKey } = window.__bpc.gems;
+      for (const def of GEM_CATALOG) {
+        for (const tier of GEM_TIERS) S.addGem(gemKey(def.type, tier.id), -999);
+      }
+      S.addGem("ruby:chipped", 9);
+      S.addGem("sapphire:polished", 3);
+      S.addGem("amber:chipped", 2);
+    });
+    const dustBefore = await page.evaluate(() => window.__bpc.Storage.getDust());
+    await page.locator("#btn-pets").click();
+    await page.locator('.pet-tab[data-pet-tab="gems"]').click();
+    await page.locator("#gem-launch").click();
+    const auto = page.locator(".pg-auto-forge-btn");
+    await expect(auto).toBeVisible();
+    await expect(auto).toBeEnabled();
+    await expect(auto).toContainText("Auto Forge Max");
+    await auto.click();
+    const out = await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      return {
+        rubyChipped: S.gemCount("ruby:chipped"),
+        rubyPolished: S.gemCount("ruby:polished"),
+        rubyBrilliant: S.gemCount("ruby:brilliant"),
+        sapphirePolished: S.gemCount("sapphire:polished"),
+        sapphireBrilliant: S.gemCount("sapphire:brilliant"),
+        amberChipped: S.gemCount("amber:chipped"),
+        dust: S.getDust(),
+      };
+    });
+    expect(out.rubyChipped).toBe(0);
+    expect(out.rubyPolished).toBe(0);
+    expect(out.rubyBrilliant).toBe(1);
+    expect(out.sapphirePolished).toBe(0);
+    expect(out.sapphireBrilliant).toBe(1);
+    expect(out.amberChipped).toBe(2);
+    expect(out.dust).toBe(dustBefore);
+    await expect(auto).toBeDisabled();
+    await expect(page.locator('.pg-cell[data-gem="ruby:brilliant"]')).toBeVisible();
+    await expect(page.locator('.pg-cell[data-gem="sapphire:brilliant"]')).toBeVisible();
   });
 
   test("the Bag grid selects a gem and shows its detail + fusion action", async ({ page }) => {
@@ -6808,6 +6928,7 @@ test.describe("pet gems & sockets (RPG batch 4)", () => {
       S.addGem("ruby:chipped", 2);
     });
     await page.locator("#btn-pets").click();
+    await page.locator('.pet-tab[data-pet-tab="gems"]').click();
     await page.locator("#gem-launch").click();
     // Two owned gems => two compact cells in the grid.
     await expect(page.locator(".pg-grid2 .pg-cell")).toHaveCount(2);

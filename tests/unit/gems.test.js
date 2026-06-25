@@ -32,6 +32,7 @@ import {
   prevGemTier,
   canFuseTier,
   fusedGemKey,
+  autoFuseInventory,
 } from "../../src/gems.js";
 import { makeRng } from "../../src/rng.js";
 
@@ -350,5 +351,37 @@ describe("gems — fusion", () => {
 
   it("prevGemTier resolves unknown tiers via getGemTier fallback (chipped -> null)", () => {
     expect(prevGemTier("garbage")).toBeNull();
+  });
+
+  it("autoFuseInventory upgrades every eligible loose stack as far as possible", () => {
+    const out = autoFuseInventory({
+      "ruby:chipped": 9,
+      "sapphire:polished": 3,
+      "amber:chipped": 2,
+      "diamond:brilliant": 4,
+      "mystery:stone": 7,
+    });
+    expect(out.gems["ruby:chipped"]).toBeUndefined();
+    expect(out.gems["ruby:polished"]).toBeUndefined();
+    expect(out.gems["ruby:brilliant"]).toBe(1);
+    expect(out.gems["sapphire:polished"]).toBeUndefined();
+    expect(out.gems["sapphire:brilliant"]).toBe(1);
+    expect(out.gems["amber:chipped"]).toBe(2);
+    expect(out.gems["diamond:brilliant"]).toBe(4);
+    expect(out.gems["mystery:stone"]).toBe(7);
+    expect(out.upgrades).toEqual([
+      { from: "ruby:chipped", to: "ruby:polished", count: 3 },
+      { from: "ruby:polished", to: "ruby:brilliant", count: 1 },
+      { from: "sapphire:polished", to: "sapphire:brilliant", count: 1 },
+    ]);
+    expect(out.made).toBe(5);
+  });
+
+  it("autoFuseInventory reports no upgrades when all stacks are below the fusion count", () => {
+    const out = autoFuseInventory({ "ruby:chipped": 2, "citrine:polished": 1 });
+    expect(out.gems).toEqual({ "ruby:chipped": 2, "citrine:polished": 1 });
+    expect(out.upgrades).toEqual([]);
+    expect(out.made).toBe(0);
+    expect(out.spent).toBe(0);
   });
 });

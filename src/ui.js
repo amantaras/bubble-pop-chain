@@ -116,6 +116,7 @@ import {
   fusedGemKey,
   canFuseTier,
   prevGemTier,
+  autoFuseInventory,
 } from "./gems.js";
 import {
   TECH_TREE,
@@ -127,6 +128,30 @@ import {
 } from "./tech.js";
 
 const $ = (id) => document.getElementById(id);
+
+function toolIconHtml(typeOrInfo, className = "tool-icon") {
+  const info = typeof typeOrInfo === "string" ? POWERUP_INFO[typeOrInfo] : typeOrInfo;
+  const fallback = info?.icon || "✨";
+  if (!info?.iconAsset) return `<span class="${className} tool-icon-wrap emoji">${fallback}</span>`;
+  return `<span class="${className} tool-icon-wrap" aria-hidden="true">` +
+    `<img class="tool-icon-img" src="${info.iconAsset}" alt="" loading="lazy" decoding="async" onerror="this.hidden=true;this.nextElementSibling.hidden=false">` +
+    `<span class="tool-icon-fallback" hidden>${fallback}</span>` +
+    `</span>`;
+}
+
+function setToolIcon(el, typeOrInfo, className = "tool-icon") {
+  if (!el) return;
+  el.innerHTML = toolIconHtml(typeOrInfo, className);
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 class UIManager {
   constructor() {
@@ -158,7 +183,8 @@ class UIManager {
       "hints-toggle", "hints-toggle-state",
       "rm-toggle", "rm-toggle-state",
       "buy-batch-pref", "buy-speed-pref",
-      "pets", "pets-coins", "pets-crate", "pet-party", "pet-gems", "pet-gem-tip", "pet-store", "pet-list", "pet-detail",
+      "pets", "pets-coins", "pet-tabs", "pet-panel-companions", "pet-panel-party", "pet-panel-gems", "pet-panel-store",
+      "pets-crate", "pet-party", "pet-gems", "pet-gem-tip", "pet-store", "pet-list", "pet-detail",
       "gem-forge", "gemforge-body", "gemforge-dust", "gemforge-back",
       "pause", "pause-sub", "pause-summary", "pause-resume", "pause-shop", "pause-themes", "pause-retry", "pause-menu",
       "pet-confirm", "pet-confirm-sub", "pet-confirm-ok", "pet-confirm-cancel",
@@ -292,7 +318,10 @@ class UIManager {
     click("btn-daily", () => this.cb.startDaily && this.cb.startDaily());
     click("btn-tournament", () => this.cb.startTournament && this.cb.startTournament());
     click("btn-timeattack", () => this.cb.startTimeAttack && this.cb.startTimeAttack());
-    click("btn-shop", () => this.showScreen("shop"));
+    click("btn-shop", () => {
+      this._shopFilter = "featured";
+      this.showScreen("shop");
+    });
     click("btn-themes", () => this.showScreen("themes"));
     click("btn-achievements", () => this.showScreen("achievements"));
     click("btn-calendar", () => this.showScreen("calendar"));
@@ -596,6 +625,7 @@ class UIManager {
   _pauseGoShop() {
     this.closePauseOverlay(false);
     this._shopOverGame = true;
+    this._shopFilter = "featured";
     this.hideScreens();
     this.hideModals();
     this.showScreen("shop");
@@ -679,6 +709,7 @@ class UIManager {
   openShopForPowerup(type) {
     const overGame = !!(this.cb.isLevelActive && this.cb.isLevelActive());
     this._shopOverGame = overGame;
+    this._shopFilter = "tools";
     if (overGame && this.cb.pauseGame) this.cb.pauseGame();
     this.showScreen("shop");
     this._highlightShopPowerup(type);
@@ -737,6 +768,8 @@ class UIManager {
     const overGame = !!(this.cb.isLevelActive && this.cb.isLevelActive());
     this._petOverlayOverGame = overGame;
     this._selectedPet = opts.petId || null;
+    if (opts.openGemForge || opts.openSocketPicker) this._petTab = "gems";
+    else this._petTab = "companions";
     if (overGame && this.cb.pauseGame) this.cb.pauseGame();
     this.hideModals();
     if (this.el["gem-forge"]) this.el["gem-forge"].classList.add("hidden");
@@ -916,6 +949,8 @@ class UIManager {
     const sockets = Array.isArray(owned.sockets) ? owned.sockets : [];
     for (let i = 0; i < max; i++) {
       if (!sockets[i]) {
+        this._petTab = "gems";
+        this._syncPetTabs();
         this._gemPicker = { petId, slot: i };
         this._gemPickSel = null;
         this._buildPetGems();
@@ -1145,6 +1180,10 @@ class UIManager {
           const chapterLocked = maxUnlocked < i;
           const header = document.createElement("div");
           header.className = "chapter-header";
+          header.dataset.chapterId = String(ch.id);
+          header.dataset.world = String(ch.id);
+          header.dataset.start = String(ch.startLevel);
+          header.dataset.end = String(ch.endLevel);
           if (chapterDone) header.classList.add("done");
           if (chapterLocked) header.classList.add("locked");
           header.innerHTML = `<span class="ch-icon">${ch.icon}</span><span class="ch-name">${ch.name}</span><span class="ch-range">${ch.startLevel}–${ch.endLevel}</span>`;
@@ -1154,7 +1193,23 @@ class UIManager {
       const cell = document.createElement("div");
       cell.className = "level-cell";
       const locked = i > maxUnlocked;
+      const completed = i < maxUnlocked || Storage.getStars(i) > 0;
+      const current = i === maxUnlocked;
+      const chapterPos = (i - 1) % CHAPTER_SIZE;
+      const ch = chapterForLevel(i);
+      cell.dataset.level = String(i);
+      if (ch) {
+        cell.dataset.chapterId = String(ch.id);
+        cell.dataset.world = String(ch.id);
+      }
       if (locked) cell.classList.add("locked");
+      if (chapterPos % 4 === 0) cell.classList.add("path-row-start");
+      if (chapterPos % 4 === 3 || chapterPos === CHAPTER_SIZE - 1) cell.classList.add("path-row-end");
+      if (completed && !locked) cell.classList.add("completed");
+      if (current && !locked) {
+        cell.classList.add("current");
+        cell.setAttribute("aria-current", "step");
+      }
       const mtype = milestoneType(i);
       if (mtype) cell.classList.add(`milestone-${mtype}`);
       const stars = Storage.getStars(i);
@@ -1273,7 +1328,7 @@ class UIManager {
     add("shuffle");
     add("bomb");
     return picks.length
-      ? picks.slice(0, 3).map((type) => `${POWERUP_INFO[type].icon} ${POWERUP_INFO[type].name}`).join(" • ")
+      ? picks.slice(0, 3).map((type) => `${toolIconHtml(type, "brief-tool-icon")} ${POWERUP_INFO[type].name}`).join(" • ")
       : "Tools unlock after Level 5.";
   }
 
@@ -1282,7 +1337,7 @@ class UIManager {
     const pet = nextPetFeatureUnlock(maxUnlocked);
     if (tool && (!pet || tool.level <= pet.level)) {
       const info = POWERUP_INFO[tool.type];
-      return info ? { level: tool.level, icon: info.icon, name: info.name, kind: "Tool" } : null;
+      return info ? { level: tool.level, icon: toolIconHtml(tool.type, "nut-tool-icon"), name: info.name, kind: "Tool" } : null;
     }
     if (pet) {
       const info = PET_FEATURE_INFO[pet.feature];
@@ -1429,7 +1484,7 @@ class UIManager {
     const unlocked = unlockedPowerups();
     const visibleTools = Object.entries(STARTER_PACK.powerups)
       .filter(([type]) => unlocked.includes(type))
-      .map(([type, n]) => `${POWERUP_INFO[type].icon}×${n}`);
+      .map(([type, n]) => `${toolIconHtml(type, "starter-tool-icon")}×${n}`);
     const lockedCount = Object.keys(STARTER_PACK.powerups).length - visibleTools.length;
     const puText = visibleTools.length
       ? `${visibleTools.join(" ")}${lockedCount ? ` · ${lockedCount} future tool stash` : ""}`
@@ -1516,175 +1571,221 @@ class UIManager {
   buildShop() {
     const list = this.el["shop-list"];
     list.innerHTML = "";
+    if (!this._shopFilter) this._shopFilter = "featured";
+    const filter = this._shopFilter;
+    this._buildShopFilters(list);
 
-    this._shopSection(list, "Featured", "Limited bundles and banked rewards");
-    // One-time Starter Pack — a prominent value bundle at the very top.
-    this._buildStarterPackItem(list);
-    // Piggy Bank — coins banked passively from play, unlocked by cracking it.
-    this._buildPiggyItem(list);
-    this._shopSection(list, "Power-ups", "New tools unlock as the campaign opens up");
-    // Power-ups
-    const available = unlockedPowerups();
-    if (!available.length) {
-      const next = nextPowerupUnlock();
-      const empty = document.createElement("div");
-      empty.className = "shop-empty-tools";
-      empty.innerHTML = `<b>Tools unlock after Level 5</b><span>${next ? `First up: ${POWERUP_INFO[next.type].icon} ${POWERUP_INFO[next.type].name} at Level ${next.level}.` : "All tools are unlocked."}</span>`;
-      list.appendChild(empty);
+    if (filter === "featured") {
+      this._shopSection(list, "Featured", "Limited bundles and banked rewards");
+      // One-time Starter Pack — a prominent value bundle at the very top.
+      this._buildStarterPackItem(list);
+      // Piggy Bank — coins banked passively from play, unlocked by cracking it.
+      this._buildPiggyItem(list);
     }
-    available.forEach((type) => {
-      const info = POWERUP_INFO[type];
-      const owned = Economy.getPowerup(type);
-      const affordable = Economy.coins >= info.price;
-      const item = document.createElement("div");
-      item.className = "shop-item" + (affordable ? "" : " cannot-afford");
-      item.dataset.pu = type;
-      item.innerHTML = `
-        <span class="si-icon">${info.icon}</span>
-        <div class="si-body">
-          <div class="si-title">${info.name} <span class="si-owned" style="color:var(--text-dim);font-weight:600">×${owned}</span></div>
-          <div class="si-desc">${info.desc}</div>
-        </div>`;
-      const buy = document.createElement("button");
-      buy.className = "buy-btn" + (affordable ? "" : " need-coins");
-      buy.innerHTML = `<span class="coin-dot"></span>${info.price}`;
-      buy.title = affordable ? `Buy ${info.name}` : `Need ${info.price - Economy.coins} more coins`;
-      const normalLabel = buy.innerHTML;
-      const feedback = ({ phase, count, max }) => {
-        buy.classList.toggle("buying", phase === "buying");
-        buy.classList.toggle("capped", phase === "capped");
-        if (phase === "buying" || phase === "capped") {
-          buy.textContent = phase === "capped" ? `Limit ${count}/${max}` : `Buying ${count}/${max}`;
-        } else if (phase === "blocked") {
-          buy.textContent = "Stopped";
-        } else {
-          buy.innerHTML = normalLabel;
-        }
-      };
-      // Hold to keep buying at the configured rate (default 2/sec). The owned
-      // count + coin balance update in place so the held button is never torn
-      // down mid-repeat (a full rebuildShop would cancel the hold).
-      this._attachHoldRepeat(buy, () => {
-        if (Economy.buyPowerup(type)) {
-          Audio.coin();
-          this.toast(`${info.name} purchased!`);
-          item.classList.toggle("bought", true);
-          const ownedEl = item.querySelector(".si-owned");
-          if (ownedEl) ownedEl.textContent = `×${Economy.getPowerup(type)}`;
-          this.refreshCoins();
-          this.updatePowerups();
-          const canStillBuy = Economy.coins >= info.price;
-          item.classList.toggle("cannot-afford", !canStillBuy);
-          buy.classList.toggle("need-coins", !canStillBuy);
-          buy.title = canStillBuy ? `Buy ${info.name}` : `Need ${info.price - Economy.coins} more coins`;
-          return true;
-        }
-        this.toast("Not enough coins");
-        return false;
-      }, { update: feedback });
-      item.appendChild(buy);
-      list.appendChild(item);
-    });
 
-    this._shopSection(list, "Coins & Upgrades", "Daily coin grants, packs and ad removal");
+    // Power-ups
+    if (filter === "tools") {
+      this._shopSection(list, "Tools", "New tools unlock as the campaign opens up");
+      const available = unlockedPowerups();
+      if (!available.length) {
+        const next = nextPowerupUnlock();
+        const empty = document.createElement("div");
+        empty.className = "shop-empty-tools";
+        empty.innerHTML = `<b>Tools unlock after Level 5</b><span>${next ? `First up: ${toolIconHtml(next.type, "shop-empty-icon")} ${POWERUP_INFO[next.type].name} at Level ${next.level}.` : "All tools are unlocked."}</span>`;
+        list.appendChild(empty);
+      }
+      available.forEach((type) => {
+        const info = POWERUP_INFO[type];
+        const owned = Economy.getPowerup(type);
+        const affordable = Economy.coins >= info.price;
+        const item = document.createElement("div");
+        item.className = "shop-item" + (affordable ? "" : " cannot-afford");
+        item.dataset.pu = type;
+        item.innerHTML = `
+          ${toolIconHtml(type, "si-icon")}
+          <div class="si-body">
+            <div class="si-title">${info.name} <span class="si-owned" style="color:var(--text-dim);font-weight:600">×${owned}</span></div>
+            <div class="si-desc">${info.desc}</div>
+          </div>`;
+        const buy = document.createElement("button");
+        buy.className = "buy-btn" + (affordable ? "" : " need-coins");
+        buy.innerHTML = `<span class="coin-dot"></span>${info.price}`;
+        buy.title = affordable ? `Buy ${info.name}` : `Need ${info.price - Economy.coins} more coins`;
+        const normalLabel = buy.innerHTML;
+        const feedback = ({ phase, count, max }) => {
+          buy.classList.toggle("buying", phase === "buying");
+          buy.classList.toggle("capped", phase === "capped");
+          if (phase === "buying" || phase === "capped") {
+            buy.textContent = phase === "capped" ? `Limit ${count}/${max}` : `Buying ${count}/${max}`;
+          } else if (phase === "blocked") {
+            buy.textContent = "Stopped";
+          } else {
+            buy.innerHTML = normalLabel;
+          }
+        };
+        // Hold to keep buying at the configured rate (default 2/sec). The owned
+        // count + coin balance update in place so the held button is never torn
+        // down mid-repeat (a full rebuildShop would cancel the hold).
+        this._attachHoldRepeat(buy, () => {
+          if (Economy.buyPowerup(type)) {
+            Audio.coin();
+            this.toast(`${info.name} purchased!`);
+            item.classList.toggle("bought", true);
+            const ownedEl = item.querySelector(".si-owned");
+            if (ownedEl) ownedEl.textContent = `×${Economy.getPowerup(type)}`;
+            this.refreshCoins();
+            this.updatePowerups();
+            const canStillBuy = Economy.coins >= info.price;
+            item.classList.toggle("cannot-afford", !canStillBuy);
+            buy.classList.toggle("need-coins", !canStillBuy);
+            buy.title = canStillBuy ? `Buy ${info.name}` : `Need ${info.price - Economy.coins} more coins`;
+            return true;
+          }
+          this.toast("Not enough coins");
+          return false;
+        }, { update: feedback });
+        item.appendChild(buy);
+        list.appendChild(item);
+      });
+    }
+
     // Free coins via an opt-in rewarded ad — daily-capped with an escalating
     // payout, so watching a few ads a day is worthwhile but never unlimited.
-    const ad = Economy.adCoinState();
-    const rewardedAvailable = Monetization.canShowRewardedAd();
-    const freeItem = document.createElement("div");
-    freeItem.className = "shop-item";
-    freeItem.innerHTML = `
-      <span class="si-icon">🎬</span>
-      <div class="si-body">
-        <div class="si-title">Free Coins</div>
-        <div class="si-desc">${
-          !rewardedAvailable
-            ? "Rewarded ads are unavailable in this build."
-            : ad.remaining > 0
-            ? `Watch an ad for +${ad.nextAmount} coins · ${ad.remaining} left today`
-            : "Daily free coins done — come back tomorrow!"
-        }</div>
-      </div>`;
-    const freeBtn = document.createElement("button");
-    freeBtn.id = "shop-free-coins";
-    freeBtn.className = "buy-btn" + (ad.remaining <= 0 ? " owned" : "");
-    freeBtn.textContent = !rewardedAvailable ? "Unavailable" : ad.remaining > 0 ? `▶ +${ad.nextAmount}` : "Done ✓";
-    freeBtn.disabled = !rewardedAvailable;
-    if (rewardedAvailable && ad.remaining > 0) {
-      freeBtn.addEventListener("click", async () => {
-        await Monetization.showRewardedAd("coins");
-        const got = Economy.claimAdCoins();
-        if (got > 0) {
-          Audio.coin();
-          this.toast(`+${got} coins!`);
-          this.refreshCoins();
-          this.buildShop();
-        }
-      });
-    }
-    freeItem.appendChild(freeBtn);
-    list.appendChild(freeItem);
-
-    // Coin packs (IAP provider required on native store builds)
     const purchaseAvailable = Monetization.canPurchase();
-    COIN_PACKS.forEach((pack) => {
-      const item = document.createElement("div");
-      item.className = "shop-item";
-      item.innerHTML = `
-        <span class="si-icon">🪙</span>
+    if (filter === "coins") {
+      this._shopSection(list, "Coins", "Daily grants and coin packs");
+      const ad = Economy.adCoinState();
+      const rewardedAvailable = Monetization.canShowRewardedAd();
+      const freeItem = document.createElement("div");
+      freeItem.className = "shop-item shop-coins-item";
+      freeItem.innerHTML = `
+        <span class="si-icon">🎬</span>
         <div class="si-body">
-          <div class="si-title">${pack.name}</div>
-          <div class="si-desc">+${pack.amount} coins</div>
+          <div class="si-title">Free Coins</div>
+          <div class="si-desc">${
+            !rewardedAvailable
+              ? "Rewarded ads are unavailable in this build."
+              : ad.remaining > 0
+              ? `Watch an ad for +${ad.nextAmount} coins · ${ad.remaining} left today`
+              : "Daily free coins done — come back tomorrow!"
+          }</div>
         </div>`;
-      const buy = document.createElement("button");
-      buy.className = "buy-btn";
-      buy.textContent = purchaseAvailable ? pack.label : "Unavailable";
-      buy.disabled = !purchaseAvailable;
-      if (purchaseAvailable) {
-        buy.addEventListener("click", async () => {
-          const res = await Monetization.purchase(pack.id);
-          if (!res.ok) {
-            this.toast("Purchase unavailable");
-            return;
+      const freeBtn = document.createElement("button");
+      freeBtn.id = "shop-free-coins";
+      freeBtn.className = "buy-btn" + (ad.remaining <= 0 ? " owned" : "");
+      freeBtn.textContent = !rewardedAvailable ? "Unavailable" : ad.remaining > 0 ? `▶ +${ad.nextAmount}` : "Done ✓";
+      freeBtn.disabled = !rewardedAvailable;
+      if (rewardedAvailable && ad.remaining > 0) {
+        freeBtn.addEventListener("click", async () => {
+          await Monetization.showRewardedAd("coins");
+          const got = Economy.claimAdCoins();
+          if (got > 0) {
+            Audio.coin();
+            this.toast(`+${got} coins!`);
+            this.refreshCoins();
+            this.buildShop();
           }
-          Economy.addCoins(pack.amount);
-          Audio.coin();
-          this.toast(`+${pack.amount} coins!`);
-          this.refreshCoins();
-          this.buildShop();
         });
       }
-      item.appendChild(buy);
-      list.appendChild(item);
-    });
+      freeItem.appendChild(freeBtn);
+      list.appendChild(freeItem);
 
-    // Remove ads
-    const adsItem = document.createElement("div");
-    adsItem.className = "shop-item";
-    const removed = Monetization.isAdsRemoved();
-    adsItem.innerHTML = `
-      <span class="si-icon">🚫</span>
-      <div class="si-body">
-        <div class="si-title">Remove Ads</div>
-        <div class="si-desc">No more interstitials. Rewarded ads stay optional.</div>
-      </div>`;
-    const adsBtn = document.createElement("button");
-    adsBtn.className = "buy-btn" + (removed ? " owned" : "");
-    adsBtn.textContent = removed ? "Owned ✓" : purchaseAvailable ? "$2.99" : "Unavailable";
-    adsBtn.disabled = !removed && !purchaseAvailable;
-    if (!removed && purchaseAvailable) {
-      adsBtn.addEventListener("click", async () => {
-        const res = await Monetization.purchase("remove_ads");
-        if (res.ok) {
-          this.toast("Ads removed. Thank you!");
-          this.buildShop();
-        } else {
-          this.toast("Purchase unavailable");
+      // Coin packs (IAP provider required on native store builds)
+      COIN_PACKS.forEach((pack) => {
+        const item = document.createElement("div");
+        item.className = "shop-item shop-coins-item";
+        item.innerHTML = `
+          <span class="si-icon">🪙</span>
+          <div class="si-body">
+            <div class="si-title">${pack.name}</div>
+            <div class="si-desc">+${pack.amount} coins</div>
+          </div>`;
+        const buy = document.createElement("button");
+        buy.className = "buy-btn money-buy";
+        buy.textContent = purchaseAvailable ? pack.label : "Unavailable";
+        buy.disabled = !purchaseAvailable;
+        if (purchaseAvailable) {
+          buy.addEventListener("click", async () => {
+            const res = await Monetization.purchase(pack.id);
+            if (!res.ok) {
+              this.toast("Purchase unavailable");
+              return;
+            }
+            Economy.addCoins(pack.amount);
+            Audio.coin();
+            this.toast(`+${pack.amount} coins!`);
+            this.refreshCoins();
+            this.buildShop();
+          });
         }
+        item.appendChild(buy);
+        list.appendChild(item);
       });
     }
-    adsItem.appendChild(adsBtn);
-    list.appendChild(adsItem);
+
+    // Remove ads
+    if (filter === "offers") {
+      this._shopSection(list, "Offers", "Account upgrades and one-time purchases");
+      const adsItem = document.createElement("div");
+      adsItem.className = "shop-item shop-offer-item";
+      const removed = Monetization.isAdsRemoved();
+      adsItem.innerHTML = `
+        <span class="si-icon">🚫</span>
+        <div class="si-body">
+          <div class="si-title">Remove Ads</div>
+          <div class="si-desc">No more interstitials. Rewarded ads stay optional.</div>
+        </div>`;
+      const adsBtn = document.createElement("button");
+      adsBtn.className = "buy-btn money-buy" + (removed ? " owned" : "");
+      adsBtn.textContent = removed ? "Owned ✓" : purchaseAvailable ? "$2.99" : "Unavailable";
+      adsBtn.disabled = !removed && !purchaseAvailable;
+      if (!removed && purchaseAvailable) {
+        adsBtn.addEventListener("click", async () => {
+          const res = await Monetization.purchase("remove_ads");
+          if (res.ok) {
+            this.toast("Ads removed. Thank you!");
+            this.buildShop();
+          } else {
+            this.toast("Purchase unavailable");
+          }
+        });
+      }
+      adsItem.appendChild(adsBtn);
+      list.appendChild(adsItem);
+    }
+  }
+
+  _shopFilterInfo() {
+    return [
+      ["featured", "Featured", "Bundles"],
+      ["tools", "Tools", "Power-ups"],
+      ["coins", "Coins", "Wallet"],
+      ["offers", "Offers", "Upgrades"],
+    ];
+  }
+
+  _buildShopFilters(list) {
+    const wrap = document.createElement("div");
+    wrap.className = "shop-filters";
+    wrap.setAttribute("role", "tablist");
+    wrap.setAttribute("aria-label", "Shop sections");
+    const activeFilter = this._shopFilter || "featured";
+    for (const [id, label, sub] of this._shopFilterInfo()) {
+      const btn = document.createElement("button");
+      btn.className = "shop-filter" + (id === activeFilter ? " active" : "");
+      btn.type = "button";
+      btn.dataset.shopFilter = id;
+      btn.setAttribute("role", "tab");
+      btn.setAttribute("aria-selected", id === activeFilter ? "true" : "false");
+      btn.innerHTML = `<span>${label}</span><small>${sub}</small>`;
+      btn.addEventListener("click", () => {
+        Audio.click();
+        this._shopFilter = id;
+        this.buildShop();
+      });
+      wrap.appendChild(btn);
+    }
+    list.appendChild(wrap);
   }
 
   _shopSection(list, title, sub) {
@@ -2542,15 +2643,66 @@ class UIManager {
       const eq = Storage.getPetState().equipped;
       this._selectedPet = eq || PET_CATALOG[0].id;
     }
+    if (!this._petTab) this._petTab = "companions";
+    this._buildPetTabs();
     this._buildPetCrate();
     if (this._petFeatureUnlocked("party")) this._buildPetParty();
-    else if (this.el["pet-party"]) this.el["pet-party"].innerHTML = "";
+    else if (this.el["pet-party"]) this.el["pet-party"].innerHTML = this._petFeatureLockHtml("party");
     if (this._petFeatureUnlocked("gems")) this._buildPetGems();
-    else if (this.el["pet-gems"]) this.el["pet-gems"].innerHTML = "";
+    else if (this.el["pet-gems"]) this.el["pet-gems"].innerHTML = this._petFeatureLockHtml("gems");
     if (this._petFeatureUnlocked("crates")) this._buildPetStore();
     else if (this.el["pet-store"]) this.el["pet-store"].innerHTML = "";
     this._buildPetList(owned);
     this._buildPetDetail(owned);
+    this._syncPetTabs();
+  }
+
+  _petTabInfo() {
+    return [
+      { id: "companions", label: "Companions", icon: "🐾", sub: "Collection" },
+      { id: "party", label: "Party", icon: "🎉", sub: "Lead & supports" },
+      { id: "gems", label: "Gems", icon: "💎", sub: "Sockets & forge" },
+      { id: "store", label: "Store", icon: "🎁", sub: "Crates & premium" },
+    ];
+  }
+
+  _buildPetTabs() {
+    const wrap = this.el["pet-tabs"];
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    for (const tab of this._petTabInfo()) {
+      const btn = document.createElement("button");
+      btn.className = "pet-tab";
+      btn.type = "button";
+      btn.dataset.petTab = tab.id;
+      btn.setAttribute("role", "tab");
+      btn.innerHTML = `<span class="pt-icon">${tab.icon}</span><span class="pt-copy"><span>${tab.label}</span><small>${tab.sub}</small></span>`;
+      btn.addEventListener("click", () => {
+        Audio.click();
+        this._petTab = tab.id;
+        this._syncPetTabs();
+      });
+      wrap.appendChild(btn);
+    }
+  }
+
+  _syncPetTabs() {
+    const tab = this._petTab || "companions";
+    const wrap = this.el["pet-tabs"];
+    if (wrap) {
+      wrap.querySelectorAll(".pet-tab").forEach((btn) => {
+        const active = btn.dataset.petTab === tab;
+        btn.classList.toggle("active", active);
+        btn.setAttribute("aria-selected", active ? "true" : "false");
+      });
+    }
+    for (const info of this._petTabInfo()) {
+      const panel = this.el[`pet-panel-${info.id}`];
+      if (!panel) continue;
+      const active = info.id === tab;
+      panel.classList.toggle("active", active);
+      panel.toggleAttribute("hidden", !active);
+    }
   }
 
   // Party summary: the equipped lead + up to SUPPORT_SLOTS support slots, plus
@@ -3014,6 +3166,8 @@ class UIManager {
         slot.title = "Tap to socket a gem";
         slot.addEventListener("click", () => {
           Audio.click();
+          this._petTab = "gems";
+          this._syncPetTabs();
           this._gemPicker = { petId: pet.id, slot: i };
           this._gemPickSel = null;
           this._buildPetGems();
@@ -3413,6 +3567,31 @@ class UIManager {
     }
     wrap.appendChild(tabs);
 
+    const auto = autoFuseInventory(gems);
+    const autoRow = document.createElement("div");
+    autoRow.className = "pg-auto-forge";
+    const autoBtn = document.createElement("button");
+    autoBtn.className = "pg-auto-forge-btn";
+    autoBtn.disabled = !auto.made || !this.cb.autoForgeGems;
+    autoBtn.innerHTML =
+      `<span class="pg-af-main">⚒️ Auto Forge Max</span>` +
+      `<span class="pg-af-sub">${auto.made ? `Fuse ${auto.made} upgrade${auto.made === 1 ? "" : "s"} from loose stacks` : "No 3-of-a-kind stacks ready"}</span>`;
+    autoBtn.addEventListener("click", () => {
+      Audio.click();
+      if (!this.cb.autoForgeGems) return;
+      const res = this.cb.autoForgeGems();
+      if (res && res.ok) {
+        Audio.fever();
+        this._gemSel = res.best || this._gemSel;
+        this.toast(`Auto-forged ${res.made} gem upgrade${res.made === 1 ? "" : "s"}!`);
+        this._renderGemManager();
+      } else {
+        this.toast("No gem stacks ready to upgrade");
+      }
+    });
+    autoRow.appendChild(autoBtn);
+    wrap.appendChild(autoRow);
+
     if (tab === "forge") this._buildGemForge(wrap, gems, dust);
     else this._buildGemBag(wrap, gems);
   }
@@ -3754,14 +3933,15 @@ class UIManager {
   updateObjective(obj, met) {
     const chip = this.el["hud-objective"];
     if (!chip) return;
+    const txt = this.el["hud-objective-text"];
     if (!obj) {
       chip.classList.add("hidden");
+      if (txt) txt.textContent = "";
       return;
     }
     chip.classList.remove("hidden");
     chip.classList.toggle("met", !!met);
-    const txt = this.el["hud-objective-text"];
-    if (txt) txt.textContent = met ? `${obj.label} ✓` : obj.label;
+    if (txt) txt.textContent = met ? `Bonus ✓ ${obj.bonus || ""}`.trim() : obj.label;
   }
 
   updatePowerups() {
@@ -3781,7 +3961,7 @@ class UIManager {
       btn.classList.toggle("has-stock", !!unlocked && owned > 0);
       const icon = btn.querySelector(".pu-icon");
       const count = btn.querySelector(".pu-count");
-      if (icon) icon.textContent = info ? info.icon : "＋";
+      if (icon) setToolIcon(icon, info || { icon: "＋" }, "pu-tool-icon");
       if (count) count.textContent = unlocked ? owned : "";
       btn.setAttribute("aria-label", info ? `${info.name} (hold to change)` : "Empty slot");
     });
@@ -3818,8 +3998,8 @@ class UIManager {
       const next = nextPowerupUnlock();
       const empty = document.createElement("div");
       empty.className = "loadout-empty";
-      empty.textContent = next
-        ? `${POWERUP_INFO[next.type].icon} ${POWERUP_INFO[next.type].name} unlocks at Level ${next.level}.`
+      empty.innerHTML = next
+        ? `${toolIconHtml(next.type, "loadout-empty-icon")} ${POWERUP_INFO[next.type].name} unlocks at Level ${next.level}.`
         : "No tools are available yet.";
       list.appendChild(empty);
     }
@@ -3837,7 +4017,7 @@ class UIManager {
           ? `<span class="li-slot li-current">Equipped</span>`
           : "";
       row.innerHTML =
-        `<span class="li-icon">${info.icon}</span>` +
+        toolIconHtml(type, "li-icon") +
         `<span class="li-text"><span class="li-name">${info.name}</span>` +
         `<span class="li-desc">${info.desc}</span></span>` +
         `<span class="li-own">×${Economy.getPowerup(type)}</span>${tag}`;
@@ -4013,7 +4193,7 @@ class UIManager {
       });
     }
 
-    this.el["win-reward"].textContent = rewardText || "";
+    this._renderWinRewardCards(rewardText || "", coins);
     this.el["win-next"].style.display = showNext ? "" : "none";
     // The coins, reward line and "double coins" offer stay sealed inside the
     // chest until the player taps it open. Remember whether the double-coins
@@ -4051,12 +4231,64 @@ class UIManager {
     this._animateNumber(this.el["win-score"], score, 700);
   }
 
+  _renderWinRewardCards(rewardText, coins = 0) {
+    const wrap = this.el["win-reward"];
+    if (!wrap) return;
+    const parts = String(rewardText || "")
+      .split(/\s+•\s+/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (coins > 0) parts.unshift(`🪙 Coins earned: +${Math.round(coins)}`);
+    wrap.classList.toggle("empty", !parts.length);
+    if (!parts.length) {
+      wrap.textContent = "";
+      return;
+    }
+    wrap.innerHTML = parts.map((part) => {
+      const kind = this._rewardCardKind(part);
+      const icon = this._rewardCardIcon(part, kind);
+      const firstToken = String(part || "").match(/^\S+/)?.[0] || "";
+      const hasIconPrefix = !!firstToken && !/[A-Za-z0-9+]/.test(firstToken);
+      const label = hasIconPrefix ? part.slice(firstToken.length).trim() : part;
+      return `<span class="win-reward-card ${kind}">` +
+        `<span class="wrc-icon">${escapeHtml(icon)}</span>` +
+        `<span class="wrc-label">${escapeHtml(label || part)}</span>` +
+        `</span>`;
+    }).join("");
+  }
+
+  _rewardCardKind(text) {
+    if (/New best/i.test(text)) return "best";
+    if (/Objective/i.test(text)) return "objective";
+    if (/Theme/i.test(text)) return "theme";
+    if (/Pet|Crate/i.test(text)) return "pet";
+    if (/Boss/i.test(text)) return "boss";
+    if (/Locked-tool|bonus coins|coins/i.test(text)) return "coins";
+    if (/Free/i.test(text)) return "tool";
+    return "reward";
+  }
+
+  _rewardCardIcon(text, kind) {
+    const explicit = String(text || "").match(/^\S+/)?.[0] || "";
+    if (explicit && !/[A-Za-z0-9+]/.test(explicit)) return explicit;
+    return {
+      best: "🏆",
+      objective: "🎯",
+      theme: "🎨",
+      pet: "🐾",
+      boss: "👹",
+      coins: "🪙",
+      tool: "⚒️",
+      reward: "✨",
+    }[kind] || "✨";
+  }
+
   showToolUnlock(unlock) {
     const info = unlock.feature ? PET_FEATURE_INFO[unlock.feature] : POWERUP_INFO[unlock.type];
     if (!info || !this.el["tool-unlock"]) return;
     this.hideModals();
     this.showHud(false);
-    this.el["tool-unlock-icon"].textContent = info.icon;
+    setToolIcon(this.el["tool-unlock-icon"], info, "tu-tool-icon");
     this.el["tool-unlock-name"].textContent = info.name;
     this.el["tool-unlock-level"].textContent = `Unlocked at Level ${unlock.level}`;
     this.el["tool-unlock-desc"].textContent = info.desc;

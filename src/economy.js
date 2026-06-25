@@ -3,15 +3,15 @@ import { Storage } from "./storage.js";
 import { todayKey } from "./rng.js";
 
 export const POWERUP_INFO = {
-  undo: { name: "Undo", icon: "↶", desc: "Takes back your last move", price: 90 },
-  bomb: { name: "Bomb", icon: "💥", desc: "Clears a 3×3 area", price: 150 },
-  colorClear: { name: "Color Clear", icon: "🌈", desc: "Removes one whole color", price: 250 },
-  paint: { name: "Paint", icon: "🎨", desc: "Changes one bubble to a smart suggested color", price: 180 },
-  shuffle: { name: "Shuffle", icon: "🔀", desc: "Reshuffles the board", price: 100 },
-  chainBolt: { name: "Chain Bolt", icon: "⚡", desc: "Clears a full row and column", price: 300 },
-  pick: { name: "Pick", icon: "🔨", desc: "Removes a single bubble", price: 120 },
-  extraMoves: { name: "+3 Moves", icon: "＋", desc: "Adds 3 moves to a move-limited level", price: 360, moves: 3 },
-  magnet: { name: "Magnet", icon: "🧲", desc: "Pull same-color bubbles together — time the gauge!", price: 500 },
+  undo: { name: "Undo", icon: "↶", iconAsset: "assets/icons/tools/undo.svg", desc: "Takes back your last move", price: 90 },
+  bomb: { name: "Bomb", icon: "💥", iconAsset: "assets/icons/tools/bomb.svg", desc: "Clears a 3×3 area", price: 150 },
+  colorClear: { name: "Color Clear", icon: "🌈", iconAsset: "assets/icons/tools/color-clear.svg", desc: "Removes one whole color", price: 250 },
+  paint: { name: "Paint", icon: "🎨", iconAsset: "assets/icons/tools/paint.svg", desc: "Changes one bubble to a smart suggested color", price: 180 },
+  shuffle: { name: "Shuffle", icon: "🔀", iconAsset: "assets/icons/tools/shuffle.svg", desc: "Reshuffles the board", price: 100 },
+  chainBolt: { name: "Chain Bolt", icon: "⚡", iconAsset: "assets/icons/tools/chain-bolt.svg", desc: "Clears a full row and column", price: 300 },
+  pick: { name: "Pick", icon: "🔨", iconAsset: "assets/icons/tools/pick.svg", desc: "Removes a single bubble", price: 120 },
+  extraMoves: { name: "+3 Moves", icon: "＋", iconAsset: "assets/icons/tools/extra-moves.svg", desc: "Adds 3 moves to a move-limited level", price: 360, moves: 3 },
+  magnet: { name: "Magnet", icon: "🧲", iconAsset: "assets/icons/tools/magnet.svg", desc: "Pull same-color bubbles together — time the gauge!", price: 500 },
 };
 
 export const POWERUP_UNLOCKS = [

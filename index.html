@@ -504,13 +504,22 @@
         <h2>Pets</h2>
         <div class="coins-pill"><span class="coin-dot"></span><span id="pets-coins">0</span></div>
       </div>
-      <div class="pets-crate" id="pets-crate"></div>
-      <div class="pet-party" id="pet-party"></div>
-      <div class="pet-gems" id="pet-gems"></div>
-      <div class="pet-gem-tip" id="pet-gem-tip">Tap a pet, then tap an empty socket to embue your best available gem.</div>
-      <div class="pet-store" id="pet-store"></div>
-      <div class="pet-list" id="pet-list"></div>
-      <div class="pet-detail" id="pet-detail"></div>
+      <div class="pet-tabs" id="pet-tabs" role="tablist" aria-label="Pet manager sections"></div>
+      <div class="pet-tab-panel active" id="pet-panel-companions">
+        <div class="pet-list" id="pet-list"></div>
+        <div class="pet-detail" id="pet-detail"></div>
+      </div>
+      <div class="pet-tab-panel" id="pet-panel-party" hidden>
+        <div class="pet-party" id="pet-party"></div>
+      </div>
+      <div class="pet-tab-panel" id="pet-panel-gems" hidden>
+        <div class="pet-gems" id="pet-gems"></div>
+        <div class="pet-gem-tip" id="pet-gem-tip">Tap a pet, then tap an empty socket to embue your best available gem.</div>
+      </div>
+      <div class="pet-tab-panel" id="pet-panel-store" hidden>
+        <div class="pets-crate" id="pets-crate"></div>
+        <div class="pet-store" id="pet-store"></div>
+      </div>
     </div>
 
     <!-- Dedicated Gem Forge: a separate destination for crafting, fusing and

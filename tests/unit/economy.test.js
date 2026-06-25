@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { Storage } from "../../src/storage.js";
 import {
   Economy,
@@ -133,6 +135,14 @@ describe("economy", () => {
     // The Magnet is the dearest power-up of all.
     const prices = Object.values(POWERUP_INFO).map((p) => p.price);
     expect(POWERUP_INFO.magnet.price).toBe(Math.max(...prices));
+  });
+
+  it("defines a reachable local SVG icon asset for every tool", () => {
+    for (const [type, info] of Object.entries(POWERUP_INFO)) {
+      expect(info.icon, type).toBeTruthy();
+      expect(info.iconAsset, type).toMatch(/^assets\/icons\/tools\/.+\.svg$/);
+      expect(existsSync(resolve(process.cwd(), info.iconAsset)), type).toBe(true);
+    }
   });
 
   it("buys and uses a Magnet like any other power-up", () => {

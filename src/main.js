@@ -149,6 +149,7 @@ import {
   prevGemTier,
   canFuseTier,
   fusedGemKey,
+  autoFuseInventory,
 } from "./gems.js";
 import {
   TECH_TREE,
@@ -302,6 +303,7 @@ class Game {
       craftGem: (type, tier) => this.craftGem(type, tier),
       fuseGem: (key) => this.fuseGem(key),
       forgeTier: (type, tier) => this.forgeTier(type, tier),
+      autoForgeGems: () => this.autoForgeGems(),
       socketGem: (petId, slot, key) => this.socketGem(petId, slot, key),
       unsocketGem: (petId, slot) => this.unsocketGem(petId, slot),
       pickPetTech: (petId, nodeId) => this.pickPetTech(petId, nodeId),
@@ -1194,6 +1196,28 @@ class Game {
     return { ok: true, key, via: "dust", cost };
   }
 
+  // Auto Forge Max: fuse every eligible loose gem stack as far up the tier
+  // ladder as possible. This is intentionally dust-free; explicit tier buttons
+  // remain the only way to spend Pet Dust on crafted gems.
+  autoForgeGems() {
+    if (!this._petFeatureUnlocked("gems")) return { ok: false, reason: "locked" };
+    const plan = autoFuseInventory(Storage.getGems());
+    if (!plan.made) return { ok: false, reason: "none", made: 0, upgrades: [] };
+    for (const upgrade of plan.upgrades) {
+      for (let i = 0; i < upgrade.count; i++) {
+        Storage.fuseGems(upgrade.from, upgrade.to, FUSE_COUNT);
+      }
+    }
+    return {
+      ok: true,
+      made: plan.made,
+      spent: plan.spent,
+      upgrades: plan.upgrades,
+      best: plan.upgrades[plan.upgrades.length - 1].to,
+      gems: Storage.getGems(),
+    };
+  }
+
   // Slot a gem from inventory into a pet's socket. `slot` is bounded by how many
   // sockets the pet has unlocked at its current level. Returns true on success
   // and refreshes the live session if the pet is the active lead.
@@ -1765,7 +1789,7 @@ class Game {
     const status = this._hudStatus();
     // Bonus objective chip (campaign non-boss levels only).
     UI.updateObjective(
-      s.mode === "campaign" && s.level.milestone !== "boss" ? s.objective : null,
+      s.mode === "campaign" && s.level.milestone !== "boss" && s.objectiveMet ? s.objective : null,
       s.objectiveMet
     );
     if (s.mode === "campaign") {
@@ -1867,9 +1891,18 @@ class Game {
     if (typeof s.board.vineCount === "function" && s.board.vineCount() > 0) return { icon: "🌿", text: "Clear vines", kind: "priority" };
     if (s.level && s.level.boss) return { icon: "👹", text: "Boss target", kind: "priority" };
     if (s.downpour && (s.movesSinceDrop || 0) >= Math.max(0, s.downpour.interval - 2)) return { icon: "🌧", text: "Rain soon", kind: "priority" };
-    if (s.objective && !s.objectiveMet) return { icon: "🎯", text: s.objective.label || "Bonus goal", kind: "priority" };
+    if (s.objective && !s.objectiveMet) return { icon: "🎯", text: this._compactObjectiveLabel(s.objective.label || "Bonus goal"), kind: "priority" };
     if (s.petActive && s.petTimer <= 1) return { icon: "✦", text: "Pet next", kind: "priority" };
     return null;
+  }
+
+  _compactObjectiveLabel(label) {
+    return String(label || "Bonus goal")
+      .replace(/^Pop a group of\s*/i, "Group ")
+      .replace(/^Reach a\s*/i, "Reach ")
+      .replace(/^Clear without spending a power-up$/i, "No tools")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
   _hudStatus() {
@@ -5182,7 +5215,7 @@ if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) 
     UI,
     getLevel,
     pets: { petBuffs, petActive, levelForXp, rollCrate, rollLegendaryCrate, getPet, PET_CATALOG, pityRarityFloor, nextPity, dustValue, PITY_EPIC, PITY_LEGENDARY, rollTrait, getTrait, TRAITS, partyBuffs, partyTotalBuffs, activeSynergies, SYNERGIES, SUPPORT_SLOTS },
-    gems: { GEM_CATALOG, GEM_TIERS, socketsForLevel, socketBuffs, socketActiveMods, rollGem, gemKey, parseGemKey, gemDustCost, getGemDef, getGemTier, gemLabel, canSocketGemAtLevel, maxGemTierForLevel, levelForGemTier, socketDustCost, unsocketDustRefund, MAX_SOCKETS, FUSE_COUNT, nextGemTier, prevGemTier, canFuseTier, fusedGemKey },
+    gems: { GEM_CATALOG, GEM_TIERS, socketsForLevel, socketBuffs, socketActiveMods, rollGem, gemKey, parseGemKey, gemDustCost, getGemDef, getGemTier, gemLabel, canSocketGemAtLevel, maxGemTierForLevel, levelForGemTier, socketDustCost, unsocketDustRefund, MAX_SOCKETS, FUSE_COUNT, nextGemTier, prevGemTier, canFuseTier, fusedGemKey, autoFuseInventory },
     tech: { TECH_TREE, techNode, techTierOf, pendingTechTier, hasPendingTech, canPickTech, techTiersUnlocked },
     calendar: { calendarStatus, advanceCalendar, todayKey },
     season: { seasonStatus, addSeasonXp, claimTier, tierReward },

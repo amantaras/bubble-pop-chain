@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Bomb">
+  <circle cx="30" cy="36" r="18" fill="none" stroke="#fff" stroke-width="6"/>
+  <path fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" d="M40 22c4-8 10-11 17-10M50 7l2 8 7 3"/>
+  <path fill="#fff" d="M22 29a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/>
+</svg>
