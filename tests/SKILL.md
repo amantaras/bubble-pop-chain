@@ -336,8 +336,9 @@ npm run dev                 # alias for npm run serve
   its buffs into the equipped party, and a matching party grants a set synergy
   bonus,
   a pet level-up shows the dedicated `#pet-levelup` popup with tech/socket
-  benefit chips and its **Open Pets** action selects that pet while pausing the
-  live board,
+  benefit chips and its **Open Pets** action opens a focused single-pet detail
+  view while pausing the live board, with a **View all pets** escape back to the
+  full collection,
   an equipped pet with unlocked empty sockets can show the occasional
   `#pet-gem-reminder`, whose CTA opens the socket picker when loose gems exist
   or the Gem Forge when the player has only Dust/crates,

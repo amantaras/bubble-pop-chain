@@ -768,6 +768,7 @@ class UIManager {
     const overGame = !!(this.cb.isLevelActive && this.cb.isLevelActive());
     this._petOverlayOverGame = overGame;
     this._selectedPet = opts.petId || null;
+    this._petFocusMode = opts.focus === true && !!opts.petId;
     if (opts.openGemForge || opts.openSocketPicker) this._petTab = "gems";
     else this._petTab = "companions";
     if (overGame && this.cb.pauseGame) this.cb.pauseGame();
@@ -788,6 +789,7 @@ class UIManager {
     const overGame = this._petOverlayOverGame;
     this._petOverlayOverGame = false;
     this._pendingEquipId = null;
+    this._petFocusMode = false;
     if (this.el["pet-confirm"]) this.el["pet-confirm"].classList.add("hidden");
     if (this.el["gem-forge"]) this.el["gem-forge"].classList.add("hidden");
     if (this.el["pets"]) this.el["pets"].classList.add("hidden");
@@ -891,7 +893,7 @@ class UIManager {
     const petId = this._pendingPetLevelUpPetId;
     this._pendingPetLevelUpPetId = null;
     if (this.el["pet-levelup"]) this.el["pet-levelup"].classList.add("hidden");
-    this.openPetOverlay({ petId });
+    this.openPetOverlay({ petId, focus: true });
   }
 
   showPetGemReminder(info) {
@@ -2657,6 +2659,12 @@ class UIManager {
     this._syncPetTabs();
   }
 
+  _clearPetFocusMode() {
+    this._petFocusMode = false;
+    this._petTab = "companions";
+    this.buildPets();
+  }
+
   _petTabInfo() {
     return [
       { id: "companions", label: "Companions", icon: "🐾", sub: "Collection" },
@@ -2688,8 +2696,11 @@ class UIManager {
 
   _syncPetTabs() {
     const tab = this._petTab || "companions";
+    const focused = !!this._petFocusMode && tab === "companions";
+    if (this.el["pets"]) this.el["pets"].classList.toggle("pet-focus-mode", focused);
     const wrap = this.el["pet-tabs"];
     if (wrap) {
+      wrap.toggleAttribute("hidden", focused);
       wrap.querySelectorAll(".pet-tab").forEach((btn) => {
         const active = btn.dataset.petTab === tab;
         btn.classList.toggle("active", active);
@@ -2703,6 +2714,7 @@ class UIManager {
       panel.classList.toggle("active", active);
       panel.toggleAttribute("hidden", !active);
     }
+    if (this.el["pet-list"]) this.el["pet-list"].toggleAttribute("hidden", focused);
   }
 
   // Party summary: the equipped lead + up to SUPPORT_SLOTS support slots, plus
@@ -2956,6 +2968,23 @@ class UIManager {
     const has = !!owned[pet.id];
     const equipped = Storage.getPetState().equipped;
     panel.innerHTML = "";
+
+    if (this._petFocusMode && has) {
+      const focus = document.createElement("div");
+      focus.className = "pd-focus-head";
+      focus.innerHTML =
+        `<div><span class="pd-focus-kicker">Focused pet</span><strong>${pet.name}</strong><span>Abilities, sockets, and upgrades for this companion only.</span></div>`;
+      const all = document.createElement("button");
+      all.className = "buy-btn pd-view-all";
+      all.type = "button";
+      all.textContent = "View all pets";
+      all.addEventListener("click", () => {
+        Audio.click();
+        this._clearPetFocusMode();
+      });
+      focus.appendChild(all);
+      panel.appendChild(focus);
+    }
 
     const head = document.createElement("div");
     head.className = "pd-head";

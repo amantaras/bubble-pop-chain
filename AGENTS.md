@@ -1063,9 +1063,11 @@ never re‑discovered the hard way.
   When the equipped pet gains a **new level**, `main.js` queues a dedicated
   `#pet-levelup` modal (`UI.showPetLevelUp`) on top of the end-of-run recap,
   calling out the level jump plus any pending tech choice or newly unlocked gem
-  socket. Its **Open Pets** action opens `#pets` with that pet selected; if a live
-  board is still present, the existing pet manager pause path freezes gameplay
-  while the player adjusts tech, gems, party slots, or equipment.
+  socket. Its **Open Pets** action opens `#pets` in a focused single-pet detail
+  view for that companion — ability, sockets, tech, equip/support, forge, and
+  cosmetic options only — with a **View all pets** escape back to the full
+  collection; if a live board is still present, the existing pet manager pause
+  path freezes gameplay while the player adjusts options.
   If the equipped pet has an unlocked **empty gem socket**, `main.js` may queue a
   once-per-level `#pet-gem-reminder` after the recap/follow-up chain; it routes
   players with loose gems straight to the socket picker, and gemless players to

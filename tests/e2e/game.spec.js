@@ -6127,8 +6127,20 @@ test.describe("pet companions (collection & buffs)", () => {
     await expect(page.locator("#pet-levelup-benefits")).toContainText("Tech choice ready");
     await page.locator("#pet-levelup-open").click();
     await expect(page.locator("#pets")).toBeVisible();
+    await expect(page.locator("#pets")).toHaveClass(/pet-focus-mode/);
+    await expect(page.locator("#pet-tabs")).toBeHidden();
+    await expect(page.locator("#pet-list")).toBeHidden();
+    await expect(page.locator("#pet-detail .pd-focus-head")).toContainText("Sparky");
+    await expect(page.locator("#pet-detail .pd-ability")).toContainText("Charge fills faster");
+    await expect(page.locator("#pet-detail .pd-sockets")).toBeVisible();
+    await expect(page.locator("#pet-detail .pd-action-row")).toBeVisible();
     await expect(page.locator("#pet-detail")).toContainText("Sparky");
     expect(await page.evaluate(() => window.__bpc.game.paused)).toBe(true);
+
+    await page.getByRole("button", { name: "View all pets" }).click();
+    await expect(page.locator("#pets")).not.toHaveClass(/pet-focus-mode/);
+    await expect(page.locator("#pet-tabs")).toBeVisible();
+    await expect(page.locator("#pet-list")).toBeVisible();
 
     await page.locator("#pets-back").click();
     await expect(page.locator("#pets")).toBeHidden();
