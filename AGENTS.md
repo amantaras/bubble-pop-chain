@@ -114,7 +114,10 @@ never re‑discovered the hard way.
   awards coins (`floor(score/150)·coinMult`) + 30 season XP, and shows a "Time's
   Up!" win modal. Menu **Rush** tile (`#btn-timeattack`). High-score meta mode —
   **no tutorial step**. (Exposed for tests via `__bpc.timeattack`.)
-  **Power-ups** (`economy.js` `POWERUP_INFO`, armed from the HUD): **Bomb** (3×3),
+  **Power-ups** (`economy.js` `POWERUP_INFO`, armed from the HUD): **Bomb** (3×3,
+  with its own punchy tool-use flourish — flash bloom, layered shockwaves,
+  debris sprites, sparks, shake and `Audio.blast()` so using the tool reads as a
+  bigger moment than a generic pop),
   **Color Clear** (one colour), **Shuffle**, **Paint** (`grid.suggestRecolors`/
   `recolorCell` — tap one recolourable bubble, then choose from the three
   impact-ranked colour swatches that create the strongest next group),

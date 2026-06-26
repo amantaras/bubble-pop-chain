@@ -234,7 +234,8 @@ npm run dev                 # alias for npm run serve
   grouped, compact menu/level-map/shop/themes
   navigation, popping via real taps, scoring, win/lose, revive and double-coins
   rewarded-ad flows, endless refill, daily streak, top-HUD coin balance and local
-  currency SVG rendering, the full power-up/tool set, local SVG tool icons in the
+  currency SVG rendering, the full power-up/tool set (including the Bomb tool's
+  dedicated shockwave/debris flourish), local SVG tool icons in the
   HUD, Shop, loadout picker, and Tool Unlock modal, quick-slot empty/no-stock
   routes into the loadout picker or focused Tools shop,
   the Paint tool's smart three-colour picker and repaint flow,

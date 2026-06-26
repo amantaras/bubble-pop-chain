@@ -2776,6 +2776,32 @@ class Game {
     this.afterMove();
   }
 
+  _toolBombFlourish(c, r, cells) {
+    const s = this.session;
+    if (!s || !cells.length) return;
+    const anchor = s.board.targetPixel(c, r);
+    const warm = "#ff8a3d";
+    const gold = "#ffd35b";
+    const white = "#ffffff";
+    this.particles.ring(anchor.x, anchor.y, white, { maxRadius: 58, life: 0.18, fill: true });
+    this.particles.ring(anchor.x, anchor.y, gold, { maxRadius: 92, width: 8, life: 0.36 });
+    this.particles.ring(anchor.x, anchor.y, warm, { maxRadius: 128, width: 5, life: 0.52 });
+    this.particles.burst(anchor.x, anchor.y, warm, 34, 1.9);
+    this.particles.burst(anchor.x, anchor.y, white, 18, 1.35);
+    this.particles.sparkle(anchor.x, anchor.y, gold, 28);
+    this.particles.spriteBurst(anchor.x, anchor.y, 4, 2.0);
+    for (const cell of cells) {
+      const p = s.board.targetPixel(cell.c, cell.r);
+      this.particles.burst(p.x, p.y, warm, 5, 0.95);
+      this.particles.spriteBurst(p.x, p.y, 2, 1.05);
+    }
+    this.floating.spawn(anchor.x, anchor.y - 34, "BOMB!", "#ffdf6b", 34);
+    this.shake.add(0.42);
+    vibrate(36);
+    Audio.blast();
+    this._lastToolBombFx = { cells: cells.length, rings: 3, burst: true };
+  }
+
   applyPowerup(type, c, r) {
     const s = this.session;
     if (!s || s.ended) return;
@@ -2817,7 +2843,8 @@ class Game {
       Audio.powerup();
     }
 
-    this._popCells(cells, points, cells.length, 1, 0.6);
+    this._popCells(cells, points, cells.length, 1, type === "bomb" ? 1.15 : 0.6);
+    if (type === "bomb") this._toolBombFlourish(c, r, cells);
     if (hitLightning) {
       const p = s.board.targetPixel(c, r);
       this.floating.spawn(p.x, p.y - 28, "⚡ ZAP!", "#9fe8ff", 30);
@@ -2834,7 +2861,7 @@ class Game {
       Audio.powerup();
     }
     if (s.stats) s.stats.powerups += 1;
-    Audio.powerup();
+    if (type !== "bomb") Audio.powerup();
     s.armed = null;
     UI.clearArmedPowerups();
     UI.updatePowerups();

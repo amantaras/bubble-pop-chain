@@ -1715,10 +1715,24 @@ test.describe("power-ups (UI arm + apply)", () => {
     // tap a central cell to drop the bomb
     await tapCell(page, 3, 4);
     await page.waitForTimeout(300);
+    const fx = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      return {
+        toolFx: g._lastToolBombFx,
+        rings: g.particles.rings.length,
+        sprites: g.particles.sprites.length,
+        shake: g.shake.trauma,
+      };
+    });
     const after = await page.evaluate(() =>
       window.__bpc.game.session.board.countRemaining()
     );
     expect(before - after).toBeGreaterThanOrEqual(4);
+    expect(fx.toolFx).toMatchObject({ rings: 3, burst: true });
+    expect(fx.toolFx.cells).toBeGreaterThanOrEqual(4);
+    expect(fx.rings).toBeGreaterThanOrEqual(3);
+    expect(fx.sprites).toBeGreaterThan(0);
+    expect(fx.shake).toBeGreaterThan(0.1);
     await expect(page.locator('[data-pu="bomb"] .pu-count')).toHaveText("0");
   });
 
