@@ -673,6 +673,11 @@ never re‑discovered the hard way.
   shine while avoiding the old blurry halo problem, keeps colourblind symbols and
   special-bubble overlays on top, and adds no new tutorial step because it is
   cosmetic only.
+- **Theme UI chrome tokens** (`themes.js` `themeTokens`/`applyThemeCss` +
+  `styles.css`): `--ui-*` variables now drive high-traffic chrome beyond the
+  game background, including menu gradients/logo/tiles, level-brief panels,
+  modal cards, tool-unlock cards, pet level-up kickers, and structured win
+  rewards. Visual-only polish → no tutorial step.
 - **Group-pop explosion styles** (`particles.js` `popStyleForGroup` +
   `ParticleSystem.ring`/`spriteBurst`, `main.js` `_popCells`): every group pop plays **one of
   five escalating explosion animations** — the bigger the group, the more

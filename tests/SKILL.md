@@ -247,7 +247,8 @@ npm run dev                 # alias for npm run serve
   the in-game pause overlay (`#pause`) freezing the level, resuming, and routing
   to Menu, compact HUD status chips including the current-priority chip, hold-to-buy auto-repeat (a held buy button keeps purchasing at the
   configured rate, shows live buying/limit feedback, respects the visible
-  hold-purchase limit preference, and stops when coins run out), "remove ads", theme buy/apply,
+  hold-purchase limit preference, and stops when coins run out), "remove ads", theme buy/apply
+  including visible menu-tile and level-brief chrome token changes,
   sound toggle, PWA service-worker
   registration, manifest reachability, local special-bubble and tool SVG asset
   reachability, progress persistence across reloads,

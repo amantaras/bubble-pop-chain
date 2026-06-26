@@ -4370,10 +4370,13 @@ test.describe("themes (UI)", () => {
   }) => {
     const before = await page.evaluate(() => {
       const s = getComputedStyle(document.documentElement);
+      const tile = getComputedStyle(document.querySelector(".tile"));
       return {
         bg: s.getPropertyValue("--bg-0").trim(),
         accent: s.getPropertyValue("--ui-accent").trim(),
         gradient: s.getPropertyValue("--ui-gradient").trim(),
+        tileBorder: tile.borderColor,
+        tileBackground: tile.backgroundImage,
       };
     });
     // Grant enough coins for a priced theme.
@@ -4399,15 +4402,34 @@ test.describe("themes (UI)", () => {
     expect(bg).not.toBe(before.bg);
     const chrome = await page.evaluate(() => {
       const s = getComputedStyle(document.documentElement);
+      const tile = getComputedStyle(document.querySelector(".tile"));
       return {
         accent: s.getPropertyValue("--ui-accent").trim(),
         gradient: s.getPropertyValue("--ui-gradient").trim(),
+        tileBorder: tile.borderColor,
+        tileBackground: tile.backgroundImage,
       };
     });
     expect(chrome.accent).toBe("#ff7eb6");
     expect(chrome.accent).not.toBe(before.accent);
     expect(chrome.gradient).toContain("#ff7eb6");
     expect(chrome.gradient).not.toBe(before.gradient);
+    expect(chrome.tileBorder).not.toBe(before.tileBorder);
+    expect(chrome.tileBackground).not.toBe(before.tileBackground);
+
+    await page.locator("#themes-back").click();
+    await page.locator("#btn-play").click();
+    await page.locator(".level-cell").first().click();
+    const briefChrome = await page.evaluate(() => {
+      const stat = getComputedStyle(document.querySelector(".brief-stats div"));
+      const section = getComputedStyle(document.querySelector(".brief-section"));
+      return {
+        statBackground: stat.backgroundImage,
+        sectionBorder: section.borderColor,
+      };
+    });
+    expect(briefChrome.statBackground).toContain("255, 126, 182");
+    expect(briefChrome.sectionBorder).toContain("255, 126, 182");
   });
 
   test("themes resolve distinct live background motifs and reduced motion reaches the renderer", async ({
