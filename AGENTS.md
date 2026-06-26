@@ -250,7 +250,10 @@ never re‑discovered the hard way.
   `Economy.getPowerup(type) <= 0`) doesn't just toast — it opens the shop
   focused on that tool (`UI.openShopForPowerup`: pauses the live level, switches
   the shop to the **Tools** filter, then scrolls to + glows the matching
-  `.shop-item[data-pu]`). The normal Shop entry opens on the **Featured** filter,
+  `.shop-item[data-pu]`). Tapping an unassigned slot after tools have unlocked
+  is helpful too: if the player owns any stocked unlocked tool it opens the
+  loadout picker, otherwise it opens the Tools shop focused on the first unlocked
+  tool so the player can buy stock. The normal Shop entry opens on the **Featured** filter,
   with category pills for Featured, Tools, Coins, and Offers so the dense economy
   surfaces stay scannable. `shop-back` routes through
   `UI.closeShop`, which resumes the paused level when the shop was opened
@@ -467,6 +470,13 @@ never re‑discovered the hard way.
   render through the same helper so tools look consistent while still falling
   back if an image fails to load. New tool icons must be relative local assets,
   added to `sw.js` `ASSETS`, and covered by the economy metadata test.
+- **Coin icon language** (`assets/icons/currency/coin.svg` and
+  `coins-stack.svg`, `ui.js` `coinIconHtml`, `styles.css` `.coin-icon`): wallet
+  pills, shop prices/packs, achievement/chest/calendar/season rewards, and the
+  win coin recap use original local gold currency SVGs instead of mixed emoji,
+  silver/gold symbols, or CSS dots. The single coin is for balances/prices; the
+  stacked coin mark is for larger reward and pack moments. New currency surfaces
+  should render through `coinIconHtml` and add any new assets to `sw.js`.
 - **Win-screen reward chest** (`ui.js` `showWin`/`openWinChest`, `#win`): coins
   are credited to `Economy` *before* `showWin`, so the chest is purely
   presentational. A compact **reward ceremony tracker** (`#win-ceremony`) appears

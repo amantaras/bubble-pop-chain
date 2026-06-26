@@ -209,7 +209,9 @@ npm run dev                 # alias for npm run serve
   locked-bubble: never tappable, shattered
   only by an adjacent pop, and excluded from `hasMoves`) with type round-trip,
   plus renderer coverage that special-bubble SVG overlays use local vendored
-  assets (Game-icons plus the custom high-contrast lightning mark), the
+  assets (Game-icons plus the custom high-contrast lightning mark), local
+  original currency SVG assets (`coin.svg`/`coins-stack.svg`) used across wallet,
+  shop, and reward surfaces, the
   last-bubble finale animator (`BubbleFinale`: variant clamping to 0–4,
   onExplode fires exactly once at the glow→blast boundary, onDone fires once at
   completion, cancel, and draw in both phases) plus the grid helpers it relies
@@ -231,8 +233,10 @@ npm run dev                 # alias for npm run serve
   the real save), the forced `?e2e=1&splash=1` animated startup splash handoff,
   grouped, compact menu/level-map/shop/themes
   navigation, popping via real taps, scoring, win/lose, revive and double-coins
-  rewarded-ad flows, endless refill, daily streak, top-HUD coin balance, the full power-up/tool set,
-  local SVG tool icons in the HUD, Shop, loadout picker, and Tool Unlock modal,
+  rewarded-ad flows, endless refill, daily streak, top-HUD coin balance and local
+  currency SVG rendering, the full power-up/tool set, local SVG tool icons in the
+  HUD, Shop, loadout picker, and Tool Unlock modal, quick-slot empty/no-stock
+  routes into the loadout picker or focused Tools shop,
   the Paint tool's smart three-colour picker and repaint flow,
   progressive tool unlocks (fresh players see no HUD/shop/loadout tools or locked
   Pick rescue prompts, Level 5→6 shows the **New Tool Unlocked!** mini-tutorial before starting the next

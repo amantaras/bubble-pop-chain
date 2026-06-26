@@ -452,6 +452,10 @@ test.describe("core gameplay (real input)", () => {
     await expect(page.locator("#hud-target")).not.toHaveText("0");
     await expect(page.locator(".hud-top #hud-coins")).toHaveText("123");
     await expect(page.locator(".hud-top .hud-coins-pill")).toBeVisible();
+    await expect(page.locator(".hud-top .hud-coins-pill .coin-icon img")).toHaveAttribute(
+      "src",
+      "./assets/icons/currency/coin.svg"
+    );
     await expect(page.locator("#hud-status")).toContainText("undo");
   });
 
@@ -1216,6 +1220,14 @@ test.describe("campaign progression", () => {
         Number(await page.locator("#win-coins-num").textContent())
       )
       .toBeGreaterThan(0);
+    await expect(page.locator("#win-coins .coin-icon img")).toHaveAttribute(
+      "src",
+      "./assets/icons/currency/coin.svg"
+    );
+    await expect(page.locator("#win-reward .win-reward-card.coins img").first()).toHaveAttribute(
+      "src",
+      "./assets/icons/currency/coins-stack.svg"
+    );
 
     const save = await page.evaluate(() =>
       JSON.parse(localStorage.getItem("bpc_save_v1"))
@@ -2295,6 +2307,30 @@ test.describe("power-ups (UI arm + apply)", () => {
     await expect(page.locator("#hud")).toBeVisible();
     await expect(page.locator("#menu")).toBeHidden();
     expect(await page.evaluate(() => window.__bpc.game.paused)).toBe(false);
+  });
+
+  test("tapping an unassigned tool slot opens the tools shop when no tools are stocked", async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      window.__bpc.Storage.set("maxUnlockedLevel", 8);
+      window.__bpc.Storage.set("loadout", [null, null, null]);
+      window.__bpc.Storage.set("powerups", {
+        ...window.__bpc.Storage.get("powerups"),
+        undo: 0,
+        shuffle: 0,
+      });
+      window.__bpc.game.startCampaign(8);
+    });
+    await page.waitForTimeout(300);
+
+    await expect(page.locator("#pu-slot-0")).toHaveClass(/empty/);
+    await page.locator("#pu-slot-0").click();
+
+    await expect(page.locator("#shop")).toBeVisible();
+    await expect(page.locator('.shop-filter[data-shop-filter="tools"]')).toHaveClass(/active/);
+    await expect(page.locator('#shop-list .shop-item[data-pu="undo"]')).toHaveClass(/highlight/);
+    expect(await page.evaluate(() => window.__bpc.game.paused)).toBe(true);
   });
 
   test("shop rows show when a power-up is not affordable", async ({ page }) => {
@@ -4193,6 +4229,7 @@ test.describe("shop & monetization (UI)", () => {
   test("daily free-coins ad reward escalates and caps at 3/day", async ({ page }) => {
     await page.locator("#btn-shop").click();
     await page.locator('.shop-filter[data-shop-filter="coins"]').click();
+    await expect(page.locator('.shop-coins-item .si-icon img[src="./assets/icons/currency/coins-stack.svg"]').first()).toBeVisible();
     const claim = async () => {
       await page.locator("#shop-free-coins").click();
       await expect(page.locator("#ad-overlay")).toBeVisible();

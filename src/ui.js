@@ -129,6 +129,16 @@ import {
 
 const $ = (id) => document.getElementById(id);
 
+const COIN_ICON = "./assets/icons/currency/coin.svg";
+const COINS_STACK_ICON = "./assets/icons/currency/coins-stack.svg";
+
+function coinIconHtml(kind = "single", className = "coin-dot") {
+  const src = kind === "stack" ? COINS_STACK_ICON : COIN_ICON;
+  return `<span class="${className} coin-icon" aria-hidden="true">` +
+    `<img src="${src}" alt="" loading="lazy" decoding="async">` +
+    `</span>`;
+}
+
 function toolIconHtml(typeOrInfo, className = "tool-icon") {
   const info = typeof typeOrInfo === "string" ? POWERUP_INFO[typeOrInfo] : typeOrInfo;
   const fallback = info?.icon || "✨";
@@ -482,7 +492,11 @@ class UIManager {
         }
         Audio.click();
         const type = btn.dataset.pu;
-        if (type && this.cb.armPowerup) this.cb.armPowerup(type, btn);
+        if (type && this.cb.armPowerup) {
+          this.cb.armPowerup(type, btn);
+          return;
+        }
+        this.openEmptyToolSlot(slot);
       });
     });
 
@@ -713,6 +727,20 @@ class UIManager {
     if (overGame && this.cb.pauseGame) this.cb.pauseGame();
     this.showScreen("shop");
     this._highlightShopPowerup(type);
+  }
+
+  openEmptyToolSlot(slot) {
+    const available = unlockedPowerups();
+    if (!available.length) {
+      const next = nextPowerupUnlock();
+      this.toast(next ? `Tools unlock at Level ${next.level}` : "Tools are locked");
+      return;
+    }
+    if (available.some((type) => Economy.getPowerup(type) > 0)) {
+      this.openLoadoutPicker(slot);
+      return;
+    }
+    this.openShopForPowerup(available[0]);
   }
 
   // Leave the shop: resume the paused level if we opened over one, otherwise
@@ -1495,7 +1523,7 @@ class UIManager {
       <span class="si-icon">🎁</span>
       <div class="si-body">
         <div class="si-title">${STARTER_PACK.name} <span class="si-badge">BEST VALUE</span></div>
-        <div class="si-desc">🪙 ${STARTER_PACK.coins} coins · ${puText} · 🧰×${STARTER_PACK.crates} crate</div>
+        <div class="si-desc">${coinIconHtml()} ${STARTER_PACK.coins} coins · ${puText} · 🧰×${STARTER_PACK.crates} crate</div>
       </div>`;
     const buy = document.createElement("button");
     buy.id = "shop-starter-buy";
@@ -1535,7 +1563,7 @@ class UIManager {
       <span class="si-icon">🐷</span>
       <div class="si-body">
         <div class="si-title">Piggy Bank</div>
-        <div class="si-desc">🪙 <span class="piggy-balance">${formatStat(
+        <div class="si-desc">${coinIconHtml()} <span class="piggy-balance">${formatStat(
           balance
         )}</span> / ${formatStat(PIGGY_CAP)} banked from play</div>
         <div class="piggy-bar"><div class="piggy-bar-fill" style="width:${pct}%"></div></div>
@@ -1557,7 +1585,7 @@ class UIManager {
         const res = await this.cb.crackPiggy();
         if (res && res.ok) {
           Audio.coin();
-          this.toast(`🐷 Piggy cracked — +🪙 ${formatStat(res.amount)}!`);
+          this.toast(`Piggy cracked — +${formatStat(res.amount)} coins!`);
           this.refreshCoins();
           this.buildShop();
         } else {
@@ -1611,7 +1639,7 @@ class UIManager {
           </div>`;
         const buy = document.createElement("button");
         buy.className = "buy-btn" + (affordable ? "" : " need-coins");
-        buy.innerHTML = `<span class="coin-dot"></span>${info.price}`;
+        buy.innerHTML = `${coinIconHtml()}${info.price}`;
         buy.title = affordable ? `Buy ${info.name}` : `Need ${info.price - Economy.coins} more coins`;
         const normalLabel = buy.innerHTML;
         const feedback = ({ phase, count, max }) => {
@@ -1697,7 +1725,7 @@ class UIManager {
         const item = document.createElement("div");
         item.className = "shop-item shop-coins-item";
         item.innerHTML = `
-          <span class="si-icon">🪙</span>
+          ${coinIconHtml("stack", "si-icon")}
           <div class="si-body">
             <div class="si-title">${pack.name}</div>
             <div class="si-desc">+${pack.amount} coins</div>
@@ -1846,7 +1874,7 @@ class UIManager {
           this.buildThemes();
         });
       } else if (theme.price > 0) {
-        btn.innerHTML = `<span class="coin-dot"></span>${theme.price}`;
+        btn.innerHTML = `${coinIconHtml()}${theme.price}`;
         btn.addEventListener("click", () => {
           if (Economy.spendCoins(theme.price)) {
             const list2 = [...Storage.get("ownedThemes"), theme.id];
@@ -1979,7 +2007,7 @@ class UIManager {
       } else {
         meta.innerHTML =
           `<span class="achv-desc">${Math.min(st.value, st.goal)} / ${st.goal} ${cat.unit}</span>` +
-          `<span class="achv-reward"><span class="coin-dot"></span>${st.tier.coins}</span>`;
+          `<span class="achv-reward">${coinIconHtml()}${st.tier.coins}</span>`;
       }
 
       body.appendChild(head);
@@ -2140,7 +2168,7 @@ class UIManager {
         el.innerHTML = `<span class="chest-row-ic">${icon}</span><span class="chest-row-tx">${label}</span>`;
         rewards.appendChild(el);
       };
-      row(`<span class="coin-dot"></span>`, `<b>+${agg.coins}</b> coins`);
+      row(coinIconHtml("stack", "chest-row-ic-img"), `<b>+${agg.coins}</b> coins`);
       agg.powerups.forEach((p) => row(p.icon, `<b>${p.name}</b> ×${p.n}`));
       agg.pets.forEach((pet) => {
         const tag = pet.isNew ? "New pet!" : "+XP (duplicate)";
@@ -2183,7 +2211,7 @@ class UIManager {
         rewards.appendChild(el);
       };
       row(
-        `<span class="coin-dot"></span>`,
+        coinIconHtml("stack", "chest-row-ic-img"),
         `<b>+${reward.coins}</b> coins`
       );
       reward.powerups.forEach((p) =>
@@ -2237,7 +2265,7 @@ class UIManager {
       const info = POWERUP_INFO[reward.powerup] || {};
       return info.icon || "✨";
     }
-    return "🪙";
+    return coinIconHtml("stack", "reward-inline-icon");
   }
 
   buildCalendar() {
@@ -2367,7 +2395,7 @@ class UIManager {
     reward = resolveRewardForUnlocks(reward);
     if (!reward) return "";
     const bits = [];
-    if (reward.coins) bits.push(`🪙 ${reward.coins}`);
+    if (reward.coins) bits.push(`${coinIconHtml()} ${reward.coins}`);
     if (reward.powerup) {
       const info = POWERUP_INFO[reward.powerup];
       bits.push(`${info ? info.icon : "🎁"} ${info ? info.name : reward.powerup}`);
@@ -2796,7 +2824,7 @@ class UIManager {
     const buyBtn = document.createElement("button");
     buyBtn.className = "buy-btn pet-buy-crate";
     buyBtn.id = "crate-buy";
-    buyBtn.innerHTML = `<span class="coin-dot"></span>${CRATE_COST}`;
+    buyBtn.innerHTML = `${coinIconHtml()}${CRATE_COST}`;
     const crateLabel = buyBtn.innerHTML;
     const crateFeedback = ({ phase, count, max }) => {
       buyBtn.classList.toggle("buying", phase === "buying");
@@ -3876,7 +3904,7 @@ class UIManager {
         `<span class="cos-name">${cos.name}</span>` +
         (has
           ? ""
-          : `<span class="cos-price"><span class="coin-dot"></span>${cos.price}</span>`);
+          : `<span class="cos-price">${coinIconHtml()}${cos.price}</span>`);
       chip.addEventListener("click", () => {
         Audio.click();
         if (has) {
@@ -4267,7 +4295,7 @@ class UIManager {
       .split(/\s+•\s+/)
       .map((part) => part.trim())
       .filter(Boolean);
-    if (coins > 0) parts.unshift(`🪙 Coins earned: +${Math.round(coins)}`);
+    if (coins > 0) parts.unshift(`Coins earned: +${Math.round(coins)}`);
     wrap.classList.toggle("empty", !parts.length);
     if (!parts.length) {
       wrap.textContent = "";
@@ -4280,7 +4308,7 @@ class UIManager {
       const hasIconPrefix = !!firstToken && !/[A-Za-z0-9+]/.test(firstToken);
       const label = hasIconPrefix ? part.slice(firstToken.length).trim() : part;
       return `<span class="win-reward-card ${kind}">` +
-        `<span class="wrc-icon">${escapeHtml(icon)}</span>` +
+        `<span class="wrc-icon">${icon}</span>` +
         `<span class="wrc-label">${escapeHtml(label || part)}</span>` +
         `</span>`;
     }).join("");
@@ -4306,7 +4334,7 @@ class UIManager {
       theme: "🎨",
       pet: "🐾",
       boss: "👹",
-      coins: "🪙",
+      coins: coinIconHtml("stack", "wrc-coin-icon"),
       tool: "⚒️",
       reward: "✨",
     }[kind] || "✨";
@@ -4416,11 +4444,11 @@ class UIManager {
     if (!host) return;
     host.innerHTML = "";
     if (this._motionOff()) return;
-    const glyphs = ["🪙", "🪙", "🪙", "✨", "⭐"];
+    const glyphs = [coinIconHtml(), coinIconHtml(), coinIconHtml(), "✨", "⭐"];
     const n = 12;
     for (let i = 0; i < n; i++) {
       const s = document.createElement("span");
-      s.textContent = glyphs[i % glyphs.length];
+      s.innerHTML = glyphs[i % glyphs.length];
       const ang = (-Math.PI / 2) + (Math.random() - 0.5) * Math.PI * 1.1;
       const dist = 38 + Math.random() * 46;
       s.style.setProperty("--tx", `${Math.cos(ang) * dist}px`);
