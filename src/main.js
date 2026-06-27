@@ -203,6 +203,7 @@ const MAGNET_HALF = 0.3;
 // experiment freely with each tool. The player's real, larger stashes are
 // never reduced (we top up to at least this many) and are restored afterwards.
 const TUTORIAL_TOOL_STOCK = 10;
+const FIRST_RUN_BONUS_COINS = 120;
 // Undo keeps only a small recent rewind history. The number of times a player
 // can use it comes from the Undo tool stock in the economy.
 const UNDO_STACK_LIMIT = 3;
@@ -955,21 +956,29 @@ class Game {
     this.tutorial = new Tutorial({
       game: this,
       ui: UI,
-      onFinish: () => this.finishTutorial(),
+      onFinish: (result) => this.finishTutorial(result),
     });
     this.tutorial.start();
   }
 
-  finishTutorial() {
+  finishTutorial(result = {}) {
+    const firstRun = !Storage.get("firstRunDone");
     this.tutorial = null;
     // Hand the player back exactly the inventory they had before the tutorial
     // loaded its practice stock — never overwrite what they really own.
     this._restoreTutorialInventory();
+    if (firstRun && !result.skipped && !Storage.get("starterBonusClaimed")) {
+      Economy.addCoins(FIRST_RUN_BONUS_COINS);
+      Storage.set("starterBonusClaimed", true);
+      UI.toast(`Starter bonus: +${FIRST_RUN_BONUS_COINS} coins`, 2600);
+    }
     Storage.set("firstRunDone", true);
     this.session = null;
     this.input.setEnabled(false);
     Audio.stopMusic();
     UI.showScreen("menu");
+    UI.refreshCoins();
+    UI.updateContinue();
   }
 
   // Temporarily load a complete, generous inventory for the tutorial sandbox so

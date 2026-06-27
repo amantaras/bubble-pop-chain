@@ -13,6 +13,7 @@ describe("storage", () => {
     expect(Storage.get("currentTheme")).toBe("aurora");
     expect(Storage.get("ownedThemes")).toContain("aurora");
     expect(Storage.get("adsRemoved")).toBe(false);
+    expect(Storage.get("starterBonusClaimed")).toBe(false);
   });
 
   it("time attack high score defaults to 0 and round-trips", () => {

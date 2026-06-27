@@ -1128,8 +1128,9 @@ class UIManager {
       btn.classList.add("hidden");
       if (play) play.classList.add("btn-primary");
       if (nudge) {
-        const fresh = Storage.get("maxUnlockedLevel") <= 1 && !Storage.get("tutorialDone");
-        nudge.textContent = fresh ? "Start here" : "Next level";
+        const maxUnlocked = Math.max(1, Number(Storage.get("maxUnlockedLevel")) || 1);
+        if (!Storage.get("firstRunDone")) nudge.textContent = "Start here";
+        else nudge.textContent = `Level ${maxUnlocked}`;
       }
     }
   }
@@ -1425,7 +1426,9 @@ class UIManager {
     const level = getLevel(levelId);
     if (!level) return null;
     const next = this._nextProgressUnlock(levelId);
-    const body = level.milestone === "boss"
+    const body = levelId < 6
+      ? "Clear these starter boards to reach Undo at Level 6. Focus on big groups before tools unlock."
+      : level.milestone === "boss"
       ? "Break the boss objective to keep the campaign moving."
       : level.milestone === "treasure"
         ? "Clear the vault for a one-time payout, then push to the next level."

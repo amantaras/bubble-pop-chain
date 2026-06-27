@@ -1305,7 +1305,10 @@ never re‑discovered the hard way.
   recovers it via `_restoreTutorialInventory` on `init`) and restored verbatim
   on finish/skip — the tutorial **never overwrites what the player owns** and
   larger real stashes are never reduced (see `_stockTutorialInventory` /
-  `_restoreTutorialInventory`, `TUTORIAL_TOOL_STOCK`). It must stay in sync with
+  `_restoreTutorialInventory`, `TUTORIAL_TOOL_STOCK`). Completing the first-run
+  tutorial (not skipping it, and not replaying How to Play later) pays a one-time
+  starter coin bonus tracked by `starterBonusClaimed`, giving new players an
+  immediate positive reward without touching the tutorial practice inventory. It must stay in sync with
   the game's features — see §11.
 - **Live production URL**: https://amantaras.github.io/bubble-pop-chain/
   (GitHub Pages, served under the `/bubble-pop-chain/` subpath).

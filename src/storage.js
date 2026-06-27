@@ -53,6 +53,7 @@ const DEFAULT_SAVE = {
   // A puzzle unlocks the next one once it has been solved (≥1 star).
   puzzle: { stars: {} },
   firstRunDone: false,
+  starterBonusClaimed: false,
   activeSession: null, // snapshot of an in-progress campaign level (resume)
   // Rolling 7-day login reward cycle: { lastClaim: "YYYY-MM-DD"|null, day }.
   loginCalendar: { lastClaim: null, day: 0 },

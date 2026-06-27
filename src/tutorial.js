@@ -281,13 +281,13 @@ export class Tutorial {
   }
 
   skip() {
-    this.finish();
+    this.finish({ skipped: true });
   }
 
-  finish() {
+  finish(result = {}) {
     if (!this.active) return;
     this.active = false;
     this.ui.hideTutorial();
-    this.onFinish();
+    this.onFinish(result);
   }
 }

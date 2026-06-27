@@ -244,7 +244,7 @@ npm run dev                 # alias for npm run serve
   level, and claiming the win bonus after the reward chest also opens that popup), the win reward ceremony tracker (Chest → Pick bonus → Next unlock stage states) and structured win reward cards for coins/new best/objective/milestone rewards, progressive pet unlocks (fresh players do not see the Pets tile,
   Level 11→12 shows the pet feature unlock window, grants/equips Sparky, early
   pet-economy unlocks grant two starter crates and Pet Dust, then
-  starts the next level with the HUD pet badge), the level-map **Current focus**
+  starts the next level with the HUD pet badge), first-session polish (post-tutorial CTA state, starter bonus, early Undo goal), the level-map **Current focus**
   card and **Next unlock** teaser, tactical pre-level briefings before a map cell starts play (including replay records, chapter context, board size, tactical plan, boss/downpour traits), post-win bonus choices
   after opening the reward chest, smart suggested loadouts in the long-press picker,
   retry coaching on campaign losses, shop purchases, the Shop category filters

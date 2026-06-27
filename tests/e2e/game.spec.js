@@ -293,7 +293,7 @@ test.describe("menu & navigation (UI)", () => {
     }
     await expect(page.locator("#btn-pets")).toBeHidden();
     await expect(page.locator("#btn-play .cta-sub")).toHaveText("Campaign levels");
-    await expect(page.locator("#play-nudge")).toHaveText("Start here");
+    await expect(page.locator("#play-nudge")).toHaveText("Level 1");
     await expect(page.locator("#btn-daily .tile-sub")).toHaveText("One run today");
     await expect(page.locator("#btn-tournament .tile-sub")).toHaveText("Weekly ladder");
     await expect(page.locator("#btn-timeattack .tile-sub")).toHaveText("60 sec sprint");
@@ -356,6 +356,14 @@ test.describe("menu & navigation (UI)", () => {
     await expect(page.locator('.level-cell[data-level="6"]')).toHaveClass(/current/);
     await expect(page.locator('.level-cell[data-level="1"]')).toHaveClass(/path-row-start/);
     await expect(page.locator('.level-cell[data-level="4"]')).toHaveClass(/path-row-end/);
+  });
+
+  test("level map gives starter players a clear first tool goal", async ({ page }) => {
+    await page.locator("#btn-play").click();
+    await expect(page.locator(".current-focus-card")).toContainText("Current focus: Clear Level 1");
+    await expect(page.locator(".current-focus-card")).toContainText("Undo at Level 6");
+    await expect(page.locator(".next-unlock-teaser")).toContainText("Next unlock: Undo");
+    await expect(page.locator(".next-unlock-teaser")).toContainText("Level 6");
   });
 
   test("level map opens a briefing before starting a level", async ({ page }) => {
@@ -4827,6 +4835,9 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
       () => JSON.parse(localStorage.getItem("bpc_save_v1")).firstRunDone
     );
     expect(done).toBe(true);
+    const save = await page.evaluate(() => JSON.parse(localStorage.getItem("bpc_save_v1")));
+    expect(save.coins).toBe(0);
+    expect(save.starterBonusClaimed).toBe(false);
   });
 
   test("every step is gated and only advances when its action is performed", async ({
@@ -5111,6 +5122,10 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
     await expect(page.locator("#tutorial")).toBeHidden();
     await expect(page.locator("#menu")).toBeVisible();
     expect(await stepId(page)).toBeNull();
+    await expect.poll(() => page.locator("#menu-coins").textContent().then((text) => Number(text || 0))).toBeGreaterThanOrEqual(120);
+    await expect(page.locator("#play-nudge")).toHaveText("Level 1");
+    const save = await page.evaluate(() => JSON.parse(localStorage.getItem("bpc_save_v1")));
+    expect(save.starterBonusClaimed).toBe(true);
   });
 
   test("the tutorial board refills so the player never runs out of bubbles", async ({
