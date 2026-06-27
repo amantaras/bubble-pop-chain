@@ -1779,12 +1779,24 @@ test.describe("power-ups (UI arm + apply)", () => {
       return null;
     });
     await tapCell(page, cell.c, cell.r);
+    const fx = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      return {
+        toolFx: g._lastToolColorClearFx,
+        particles: g.particles.particles.length,
+        rings: g.particles.rings.length,
+      };
+    });
     await page.waitForTimeout(300);
     const remainingOfColor = await page.evaluate(
       (color) => window.__bpc.game.session.board.colorCells(color).length,
       cell.color
     );
     expect(remainingOfColor).toBe(0);
+    expect(fx.toolFx).toMatchObject({ rings: 2, colorIndex: cell.color });
+    expect(fx.toolFx.cells).toBeGreaterThan(0);
+    expect(fx.particles).toBeGreaterThan(0);
+    expect(fx.rings).toBeGreaterThanOrEqual(1);
   });
 
   test("shuffle reshuffles immediately and consumes a charge", async ({ page }) => {
@@ -1817,12 +1829,26 @@ test.describe("power-ups (UI arm + apply)", () => {
     await page.locator('[data-pu="chainBolt"]').click();
     await expect(page.locator('[data-pu="chainBolt"]')).toHaveClass(/armed/);
     await tapCell(page, Math.floor(cols / 2), Math.floor(rows / 2));
+    const fx = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      return {
+        toolFx: g._lastToolChainBoltFx,
+        particles: g.particles.particles.length,
+        rings: g.particles.rings.length,
+        sprites: g.particles.sprites.length,
+      };
+    });
     await page.waitForTimeout(300);
     const after = await page.evaluate(() =>
       window.__bpc.game.session.board.countRemaining()
     );
     // A full row + column through a packed board removes (cols + rows - 1).
     expect(before - after).toBeGreaterThanOrEqual(Math.max(cols, rows));
+    expect(fx.toolFx).toMatchObject({ rings: 2, sprites: true });
+    expect(fx.toolFx.cells).toBeGreaterThanOrEqual(Math.max(cols, rows));
+    expect(fx.particles).toBeGreaterThan(0);
+    expect(fx.rings).toBeGreaterThanOrEqual(1);
+    expect(fx.sprites).toBeGreaterThan(0);
     await expect(page.locator('[data-pu="chainBolt"] .pu-count')).toHaveText("0");
   });
 

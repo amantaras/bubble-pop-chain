@@ -118,10 +118,12 @@ never re‑discovered the hard way.
   with its own punchy tool-use flourish — flash bloom, layered shockwaves,
   debris sprites, sparks, shake and `Audio.blast()` so using the tool reads as a
   bigger moment than a generic pop),
-  **Color Clear** (one colour), **Shuffle**, **Paint** (`grid.suggestRecolors`/
+  **Color Clear** (one colour, with a matching colour-wave flourish that sparkles
+  through every removed bubble), **Shuffle**, **Paint** (`grid.suggestRecolors`/
   `recolorCell` — tap one recolourable bubble, then choose from the three
   impact-ranked colour swatches that create the strongest next group),
-  **Chain Bolt** (`grid.crossCells`, full row + column), **+3 Moves** (immediate
+  **Chain Bolt** (`grid.crossCells`, full row + column, with a crackling row/column
+  bolt flourish and debris sprites), **+3 Moves** (immediate
   rescue tool for move-limited levels; spends one charge, adds exactly three
   moves, and leaves the board untouched), **Pick** (single bubble; when aimed at a special bubble it
   also triggers that bubble's effect — lightning strike, bomb blast, multiplier,

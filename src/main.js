@@ -2802,10 +2802,54 @@ class Game {
     this._lastToolBombFx = { cells: cells.length, rings: 3, burst: true };
   }
 
+  _toolColorClearFlourish(c, r, cells, colorIndex) {
+    const s = this.session;
+    if (!s || !cells.length) return;
+    const anchor = s.board.targetPixel(c, r);
+    const color = this.theme.bubbles[Math.max(0, colorIndex) % this.theme.bubbles.length] || "#7cf7ff";
+    const white = "#ffffff";
+    this.particles.ring(anchor.x, anchor.y, color, { maxRadius: 72, width: 7, life: 0.34 });
+    this.particles.ring(anchor.x, anchor.y, white, { maxRadius: 48, life: 0.2, fill: true });
+    for (const cell of cells) {
+      const p = s.board.targetPixel(cell.c, cell.r);
+      this.particles.sparkle(p.x, p.y, color, 4);
+      this.particles.burst(p.x, p.y, white, 3, 0.65);
+    }
+    this.particles.sparkle(anchor.x, anchor.y, white, 18);
+    this.floating.spawn(anchor.x, anchor.y - 32, "COLOR WAVE!", color, 30);
+    this.shake.add(0.22);
+    vibrate(24);
+    Audio.powerup();
+    this._lastToolColorClearFx = { cells: cells.length, rings: 2, colorIndex };
+  }
+
+  _toolChainBoltFlourish(c, r, cells) {
+    const s = this.session;
+    if (!s || !cells.length) return;
+    const anchor = s.board.targetPixel(c, r);
+    const blue = "#63d9ff";
+    const white = "#ffffff";
+    this.particles.ring(anchor.x, anchor.y, white, { maxRadius: 44, life: 0.18, fill: true });
+    this.particles.ring(anchor.x, anchor.y, blue, { maxRadius: 96, width: 6, life: 0.38 });
+    for (const cell of cells) {
+      const p = s.board.targetPixel(cell.c, cell.r);
+      const onBolt = cell.c === c || cell.r === r;
+      this.particles.burst(p.x, p.y, onBolt ? blue : white, onBolt ? 7 : 3, onBolt ? 1.05 : 0.7);
+      if (onBolt) this.particles.spriteBurst(p.x, p.y, 3, 1.2);
+    }
+    this.particles.sparkle(anchor.x, anchor.y, white, 20);
+    this.floating.spawn(anchor.x, anchor.y - 34, "CHAIN BOLT!", blue, 32);
+    this.shake.add(0.32);
+    vibrate(30);
+    Audio.powerup();
+    this._lastToolChainBoltFx = { cells: cells.length, rings: 2, sprites: true };
+  }
+
   applyPowerup(type, c, r) {
     const s = this.session;
     if (!s || s.ended) return;
     let cells = [];
+    const toolColorIndex = type === "colorClear" ? s.board.grid[c]?.[r] ?? 0 : 0;
     if (type === "bomb") cells = s.board.bombArea(c, r);
     else if (type === "colorClear") cells = s.board.colorCells(s.board.grid[c][r]);
     else if (type === "chainBolt") cells = s.board.crossCells(c, r);
@@ -2843,8 +2887,16 @@ class Game {
       Audio.powerup();
     }
 
-    this._popCells(cells, points, cells.length, 1, type === "bomb" ? 1.15 : 0.6);
+    this._popCells(
+      cells,
+      points,
+      cells.length,
+      1,
+      type === "bomb" ? 1.15 : type === "chainBolt" ? 0.95 : type === "colorClear" ? 0.8 : 0.6
+    );
     if (type === "bomb") this._toolBombFlourish(c, r, cells);
+    if (type === "colorClear") this._toolColorClearFlourish(c, r, cells, toolColorIndex);
+    if (type === "chainBolt") this._toolChainBoltFlourish(c, r, cells);
     if (hitLightning) {
       const p = s.board.targetPixel(c, r);
       this.floating.spawn(p.x, p.y - 28, "⚡ ZAP!", "#9fe8ff", 30);
@@ -2861,7 +2913,7 @@ class Game {
       Audio.powerup();
     }
     if (s.stats) s.stats.powerups += 1;
-    if (type !== "bomb") Audio.powerup();
+    if (type !== "bomb" && type !== "colorClear" && type !== "chainBolt") Audio.powerup();
     s.armed = null;
     UI.clearArmedPowerups();
     UI.updatePowerups();
