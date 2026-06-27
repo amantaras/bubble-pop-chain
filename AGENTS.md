@@ -799,7 +799,9 @@ never re‑discovered the hard way.
   in the compact `#hud-status` strip; the separate **🎯 objective chip**
   (`#hud-objective`) is reserved for the achieved state, lit `.met` with a ✓.
   Boss/non-campaign levels hide it, and a brief intro toast still appears at
-  level start. Like other meta/challenge displays it gets **no
+  level start. The level-complete recap grid includes the objective result
+  (`Done`/`Missed`) alongside score, moves, best chain, popped bubbles, and tool
+  usage. Like other meta/challenge displays it gets **no
   tutorial step**.
 - **Season Pass / Battle Pass** (`season.js`, pure; `storage.js` `season`;
   `monetization.js` `season_premium` product; `main.js`

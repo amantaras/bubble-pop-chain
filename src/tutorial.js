@@ -187,7 +187,7 @@ export const TUTORIAL_STEPS = [
   {
     id: "done",
     title: "You're ready!",
-    body: "That's everything — pop chains, plan combos, and clear the board. Finish a level to see your recap: moves, swipes, best combo, stars, and the coins you earned. Have fun!",
+    body: "That's everything — pop chains, plan combos, and clear the board. Finish a level to see your recap: score, moves, best chain, tools used, stars, objectives, and the coins you earned. Have fun!",
     advance: "button",
     cta: "Start playing",
   },

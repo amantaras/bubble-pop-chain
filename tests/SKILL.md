@@ -306,7 +306,8 @@ npm run dev                 # alias for npm run serve
   shells, plus procedural chapters revealed past level 40 with generated level
   cells), the per-level bonus objectives (active objectives show
   as compact priority HUD status, the achieved objective chip appears once met,
-  milestones stay hidden, and meeting one pays a coin bonus on the win screen),
+  milestones stay hidden, meeting one pays a coin bonus on the win screen, and
+  the level recap shows score/moves/best-chain/tools plus objective status),
   the season pass (Season screen lists the 10-tier ladder, earning XP unlocks +
   pays out a free tier, locked tool rewards display/claim as coins, the premium
   track is gated until the pass is purchased, and the menu badge appears when a reward is claimable),

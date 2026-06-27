@@ -1203,10 +1203,13 @@ test.describe("campaign progression", () => {
     await expect(page.locator("#win")).toBeVisible();
     await expect(page.locator("#win-stars .star.on")).not.toHaveCount(0);
 
-    // The recap window shows a per-run stats grid (Moves, Swipes, etc.).
-    await expect(page.locator("#win-stats .win-stat")).toHaveCount(4);
+    // The recap window shows a per-run stats grid (score, moves, tools, etc.).
+    await expect(page.locator("#win-stats .win-stat")).toHaveCount(6);
+    await expect(page.locator("#win-stats")).toContainText("Score");
     await expect(page.locator("#win-stats")).toContainText("Moves");
+    await expect(page.locator("#win-stats")).toContainText("Best Chain");
     await expect(page.locator("#win-stats")).toContainText("Popped");
+    await expect(page.locator("#win-stats")).toContainText("Tools");
 
     // The coin payout is sealed in a chest — tap it open to reveal the reward.
     await expect(page.locator("#win-chest")).toBeVisible();
@@ -1235,6 +1238,32 @@ test.describe("campaign progression", () => {
     expect(save.maxUnlockedLevel).toBeGreaterThanOrEqual(2);
     expect(save.stars["1"]).toBeGreaterThanOrEqual(1);
     expect(save.coins).toBeGreaterThan(0);
+  });
+
+  test("level recap surfaces bonus objective status", async ({ page }) => {
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      g.startCampaign(3);
+      const s = g.session;
+      s.score = 1200;
+      s.stats.cleared = 18;
+      s.stats.bestCombo = 3;
+      s.objectiveMet = true;
+      window.__bpc.UI.showWin({
+        stars: 2,
+        score: s.score,
+        coins: 0,
+        rewardText: "",
+        stats: g._winStats(s, 4),
+        showNext: true,
+        showDouble: false,
+      });
+    });
+
+    await expect(page.locator("#win")).toBeVisible();
+    await expect(page.locator("#win-stats .win-stat")).toHaveCount(7);
+    await expect(page.locator("#win-stats")).toContainText("Objective");
+    await expect(page.locator("#win-stats")).toContainText("Done");
   });
 
   test("running out of moves loses and offers a revive", async ({ page }) => {

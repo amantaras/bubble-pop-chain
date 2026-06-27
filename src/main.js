@@ -4544,12 +4544,23 @@ class Game {
   // Build the recap stat rows shown on the level-complete window.
   _winStats(s, movesUsed) {
     const st = s.stats || this._newStats();
-    return [
+    const rows = [
+      { label: "Score", value: Math.max(0, Math.round(s.score || 0)) },
       { label: "Moves", value: Math.max(0, movesUsed) },
-      { label: "Swipes", value: st.swipes },
-      { label: "Best Combo", value: "×" + Math.max(1, st.bestCombo) },
-      { label: "Popped", value: st.cleared },
+      { label: "Swipes", value: st.swipes || 0 },
+      {
+        label: "Best Chain",
+        value: "×" + Math.max(1, st.bestCascade || st.bestCombo || 0),
+      },
+      { label: "Popped", value: st.cleared || 0 },
+      { label: "Tools", value: (st.powerups || 0) + (st.blasts || 0) },
     ];
+    if (s.objective) {
+      const met =
+        s.objective.type === "nopowerup" ? !s.usedPowerup : !!s.objectiveMet;
+      rows.push({ label: "Objective", value: met ? "Done" : "Missed" });
+    }
+    return rows;
   }
 
   // ---- Modal actions ----------------------------------------------------
