@@ -245,7 +245,7 @@ npm run dev                 # alias for npm run serve
   Level 11→12 shows the pet feature unlock window, grants/equips Sparky, early
   pet-economy unlocks grant two starter crates and Pet Dust, then
   starts the next level with the HUD pet badge), the level-map **Current focus**
-  card and **Next unlock** teaser, pre-level briefings before a map cell starts play (including replay records), post-win bonus choices
+  card and **Next unlock** teaser, tactical pre-level briefings before a map cell starts play (including replay records, chapter context, board size, tactical plan, boss/downpour traits), post-win bonus choices
   after opening the reward chest, smart suggested loadouts in the long-press picker,
   retry coaching on campaign losses, shop purchases, the Shop category filters
   (Featured, Tools, Coins, Offers), shop affordability affordances (`.cannot-afford`/`.need-coins`),

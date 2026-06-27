@@ -723,8 +723,9 @@ never re‑discovered the hard way.
   genuine new best pushes a **"🏆 New best score!"** line into the win recap's
   `rewardBits` (`#win-reward`). The **level map** (`buildLevelMap`) shows the
   stored best (`🏆 <score>`, `.lvl-best`) under the stars on every cleared cell.
-  Tapping an unlocked map cell opens a compact **level briefing** (`#level-brief`)
-  before play starts: target, moves, colors, bonus objective, board traits, and
+  Tapping an unlocked map cell opens a compact **tactical level briefing** (`#level-brief`)
+  before play starts: chapter context, target, moves/downpour cadence, board size,
+  colors, bonus objective reward, board traits, a short tactical plan, and
   unlocked suggested tools. Replays also show the stored stars/best score in
   `#brief-replay` and relabel the primary action to **Replay**. `#brief-start` is the only path that calls
   `startLevel`, so map clicks now preview instead of launching immediately.

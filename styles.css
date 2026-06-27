@@ -544,16 +544,17 @@ body {
   font-size: 11px;
 }
 .level-brief-card {
-  max-width: 390px;
+  max-width: 430px;
 }
 .brief-stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
   margin: 12px 0;
 }
 .brief-stats div {
-  padding: 9px 8px;
+  min-width: 0;
+  padding: 9px 6px;
   border-radius: 12px;
   background: var(--ui-gradient-soft, rgba(255, 255, 255, 0.07));
   text-align: center;
@@ -563,12 +564,13 @@ body {
   display: block;
 }
 .brief-stats b {
-  font-size: 18px;
+  overflow-wrap: anywhere;
+  font-size: 17px;
 }
 .brief-stats span {
   margin-top: 2px;
   color: var(--text-dim);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -590,6 +592,11 @@ body {
   color: var(--text-dim);
   font-size: 12px;
   line-height: 1.35;
+}
+@media (max-width: 380px) {
+  .brief-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 .tile {
   appearance: none;

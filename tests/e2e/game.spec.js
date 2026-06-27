@@ -364,6 +364,9 @@ test.describe("menu & navigation (UI)", () => {
     await expect(page.locator("#level-brief")).toBeVisible();
     await expect(page.locator("#brief-title")).toHaveText("Level 1");
     await expect(page.locator("#brief-stats")).toContainText("Target");
+    await expect(page.locator("#brief-stats")).toContainText("Board");
+    await expect(page.locator("#brief-sub")).toContainText("Bubble Meadow");
+    await expect(page.locator("#brief-plan")).toContainText("Tactical plan");
     await expect(page.locator("#brief-hazards")).toContainText("Clean board");
 
     await page.locator("#brief-start").click();
@@ -393,6 +396,24 @@ test.describe("menu & navigation (UI)", () => {
     await expect(page.locator("#brief-replay")).toContainText("Replay record");
     await expect(page.locator("#brief-replay")).toContainText("Best 1234");
     await expect(page.locator("#brief-start")).toHaveText("Replay");
+  });
+
+  test("level briefing calls out tactical boss and downpour details", async ({ page }) => {
+    await page.evaluate(() => {
+      window.__bpc.Storage.set("maxUnlockedLevel", 31);
+    });
+    await page.locator("#btn-play").click();
+    await page.locator('.level-cell[aria-label="Level 10"]').click();
+    await expect(page.locator("#brief-title")).toHaveText("Boss 10");
+    await expect(page.locator("#brief-hazards")).toContainText("Frozen Core boss objective");
+    await expect(page.locator("#brief-plan")).toContainText("Crack the core");
+    await expect(page.locator("#brief-tools")).toContainText("Suggested tools");
+
+    await page.locator("#brief-cancel").click();
+    await page.locator('.level-cell[aria-label="Level 31"]').click();
+    await expect(page.locator("#brief-stats")).toContainText("Drop every");
+    await expect(page.locator("#brief-hazards")).toContainText("downpour every");
+    await expect(page.locator("#brief-plan")).toContainText("top lanes");
   });
 
   test("Shop and Themes open and Back returns to menu", async ({ page }) => {

@@ -178,7 +178,7 @@ class UIManager {
       "splash", "menu", "levelmap", "shop", "themes", "hud", "win", "lose",
       "menu-coins", "lm-coins", "shop-coins", "themes-coins", "hud-coins",
       "level-grid", "shop-list", "theme-list",
-      "level-brief", "brief-title", "brief-sub", "brief-stats", "brief-replay", "brief-objective", "brief-hazards", "brief-tools", "brief-cancel", "brief-start",
+      "level-brief", "brief-title", "brief-sub", "brief-stats", "brief-replay", "brief-objective", "brief-plan", "brief-hazards", "brief-tools", "brief-cancel", "brief-start",
       "achievements", "achv-list", "achv-count", "btn-achievements", "achv-back",
       "achv-badge", "achv-collect-all",
       "calendar", "cal-grid", "cal-status", "cal-claim", "cal-back",
@@ -1282,12 +1282,10 @@ class UIManager {
     const mtype = level.milestone;
     this.el["brief-title"].textContent = `${mtype === "boss" ? "Boss" : mtype === "treasure" ? "Treasure" : "Level"} ${levelId}`;
     this.el["brief-sub"].textContent = this._briefSubtitle(level);
-    this.el["brief-stats"].innerHTML =
-      `<div><b>${level.target}</b><span>Target</span></div>` +
-      `<div><b>${level.moves}</b><span>Moves</span></div>` +
-      `<div><b>${level.colors}</b><span>Colors</span></div>`;
+    this.el["brief-stats"].innerHTML = this._briefStats(level);
     this._setBriefSection("brief-replay", "Replay record", this._briefReplay(levelId));
-    this._setBriefSection("brief-objective", level.objective ? "🎯 Bonus objective" : "", level.objective ? level.objective.label : "");
+    this._setBriefSection("brief-objective", level.objective ? "🎯 Bonus objective" : "", this._briefObjective(level));
+    this._setBriefSection("brief-plan", "Tactical plan", this._briefPlan(level));
     this._setBriefSection("brief-hazards", "Board traits", this._briefHazards(level));
     this._setBriefSection("brief-tools", "Suggested tools", this._briefTools(level));
     if (this.el["brief-start"]) this.el["brief-start"].textContent = Storage.getStars(levelId) ? "Replay" : "Start";
@@ -1316,9 +1314,20 @@ class UIManager {
   }
 
   _briefSubtitle(level) {
-    if (level.milestone === "boss") return "Break the boss objective before the board runs dry.";
-    if (level.milestone === "treasure") return "Clear the vault for a one-time treasure payout.";
-    return "Clear every bubble and beat the score target.";
+    const chapter = level.chapter ? `${level.chapter.icon} ${level.chapter.name}` : "Campaign";
+    if (level.milestone === "boss") return `${chapter} boss board. Break the objective before the board runs dry.`;
+    if (level.milestone === "treasure") return `${chapter} treasure board. Clear the vault for a one-time payout.`;
+    return `${chapter}. Clear every bubble, hit the target, and leave room for cascades.`;
+  }
+
+  _briefStats(level) {
+    const stats = [
+      { label: "Target", value: level.target },
+      { label: level.downpour ? "Drop every" : "Moves", value: level.downpour ? `${level.downpour.interval} moves` : level.moves },
+      { label: "Board", value: `${level.cols}×${level.rows}` },
+      { label: "Colors", value: level.colors },
+    ];
+    return stats.map((stat) => `<div><b>${escapeHtml(stat.value)}</b><span>${escapeHtml(stat.label)}</span></div>`).join("");
   }
 
   _briefReplay(levelId) {
@@ -1329,16 +1338,38 @@ class UIManager {
     return best ? `${starText} • Best ${best}` : starText;
   }
 
+  _briefObjective(level) {
+    if (!level.objective) return "";
+    const reward = level.objective.bonus ? ` for +${level.objective.bonus} coins` : "";
+    return `${escapeHtml(level.objective.label)}${reward}.`;
+  }
+
+  _briefPlan(level) {
+    if (level.boss) {
+      if (level.boss.kind === "stone") return "Open space beside the vault first; adjacent pops break stone faster than chasing loose score.";
+      if (level.boss.kind === "color") return "Purge the marked colour early, then use the remaining board for score and cleanup.";
+      return "Crack the core in layers. Save row, column, and area clears for the centre once matches get thin.";
+    }
+    if (level.downpour) return "Keep the top lanes open and clear tall stacks before each downpour tick adds pressure.";
+    if (level.objective?.type === "combo") return "Spend small groups quickly to build the combo chain, then cash in the largest cluster.";
+    if (level.objective?.type === "group") return "Let matching colours connect before popping; one big group can solve the bonus and feed the meters.";
+    if (level.objective?.type === "nopowerup") return "Hold tools unless the clear is at risk. A clean win pays the bonus.";
+    if (level.milestone === "treasure") return "Treasure boards are about clean clears: bank safe cascades and avoid leaving isolated pairs behind.";
+    return "Start from the largest groups, keep cascades alive, and save tools for late isolated blockers.";
+  }
+
   _briefHazards(level) {
     const traits = [];
     const specials = level.specials || {};
-    if (level.boss) traits.push("boss objective");
-    if (level.downpour) traits.push("downpour rows");
-    if (specials.ice) traits.push("ice");
-    if (specials.stone) traits.push("stone");
-    if (specials.vine) traits.push("vines");
-    if (specials.lightning) traits.push("lightning");
+    if (level.boss) traits.push(`${level.boss.label} boss objective`);
+    if (level.downpour) traits.push(`downpour every ${level.downpour.interval} moves`);
+    if (specials.rainbow) traits.push("rainbow bridges");
+    if (specials.ice) traits.push("ice two-hit blockers");
+    if (specials.stone) traits.push("locked stone");
+    if (specials.vine) traits.push("spreading vines");
+    if (specials.lightning) traits.push("row/column lightning");
     if (specials.bomb) traits.push("bomb bubbles");
+    if (specials.multiplier) traits.push("gold multipliers");
     if (specials.coin) traits.push("coin bubbles");
     return traits.length ? traits.join(" • ") : "Clean board. Build big groups and keep cascades alive.";
   }
@@ -1352,8 +1383,10 @@ class UIManager {
     const specials = level.specials || {};
     if (level.boss) add("chainBolt"), add("bomb"), add("pick");
     if (specials.stone || specials.vine || specials.ice) add("pick"), add("bomb");
+    if (specials.lightning || specials.bomb) add("colorClear"), add("chainBolt");
     if (level.objective && level.objective.type === "group") add("magnet"), add("colorClear");
     if (level.objective && level.objective.type === "combo") add("shuffle"), add("magnet");
+    if (level.moves <= 10) add("extraMoves"), add("undo"), add("shuffle");
     add("undo");
     add("shuffle");
     add("bomb");
