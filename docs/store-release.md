@@ -103,6 +103,12 @@ Public URLs shipped with the web artifact:
 - Privacy policy: `https://amantaras.github.io/bubble-pop-chain/privacy.html`
 - Support URL: `https://amantaras.github.io/bubble-pop-chain/support.html`
 
+The working listing-copy, compliance, and screenshot plan lives in `docs/store-listing.md`. Generate raw screenshot sources with:
+
+```bash
+npm run screenshots:store
+```
+
 ## Compliance And Review
 
 Before submitting:

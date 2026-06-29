@@ -75,14 +75,14 @@ Goal: prepare review-ready store metadata and assets.
 Assets and copy:
 
 - [ ] Google Play feature graphic.
-- [ ] Android phone screenshots.
-- [ ] Android tablet screenshots if tablet support is listed.
-- [ ] iPhone screenshots.
-- [ ] iPad screenshots if iPad support is listed.
-- [ ] Short description.
-- [ ] Long description.
-- [ ] App Store subtitle.
-- [ ] App Store keywords.
+- [ ] Android phone screenshots. Raw capture script ready: `npm run screenshots:store -- --device=phone`.
+- [ ] Android tablet screenshots if tablet support is listed. Raw capture script ready: `npm run screenshots:store -- --device=tablet`.
+- [ ] iPhone screenshots. Raw phone captures are available; final App Store framing still needs export decisions.
+- [ ] iPad screenshots if iPad support is listed. Raw tablet captures are available; final App Store framing still needs export decisions.
+- [ ] Short description. Drafted in `docs/store-listing.md`; final wording pending approval.
+- [ ] Long description. Drafted in `docs/store-listing.md`; final wording pending approval.
+- [ ] App Store subtitle. Drafted in `docs/store-listing.md`; final wording pending approval.
+- [ ] App Store keywords. Drafted in `docs/store-listing.md`; final wording pending approval.
 - [ ] Support URL: `https://amantaras.github.io/bubble-pop-chain/support.html`.
 - [ ] Privacy URL: `https://amantaras.github.io/bubble-pop-chain/privacy.html`.
 
@@ -98,9 +98,9 @@ Compliance forms:
 
 Hands-off capture tasks after metadata direction is chosen:
 
-- [ ] Script repeatable screenshot capture for key screens: first run, campaign board, Pets, Shop, Skybolt, Achievements, and Settings.
+- [x] Script repeatable screenshot capture for key screens: first run, campaign board, Pets, Shop, Skybolt, Achievements, and Settings.
 - [ ] Export screenshot artifacts for required phone/tablet sizes.
-- [ ] Add a repo doc with final listing copy and disclosure answers.
+- [ ] Add a repo doc with final listing copy and disclosure answers. Draft doc exists at `docs/store-listing.md`; keep open until copy/disclosures are approved against the submitted build.
 
 Done when:
 

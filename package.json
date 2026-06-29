@@ -6,6 +6,7 @@
   "description": "Bubble Pop Chain — mobile PWA puzzle game",
   "scripts": {
     "build:web": "node scripts/copy-web.mjs",
+    "screenshots:store": "node scripts/capture-store-screenshots.mjs",
     "serve": "node tests/server.mjs 4173",
     "dev": "npm run serve",
     "native:sync": "npm run build:web && cap sync",

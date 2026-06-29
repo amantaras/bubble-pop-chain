@@ -28,6 +28,7 @@ ios/App/Pods/
 ios/App/DerivedData/
 
 # Test artifacts
+artifacts/store-screenshots/
 test-results/
 playwright-report/
 playwright/.cache/
