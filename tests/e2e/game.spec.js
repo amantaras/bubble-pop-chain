@@ -1508,6 +1508,56 @@ test.describe("campaign progression", () => {
   });
 });
 
+test.describe("shareable win card (viral share/download)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("sharing a win downloads a PNG score card when the Share API is unavailable", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await page.waitForTimeout(600);
+    await clearBoardByFinalPair(page);
+    await expect(page.locator("#win")).toBeVisible();
+    await expect(page.locator("#win-share")).toBeVisible();
+
+    // Headless Chromium has no navigator.share, so tapping Share falls back
+    // to downloading the rendered card image.
+    const hasShare = await page.evaluate(() => typeof navigator.share === "function");
+    expect(hasShare).toBe(false);
+
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      page.locator("#win-share").click(),
+    ]);
+    expect(download.suggestedFilename()).toBe("bubblit-score.png");
+    await expect(page.locator("#toast")).toContainText("saved");
+  });
+
+  test("the card reflects the mode label, score, and current theme", async ({ page }) => {
+    await page.evaluate(() => {
+      // `game.theme` (not the raw save field) is what drives rendering/share
+      // data — it's only kept in sync via the real theme-selection flow
+      // (ui.js `onThemeChange`), so set it directly the same way that flow would.
+      window.__bpc.game.theme = { id: "candy" };
+      window.__bpc.game.startCampaign(3);
+    });
+    await page.waitForTimeout(600);
+    const data = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      g.session.score = 7777;
+      return g.getShareCardData();
+    });
+    expect(data.modeLabel).toBe("Level 3");
+    expect(data.score).toBe(7777);
+    expect(data.themeId).toBe("candy");
+  });
+
+  test("getShareCardData returns null when there is no active session", async ({ page }) => {
+    const data = await page.evaluate(() => window.__bpc.game.getShareCardData());
+    expect(data).toBeNull();
+  });
+});
+
 test.describe("milestone events (every 5 levels)", () => {
   test.beforeEach(({ page }) => openGame(page));
 

@@ -284,6 +284,9 @@ body {
   margin-top: 12px;
   box-shadow: 0 8px 22px rgba(255, 179, 91, 0.3);
 }
+.win-share-btn {
+  margin-top: 10px;
+}
 .btn:disabled {
   opacity: 0.4;
   pointer-events: none;

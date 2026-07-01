@@ -319,6 +319,7 @@ class Game {
       toolUnlockContinue: () => this._continueAfterToolUnlock(),
       undoMove: () => this.undoMove(),
       isTutorial: () => this.session && this.session.mode === "tutorial",
+      getShareCardData: () => this.getShareCardData(),
       onThemeChange: (t) => {
         this.theme = t;
         // Swap the backing track live when the theme changes mid-session.
@@ -4651,6 +4652,30 @@ class Game {
       rows.push({ label: "Objective", value: met ? "Done" : "Missed" });
     }
     return rows;
+  }
+
+  // ---- Shareable win card -------------------------------------------------
+  // A read-only snapshot of the run currently shown on the win screen, used to
+  // paint the shareable score card (ui.js `shareWinCard`). Safe to call at any
+  // point while the win modal is up — the session isn't cleared until the
+  // player taps Menu/Next/Retry, so this always reflects the run just played.
+  getShareCardData() {
+    const s = this.session;
+    if (!s) return null;
+    const modeLabels = {
+      campaign: `Level ${(s.level && s.level.id) || "?"}`,
+      endless: "Endless",
+      daily: "Daily Challenge",
+      tournament: "Weekly Cup",
+      spotlight: "Spotlight",
+      timeattack: "Time Attack",
+      puzzle: `Puzzle ${((s.level && s.level.puzzleIndex) || 0) + 1}`,
+    };
+    return {
+      modeLabel: modeLabels[s.mode] || "Bubblit!",
+      score: s.score || 0,
+      themeId: this.theme.id,
+    };
   }
 
   // ---- Modal actions ----------------------------------------------------

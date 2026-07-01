@@ -537,6 +537,22 @@ never re‑discovered the hard way.
   a suggested tool charge, pet XP, Pet Dust, or an occasional crate depending on progression.
   `Game.claimWinChoice(id)` grants exactly one choice per win and refreshes the
   visible economy/loadout state.
+- **Shareable win card** (`sharecard.js`, pure; `ui.js` `shareWinCard`, `#win-share`):
+  a no-backend viral loop — every win screen offers **Share score**, which
+  paints a canvas "trophy card" (app name, mode label, big score, a rotating
+  punchy caption, the current theme's colours, and the date) and hands it to
+  the native **Share sheet** (`navigator.share` with a file, feature-detected
+  via `navigator.canShare`) so the player can post it to friends in one tap.
+  Platforms without file-sharing fall back to **text-only share**, and
+  platforms with no Share API at all (most desktop browsers) **download the
+  PNG** instead so the player can still post it manually. `sharecard.js` is
+  split into pure data builders (`buildShareCardData`, `captionForScore`,
+  `shareCardText` — fully unit-tested) and a presentational `drawShareCard`
+  canvas painter. `Game.getShareCardData()` is a read-only snapshot of the run
+  on screen (mode label, score, current theme id), safe to call any time while
+  the win modal is up since the session isn't cleared until the player taps
+  Menu/Next/Retry. Nothing is generated or shared until the player explicitly
+  taps the button. Meta/growth feature — **no tutorial step**.
 - **Daily retention** (`daily.js`): rotating seeded modifier, three tiered
   goals → daily stars, a 7‑day reward cycle, and a streak‑freeze token that
   rescues one missed day. The daily can be **completed only once per day**:
@@ -1398,6 +1414,7 @@ src/
   quests.js         # Daily & weekly quests (pure: rotating goals + claimable rewards)
   stats.js          # Stats / Profile dashboard (pure: read-only progress aggregation)
   diagnostics.js    # Diagnostics support info (pure: error ring buffer + report builder)
+  sharecard.js      # Shareable win card (pure: card data/caption builders + canvas painter)
   piggy.js          # Piggy Bank (pure: passive coin vault + crack-open purchase)
   puzzle.js         # Puzzle Mode ladder (pure: clear-the-board-in-N-moves + star ratings)
   events.js         # Falling gift/problem events (pure: delay/type/reward rolls)
@@ -1477,7 +1494,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 666 unit tests + 552 E2E
+- **Current baseline (keep growing, never shrink)**: 677 unit tests + 558 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

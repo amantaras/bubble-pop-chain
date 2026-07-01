@@ -136,6 +136,7 @@ import {
   formatDiagnosticsReport,
   diagnosticsRows,
 } from "./diagnostics.js";
+import { buildShareCardData, shareCardText, drawShareCard } from "./sharecard.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -236,6 +237,7 @@ class UIManager {
       "win-stats", "win-coins", "win-coins-num",
       "win-ceremony", "win-step-chest", "win-step-bonus", "win-step-unlock",
       "win-chest", "win-chest-art", "win-chest-burst", "win-chest-hint", "win-reward-reveal", "win-choice", "win-choice-list",
+      "win-share",
       "lose-score", "lose-revive", "lose-retry", "lose-menu", "lose-tip",
       "isolated", "iso-msg", "iso-pick", "iso-giveup",
       "btn-daily",
@@ -374,6 +376,7 @@ class UIManager {
     click("diag-close", () => this.closeDiagnostics());
     click("diag-copy", () => this.copyDiagnostics());
     click("diag-share", () => this.shareDiagnostics());
+    click("win-share", () => this.shareWinCard());
     click("achv-back", () => this.showScreen("menu"));
     click("achv-collect-all", () => this._claimAllAchievements());
     click("cal-back", () => this.showScreen("menu"));
@@ -2664,6 +2667,63 @@ class UIManager {
   shareDiagnostics() {
     if (typeof navigator === "undefined" || typeof navigator.share !== "function") return;
     navigator.share({ title: "Bubblit! Diagnostics", text: this._diagText || "" }).catch(() => {});
+  }
+
+  // ---- Shareable win card -------------------------------------------------
+  // A no-backend viral loop: after a run, the player can share a small canvas
+  // "trophy card" image of their score via the native Share sheet, or (where
+  // that isn't available — e.g. desktop browsers) download it as a PNG. The
+  // card is rebuilt fresh every tap; nothing is generated or shared unless the
+  // player explicitly taps the button.
+  shareWinCard() {
+    const raw = this.cb.getShareCardData && this.cb.getShareCardData();
+    if (!raw) return;
+    const data = buildShareCardData(raw);
+    const canvas = document.createElement("canvas");
+    canvas.width = 1080;
+    canvas.height = 1350;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    drawShareCard(ctx, canvas.width, canvas.height, data, getTheme(data.themeId));
+    const text = shareCardText(data);
+    if (typeof canvas.toBlob !== "function") return;
+    canvas.toBlob((blob) => {
+      if (blob) this._shareOrDownloadCard(blob, text);
+    }, "image/png");
+  }
+
+  _shareOrDownloadCard(blob, text) {
+    const canShareFiles =
+      typeof navigator !== "undefined" &&
+      typeof File !== "undefined" &&
+      typeof navigator.canShare === "function" &&
+      (() => {
+        try {
+          return navigator.canShare({ files: [new File([blob], "bubblit-score.png", { type: "image/png" })] });
+        } catch (e) {
+          return false;
+        }
+      })();
+    if (canShareFiles) {
+      const file = new File([blob], "bubblit-score.png", { type: "image/png" });
+      navigator.share({ files: [file], title: "Bubblit!", text }).catch(() => {});
+      return;
+    }
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      navigator.share({ title: "Bubblit!", text }).catch(() => {});
+      return;
+    }
+    // Fallback: no Share API available (most desktop browsers) — download the
+    // image so the player can still post it manually.
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "bubblit-score.png";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    this.toast("Score card saved!");
   }
 
   // ---- Puzzle Mode ------------------------------------------------------
