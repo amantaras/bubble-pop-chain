@@ -688,6 +688,10 @@ body {
   color: #2a1c00;
 }
 .tile.t-tournament { --tile-glow: rgba(255, 211, 91, 0.3); }
+.tile.t-spotlight .tile-ic {
+  background: linear-gradient(135deg, #ff6bd6, #8b5bff);
+}
+.tile.t-spotlight { --tile-glow: rgba(255, 107, 214, 0.28); }
 .tile.t-timeattack .tile-ic {
   background: linear-gradient(135deg, #5bd1ff, #5b8bff);
 }

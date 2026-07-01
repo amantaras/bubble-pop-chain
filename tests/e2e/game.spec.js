@@ -278,6 +278,7 @@ test.describe("menu & navigation (UI)", () => {
       "btn-endless",
       "btn-daily",
       "btn-tournament",
+      "btn-spotlight",
       "btn-timeattack",
       "btn-shop",
       "btn-themes",
@@ -296,8 +297,9 @@ test.describe("menu & navigation (UI)", () => {
     await expect(page.locator("#play-nudge")).toHaveText("Level 1");
     await expect(page.locator("#btn-daily .tile-sub")).toHaveText("One run today");
     await expect(page.locator("#btn-tournament .tile-sub")).toHaveText("Weekly ladder");
+    await expect(page.locator("#btn-spotlight .tile-sub")).toHaveText("Rotating challenge");
     await expect(page.locator("#btn-timeattack .tile-sub")).toHaveText("60 sec sprint");
-    await expect(page.locator(".menu-tiles .tile:not(.hidden)")).toHaveCount(12);
+    await expect(page.locator(".menu-tiles .tile:not(.hidden)")).toHaveCount(13);
     await expect(page.locator(".menu-group-title")).toHaveText([
       "Play",
       "Events",
@@ -305,7 +307,7 @@ test.describe("menu & navigation (UI)", () => {
       "Shop & Settings",
     ]);
     await expect(page.locator('.menu-group[aria-label="Play"] .tile')).toHaveCount(3);
-    await expect(page.locator('.menu-group[aria-label="Events"] .tile')).toHaveCount(4);
+    await expect(page.locator('.menu-group[aria-label="Events"] .tile')).toHaveCount(5);
     await expect(page.locator('.menu-group[aria-label="Progress"] .tile:not(.hidden)')).toHaveCount(3);
     await expect(page.locator('.menu-group[aria-label="Shop & Settings"] .tile')).toHaveCount(2);
   });
@@ -3214,6 +3216,90 @@ test.describe("weekly tournament (#11)", () => {
     expect(t.weekKey).not.toBeNull();
     // The menu summary surfaces this week's best.
     await expect(page.locator("#tournament-summary")).toContainText("Best");
+  });
+});
+
+test.describe("Spotlight Challenge (rotating limited-time event)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("starting the Spotlight builds the rotation's seeded board", async ({ page }) => {
+    const res = await page.evaluate(() => {
+      window.__bpc.game.startSpotlight();
+      const s = window.__bpc.game.session;
+      const lvl = window.__bpc.spotlight.getSpotlightLevel();
+      return {
+        mode: s.mode,
+        seed: s.level.seed,
+        rotationSeed: lvl.seed,
+        movesLeft: s.movesLeft,
+        hasGoals: !!(s.goals && s.goals.bronze),
+      };
+    });
+    expect(res.mode).toBe("spotlight");
+    expect(res.seed).toBe(res.rotationSeed);
+    expect(res.movesLeft).toBe(9999);
+    expect(res.hasGoals).toBe(true);
+  });
+
+  test("finishing a Spotlight run records the rotation best and pays a one-time tier reward", async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      window.__bpc.game.startSpotlight();
+      // Force a score that clears every tier so the reward is deterministic.
+      const s = window.__bpc.game.session;
+      const goals = window.__bpc.spotlight.getSpotlightGoals(s.level);
+      s.score = goals.gold;
+    });
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++) for (let r = 0; r < b.rows; r++) b.grid[c][r] = -1;
+      g.afterMove(); // deadlock on an empty board → resolves the Spotlight run
+    });
+    await expect(page.locator("#win")).toBeVisible();
+    await expect(page.locator("#win-reward")).toContainText("Best");
+    await expect(page.locator("#win-reward")).toContainText("tier reward");
+
+    const coinsBefore = await page.evaluate(() => window.__bpc.Storage.get("coins"));
+    await page.locator("#win-menu").click();
+    await expect(page.locator("#menu")).toBeVisible();
+
+    const sp = await page.evaluate(
+      () => JSON.parse(localStorage.getItem("bpc_save_v1")).spotlight
+    );
+    expect(sp.plays).toBeGreaterThanOrEqual(1);
+    expect(sp.best).toBeGreaterThan(0);
+    expect(sp.periodKey).not.toBeNull();
+    expect(sp.claimedTiers).toEqual([1, 2, 3]);
+    expect(coinsBefore).toBeGreaterThan(0);
+    // The menu summary surfaces this rotation's best.
+    await expect(page.locator("#spotlight-summary")).toContainText("Best");
+  });
+
+  test("replaying after every tier is claimed pays no further tier reward", async ({ page }) => {
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      g.startSpotlight();
+      const goals = window.__bpc.spotlight.getSpotlightGoals(g.session.level);
+      window.__bpc.Storage.set("spotlight", {
+        periodKey: window.__bpc.spotlight.getSpotlightLevel().key,
+        best: goals.gold,
+        plays: 1,
+        claimedTiers: [1, 2, 3],
+      });
+    });
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const s = g.session;
+      const goals = window.__bpc.spotlight.getSpotlightGoals(s.level);
+      s.score = goals.gold; // matches the already-claimed best exactly
+      const b = s.board;
+      for (let c = 0; c < b.cols; c++) for (let r = 0; r < b.rows; r++) b.grid[c][r] = -1;
+      g.afterMove();
+    });
+    await expect(page.locator("#win")).toBeVisible();
+    await expect(page.locator("#win-reward")).not.toContainText("tier reward");
   });
 });
 

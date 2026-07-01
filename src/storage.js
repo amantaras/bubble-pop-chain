@@ -42,6 +42,11 @@ const DEFAULT_SAVE = {
   },
   // Weekly tournament: local best-score chase for the current ISO week.
   tournament: { weekKey: null, best: 0, plays: 0 },
+  // Spotlight Challenge: a short rotating (every few days) best-score chase
+  // that pays one-time coin rewards the first time the rotation's best score
+  // crosses each of 3 tiers. `claimedTiers` resets whenever `periodKey` rolls
+  // over to a new rotation (see spotlight.js recordSpotlight).
+  spotlight: { periodKey: null, best: 0, plays: 0, claimedTiers: [] },
   // Daily & weekly quests: a rotating set of small goals. `daily`/`weekly` hold
   // the active quest tracking entries ({id, progress, claimed}); they reset
   // when `dayKey`/`weekKey` roll over (see quests.js `ensureQuests`).

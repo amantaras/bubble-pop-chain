@@ -62,6 +62,13 @@ import {
   getTournamentBest,
 } from "./tournament.js";
 import {
+  getSpotlightLevel,
+  getSpotlightGoals,
+  spotlightTierInfo,
+  recordSpotlight,
+  getSpotlightBest,
+} from "./spotlight.js";
+import {
   Tutorial,
   buildTutorialBoard,
   decorateSpecials,
@@ -261,6 +268,7 @@ class Game {
       startEndless: () => this.startEndless(),
       startDaily: () => this.startDaily(),
       startTournament: () => this.startTournament(),
+      startSpotlight: () => this.startSpotlight(),
       startTimeAttack: () => this.startTimeAttack(),
       startPuzzle: (i) => this.startPuzzle(i),
       quitToMenu: () => this.quitToMenu(),
@@ -631,7 +639,7 @@ class Game {
     if (mode === "campaign")
       return level.milestone === "boss" ? SCREEN_TIME_SECONDS + 30 : SCREEN_TIME_SECONDS;
     if (mode === "puzzle") return 150;
-    if (mode === "daily" || mode === "tournament") return SCREEN_TIME_SECONDS;
+    if (mode === "daily" || mode === "tournament" || mode === "spotlight") return SCREEN_TIME_SECONDS;
     return 0;
   }
 
@@ -890,6 +898,20 @@ class Game {
     const mod = lvl.modifier;
     if (mod) {
       UI.toast(`This week: ${mod.label} — ${mod.desc}`);
+    }
+  }
+
+  startSpotlight() {
+    // A short rotating challenge (a fresh seeded board every few days),
+    // replayable all rotation long; crossing a new score tier pays a
+    // one-time coin reward for that rotation (see spotlight.js recordSpotlight).
+    const lvl = getSpotlightLevel();
+    this._newSession("spotlight", lvl);
+    this.session.movesLeft = 9999;
+    this.session.goals = getSpotlightGoals(lvl);
+    const mod = lvl.modifier;
+    if (mod) {
+      UI.toast(`Spotlight: ${mod.label} — ${mod.desc}`);
     }
   }
 
@@ -3943,6 +3965,8 @@ class Game {
       if (deadlock) this._scheduleEnd(true, "daily");
     } else if (s.mode === "tournament") {
       if (deadlock) this._scheduleEnd(true, "tournament");
+    } else if (s.mode === "spotlight") {
+      if (deadlock) this._scheduleEnd(true, "spotlight");
     } else if (s.mode === "puzzle") {
       // A puzzle is solved by clearing the board (handled above). Running out
       // of moves before that fails the attempt. If the board instead jams on
@@ -4472,6 +4496,33 @@ class Game {
         showDouble: Monetization.canShowRewardedAd() && !Monetization.isAdsRemoved(),
       });
       this._showPendingPetFollowup();
+    } else if (s.mode === "spotlight") {
+      const info = recordSpotlight(s.score);
+      const tierInfo = spotlightTierInfo(info.tiersReached);
+      const coins =
+        Math.round(Math.floor(s.score / 150) * s.petBuffs.coinMult) + info.coinsAwarded;
+      s.coinsEarned = coins;
+      Economy.addCoins(coins);
+      this._awardSeasonXp(40);
+      Audio.win();
+      UI.setWinTitle(info.isNewBest ? "New Spotlight Best!" : "Spotlight Run");
+      const bits = [`${tierInfo.icon} ${tierInfo.label}`, `Best ${info.best}`];
+      if (info.newlyClaimedTiers.length) bits.push(`🎁 +${info.coinsAwarded} tier reward`);
+      const petBit = this._awardPetXp();
+      if (petBit) bits.push(petBit);
+      const moves = s.stats
+        ? s.stats.pops + s.stats.swipes + s.stats.blasts + s.stats.powerups
+        : 0;
+      UI.showWin({
+        stars: info.tiersReached === 0 ? 1 : Math.min(3, info.tiersReached),
+        score: s.score,
+        coins,
+        stats: this._winStats(s, moves),
+        rewardText: bits.join("  •  "),
+        showNext: false,
+        showDouble: Monetization.canShowRewardedAd() && !Monetization.isAdsRemoved(),
+      });
+      this._showPendingPetFollowup();
     } else if (s.mode === "timeattack") {
       const prevBest = Storage.get("highScoreTimeAttack");
       const isNewBest = s.score > prevBest;
@@ -4831,6 +4882,7 @@ class Game {
     else if (s.mode === "endless") this.startEndless();
     else if (s.mode === "timeattack") this.startTimeAttack();
     else if (s.mode === "tournament") this.startTournament();
+    else if (s.mode === "spotlight") this.startSpotlight();
     else if (s.mode === "puzzle") this.startPuzzle(s.level.puzzleIndex);
     else this.startDaily();
   }
@@ -5012,6 +5064,7 @@ class Game {
     else if (s.mode === "puzzle") this._scheduleEnd(false, "puzzlefail");
     else if (s.mode === "daily") this._scheduleEnd(true, "daily");
     else if (s.mode === "tournament") this._scheduleEnd(true, "tournament");
+    else if (s.mode === "spotlight") this._scheduleEnd(true, "spotlight");
   }
 
   // After HINT_DELAY seconds of inactivity, surface the largest poppable group
@@ -5324,6 +5377,7 @@ if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) 
     popStyle: popStyleForGroup,
     cascade: { cascadeBonus, cascadeTier },
     tournament: { getTournamentLevel, getTournamentGoals, tournamentRank, getTournamentBest },
+    spotlight: { getSpotlightLevel, getSpotlightGoals, spotlightTierInfo, getSpotlightBest },
     timeattack: { seconds: TIME_ATTACK_SECONDS },
     themeMotif,
     Audio,

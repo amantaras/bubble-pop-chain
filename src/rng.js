@@ -52,3 +52,26 @@ export function weekKey(date = new Date()) {
 export function randInt(rng, min, max) {
   return min + Math.floor(rng() * (max - min + 1));
 }
+
+// Stable "civil days since epoch" for a local calendar date. Using Date.UTC
+// with the local Y/M/D components (not the actual local Date object) avoids
+// DST/timezone drift in the day-count arithmetic below.
+function civilDayIndex(date) {
+  return Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000);
+}
+
+// A rotating N-day period key (e.g. "P3-6532"), used by short-cycle content
+// like the Spotlight Challenge. Unlike `weekKey` (fixed to the ISO week), this
+// rotates continuously every `periodDays` days regardless of week boundaries.
+export function periodKey(date = new Date(), periodDays = 3) {
+  const idx = Math.floor(civilDayIndex(date) / periodDays);
+  return `P${periodDays}-${idx}`;
+}
+
+// Whole days remaining in the current rotation (inclusive of today), so the
+// first day of a period reports the full `periodDays` and the last reports 1.
+export function periodDaysLeft(date = new Date(), periodDays = 3) {
+  const idx = civilDayIndex(date);
+  const start = Math.floor(idx / periodDays) * periodDays;
+  return start + periodDays - idx;
+}

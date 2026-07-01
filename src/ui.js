@@ -33,6 +33,11 @@ import {
   tournamentDaysLeft,
 } from "./tournament.js";
 import {
+  getSpotlightBest,
+  getSpotlightModifier,
+  spotlightDaysLeft,
+} from "./spotlight.js";
+import {
   ACHIEVEMENT_CATEGORIES,
   categoryStatus,
   claimableCount,
@@ -229,6 +234,7 @@ class UIManager {
       "isolated", "iso-msg", "iso-pick", "iso-giveup",
       "btn-daily",
       "btn-tournament", "tournament-summary",
+      "btn-spotlight", "spotlight-summary",
       "btn-timeattack",
       "btn-sound",
       "btn-tutorial", "tutorial", "coach-progress", "coach-title",
@@ -327,6 +333,7 @@ class UIManager {
     click("btn-endless", () => this.cb.startEndless && this.cb.startEndless());
     click("btn-daily", () => this.cb.startDaily && this.cb.startDaily());
     click("btn-tournament", () => this.cb.startTournament && this.cb.startTournament());
+    click("btn-spotlight", () => this.cb.startSpotlight && this.cb.startSpotlight());
     click("btn-timeattack", () => this.cb.startTimeAttack && this.cb.startTimeAttack());
     click("btn-shop", () => {
       this._shopFilter = "featured";
@@ -562,7 +569,7 @@ class UIManager {
     if (!menu || menu.dataset.grouped === "true") return;
     const groups = [
       ["Play", ["btn-endless", "btn-timeattack", "btn-puzzle"]],
-      ["Events", ["btn-daily", "btn-tournament", "btn-quests", "btn-calendar"]],
+      ["Events", ["btn-daily", "btn-tournament", "btn-spotlight", "btn-quests", "btn-calendar"]],
       ["Progress", ["btn-pets", "btn-achievements", "btn-season", "btn-stats"]],
       ["Shop & Settings", ["btn-shop", "btn-themes"]],
     ];
@@ -673,6 +680,7 @@ class UIManager {
       this.updateContinue();
       this.updateDailySummary();
       this.updateTournamentSummary();
+      this.updateSpotlightSummary();
       this.refreshAchievementsBadge();
       this.refreshCalendarBadge();
       this.refreshQuestsBadge();
@@ -1168,6 +1176,18 @@ class UIManager {
     const best = getTournamentBest();
     const days = tournamentDaysLeft();
     const parts = [`<span class="ds-mod">🏆 ${mod.label}</span>`];
+    if (best > 0) parts.push(`<span class="ds-streak">Best ${best}</span>`);
+    parts.push(`<span class="ds-freeze">${days}d left</span>`);
+    el.innerHTML = parts.join("");
+  }
+
+  updateSpotlightSummary() {
+    const el = this.el["spotlight-summary"];
+    if (!el) return;
+    const mod = getSpotlightModifier();
+    const best = getSpotlightBest();
+    const days = spotlightDaysLeft();
+    const parts = [`<span class="ds-mod">🔦 ${mod.label}</span>`];
     if (best > 0) parts.push(`<span class="ds-streak">Best ${best}</span>`);
     parts.push(`<span class="ds-freeze">${days}d left</span>`);
     el.innerHTML = parts.join("");

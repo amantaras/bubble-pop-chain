@@ -100,6 +100,29 @@ never re‑discovered the hard way.
   on the win modal. Menu **Cup** tile (`#btn-tournament`) + `#tournament-summary`
   (modifier, best, days-left). No leaderboard, **no tutorial step** (meta mode).
   (Exposed for tests via `__bpc.tournament`.)
+- **Spotlight Challenge** (`spotlight.js` pure + `main.js` `startSpotlight`/
+  `_finish`, `rng.js` `periodKey`/`periodDaysLeft`): a rotating **limited-time
+  event** that changes every `SPOTLIGHT_PERIOD_DAYS` (3) days — a fresh
+  no-redeploy-needed reason to come back, distinct from the once/day daily and
+  the rank-only weekly tournament. `getSpotlightLevel` seeds one board per
+  rotation (`periodKey()`, a continuously-rotating N-day key independent of
+  week boundaries) with a deterministic **modifier** (`SPOTLIGHT_MODIFIERS`,
+  themed around chaos/specials — Multiplier Madness, Bomb Bonanza, Lightning
+  Storm, Coin Rush). Unlike the tournament's rank-only chase, the Spotlight
+  pays **real one-time coin rewards**: `getSpotlightGoals` sets three ascending
+  score goals (bronze/silver/gold) and `recordSpotlight` auto-pays
+  `SPOTLIGHT_TIER_REWARDS` (80/200/450 coins) the first time the rotation's
+  **best** score crosses each tier — idempotent via `Storage` key `spotlight`
+  `{periodKey,best,plays,claimedTiers}` (resets `claimedTiers` when a new
+  rotation starts; a run that jumps straight to gold pays every unclaimed tier
+  in one go). Mode `spotlight` runs through the generic `_newSession` with
+  `movesLeft = 9999`, ends on board deadlock (`afterMove` →
+  `_scheduleEnd(true,"spotlight")`), and `_finish` awards coins
+  (`floor(score/150)·coinMult` + any newly-claimed tier reward) + 40 season XP,
+  showing the tier reached and any `🎁 tier reward` line on the win modal. Menu
+  **Spotlight** tile (`#btn-spotlight`) + `#spotlight-summary` (modifier, best,
+  days-left). No leaderboard, **no tutorial step** (meta mode). (Exposed for
+  tests via `__bpc.spotlight`.)
 - **Time Attack** (`main.js` `startTimeAttack`/`update` countdown/`_finish`,
   `grid.js` `refill`): a **60-second** (`TIME_ATTACK_SECONDS`) score-rush on an
   endlessly-refilling board — the clock is the only limit. Mode `timeattack`
@@ -1340,6 +1363,7 @@ src/
   rng.js            # mulberry32 seeded RNG, todayKey
   economy.js        # Coins + power-up inventory/prices
   daily.js          # Daily challenge + streak logic
+  spotlight.js      # Spotlight Challenge (pure: rotating limited-time board + tiered coin rewards)
   calendar.js       # Login calendar / daily gifts (pure: 7-day reward cycle)
   season.js         # Season Pass / Battle Pass (pure: 10-tier free+premium track)
   quests.js         # Daily & weekly quests (pure: rotating goals + claimable rewards)
@@ -1423,7 +1447,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 634 unit tests + 518 E2E
+- **Current baseline (keep growing, never shrink)**: 649 unit tests + 542 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests
