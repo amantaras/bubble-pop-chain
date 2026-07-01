@@ -4901,9 +4901,17 @@ body {
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   z-index: 30;
+  /* Safe-area-aware padding so a tall dialog (Pause, Win, tool-unlock, etc.)
+     never renders under a notch/home-indicator or off a short viewport. */
+  padding: calc(var(--safe-top) + 14px) 16px calc(var(--safe-bottom) + 14px);
 }
 .modal-card {
   width: min(88vw, 360px);
+  /* Never taller than the padded safe area above; scroll internally instead
+     of clipping content under the notch/home-indicator on short viewports. */
+  max-height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   background:
     var(--ui-gradient-panel, linear-gradient(145deg, rgba(91, 227, 255, 0.13), rgba(255, 255, 255, 0.055))),
     linear-gradient(160deg, var(--bg-2), var(--bg-1));

@@ -915,11 +915,21 @@ export class Renderer {
       ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
       ctx.stroke();
     }
-    // Compact power gauge beside the drag origin.
-    const gx = sx - board.cell * 1.15;
-    const gy = sy - board.cell * 1.25;
+    // Compact power gauge beside the drag origin. Clamped to the visible
+    // canvas (and kept clear of the board's top edge/HUD) so a pull near an
+    // edge or the top row never draws the gauge off-screen or hidden behind
+    // the HUD — a real readability issue on small phones.
     const gw = board.cell * 2.3;
     const gh = Math.max(8, board.cell * 0.16);
+    const labelPad = Math.max(16, board.cell * 0.24);
+    const canvasW = (ctx.canvas && ctx.canvas.clientWidth) || Infinity;
+    const canvasH = (ctx.canvas && ctx.canvas.clientHeight) || Infinity;
+    const minX = 8;
+    const maxX = Math.max(minX, canvasW - gw - 8);
+    const minY = Math.max(8, board.originY - labelPad);
+    const maxY = Math.max(minY, canvasH - gh - 8);
+    const gx = Math.max(minX, Math.min(sx - board.cell * 1.15, maxX));
+    const gy = Math.max(minY, Math.min(sy - board.cell * 1.25, maxY));
     ctx.globalCompositeOperation = "source-over";
     ctx.shadowBlur = 0;
     ctx.fillStyle = "rgba(0,0,0,0.46)";

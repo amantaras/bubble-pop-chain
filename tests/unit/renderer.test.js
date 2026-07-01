@@ -126,3 +126,91 @@ describe("colour helpers (memoized, behaviour-preserving)", () => {
   });
 });
 
+// The Archer power gauge is drawn beside wherever the player starts the pull,
+// which can be anywhere on the board — including right at an edge or the top
+// row. Without clamping, the gauge (and its "PULL"/"POWER"/"BULLSEYE" label)
+// could render partly off-canvas or hidden behind the HUD, which is a real
+// readability regression on small phones. These tests drive the real
+// drawArcherAim() against a small fake canvas and assert the gauge rectangle
+// always stays fully on-screen and clear of the board's top edge.
+describe("Archer aim power gauge (on-screen clamp)", () => {
+  function fakeCtx(clientWidth, clientHeight) {
+    const fillRects = [];
+    const canvas = { clientWidth, clientHeight };
+    const handler = {
+      get(_t, prop) {
+        if (prop === "canvas") return canvas;
+        if (prop === "fillRect") return (x, y, w, h) => fillRects.push({ x, y, w, h });
+        if (prop === "createLinearGradient" || prop === "createRadialGradient")
+          return () => ({ addColorStop: () => {} });
+        if (
+          [
+            "save", "restore", "beginPath", "moveTo", "lineTo", "arc", "stroke",
+            "fill", "fillText", "strokeRect", "closePath",
+          ].includes(prop)
+        )
+          return () => {};
+        return undefined;
+      },
+      set: () => true,
+    };
+    return { ctx: new Proxy({}, handler), fillRects };
+  }
+
+  function baseAim(start, end) {
+    return { start, end, power: 0.5, sweet: 0.68, cells: [] };
+  }
+
+  it("keeps the gauge fully inside a small canvas when pulling near the top-left corner", () => {
+    const { ctx, fillRects } = fakeCtx(360, 640);
+    const renderer = new Renderer(ctx);
+    const board = { cell: 40, originY: 168 };
+    // Pull origin right at the top-left of the board — an unclamped gauge
+    // would compute a negative x/y here (off-canvas, and above the HUD).
+    renderer.drawArcherAim(board, baseAim({ x: 10, y: 172 }, { x: 40, y: 172 }), 0);
+
+    expect(fillRects.length).toBeGreaterThan(0);
+    const gauge = fillRects[0]; // the background bar is drawn first
+    expect(gauge.x).toBeGreaterThanOrEqual(0);
+    expect(gauge.y).toBeGreaterThanOrEqual(0);
+    expect(gauge.x + gauge.w).toBeLessThanOrEqual(360);
+    // The gauge (plus its label above it) must not draw above the board's
+    // top edge, so it never hides behind the HUD.
+    expect(gauge.y).toBeGreaterThanOrEqual(board.originY - 24);
+  });
+
+  it("keeps the gauge fully inside a small canvas when pulling near the bottom-right corner", () => {
+    const { ctx, fillRects } = fakeCtx(360, 640);
+    const renderer = new Renderer(ctx);
+    const board = { cell: 40, originY: 168 };
+    renderer.drawArcherAim(board, baseAim({ x: 350, y: 630 }, { x: 320, y: 600 }), 0);
+
+    const gauge = fillRects[0];
+    const gw = board.cell * 2.3;
+    const gh = Math.max(8, board.cell * 0.16);
+    expect(gauge.x + gw).toBeLessThanOrEqual(360 + 0.001);
+    expect(gauge.y + gh).toBeLessThanOrEqual(640 + 0.001);
+  });
+
+  it("draws the gauge at its natural position when there is plenty of room", () => {
+    const { ctx, fillRects } = fakeCtx(800, 1200);
+    const renderer = new Renderer(ctx);
+    const board = { cell: 40, originY: 168 };
+    const start = { x: 400, y: 500 };
+    renderer.drawArcherAim(board, baseAim(start, { x: 420, y: 480 }), 0);
+
+    const gauge = fillRects[0];
+    expect(gauge.x).toBeCloseTo(start.x - board.cell * 1.15, 5);
+    expect(gauge.y).toBeCloseTo(start.y - board.cell * 1.25, 5);
+  });
+
+  it("never throws when the canvas dimensions are unavailable (defensive fallback)", () => {
+    const { ctx } = fakeCtx(undefined, undefined);
+    const renderer = new Renderer(ctx);
+    const board = { cell: 40, originY: 168 };
+    expect(() =>
+      renderer.drawArcherAim(board, baseAim({ x: 10, y: 172 }, { x: 40, y: 172 }), 0)
+    ).not.toThrow();
+  });
+});
+

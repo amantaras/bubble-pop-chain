@@ -302,6 +302,11 @@ never re‑discovered the hard way.
   buttons so the board keeps more vertical space. The menu CTA/secondary tile
   hierarchy is likewise compacted so Play/Continue stay dominant while meta
   tiles scan faster. Display polish only — no save field, no tutorial step.
+  Every `.modal` (Pause, win/lose, tool-unlock, pet-confirm, etc.) reserves
+  safe-area-aware padding (`--safe-top`/`--safe-bottom`) around the dialog and
+  its `.modal-card` scrolls internally (`max-height:100%; overflow-y:auto`) if
+  content is taller than the available space — so a tall dialog can never be
+  clipped under a notch/home-indicator or on a short viewport.
 - **Undo tool** (`economy.js` `POWERUP_INFO.undo`, `main.js` `_pushUndo`/
   `canUndo`/`undoMove`): Undo is now a normal loadout tool, unlocked at Level 6
   and consumed from the player's power-up inventory (`Economy.usePowerup("undo")`).
@@ -1008,7 +1013,11 @@ never re‑discovered the hard way.
   settling/re-evaluating in `onDone`). **Archer 🏹** draws the pull line plus the
   opposite firing line, predicted hit rings, a stronger bullseye fill, and
   green-band power gauge (`renderer.drawArcherAim`), then plays a dedicated
-  `arrow` flight/streak animation through every pierced bubble. The other pets' board change happens
+  `arrow` flight/streak animation through every pierced bubble. The gauge is
+  **clamped to the visible canvas and kept clear of the board's top edge**
+  (never off-screen or hidden behind the HUD when pulling near an edge/top
+  row — a small-screen readability fix, unit-tested against a fake canvas).
+  The other pets' board change happens
   immediately when triggered (the animation is cosmetic); Talon's pick is the
   exception — it removes each bubble in step with the peck so nothing is pecked
   after it has already vanished.
@@ -1447,7 +1456,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 649 unit tests + 542 E2E
+- **Current baseline (keep growing, never shrink)**: 653 unit tests + 544 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

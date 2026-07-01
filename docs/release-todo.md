@@ -142,16 +142,16 @@ Goal: tune feel and readability after real-device testing.
 Candidate polish tasks:
 
 - [ ] Skybolt: tune aircraft scale, speed, route height, bomb spacing, and impact timing based on phone feel.
-- [ ] Archer: verify drag direction, projected ray, and power gauge are readable on small screens.
+- [x] Archer: verify drag direction, projected ray, and power gauge are readable on small screens. Fixed a real bug: the power gauge is now clamped to the visible canvas and kept clear of the board's top edge/HUD (was previously able to render off-screen or hidden behind the HUD when pulling near an edge/top row). Drag direction and projected ray were already correct on inspection. Remaining: confirm feel on an actual device.
 - [ ] Magnet: verify dial sweet spot, color-bubble shake, and lock timing on touch devices.
 - [ ] Reward ceremony: tune chest/choice/tool-unlock pacing so stacked rewards do not feel slow.
-- [ ] Pause/shop/settings overlays: verify they do not obscure safe areas on Android/iOS.
+- [x] Pause/shop/settings overlays: verify they do not obscure safe areas on Android/iOS. Fixed a real gap: `.modal` (Pause, win/lose, tool-unlock, pet-confirm, etc.) now reserves safe-area-aware padding and `.modal-card` scrolls internally instead of clipping when content is taller than the available space. `.screen` (Shop/Settings/etc.) already handled this correctly.
 
 Validation:
 
-- [ ] Add or update unit tests for pure timing/selection helpers when applicable.
-- [ ] Add or update E2E tests for any changed user-facing flow.
-- [ ] Run `CI=1 npm test` locally before commit.
+- [x] Add or update unit tests for pure timing/selection helpers when applicable. (Archer gauge clamp: 4 new unit tests in `tests/unit/renderer.test.js`.)
+- [x] Add or update E2E tests for any changed user-facing flow. (New safe-area modal e2e test in `tests/e2e/game.spec.js`.)
+- [x] Run `CI=1 npm test` locally before commit.
 - [ ] Push and verify CI plus production deploy.
 
 Done when:

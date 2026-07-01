@@ -505,6 +505,34 @@ test.describe("core gameplay (real input)", () => {
     await page.locator("#pause-menu").click();
     await expect(page.locator("#menu")).toBeVisible();
   });
+
+  test("the pause modal never renders under a simulated notch/home-indicator safe area", async ({
+    page,
+  }) => {
+    // Simulate a native shell with real safe-area insets (the CSS floor bump
+    // in styles.css only applies once `body.native-shell` is present) on a
+    // short phone viewport, so a tall dialog like Pause has the least room to
+    // fit without clipping under the top/bottom system UI.
+    await page.setViewportSize({ width: 360, height: 640 });
+    await page.evaluate(() => document.body.classList.add("native-shell"));
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await page.locator("#btn-back").click();
+    await expect(page.locator("#pause")).toBeVisible();
+
+    const card = page.locator("#pause .modal-card");
+    const box = await card.boundingBox();
+    expect(box).not.toBeNull();
+    // The dialog must sit fully within the viewport — no top/bottom clipping.
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height).toBeLessThanOrEqual(640);
+
+    // Every action button stays visible and clickable, never hidden under the
+    // simulated safe area.
+    await expect(page.locator("#pause-resume")).toBeVisible();
+    await expect(page.locator("#pause-menu")).toBeVisible();
+    await page.locator("#pause-resume").click();
+    await expect(page.locator("#pause")).toBeHidden();
+  });
 });
 
 test.describe("undo tool (real input)", () => {
