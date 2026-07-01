@@ -884,7 +884,27 @@ never re‑discovered the hard way.
   plain save object to display-ready rows (`{ key, icon, label, value }`) and
   `formatStat(n)` adds locale-independent thousands separators. It reuses data
   already tracked elsewhere (it never writes), so it adds no new save fields and,
-  as a meta display, gets **no tutorial step**.- **Piggy Bank** (`piggy.js`, pure; `storage.js` `piggyBank`; `main.js`
+  as a meta display, gets **no tutorial step**.
+- **Diagnostics (support info)** (`diagnostics.js`, pure; `main.js` global error
+  listeners; `ui.js` `openDiagnostics`/`copyDiagnostics`/`shareDiagnostics`): a
+  **privacy-conscious, explicit-action-only** support screen reachable from
+  Themes (`#btn-diagnostics` → `#diagnostics`). Nothing is collected, stored, or
+  exported automatically — opening the screen builds a fresh read-only snapshot
+  in memory, and only tapping **Copy debug info** or **Share** ever turns it
+  into text. `main.js` installs `window` `"error"`/`"unhandledrejection"`
+  listeners once at bootstrap that feed `recordRuntimeError` into a bounded,
+  **session-only** in-memory ring buffer (`MAX_DIAGNOSTIC_ERRORS` = 20, oldest
+  dropped first — never persisted, cleared on reload). `buildDiagnosticsReport`
+  (pure) maps a caller-supplied save-field subset + a few environment facts
+  (user agent, screen size, online state, native-shell flag) plus that error
+  buffer into one plain-object report — only aggregate, non-identifying fields
+  (this game has no accounts). `diagnosticsRows` flattens it into the same
+  `{key, icon, label, value}` shape the Stats screen uses (rendered via the
+  shared `.stats-grid`/`.stat-cell` classes), and `formatDiagnosticsReport`
+  renders a human-readable text block (plus the embedded raw JSON) for
+  **Copy** (`navigator.clipboard.writeText`, with a `document.execCommand`
+  fallback) or **Share** (Web Share API, hidden when unavailable). Meta/support
+  tooling — **no tutorial step**. (Exposed for tests via `__bpc.diagnostics`.)- **Piggy Bank** (`piggy.js`, pure; `storage.js` `piggyBank`; `main.js`
   `_depositPiggy`/`crackPiggy`; `ui.js` `_buildPiggyItem`): a passive coin vault
   that fills a little every time a board ends. `piggyEarn(score)` banks
   `floor(score / PIGGY_RATE)` coins on **every** `_finish` (all modes, skipped
@@ -1377,6 +1397,7 @@ src/
   season.js         # Season Pass / Battle Pass (pure: 10-tier free+premium track)
   quests.js         # Daily & weekly quests (pure: rotating goals + claimable rewards)
   stats.js          # Stats / Profile dashboard (pure: read-only progress aggregation)
+  diagnostics.js    # Diagnostics support info (pure: error ring buffer + report builder)
   piggy.js          # Piggy Bank (pure: passive coin vault + crack-open purchase)
   puzzle.js         # Puzzle Mode ladder (pure: clear-the-board-in-N-moves + star ratings)
   events.js         # Falling gift/problem events (pure: delay/type/reward rolls)
@@ -1456,7 +1477,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 653 unit tests + 544 E2E
+- **Current baseline (keep growing, never shrink)**: 666 unit tests + 552 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

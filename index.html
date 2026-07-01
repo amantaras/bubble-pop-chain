@@ -430,6 +430,13 @@
           <button class="pref-seg" data-buy-ms="250" role="radio" aria-checked="false">Fast</button>
         </div>
       </div>
+      <div class="pref-card" id="diag-entry">
+        <div class="pref-copy">
+          <span class="pref-title">Diagnostics</span>
+          <span class="pref-sub">View app &amp; save info to share with support if something looks wrong</span>
+        </div>
+        <button class="btn btn-ghost" id="btn-diagnostics">Open</button>
+      </div>
       <div class="theme-list" id="theme-list"></div>
     </div>
 
@@ -751,6 +758,23 @@
         <p class="chest-sub" id="chest-sub">Chest opened!</p>
         <div class="chest-rewards" id="chest-rewards"></div>
         <button class="btn btn-primary" id="chest-ok">Collect</button>
+      </div>
+    </div>
+
+    <!-- Diagnostics: privacy-conscious support info. Nothing here is ever
+         collected or exported automatically — the report is only assembled
+         when this opens, and only turned into text when Copy/Share is tapped. -->
+    <div id="diagnostics" class="overlay modal hidden" role="dialog" aria-modal="true" aria-label="Diagnostics">
+      <div class="modal-card diagnostics-card">
+        <h2 class="modal-title">Diagnostics</h2>
+        <p class="modal-sub">Share this with support if something looks wrong. Nothing is sent automatically — only when you tap Copy or Share.</p>
+        <div class="stats-grid diag-grid" id="diag-grid"></div>
+        <div class="diag-errors" id="diag-errors"></div>
+        <div class="modal-buttons">
+          <button class="btn" id="diag-copy">Copy debug info</button>
+          <button class="btn hidden" id="diag-share">Share</button>
+        </div>
+        <button class="btn btn-ghost" id="diag-close">Close</button>
       </div>
     </div>
 

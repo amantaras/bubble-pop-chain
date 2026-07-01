@@ -194,6 +194,13 @@ import {
   SEASON_PREMIUM_PRODUCT,
 } from "./season.js";
 import { makeRng, todayKey, weekKey } from "./rng.js";
+import {
+  recordRuntimeError,
+  getRuntimeErrors,
+  clearRuntimeErrors,
+  buildDiagnosticsReport,
+  formatDiagnosticsReport,
+} from "./diagnostics.js";
 const TOP_INSET = 168;
 const BOTTOM_INSET = 120;
 const COMBO_WINDOW = 1.6; // seconds before a combo resets
@@ -228,6 +235,29 @@ const COIN_BUBBLE_VALUE = 12;
 // Downpour relief: every successful rain tick grants one extra move, regardless
 // of how many bubbles were added in that drop.
 const DOWNPOUR_MOVES_PER_DROP = 1;
+
+// Diagnostics: capture uncaught errors/rejections into a session-only,
+// in-memory ring buffer (see diagnostics.js). Nothing here is persisted or
+// exported automatically — the player must open the Diagnostics screen and
+// explicitly tap Copy/Share before this ever turns into text.
+if (typeof window !== "undefined") {
+  window.addEventListener("error", (e) => {
+    recordRuntimeError({
+      message: e.message,
+      source: e.filename,
+      line: e.lineno,
+      col: e.colno,
+      stack: e.error && e.error.stack,
+    });
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    const reason = e.reason;
+    recordRuntimeError({
+      message: reason && reason.message ? reason.message : String(reason),
+      stack: reason && reason.stack,
+    });
+  });
+}
 
 class Game {
   constructor() {
@@ -5378,6 +5408,7 @@ if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) 
     cascade: { cascadeBonus, cascadeTier },
     tournament: { getTournamentLevel, getTournamentGoals, tournamentRank, getTournamentBest },
     spotlight: { getSpotlightLevel, getSpotlightGoals, spotlightTierInfo, getSpotlightBest },
+    diagnostics: { recordRuntimeError, getRuntimeErrors, clearRuntimeErrors, buildDiagnosticsReport, formatDiagnosticsReport },
     timeattack: { seconds: TIME_ATTACK_SECONDS },
     themeMotif,
     Audio,

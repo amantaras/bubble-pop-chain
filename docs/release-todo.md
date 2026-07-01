@@ -152,7 +152,7 @@ Validation:
 - [x] Add or update unit tests for pure timing/selection helpers when applicable. (Archer gauge clamp: 4 new unit tests in `tests/unit/renderer.test.js`.)
 - [x] Add or update E2E tests for any changed user-facing flow. (New safe-area modal e2e test in `tests/e2e/game.spec.js`.)
 - [x] Run `CI=1 npm test` locally before commit.
-- [ ] Push and verify CI plus production deploy.
+- [x] Push and verify CI plus production deploy. (Commit `aa42d41`: CI and production deploy both green, live site verified.)
 
 Done when:
 
@@ -164,21 +164,21 @@ Goal: make beta/production issues diagnosable without compromising privacy.
 
 Options:
 
-- [ ] Lightweight in-game diagnostics screen under `?e2e=1` or a dev-only gesture.
-- [ ] Exportable local save/debug bundle for support.
-- [ ] Privacy-conscious crash/error telemetry if a provider is selected.
+- [x] Lightweight in-game diagnostics screen under `?e2e=1` or a dev-only gesture. Implemented as a real, always-reachable Themes screen entry (`#btn-diagnostics`), not gated behind `?e2e=1`, so real testers can reach it without DevTools.
+- [x] Exportable local save/debug bundle for support. `Copy debug info` copies a full text+JSON report; `Share` uses the Web Share API when available.
+- [ ] Privacy-conscious crash/error telemetry if a provider is selected. Deferred — no remote telemetry provider is wired; errors are captured only in a local, session-only, in-memory buffer.
 
 Engineering tasks:
 
-- [ ] Define what diagnostic data is safe to collect or export.
-- [ ] Add an explicit user action before exporting any local save/debug data.
-- [ ] Update privacy policy and store disclosure text if telemetry is added.
-- [ ] Add tests for diagnostics visibility, export shape, and privacy guardrails.
+- [x] Define what diagnostic data is safe to collect or export. Only aggregate/non-identifying fields: save-derived profile summary, generic device/browser facts, and recent runtime errors (see `diagnostics.js` header comment).
+- [x] Add an explicit user action before exporting any local save/debug data. Nothing is assembled until the screen opens, and nothing leaves the device/clipboard until Copy or Share is tapped.
+- [ ] Update privacy policy and store disclosure text if telemetry is added. Not needed yet — no data leaves the device automatically; revisit if a remote telemetry provider is ever added.
+- [x] Add tests for diagnostics visibility, export shape, and privacy guardrails. 13 unit tests (`tests/unit/diagnostics.test.js`) + 4 e2e tests (`tests/e2e/game.spec.js`), including a real uncaught-error capture test and a clipboard-contents test.
 
 Done when:
 
-- [ ] A tester can provide actionable state/error information without manual DevTools work.
-- [ ] Privacy disclosures match the implemented behavior.
+- [x] A tester can provide actionable state/error information without manual DevTools work.
+- [x] Privacy disclosures match the implemented behavior. (No disclosure change needed — nothing is collected/transmitted automatically.)
 
 ## Suggested Execution Order
 

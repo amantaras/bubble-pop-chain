@@ -458,6 +458,85 @@ test.describe("menu & navigation (UI)", () => {
   });
 });
 
+test.describe("diagnostics (support info)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("opens from Themes, shows a live summary, and has no errors on a clean session", async ({
+    page,
+  }) => {
+    await page.locator("#btn-themes").click();
+    await expect(page.locator("#themes")).toBeVisible();
+    await page.locator("#btn-diagnostics").click();
+    await expect(page.locator("#diagnostics")).toBeVisible();
+
+    // The summary grid reflects the real save (fresh: level 1, aurora theme).
+    await expect(page.locator("#diag-grid")).toContainText("App version");
+    await expect(page.locator("#diag-grid")).toContainText("aurora");
+    await expect(page.locator("#diag-errors")).toContainText("No errors recorded this session");
+
+    await page.locator("#diag-close").click();
+    await expect(page.locator("#diagnostics")).toBeHidden();
+    await expect(page.locator("#themes")).toBeVisible();
+  });
+
+  test("a real uncaught error is captured and shown the next time diagnostics opens", async ({
+    page,
+  }) => {
+    // Trigger a genuine uncaught error through the real window "error" event
+    // (not the __bpc test hook), proving the production error listener works.
+    await page.evaluate(() => {
+      setTimeout(() => {
+        throw new Error("diagnostics-e2e-probe");
+      }, 0);
+    });
+    await page.waitForTimeout(150);
+
+    await page.locator("#btn-themes").click();
+    await page.locator("#btn-diagnostics").click();
+    await expect(page.locator("#diagnostics")).toBeVisible();
+    await expect(page.locator("#diag-errors")).toContainText("diagnostics-e2e-probe");
+    await expect(page.locator("#diag-errors")).not.toContainText("No errors recorded this session");
+  });
+
+  test("Copy debug info places the full report on the clipboard", async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"], {
+      origin: "http://127.0.0.1:4173",
+    });
+    await page.evaluate(() => {
+      window.__bpc.Storage.set("maxUnlockedLevel", 9);
+      window.__bpc.Storage.set("coins", 555);
+    });
+    await page.locator("#btn-themes").click();
+    await page.locator("#btn-diagnostics").click();
+    await expect(page.locator("#diagnostics")).toBeVisible();
+
+    await page.locator("#diag-copy").click();
+    await expect(page.locator("#toast")).toContainText("copied");
+    const clipboard = await page.evaluate(() => navigator.clipboard.readText());
+    expect(clipboard).toContain("Bubblit! Diagnostics Report");
+    expect(clipboard).toContain("--- raw JSON ---");
+    expect(clipboard).toContain("555");
+    // The trailing raw JSON blob is valid, parseable JSON.
+    const jsonLine = clipboard.split("--- raw JSON ---\n")[1];
+    expect(() => JSON.parse(jsonLine)).not.toThrow();
+    expect(JSON.parse(jsonLine).profile.maxUnlockedLevel).toBe(9);
+  });
+
+  test("Share is hidden when the Web Share API is unavailable (headless Chromium)", async ({
+    page,
+  }) => {
+    await page.locator("#btn-themes").click();
+    await page.locator("#btn-diagnostics").click();
+    await expect(page.locator("#diagnostics")).toBeVisible();
+    const hasShare = await page.evaluate(() => typeof navigator.share === "function");
+    if (hasShare) {
+      await expect(page.locator("#diag-share")).toBeVisible();
+    } else {
+      await expect(page.locator("#diag-share")).toBeHidden();
+    }
+  });
+});
+
 test.describe("core gameplay (real input)", () => {
   test.beforeEach(({ page }) => openGame(page));
 

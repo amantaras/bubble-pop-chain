@@ -131,6 +131,11 @@ import {
   hasPendingTech,
   techTiersUnlocked,
 } from "./tech.js";
+import {
+  buildDiagnosticsReport,
+  formatDiagnosticsReport,
+  diagnosticsRows,
+} from "./diagnostics.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -198,6 +203,7 @@ class UIManager {
       "hints-toggle", "hints-toggle-state",
       "rm-toggle", "rm-toggle-state",
       "buy-batch-pref", "buy-speed-pref",
+      "btn-diagnostics", "diagnostics", "diag-grid", "diag-errors", "diag-copy", "diag-share", "diag-close",
       "pets", "pets-coins", "pet-tabs", "pet-panel-companions", "pet-panel-party", "pet-panel-gems", "pet-panel-store",
       "pets-crate", "pet-party", "pet-gems", "pet-gem-tip", "pet-store", "pet-list", "pet-detail",
       "gem-forge", "gemforge-body", "gemforge-dust", "gemforge-back",
@@ -364,6 +370,10 @@ class UIManager {
     // paused level instead of dropping back to the menu.
     click("shop-back", () => this.closeShop());
     click("themes-back", () => this.closeThemes());
+    click("btn-diagnostics", () => this.openDiagnostics());
+    click("diag-close", () => this.closeDiagnostics());
+    click("diag-copy", () => this.copyDiagnostics());
+    click("diag-share", () => this.shareDiagnostics());
     click("achv-back", () => this.showScreen("menu"));
     click("achv-collect-all", () => this._claimAllAchievements());
     click("cal-back", () => this.showScreen("menu"));
@@ -2544,6 +2554,118 @@ class UIManager {
     });
   }
 
+  // ---- Diagnostics (support info) ---------------------------------------
+  // A privacy-conscious, explicit-action-only support screen: nothing here is
+  // collected, stored, or exported automatically. Opening the screen builds a
+  // fresh read-only snapshot; Copy/Share are the only actions that ever turn
+  // it into text, and only when the player taps them.
+  openDiagnostics() {
+    const save = {
+      maxUnlockedLevel: Storage.get("maxUnlockedLevel"),
+      stars: Storage.get("stars"),
+      coins: Economy.coins,
+      currentTheme: Storage.get("currentTheme"),
+      muted: Storage.get("muted"),
+      settings: Storage.get("settings"),
+      adsRemoved: Storage.get("adsRemoved"),
+      starterPack: Storage.get("starterPack"),
+      daily: Storage.get("daily"),
+      season: Storage.get("season"),
+      achievements: Storage.get("achievements"),
+      pets: Storage.get("pets"),
+      puzzle: Storage.get("puzzle"),
+      highScoreEndless: Storage.get("highScoreEndless"),
+      highScoreTimeAttack: Storage.get("highScoreTimeAttack"),
+      activeSession: Storage.get("activeSession"),
+    };
+    const env = {
+      now: Date.now(),
+      nativeShell: document.body.classList.contains("native-shell"),
+      userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "unknown",
+      language: typeof navigator !== "undefined" ? navigator.language : "unknown",
+      screen:
+        typeof window !== "undefined" && window.screen
+          ? { width: window.screen.width, height: window.screen.height }
+          : null,
+      dpr: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
+      online: typeof navigator !== "undefined" ? navigator.onLine : true,
+    };
+    const report = buildDiagnosticsReport(save, env);
+    this._diagText = formatDiagnosticsReport(report);
+    this._fillDiagGrid(this.el["diag-grid"], diagnosticsRows(report));
+    this._fillDiagErrors(this.el["diag-errors"], report.errors);
+    const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
+    if (this.el["diag-share"]) this.el["diag-share"].classList.toggle("hidden", !canShare);
+    if (this.el["diagnostics"]) this.el["diagnostics"].classList.remove("hidden");
+  }
+
+  closeDiagnostics() {
+    if (this.el["diagnostics"]) this.el["diagnostics"].classList.add("hidden");
+  }
+
+  _fillDiagGrid(grid, rows) {
+    if (!grid) return;
+    grid.innerHTML = "";
+    rows.forEach((row) => {
+      const cell = document.createElement("div");
+      cell.className = "stat-cell";
+      cell.innerHTML =
+        `<span class="stat-ic" aria-hidden="true">${row.icon}</span>` +
+        `<span class="stat-val">${escapeHtml(String(row.value))}</span>` +
+        `<span class="stat-label">${escapeHtml(row.label)}</span>`;
+      grid.appendChild(cell);
+    });
+  }
+
+  _fillDiagErrors(el, errors) {
+    if (!el) return;
+    const list = errors || [];
+    if (!list.length) {
+      el.innerHTML = `<div class="diag-error-empty">No errors recorded this session ✅</div>`;
+      return;
+    }
+    el.innerHTML = list
+      .map((e) => {
+        const loc = e.source ? ` <span class="diag-error-loc">(${escapeHtml(e.source)}:${e.line}:${e.col})</span>` : "";
+        return `<div class="diag-error-row"><b>${escapeHtml(e.message)}</b>${loc}</div>`;
+      })
+      .join("");
+  }
+
+  copyDiagnostics() {
+    const text = this._diagText || "";
+    const done = () => this.toast("Debug info copied!");
+    const fail = () => this.toast("Copy failed — try Share instead");
+    if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(() => this._fallbackCopy(text, done, fail));
+    } else {
+      this._fallbackCopy(text, done, fail);
+    }
+  }
+
+  _fallbackCopy(text, done, fail) {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand && document.execCommand("copy");
+      document.body.removeChild(ta);
+      if (ok) done();
+      else fail();
+    } catch (e) {
+      fail();
+    }
+  }
+
+  shareDiagnostics() {
+    if (typeof navigator === "undefined" || typeof navigator.share !== "function") return;
+    navigator.share({ title: "Bubblit! Diagnostics", text: this._diagText || "" }).catch(() => {});
+  }
+
   // ---- Puzzle Mode ------------------------------------------------------
   // Render the puzzle ladder: a numbered grid of fixed challenges. Each cell
   // shows its board size and best star rating; locked puzzles (the next one
@@ -4286,6 +4408,7 @@ class UIManager {
     if (this.el["pet-levelup"]) this.el["pet-levelup"].classList.add("hidden");
     if (this.el["pet-gem-reminder"]) this.el["pet-gem-reminder"].classList.add("hidden");
     if (this.el["pet-reveal"]) this.el["pet-reveal"].classList.add("hidden");
+    if (this.el["diagnostics"]) this.el["diagnostics"].classList.add("hidden");
   }
 
   showWin({ stars, score, coins = 0, rewardText, stats, showNext, showDouble, rewardChoices = [], hasPendingUnlock = false }) {

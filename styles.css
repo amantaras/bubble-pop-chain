@@ -2355,6 +2355,61 @@ body {
   color: var(--text-dim);
 }
 
+/* ---------- Diagnostics (support info) ---------- */
+.diagnostics-card {
+  width: min(92vw, 400px);
+  text-align: left;
+}
+.diagnostics-card .modal-title {
+  text-align: left;
+}
+.diagnostics-card .modal-sub {
+  text-align: left;
+  font-size: 13px;
+}
+.diag-grid {
+  padding: 0;
+  margin-bottom: 14px;
+}
+.diag-grid .stat-val {
+  font-size: 14px;
+  font-weight: 800;
+  word-break: break-word;
+}
+.diag-errors {
+  max-height: 26vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.diag-error-empty {
+  padding: 12px;
+  font-size: 13px;
+  color: var(--text-dim);
+  text-align: center;
+}
+.diag-error-row {
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.diag-error-row:last-child {
+  border-bottom: none;
+}
+.diag-error-loc {
+  color: var(--text-dim);
+}
+#diag-entry .btn {
+  width: auto;
+  padding: 10px 16px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
 /* ---------- Puzzle Mode ---------- */
 .puzzle-intro {
   margin: 6px 18px 12px;
