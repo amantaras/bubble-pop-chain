@@ -8007,6 +8007,151 @@ test.describe("puzzle mode (Tier 2)", () => {
     // The board wasn't cleared, so no stars were banked.
     expect(await page.evaluate(() => window.__bpc.Storage.getPuzzleStars(0))).toBe(0);
   });
+
+  // Puzzles 13+ reuse the campaign's boss archetypes (frozen core / stone
+  // vault / colour hunt) for a narrower objective than "clear everything" —
+  // the whole point of the new puzzle types is that they can be WON while
+  // ordinary bubbles are still on the board.
+  test("a frozen ice-core puzzle is won by shattering just the core, bubbles may remain", async ({
+    page,
+  }) => {
+    // Unlock puzzle 13 (index 12) by faking the first 12 as solved.
+    await page.evaluate(() => {
+      const stars = {};
+      for (let i = 0; i < 12; i++) stars[i] = 1;
+      window.__bpc.Storage.set("puzzle", { stars });
+    });
+    await page.evaluate(() => window.__bpc.game.startPuzzle(12));
+    await page.waitForTimeout(400);
+    const before = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      return {
+        puzzleType: g.session.puzzleType,
+        hasBounds: !!g.session.puzzleBounds,
+        core: g.session.board.frozenRemaining(),
+        total: g.session.board.countRemaining(),
+      };
+    });
+    expect(before.puzzleType).toBe("frozen");
+    expect(before.hasBounds).toBe(true);
+    expect(before.core).toBeGreaterThan(0);
+    // The seeded core is smaller than the whole board — plenty of ordinary
+    // bubbles surround it.
+    expect(before.total).toBeGreaterThan(before.core);
+    await expect(page.locator("#hud-target-label")).toHaveText("Core");
+
+    // Shatter only the ice core (ICE = 1, ICE_CRACKED = 3) and resolve the
+    // move — the board still has plenty of ordinary bubbles left.
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          if (b.types[c][r] === 1 || b.types[c][r] === 3) {
+            b.grid[c][r] = -1;
+            b.types[c][r] = 0;
+            b.spriteGrid[c][r] = null;
+          }
+        }
+      g.afterMove();
+    });
+    await expect(page.locator("#win")).toBeVisible();
+    expect(await page.evaluate(() => window.__bpc.Storage.getPuzzleStars(12))).toBeGreaterThanOrEqual(1);
+  });
+
+  test("a stone-vault puzzle is won by breaking just the stones, bubbles may remain", async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      const stars = {};
+      for (let i = 0; i < 13; i++) stars[i] = 1;
+      window.__bpc.Storage.set("puzzle", { stars });
+    });
+    await page.evaluate(() => window.__bpc.game.startPuzzle(13));
+    await page.waitForTimeout(400);
+    const before = await page.evaluate(() => ({
+      puzzleType: window.__bpc.game.session.puzzleType,
+      stones: window.__bpc.game.session.board.stoneRemaining(),
+    }));
+    expect(before.puzzleType).toBe("stone");
+    expect(before.stones).toBeGreaterThan(0);
+    await expect(page.locator("#hud-target-label")).toHaveText("Stone");
+
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          if (b.types[c][r] === 5) {
+            b.grid[c][r] = -1;
+            b.types[c][r] = 0;
+            b.spriteGrid[c][r] = null;
+          }
+        }
+      g.afterMove();
+    });
+    await expect(page.locator("#win")).toBeVisible();
+    expect(await page.evaluate(() => window.__bpc.Storage.getPuzzleStars(13))).toBeGreaterThanOrEqual(1);
+  });
+
+  test("a colour-hunt puzzle is won by clearing just the hunted colour, bubbles may remain", async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      const stars = {};
+      for (let i = 0; i < 14; i++) stars[i] = 1;
+      window.__bpc.Storage.set("puzzle", { stars });
+    });
+    await page.evaluate(() => window.__bpc.game.startPuzzle(14));
+    await page.waitForTimeout(400);
+    const before = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const tc = g.session.puzzleTargetColor;
+      return {
+        puzzleType: g.session.puzzleType,
+        targetColor: tc,
+        left: tc >= 0 ? g.session.board.colorCells(tc).length : 0,
+      };
+    });
+    expect(before.puzzleType).toBe("color");
+    expect(before.targetColor).toBeGreaterThanOrEqual(0);
+    expect(before.left).toBeGreaterThan(0);
+    await expect(page.locator("#hud-target-label")).toHaveText("Left");
+
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      const tc = g.session.puzzleTargetColor;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          if (b.grid[c][r] === tc) {
+            b.grid[c][r] = -1;
+            b.types[c][r] = 0;
+            b.spriteGrid[c][r] = null;
+          }
+        }
+      g.afterMove();
+    });
+    await expect(page.locator("#win")).toBeVisible();
+    expect(await page.evaluate(() => window.__bpc.Storage.getPuzzleStars(14))).toBeGreaterThanOrEqual(1);
+  });
+
+  test("the Puzzles screen shows a distinct objective badge per puzzle type", async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      const stars = {};
+      for (let i = 0; i < 12; i++) stars[i] = 1;
+      window.__bpc.Storage.set("puzzle", { stars });
+    });
+    await page.locator("#btn-puzzle").click();
+    await expect(page.locator("#puzzle")).toBeVisible();
+    // Puzzle 13 (index 12) is the first "frozen" (Ice Core) puzzle.
+    const cell = page.locator("#puzzle-list .puzzle-cell").nth(12);
+    await expect(cell).not.toHaveClass(/locked/);
+    await expect(cell.locator(".pz-type")).toHaveText("🧊");
+    await expect(cell.locator(".pz-obj")).toHaveText("Ice Core");
+  });
 });
 
 // ---------------------------------------------------------------------------

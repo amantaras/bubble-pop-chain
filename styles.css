@@ -2445,6 +2445,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.08);
   cursor: pointer;
   transition: transform 0.1s ease, background 0.15s ease;
+  position: relative;
 }
 .puzzle-cell:active {
   transform: scale(0.95);
@@ -2458,6 +2459,13 @@ body {
   opacity: 0.55;
   background: rgba(255, 255, 255, 0.03);
 }
+.pz-type {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 14px;
+  opacity: 0.9;
+}
 .pz-num {
   font-size: 20px;
   font-weight: 800;
@@ -2465,6 +2473,13 @@ body {
 .pz-size {
   font-size: 11px;
   color: var(--text-dim);
+}
+.pz-obj {
+  font-size: 10px;
+  color: var(--ui-accent, #7fe9ff);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 .pz-stars {
   font-size: 14px;

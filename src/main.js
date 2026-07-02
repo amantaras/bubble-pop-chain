@@ -183,6 +183,7 @@ import {
   getPuzzle,
   puzzleStars,
   isPuzzleUnlocked,
+  puzzleTypeMeta,
   PUZZLE_COUNT,
 } from "./puzzle.js";
 import {
@@ -624,6 +625,28 @@ class Game {
         bossBounds = board.coreBounds(cfg.coreW, cfg.coreH);
       }
     }
+    // Puzzle Mode: most puzzles just require clearing the whole board (the
+    // original ladder), but some borrow the same boss archetypes above for a
+    // narrower, more interesting objective — e.g. shatter an ice core while
+    // ordinary bubbles remain elsewhere on the board. `puzzleType` defaults to
+    // "clear" (see puzzle.js), which needs none of this.
+    let puzzleCoreTotal = 0;
+    let puzzleTargetColor = -1;
+    let puzzleBounds = null;
+    if (mode === "puzzle" && level.puzzleType && level.puzzleType !== "clear") {
+      if (level.puzzleType === "frozen") {
+        puzzleCoreTotal = board.placeFrozenCore(level.coreW, level.coreH);
+        puzzleBounds = board.coreBounds(level.coreW, level.coreH);
+      } else if (level.puzzleType === "stone") {
+        puzzleCoreTotal = board.placeStoneVault(level.vaultW, level.vaultH);
+        puzzleBounds = board.coreBounds(level.vaultW, level.vaultH);
+      } else if (level.puzzleType === "color") {
+        const dc = board.dominantColor();
+        puzzleTargetColor = dc == null ? -1 : dc;
+        puzzleCoreTotal =
+          puzzleTargetColor >= 0 ? board.colorCells(puzzleTargetColor).length : 0;
+      }
+    }
     const buffs = this._equippedBuffs();
     const active = this._equippedActive();
     this.session = {
@@ -657,6 +680,10 @@ class Game {
       bossKind,
       bossTargetColor,
       bossBounds,
+      puzzleType: (mode === "puzzle" && level.puzzleType) || "clear",
+      puzzleCoreTotal,
+      puzzleTargetColor,
+      puzzleBounds,
       objective: (mode === "campaign" && level.objective) || null,
       objectiveMet: false,
       usedPowerup: false,
@@ -960,8 +987,10 @@ class Game {
   }
 
   startPuzzle(index) {
-    // Puzzle Mode: clear the entire board within a fixed move budget. Refuse to
-    // start a puzzle that hasn't been unlocked yet (solve the prior one first).
+    // Puzzle Mode: meet the puzzle's objective (clear the whole board, or a
+    // narrower goal for the newer types — see puzzle.js) within a fixed move
+    // budget. Refuse to start a puzzle that hasn't been unlocked yet (solve
+    // the prior one first).
     if (!isPuzzleUnlocked(index, Storage.getPuzzleStarsMap())) {
       UI.toast("🔒 Solve the previous puzzle to unlock this one");
       return;
@@ -969,7 +998,8 @@ class Game {
     const lvl = getPuzzle(index);
     this._newSession("puzzle", lvl);
     this.session.movesLeft = lvl.moves;
-    UI.toast(`🧩 Puzzle ${lvl.puzzleIndex + 1} — clear the board in ${lvl.moves} moves!`);
+    const meta = puzzleTypeMeta(lvl.puzzleType);
+    UI.toast(`${meta.icon} Puzzle ${lvl.puzzleIndex + 1} — ${meta.intro} in ${lvl.moves} moves!`);
   }
 
   // ---- Interactive tutorial --------------------------------------------
@@ -1859,6 +1889,22 @@ class Game {
     return s.board.frozenRemaining();
   }
 
+  // Remaining count for a non-"clear" puzzle's narrower objective (0 = met).
+  // Mirrors _bossObjectiveRemaining() — same archetypes, same math — since a
+  // puzzle's frozen/stone/color goal is deliberately the exact same mechanic
+  // as its boss-level counterpart. "clear" puzzles (and non-puzzle sessions)
+  // always report 0 here; they're resolved by the board-fully-cleared check.
+  _puzzleObjectiveRemaining() {
+    const s = this.session;
+    if (!s || s.mode !== "puzzle" || s.puzzleType === "clear") return 0;
+    if (s.puzzleType === "stone") return s.board.stoneRemaining();
+    if (s.puzzleType === "color")
+      return s.puzzleTargetColor >= 0
+        ? s.board.colorCells(s.puzzleTargetColor).length
+        : 0;
+    return s.board.frozenRemaining();
+  }
+
   refreshHud() {
     const s = this.session;
     if (!s) return;
@@ -1929,15 +1975,18 @@ class Game {
         status,
       });
     } else if (s.mode === "puzzle") {
-      const left = s.board.countRemaining();
-      const total = s.board.cols * s.board.rows;
+      // Non-"clear" puzzles show the same narrower objective the boss HUD
+      // uses (Core/Stone/Left) instead of the whole board's bubble count.
+      const meta = puzzleTypeMeta(s.puzzleType);
+      const total = s.puzzleType === "clear" ? s.board.cols * s.board.rows : s.puzzleCoreTotal || 1;
+      const left = s.puzzleType === "clear" ? s.board.countRemaining() : this._puzzleObjectiveRemaining();
       UI.updateHud({
         modeLabel: `🧩 Puzzle ${s.level.puzzleIndex + 1}`,
         score: s.score,
         movesLabel: "Moves",
         moves: s.movesLeft,
         showTarget: true,
-        targetLabel: "Left",
+        targetLabel: meta.hudLabel,
         target: left,
         progress: total > 0 ? 1 - left / total : 0,
         status,
@@ -4013,11 +4062,22 @@ class Game {
     } else if (s.mode === "spotlight") {
       if (deadlock) this._scheduleEnd(true, "spotlight");
     } else if (s.mode === "puzzle") {
-      // A puzzle is solved by clearing the board (handled above). Running out
-      // of moves before that fails the attempt. If the board instead jams on
-      // bubbles that can never be popped or shifted into a match (a genuine
-      // deadlock with moves to spare), the player has done all they can — sweep
-      // the un-poppable stragglers in a finale and award the clear.
+      // Non-"clear" puzzles (ice core / stone vault / colour hunt) can be won
+      // before the whole board is empty — check the narrower objective first,
+      // exactly like a boss level. A "clear" puzzle only reports 0 here once
+      // the board itself is empty (handled by the earlier full-clear check),
+      // so this never fires early for the original ladder.
+      if (s.puzzleType !== "clear" && this._puzzleObjectiveRemaining() === 0) {
+        s.score += clearBonus(Math.max(0, s.movesLeft));
+        this._scheduleEnd(true, "puzzle");
+        return;
+      }
+      // A "clear" puzzle is solved by clearing the board (handled above).
+      // Running out of moves before that fails the attempt. If the board
+      // instead jams on bubbles that can never be popped or shifted into a
+      // match (a genuine deadlock with moves to spare), the player has done
+      // all they can — sweep the un-poppable stragglers in a finale and award
+      // the clear.
       if (s.movesLeft <= 0) {
         this._scheduleEnd(false, "puzzlefail");
       } else if (deadlock) {
@@ -5384,14 +5444,21 @@ class Game {
         const closeness = Math.max(0, 1 - Math.abs(m.value - sweet) / MAGNET_HALF);
         aim = { color: m.color, intensity: closeness, time };
       }
-      // Boss focus aura: a shared pulsing highlight around the seeded core so
-      // frozen/stone/vine bosses all read as "the boss objective is here",
-      // the same way the colour boss's target pips do for its own archetype.
+      // Boss/puzzle focus aura: a shared pulsing highlight around the seeded
+      // core so frozen/stone/vine bosses — and the same-named puzzle
+      // objectives — all read as "the objective is here", the same way the
+      // colour boss/puzzle's target pips do for their own archetype.
       if (this.session.bossBounds && this._bossObjectiveRemaining() > 0) {
         this.renderer.drawBossAura(this.session.board, this.session.bossBounds, time);
+      } else if (this.session.puzzleBounds && this._puzzleObjectiveRemaining() > 0) {
+        this.renderer.drawBossAura(this.session.board, this.session.puzzleBounds, time);
       }
       const markColor =
-        this.session.bossKind === "color" ? this.session.bossTargetColor : -1;
+        this.session.bossKind === "color"
+          ? this.session.bossTargetColor
+          : this.session.puzzleType === "color"
+          ? this.session.puzzleTargetColor
+          : -1;
       this.renderer.drawBubbles(this.session.board, this.theme, aim, markColor);
       if (this.session.archerAim) {
         this.renderer.drawArcherAim(this.session.board, this.session.archerAim, time);
@@ -5448,7 +5515,7 @@ if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) 
     season: { seasonStatus, addSeasonXp, claimTier, tierReward },
     quests: { ensureQuests, applyQuestProgress, claimQuest, questsClaimable, todayKey, weekKey },
     piggy: { piggyDeposit, canCrackPiggy },
-    puzzle: { getPuzzle, puzzleStars, isPuzzleUnlocked, PUZZLE_COUNT },
+    puzzle: { getPuzzle, puzzleStars, isPuzzleUnlocked, puzzleTypeMeta, PUZZLE_COUNT },
     popStyle: popStyleForGroup,
     cascade: { cascadeBonus, cascadeTier },
     tournament: { getTournamentLevel, getTournamentGoals, tournamentRank, getTournamentBest },

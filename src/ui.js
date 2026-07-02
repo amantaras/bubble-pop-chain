@@ -75,6 +75,7 @@ import {
   getPuzzle,
   isPuzzleUnlocked,
   puzzlesSolved,
+  puzzleTypeMeta,
 } from "./puzzle.js";
 import {
   PET_CATALOG,
@@ -2740,14 +2741,17 @@ class UIManager {
       const def = PUZZLES[i];
       const unlocked = isPuzzleUnlocked(i, starsMap);
       const stars = starsMap[i] || 0;
+      const meta = puzzleTypeMeta(def.type);
       const cell = document.createElement("div");
       cell.className = "puzzle-cell";
       if (!unlocked) cell.classList.add("locked");
       if (stars >= 1) cell.classList.add("solved");
       const starStr = "★".repeat(stars) + "☆".repeat(3 - stars);
       cell.innerHTML = unlocked
-        ? `<span class="pz-num">${i + 1}</span>` +
+        ? `<span class="pz-type" title="${meta.label}">${meta.icon}</span>` +
+          `<span class="pz-num">${i + 1}</span>` +
           `<span class="pz-size">${def.cols}×${def.rows}</span>` +
+          `<span class="pz-obj">${meta.label}</span>` +
           `<span class="pz-stars">${starStr}</span>` +
           `<span class="pz-moves">${def.moves} moves</span>`
         : `<span class="pz-lock">🔒</span><span class="pz-num">${i + 1}</span>`;
