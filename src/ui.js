@@ -196,6 +196,7 @@ class UIManager {
       "calendar", "cal-grid", "cal-status", "cal-claim", "cal-back",
       "btn-calendar", "cal-badge",
       "quests", "quests-list", "quests-back", "btn-quests", "quests-badge",
+      "quests-count", "quests-collect-all",
       "stats", "stats-profile", "stats-lifetime", "stats-back", "btn-stats",
       "puzzle", "puzzle-list", "puzzle-back", "btn-puzzle", "puzzle-badge",
       "season", "season-track", "season-coins", "season-back", "season-buy",
@@ -355,7 +356,15 @@ class UIManager {
     click("btn-stats", () => this.showScreen("stats"));
     click("btn-puzzle", () => this.showScreen("puzzle"));
     click("btn-season", () => this.showScreen("season"));
-    click("btn-pets", () => this.openPetOverlay());
+    click("btn-pets", () => {
+      // The menu badge only ever means "a pet has a tech-tree pick ready"
+      // (see refreshPetsBadge) — pre-select that pet so its pending pick is
+      // immediately visible in the detail panel, instead of leaving the
+      // player to hunt for the 🧬 badge in the full collection grid. Not a
+      // forced focus mode: the collection stays visible/browsable as normal.
+      const [petId] = this._pendingTechPetIds();
+      this.openPetOverlay(petId ? { petId } : {});
+    });
     click("btn-tutorial", () => this.cb.startTutorial && this.cb.startTutorial());
     click("dev-reset", () => this._devResetSave());
     click("dev-lvl-6", () => this._devSetLevel(6));
@@ -382,6 +391,7 @@ class UIManager {
     click("achv-collect-all", () => this._claimAllAchievements());
     click("cal-back", () => this.showScreen("menu"));
     click("quests-back", () => this.showScreen("menu"));
+    click("quests-collect-all", () => this._claimAllQuests());
     click("stats-back", () => this.showScreen("menu"));
     click("puzzle-back", () => this.showScreen("menu"));
     click("cal-claim", () => this._claimCalendar());
@@ -389,7 +399,7 @@ class UIManager {
     click("season-buy", () => this._buySeasonPremium());
     click("pets-back", () => this.closePetOverlay());
     click("gemforge-back", () => this.closeGemForge());
-    click("chest-ok", () => this.showScreen("achievements"));
+    click("chest-ok", () => this.showScreen(this._chestReturnScreen || "achievements"));
     click("btn-back", () => this.openPauseOverlay());
     click("pause-resume", () => this.closePauseOverlay(true));
     click("pause-shop", () => this._pauseGoShop());
@@ -2221,6 +2231,7 @@ class UIManager {
       this.toast(`🎁 +${agg.coins} coins from ${agg.count} chests!`);
       return;
     }
+    this._chestReturnScreen = "achievements";
     Audio.coin();
     if (this.el["chest-icon"]) this.el["chest-icon"].textContent = "🎁";
     if (this.el["chest-title"])
@@ -2263,6 +2274,7 @@ class UIManager {
       this.toast(`🎁 +${reward.coins} coins!`);
       return;
     }
+    this._chestReturnScreen = "achievements";
     Audio.coin();
     if (this.el["chest-icon"]) this.el["chest-icon"].textContent = "🎁";
     if (this.el["chest-title"])
@@ -2404,6 +2416,10 @@ class UIManager {
   }
 
   // ---- Daily & Weekly Quests --------------------------------------------
+  // Aligned with the Achievements "collection" screen: a small reward icon
+  // per row, a "Collect 🎁" claim button (rather than a plain "Claim"), a
+  // ready-count summary + "Collect All" batch action, and claiming reveals
+  // the shared chest modal instead of a bare toast.
   buildQuests() {
     const list = this.el["quests-list"];
     if (!list) return;
@@ -2412,6 +2428,7 @@ class UIManager {
     const state = ensureQuests(Storage.get("quests"), todayKey(), weekKey());
     Storage.set("quests", state);
     list.innerHTML = "";
+    let ready = 0;
 
     const section = (title, sub, entries, scope) => {
       const head = document.createElement("div");
@@ -2423,11 +2440,13 @@ class UIManager {
         if (!def) return;
         const complete = isQuestComplete(entry);
         const claimable = isQuestClaimable(entry);
+        if (claimable) ready += 1;
         const pct = Math.max(0, Math.min(1, entry.progress / def.goal));
         const row = document.createElement("div");
         row.className =
           "quest" + (claimable ? " claimable" : entry.claimed ? " claimed" : "");
         row.innerHTML =
+          `<div class="quest-icon">${this._questIcon(def.reward)}</div>` +
           `<div class="quest-info">` +
           `<span class="quest-label">${def.label}</span>` +
           `<span class="quest-reward">${this._questRewardLabel(def.reward)}</span>` +
@@ -2445,11 +2464,12 @@ class UIManager {
           btn.textContent = "Claimed ✓";
           btn.disabled = true;
         } else if (claimable) {
-          btn.textContent = "Claim";
+          btn.textContent = "Collect 🎁";
+          btn.classList.add("ready");
           btn.disabled = false;
           btn.addEventListener("click", () => this._claimQuest(scope, i));
         } else {
-          btn.textContent = complete ? "Claim" : "In progress";
+          btn.textContent = complete ? "Collect 🎁" : "In progress";
           btn.disabled = true;
         }
         row.appendChild(btn);
@@ -2459,7 +2479,24 @@ class UIManager {
 
     section("Daily Quests", "Reset every day", state.daily, "daily");
     section("Weekly Quest", "Resets every week", state.weekly, "weekly");
+
+    if (this.el["quests-count"]) {
+      this.el["quests-count"].textContent = ready ? `${ready} ready 🎁` : "All collected";
+    }
+    const collectAll = this.el["quests-collect-all"];
+    if (collectAll) collectAll.classList.toggle("hidden", ready < 1);
     this.refreshQuestsBadge();
+  }
+
+  // Small reward-icon glyph shown on each quest row — same idea as the
+  // calendar's `_calRewardIcon`, so every reward-bearing row across the app
+  // (achievements, calendar, quests) reads its payout at a glance.
+  _questIcon(reward) {
+    reward = resolveRewardForUnlocks(reward);
+    if (reward.crate) return "📦";
+    if (reward.powerup) return toolIconHtml(reward.powerup, "quest-icon-img");
+    if (reward.seasonXp) return "⭐";
+    return coinIconHtml("stack", "quest-icon-img");
   }
 
   _questRewardLabel(reward) {
@@ -2476,6 +2513,8 @@ class UIManager {
     return bits.join(" · ");
   }
 
+  // Collect a single quest's reward, then reveal it in the shared chest
+  // modal — the same "chest opens" moment claiming an achievement gives.
   _claimQuest(scope, index) {
     if (!this.cb.claimQuest) return;
     const res = this.cb.claimQuest(scope, index);
@@ -2483,9 +2522,104 @@ class UIManager {
       this.buildQuests();
       return;
     }
-    Audio.coin();
-    this.toast(`🎁 ${this._questRewardLabel(res.reward)}`);
+    this._showQuestReveal(res);
     this.buildQuests();
+  }
+
+  // Collect EVERY claimable quest (daily + weekly) at once, mirroring
+  // _claimAllAchievements: the model updates synchronously, a flying-gift
+  // sweep launches from each collected row, then an aggregate reveal lists
+  // everything that dropped.
+  _claimAllQuests() {
+    if (!this.cb.claimAllQuests) return;
+    const list = this.el["quests-list"];
+    const rows = list
+      ? Array.from(list.querySelectorAll(".quest.claimable"))
+      : [];
+    const agg = this.cb.claimAllQuests();
+    if (!agg || !agg.count) {
+      this.buildQuests();
+      return;
+    }
+    this._playCollectAllSweep(rows);
+    this.buildQuests();
+    this._showQuestCollectAllReveal(agg);
+  }
+
+  // Reveal a single claimed quest's reward, reusing the chest modal.
+  _showQuestReveal(res) {
+    const modal = this.el["chest"];
+    const reward = res.reward || {};
+    if (!modal) {
+      this.toast(`🎁 ${this._questRewardLabel(reward)}`);
+      return;
+    }
+    this._chestReturnScreen = "quests";
+    Audio.coin();
+    if (this.el["chest-icon"]) this.el["chest-icon"].textContent = "🎁";
+    if (this.el["chest-title"])
+      this.el["chest-title"].textContent = res.def ? res.def.label : "Quest complete!";
+    if (this.el["chest-sub"]) this.el["chest-sub"].textContent = "Quest complete!";
+
+    const rewards = this.el["chest-rewards"];
+    if (rewards) {
+      rewards.innerHTML = "";
+      const row = (icon, label) => {
+        const el = document.createElement("div");
+        el.className = "chest-row";
+        el.innerHTML = `<span class="chest-row-ic">${icon}</span><span class="chest-row-tx">${label}</span>`;
+        rewards.appendChild(el);
+      };
+      if (reward.coins) row(coinIconHtml("stack", "chest-row-ic-img"), `<b>+${reward.coins}</b> coins`);
+      if (reward.powerup) {
+        const info = POWERUP_INFO[reward.powerup] || {};
+        row(toolIconHtml(reward.powerup), `<b>${info.name || reward.powerup}</b> ×1`);
+      }
+      if (reward.crate) row("📦", `<b>${reward.crate}</b> pet crate${reward.crate > 1 ? "s" : ""}`);
+      if (reward.seasonXp) row("⭐", `<b>+${reward.seasonXp}</b> Season XP`);
+    }
+
+    this.hideModals();
+    modal.classList.remove("hidden");
+  }
+
+  // Reveal everything a quest "Collect All" pass dropped, reusing the chest
+  // modal — same shape of aggregate reveal as achievements' collect-all.
+  _showQuestCollectAllReveal(agg) {
+    const modal = this.el["chest"];
+    if (!modal) {
+      this.toast(`🎁 +${agg.coins} coins from ${agg.count} quests!`);
+      return;
+    }
+    this._chestReturnScreen = "quests";
+    Audio.coin();
+    if (this.el["chest-icon"]) this.el["chest-icon"].textContent = "🎁";
+    if (this.el["chest-title"])
+      this.el["chest-title"].textContent = `Collected ${agg.count} quest${
+        agg.count === 1 ? "" : "s"
+      }!`;
+    if (this.el["chest-sub"]) this.el["chest-sub"].textContent = "Every reward is yours.";
+
+    const rewards = this.el["chest-rewards"];
+    if (rewards) {
+      rewards.innerHTML = "";
+      const row = (icon, label) => {
+        const el = document.createElement("div");
+        el.className = "chest-row";
+        el.innerHTML = `<span class="chest-row-ic">${icon}</span><span class="chest-row-tx">${label}</span>`;
+        rewards.appendChild(el);
+      };
+      if (agg.coins) row(coinIconHtml("stack", "chest-row-ic-img"), `<b>+${agg.coins}</b> coins`);
+      agg.powerups.forEach((p) => {
+        const info = POWERUP_INFO[p.id] || {};
+        row(toolIconHtml(p.id), `<b>${info.name || p.id}</b> ×${p.n}`);
+      });
+      if (agg.crates) row("📦", `<b>${agg.crates}</b> pet crate${agg.crates > 1 ? "s" : ""}`);
+      if (agg.seasonXp) row("⭐", `<b>+${agg.seasonXp}</b> Season XP`);
+    }
+
+    this.hideModals();
+    modal.classList.remove("hidden");
   }
 
   // Show a badge on the menu's Quests tile whenever a reward is ready to claim.
@@ -2502,6 +2636,16 @@ class UIManager {
     }
   }
 
+  // Owned pet ids (in Storage order) that have a tech-tree pick ready. Backs
+  // both the menu Pets badge count and jumping straight to the first one when
+  // the tile is tapped — so the notification and where it "applies" are
+  // always the same pet.
+  _pendingTechPetIds() {
+    if (!this.cb.petHasPendingTech) return [];
+    const owned = Storage.getPetState().owned || {};
+    return Object.keys(owned).filter((id) => this.cb.petHasPendingTech(id));
+  }
+
   // Show a badge on the menu Pets tile when any owned pet has a tech-tree
   // upgrade ready to pick. Counts pets, not pending tiers.
   refreshPetsBadge() {
@@ -2511,13 +2655,7 @@ class UIManager {
       badge.classList.add("hidden");
       return;
     }
-    let n = 0;
-    if (this.cb.petHasPendingTech) {
-      const owned = Storage.getPetState().owned || {};
-      for (const id of Object.keys(owned)) {
-        if (this.cb.petHasPendingTech(id)) n++;
-      }
-    }
+    const n = this._pendingTechPetIds().length;
     if (n > 0) {
       badge.textContent = String(n);
       badge.classList.remove("hidden");

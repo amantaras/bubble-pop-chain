@@ -3956,6 +3956,16 @@ test.describe("season pass (battle pass)", () => {
     // Fresh save: no XP, nothing claimable, premium not owned.
     await expect(page.locator("#season-buy")).toBeVisible();
     await expect(page.locator(".season-cell.claimable")).toHaveCount(0);
+    // The "Unlock Premium" button must sit compactly beside the XP bar, not
+    // stretch to the row's full width (it inherits .btn's width:100% and
+    // needs an explicit override, or it fights the XP bar for space and
+    // overflows/squishes on narrow phones).
+    const headBox = await page.locator("#season-head").boundingBox();
+    const buyBox = await page.locator("#season-buy").boundingBox();
+    const xpBox = await page.locator("#season-xp-label").boundingBox();
+    expect(buyBox.width).toBeLessThan(headBox.width * 0.6);
+    expect(buyBox.x + buyBox.width).toBeLessThanOrEqual(headBox.x + headBox.width + 1);
+    expect(xpBox.width).toBeGreaterThan(40);
     await page.locator("#season-back").click();
     await expect(page.locator("#menu")).toBeVisible();
   });
@@ -7562,6 +7572,41 @@ test.describe("pet technology tree (RPG batch 5)", () => {
     await page.locator("#pets-back").click();
     await expect(page.locator("#pets-badge")).toBeHidden();
   });
+
+  test("clicking the badged Pets tile pre-selects the pet with the pending upgrade", async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      S.grantPet("draco");
+      S.addPetXp("draco", 60); // Lv.2 → pending tier
+      window.__bpc.UI.refreshPetsBadge();
+    });
+    await expect(page.locator("#pets-badge")).toBeVisible();
+
+    // Tapping the badged tile must not dump the player into the full
+    // collection to hunt for the 🧬 badge — the specific pet the notification
+    // is about is already selected, so its pending pick is immediately
+    // visible in the detail panel. The collection itself stays visible/
+    // browsable as normal (no forced focus mode).
+    await page.locator("#btn-pets").click();
+    await expect(page.locator('.pet-card[data-pet="draco"]')).toHaveClass(/selected/);
+    await expect(page.locator("#pet-detail .pd-tech-tier.pending")).toBeVisible();
+    await expect(page.locator("#pet-detail .pd-tech-pip")).toBeVisible();
+    await expect(page.locator(".pd-focus-head")).toHaveCount(0);
+    await expect(page.locator(".pet-card").first()).toBeVisible();
+
+    // Resolving the pick clears the notification.
+    await page.locator('#pet-detail .pd-tech-node.opt[data-node="t1_power"]').click();
+    await expect(page.locator("#pet-detail .pd-tech-node.chosen")).toBeVisible();
+
+    // Re-opening the menu tile with nothing pending falls back to the
+    // equipped/default pet as usual.
+    await page.locator("#pets-back").click();
+    await expect(page.locator("#pets-badge")).toBeHidden();
+    await page.locator("#btn-pets").click();
+    await expect(page.locator("#pet-detail .pd-tech-tier.pending")).toHaveCount(0);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -7765,6 +7810,10 @@ test.describe("daily & weekly quests (Tier 1)", () => {
     await expect(page.locator("#quests")).toBeVisible();
     // Three daily quests and one weekly quest are rendered.
     await expect(page.locator("#quests-list .quest")).toHaveCount(4);
+    // Aligned with the Achievements collection screen: every row shows a
+    // reward icon, and the header shows a ready-count summary.
+    await expect(page.locator("#quests-list .quest-icon")).toHaveCount(4);
+    await expect(page.locator("#quests-count")).toHaveText("All collected");
     await page.locator("#quests-back").click();
     await expect(page.locator("#menu")).toBeVisible();
   });
@@ -7803,9 +7852,17 @@ test.describe("daily & weekly quests (Tier 1)", () => {
     // The menu badge advertises a claimable reward.
     await expect(page.locator("#quests-badge")).toBeVisible();
     await page.locator("#btn-quests").click();
+    // Aligned with achievements: "N ready" summary + a "Collect All" toolbar.
+    await expect(page.locator("#quests-count")).toHaveText("1 ready 🎁");
+    await expect(page.locator("#quests-collect-all")).toBeVisible();
     const claim = page.locator("#quests-list .quest").first().locator(".quest-claim");
-    await expect(claim).toHaveText("Claim");
+    await expect(claim).toHaveText("Collect 🎁");
     await claim.click();
+    // Claiming reveals the shared chest modal — the same "chest opens" moment
+    // an achievement gives — not just a toast.
+    await expect(page.locator("#chest")).toBeVisible();
+    await expect(page.locator("#chest-rewards .chest-row")).toContainText("60");
+    await page.locator("#chest-ok").click();
     await expect(claim).toHaveText("Claimed ✓");
     const after = await page.evaluate(() => ({
       coins: window.__bpc.Economy.coins,
@@ -7813,6 +7870,51 @@ test.describe("daily & weekly quests (Tier 1)", () => {
     }));
     expect(after.coins).toBe(before + 60);
     expect(after.claimed).toBe(true);
+    await expect(page.locator("#quests-count")).toHaveText("All collected");
+  });
+
+  test("Collect All grabs every ready quest at once and reveals the haul", async ({
+    page,
+  }) => {
+    const before = await page.evaluate(() => {
+      const { ensureQuests, todayKey, weekKey } = window.__bpc.quests;
+      const S = window.__bpc.Storage;
+      const st = ensureQuests(S.get("quests"), todayKey(), weekKey());
+      st.daily = [
+        { id: "d_pop150", progress: 150, claimed: false }, // 60 coins
+        { id: "d_fever2", progress: 2, claimed: false }, // 80 coins
+      ];
+      st.weekly = [{ id: "w_win15", progress: 15, claimed: false }]; // 400 coins
+      S.set("quests", st);
+      window.__bpc.UI.refreshQuestsBadge();
+      return window.__bpc.Economy.coins;
+    });
+    await page.locator("#btn-quests").click();
+    await expect(page.locator("#quests-count")).toHaveText("3 ready 🎁");
+    const collectAll = page.locator("#quests-collect-all");
+    await expect(collectAll).toBeVisible();
+    expect(await page.locator(".quest.claimable").count()).toBe(3);
+
+    await collectAll.click();
+    // The aggregate reveal opens summarising the haul — same pattern as the
+    // achievements screen's Collect All.
+    await expect(page.locator("#chest")).toBeVisible();
+    await expect(page.locator("#chest-title")).toContainText("Collected 3 quests");
+    await expect(page.locator("#chest-rewards .chest-row")).toContainText("540");
+    await page.locator("#chest-ok").click();
+    await expect(page.locator("#quests")).toBeVisible();
+
+    const after = await page.evaluate(() => ({
+      coins: window.__bpc.Economy.coins,
+      daily: window.__bpc.Storage.get("quests").daily.map((e) => e.claimed),
+      weekly: window.__bpc.Storage.get("quests").weekly.map((e) => e.claimed),
+    }));
+    expect(after.coins).toBe(before + 540);
+    expect(after.daily.every(Boolean)).toBe(true);
+    expect(after.weekly.every(Boolean)).toBe(true);
+    await expect(collectAll).toBeHidden();
+    expect(await page.locator(".quest.claimable").count()).toBe(0);
+    await expect(page.locator("#quests-count")).toHaveText("All collected");
   });
 
   test("locked quest tool rewards claim as coins", async ({ page }) => {

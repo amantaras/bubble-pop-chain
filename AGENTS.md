@@ -872,7 +872,7 @@ never re‑discovered the hard way.
   step**.
 
 - **Daily & weekly quests** (`quests.js`, pure; `storage.js` `quests`; `main.js`
-  `_recordQuestProgress`/`claimQuestReward`; `ui.js`
+  `_recordQuestProgress`/`claimQuestReward`/`claimAllQuests`; `ui.js`
   `buildQuests`/`refreshQuestsBadge`): a rotating set of small goals that refresh
   **once per day** (3 daily quests from `DAILY_QUESTS`) and **once per week** (1
   weekly quest from `WEEKLY_QUESTS`). The active set is chosen by a **seeded
@@ -886,12 +886,28 @@ never re‑discovered the hard way.
   `{ fevers: 1 }`, and a campaign win reports `{ levelsWon: 1 }`. **Tutorial play
   never counts.** A complete quest is **claimable** and grants its reward
   (`{ coins | powerup | crate | seasonXp }`) **explicitly + idempotently** via
-  `claimQuest(state, scope, index)`; locked power-up rewards are shown/paid as
-  coins until usable, and `questsClaimable(state)` drives the claimable-count
-  badge on the menu Quests tile (`#quests-badge`). `quests.js` is
-  **pure** (no DOM/storage) — `ensureQuests`, `applyQuestProgress`, `claimQuest`,
-  `questsClaimable` all return new state without mutating input. Like other meta
-  features it never affects win/star outcomes and gets **no tutorial step**.
+  `claimQuest(state, scope, index)`; `main.js` `claimQuestReward` grants it (a
+  locked power-up reward converts to coins via the same `_grantPowerupReward`
+  helper achievement chests use, instead of silently granting an unusable tool),
+  and `questsClaimable(state)` drives the claimable-count badge on the menu
+  Quests tile (`#quests-badge`). `quests.js` is **pure** (no DOM/storage) —
+  `ensureQuests`, `applyQuestProgress`, `claimQuest`, `questsClaimable` all
+  return new state without mutating input. Like other meta features it never
+  affects win/star outcomes and gets **no tutorial step**.
+  **UI aligned with the Achievements "collection" screen** (they share CSS
+  classes `.achv-count`/`.achv-toolbar`/`.achv-collect-all`): each quest row
+  shows a reward icon (`UI._questIcon`), a pulsing gold **"Collect 🎁"** button
+  once claimable (not a plain "Claim"), a header summary ("N ready 🎁" / "All
+  collected"), and claiming reveals the shared **chest modal** (`#chest`) — the
+  same "chest opens" moment an achievement gives — instead of a bare toast.
+  A **"Collect All"** button (`#quests-collect-all`) claims every ready daily +
+  weekly quest in one pass (`Game.claimAllQuests`, `quests.js`
+  `aggregateQuestRewards` merges duplicate power-up ids by count) and plays the
+  same flying-gift sweep (`UI._playCollectAllSweep`) before an aggregate reveal.
+  The shared chest modal's OK button (`#chest-ok`) returns to whichever screen
+  opened it (`UI._chestReturnScreen`, set by each reveal method) rather than
+  hardcoding "achievements", so reusing it from Quests doesn't strand the player
+  on the wrong screen.
 
 - **Stats / Profile dashboard** (`stats.js`, pure; `ui.js` `buildStats`): a
   **read-only** menu screen that surfaces the player's progress. Two sections —
@@ -1382,9 +1398,15 @@ never re‑discovered the hard way.
   .pd-tech`): chosen nodes show locked-in with a ✓, the pending tier's two
   options are clickable, and locked future tiers show "reach Lv.X". A menu Pets
   tile badge (`#pets-badge`, `refreshPetsBadge`) and a per-card `🧬` badge
-  (`.pet-techbadge`) flag pets with a pick ready. Meta/RPG progression —
-  **no tutorial step** (consistent with traits, party, synergies & gems).
-  (Exposed for tests via `__bpc.tech`.)
+  (`.pet-techbadge`) flag pets with a pick ready. Tapping the menu tile while
+  badged doesn't just open the generic collection and leave the player to
+  hunt for the 🧬 card (`ui.js` `_pendingTechPetIds`, shared by both the badge
+  count and the tile's click handler): it pre-selects the first pending pet so
+  its tech tier is immediately visible in the detail panel — deliberately
+  **not** a forced focus mode (that would hide `.pet-list` and strand every
+  other flow that expects the full grid to stay clickable after opening Pets).
+  Meta/RPG progression — **no tutorial step** (consistent with traits, party,
+  synergies & gems). (Exposed for tests via `__bpc.tech`.)
 - **Interactive tutorial** (`tutorial.js`): a gated, step‑by‑step onboarding that
   auto‑opens on first run (and re‑playable via the menu's **How to Play**
   button). Each action step **blocks until the player actually performs the
@@ -1521,7 +1543,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 692 unit tests + 570 E2E
+- **Current baseline (keep growing, never shrink)**: 695 unit tests + 574 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

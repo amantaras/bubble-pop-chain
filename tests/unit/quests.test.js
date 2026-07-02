@@ -11,6 +11,7 @@ import {
   isQuestClaimable,
   claimQuest,
   questsClaimable,
+  aggregateQuestRewards,
 } from "../../src/quests.js";
 
 describe("quests", () => {
@@ -153,5 +154,57 @@ describe("quests", () => {
       0
     );
     expect(JSON.stringify(state)).toBe(snapshot);
+  });
+});
+
+// Aligns the Quests "Collect All" batch flow with achievements.js's
+// aggregateChestRewards, so both collection screens present a batch claim
+// the same way (one summed coins total, merged power-ups, etc.).
+describe("aggregateQuestRewards (Collect All)", () => {
+  it("sums coins/crates/seasonXp and merges duplicate power-up ids by count", () => {
+    const claims = [
+      { reward: { coins: 60, powerup: null, crate: 0, seasonXp: 0 } },
+      { reward: { coins: 0, powerup: "shuffle", crate: 0, seasonXp: 0 } },
+      { reward: { coins: 0, powerup: "shuffle", crate: 0, seasonXp: 0 } },
+      { reward: { coins: 300, powerup: null, crate: 1, seasonXp: 60 } },
+    ];
+    const agg = aggregateQuestRewards(claims);
+    expect(agg.count).toBe(4);
+    expect(agg.coins).toBe(360);
+    expect(agg.crates).toBe(1);
+    expect(agg.seasonXp).toBe(60);
+    expect(agg.powerups).toEqual([{ id: "shuffle", n: 2 }]);
+  });
+
+  it("returns an empty aggregate for no claims, and ignores null/empty entries", () => {
+    expect(aggregateQuestRewards([])).toEqual({
+      count: 0,
+      coins: 0,
+      powerups: [],
+      crates: 0,
+      seasonXp: 0,
+    });
+    expect(aggregateQuestRewards(null)).toEqual({
+      count: 0,
+      coins: 0,
+      powerups: [],
+      crates: 0,
+      seasonXp: 0,
+    });
+    expect(
+      aggregateQuestRewards([null, { reward: null }, undefined])
+    ).toEqual({ count: 0, coins: 0, powerups: [], crates: 0, seasonXp: 0 });
+  });
+
+  it("keeps distinct power-up ids as separate rows", () => {
+    const claims = [
+      { reward: { coins: 0, powerup: "shuffle", crate: 0, seasonXp: 0 } },
+      { reward: { coins: 0, powerup: "bomb", crate: 0, seasonXp: 0 } },
+    ];
+    const agg = aggregateQuestRewards(claims);
+    expect(agg.powerups).toEqual([
+      { id: "shuffle", n: 1 },
+      { id: "bomb", n: 1 },
+    ]);
   });
 });

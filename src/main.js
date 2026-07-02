@@ -173,6 +173,8 @@ import {
   applyQuestProgress,
   claimQuest,
   questsClaimable,
+  isQuestClaimable,
+  aggregateQuestRewards,
 } from "./quests.js";
 import {
   piggyDeposit,
@@ -361,6 +363,7 @@ class Game {
       claimAllAchievements: () => this.claimAllAchievements(),
       claimCalendar: () => this.claimCalendar(),
       claimQuest: (scope, index) => this.claimQuestReward(scope, index),
+      claimAllQuests: () => this.claimAllQuests(),
       claimSeasonTier: (index, track) => this.claimSeasonTier(index, track),
       buySeasonPremium: () => this.buySeasonPremium(),
       buyStarterPack: () => this.buyStarterPack(),
@@ -2620,7 +2623,9 @@ class Game {
 
   // Claim a completed quest's reward (called from the Quests UI). Grants the
   // reward (coins / power-up / crate / season XP), persists the claim, and
-  // returns a reward summary for the toast — or null if not claimable.
+  // returns a reward summary for the reveal — or null if not claimable. A
+  // locked power-up reward converts to coins instead (via
+  // _grantPowerupReward), same safety net as achievement chests.
   claimQuestReward(scope, index) {
     const current = ensureQuests(Storage.get("quests"), todayKey(), weekKey());
     const res = claimQuest(current, scope, index);
@@ -2629,13 +2634,44 @@ class Game {
       return null;
     }
     const r = resolveRewardForUnlocks(res.reward || {});
+    let coins = r.coins || 0;
     if (r.coins) Economy.addCoins(r.coins);
-    if (r.powerup) Economy.addPowerup(r.powerup, 1);
+    let powerup = null;
+    if (r.powerup) {
+      // _grantPowerupReward grants the tool itself, or — if it's still
+      // locked — converts it to coins on its own (and grants those coins).
+      const granted = this._grantPowerupReward(r.powerup, 1);
+      if (granted.powerup) powerup = r.powerup;
+      else coins += granted.coins;
+    }
     if (r.crate) Storage.addCrates(r.crate);
     if (r.seasonXp) this._awardSeasonXp(r.seasonXp);
     Storage.set("quests", res.state);
     UI.refreshQuestsBadge();
-    return { reward: r, label: res.def ? res.def.label : "" };
+    const reward = { coins, powerup, crate: r.crate || 0, seasonXp: r.seasonXp || 0 };
+    return { reward, def: res.def, label: res.def ? res.def.label : "" };
+  }
+
+  // Claim EVERY currently-claimable quest (daily + weekly) in one pass,
+  // mirroring claimAllAchievements. A quest can only be claimed once per
+  // cycle (no stacked tiers), so a single pass over the pre-claim claimable
+  // set is enough. Returns an aggregate summary for the "Collect All" reveal,
+  // or null if nothing was claimable.
+  claimAllQuests() {
+    const state = ensureQuests(Storage.get("quests"), todayKey(), weekKey());
+    const claims = [];
+    state.daily.forEach((entry, i) => {
+      if (!isQuestClaimable(entry)) return;
+      const res = this.claimQuestReward("daily", i);
+      if (res) claims.push(res);
+    });
+    state.weekly.forEach((entry, i) => {
+      if (!isQuestClaimable(entry)) return;
+      const res = this.claimQuestReward("weekly", i);
+      if (res) claims.push(res);
+    });
+    if (!claims.length) return null;
+    return aggregateQuestRewards(claims);
   }
 
   // Toast that one or more achievement chests are ready to collect.
@@ -5513,7 +5549,7 @@ if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) 
     tech: { TECH_TREE, techNode, techTierOf, pendingTechTier, hasPendingTech, canPickTech, techTiersUnlocked },
     calendar: { calendarStatus, advanceCalendar, todayKey },
     season: { seasonStatus, addSeasonXp, claimTier, tierReward },
-    quests: { ensureQuests, applyQuestProgress, claimQuest, questsClaimable, todayKey, weekKey },
+    quests: { ensureQuests, applyQuestProgress, claimQuest, questsClaimable, isQuestClaimable, aggregateQuestRewards, todayKey, weekKey },
     piggy: { piggyDeposit, canCrackPiggy },
     puzzle: { getPuzzle, puzzleStars, isPuzzleUnlocked, puzzleTypeMeta, PUZZLE_COUNT },
     popStyle: popStyleForGroup,

@@ -2268,11 +2268,22 @@ body {
   border: 2px solid transparent;
 }
 .quest.claimable {
-  border-color: rgba(91, 208, 255, 0.7);
-  box-shadow: 0 0 16px rgba(91, 208, 255, 0.25);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent) inset, 0 0 18px rgba(255, 200, 60, 0.25);
 }
 .quest.claimed {
   opacity: 0.55;
+}
+.quest-icon {
+  font-size: 24px;
+  width: 34px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.quest-icon-img {
+  width: 24px;
+  height: 24px;
+  vertical-align: middle;
 }
 .quest-info {
   flex: 1;
@@ -2317,6 +2328,12 @@ body {
   cursor: pointer;
   background: linear-gradient(135deg, #5bd0ff, #5b8bff);
   color: #04203a;
+  white-space: nowrap;
+}
+.quest-claim.ready {
+  background: linear-gradient(135deg, #ffd24d, #ff9d2e);
+  color: #2a1c00;
+  animation: achv-pulse 1.4s ease-in-out infinite;
 }
 .quest-claim:disabled {
   opacity: 0.5;
@@ -2500,9 +2517,11 @@ body {
   align-items: center;
   gap: 12px;
   padding: 6px 16px 12px;
+  flex-wrap: wrap;
 }
 .season-xp {
-  flex: 1;
+  flex: 1 1 160px;
+  min-width: 0;
 }
 .season-xp-label {
   font-size: 13px;
@@ -2525,8 +2544,10 @@ body {
 }
 .season-buy {
   flex: 0 0 auto;
+  width: auto;
   padding: 8px 14px;
   font-size: 13px;
+  white-space: nowrap;
 }
 .season-track {
   overflow-y: auto;

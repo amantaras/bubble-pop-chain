@@ -137,3 +137,35 @@ export function questsClaimable(state) {
   const all = [...(state.daily || []), ...(state.weekly || [])];
   return all.filter(isQuestClaimable).length;
 }
+
+// Combine several claimed-quest results (each shaped like the object
+// `Game.claimQuestReward` returns: `{ reward: {coins, powerup, crate,
+// seasonXp} }`) into one aggregate for the Quests screen's "Collect All"
+// reveal — mirrors achievements.js's `aggregateChestRewards` for the quest
+// reward shape, so both collection screens present a batch-claim the same
+// way. Pure; `powerups` merges duplicate ids by count so two single-tool
+// claims in one pass show as one row with n=2. `id`-only entries (icon/name
+// are resolved by the UI from POWERUP_INFO, like the pre-claim reward label
+// already does) keep this module free of any economy.js/UI dependency.
+export function aggregateQuestRewards(claims) {
+  const out = { count: 0, coins: 0, powerups: [], crates: 0, seasonXp: 0 };
+  const byId = new Map();
+  for (const c of claims || []) {
+    const r = c && c.reward;
+    if (!r) continue;
+    out.count += 1;
+    out.coins += r.coins || 0;
+    out.crates += r.crate || 0;
+    out.seasonXp += r.seasonXp || 0;
+    if (r.powerup) {
+      const cur = byId.get(r.powerup);
+      if (cur) cur.n += 1;
+      else {
+        const entry = { id: r.powerup, n: 1 };
+        byId.set(r.powerup, entry);
+        out.powerups.push(entry);
+      }
+    }
+  }
+  return out;
+}
