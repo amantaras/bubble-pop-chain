@@ -552,7 +552,10 @@ never re‑discovered the hard way.
   on screen (mode label, score, current theme id), safe to call any time while
   the win modal is up since the session isn't cleared until the player taps
   Menu/Next/Retry. Nothing is generated or shared until the player explicitly
-  taps the button. Meta/growth feature — **no tutorial step**.
+  taps the button. The button itself uses a local inline SVG share glyph
+  (`.win-share-ic`) rather than an emoji, matching the tool/coin icon-language
+  convention (below) so it renders consistently across platforms. Meta/growth
+  feature — **no tutorial step**.
 - **Daily retention** (`daily.js`): rotating seeded modifier, three tiered
   goals → daily stars, a 7‑day reward cycle, and a streak‑freeze token that
   rescues one missed day. The daily can be **completed only once per day**:
@@ -1494,7 +1497,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 684 unit tests + 562 E2E
+- **Current baseline (keep growing, never shrink)**: 687 unit tests + 562 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests
@@ -1628,10 +1631,21 @@ defines the campaign's reward/challenge rhythm. It must stay in sync with
   four bosses have a cosmetic theme queued; later bosses, including every vine
   boss, still pay the coin jackpot). Bosses have **no tutorial step** (the start
   toast explains the goal, including a vine-specific "spreads every move!" nudge).
+  The **frozen/stone/vine** archetypes additionally get a shared **boss focus
+  aura** (`renderer.js` `drawBossAura`, purely cosmetic): a pulsing rounded
+  outline + soft under-glow drawn around the seeded core's bounding box
+  (`Board.coreBounds(w, h)`, the same centring math `placeFrozenCore`/
+  `placeStoneVault`/`placeVineCore` use internally, exposed read-only so the
+  renderer never has to re-seed anything). This gives every archetype a
+  unifying "the boss objective lives here" read, the same way the **colour**
+  boss's per-bubble target pips (`markColor`) already do for its own archetype.
+  The bounds are computed once in `_newSession` (stored on the session as
+  `bossBounds`, `null` for the colour boss) and drawn each frame in `render()`
+  while `_bossObjectiveRemaining() > 0`.
 - **Wiring**: `getLevel` tags `level.milestone` / `level.boss`; `main.js`
   `_newSession` dispatches on `cfg.kind` to place the objective and tracks
-  `bossCoreTotal` / `bossKind` / `bossTargetColor` (all persisted in the session
-  snapshot); the boss objective is evaluated in `afterMove` via
+  `bossCoreTotal` / `bossKind` / `bossTargetColor` / `bossBounds` (all persisted
+  in the session snapshot); the boss objective is evaluated in `afterMove` via
   `_bossObjectiveRemaining()`, and the one-time rewards are paid in `_finish`. The
   level map (`ui.js buildLevelMap`) and the boss HUD (`hudLabel`:
   `Core`/`Stone`/`Left`/`Vines`) surface the beats; the recap window shows the

@@ -600,11 +600,17 @@ class Game {
     let bossCoreTotal = 0;
     let bossKind = null;
     let bossTargetColor = -1;
+    // Bounding box of the seeded core (frozen/stone/vine only — the colour
+    // boss already marks its target bubbles individually via `markColor`).
+    // Drives a shared pulsing "boss focus" aura so every archetype reads as
+    // one boss encounter at a glance, not just a patch of special bubbles.
+    let bossBounds = null;
     if (mode === "campaign" && level.milestone === "boss" && level.boss) {
       const cfg = level.boss;
       bossKind = cfg.kind;
       if (cfg.kind === "stone") {
         bossCoreTotal = board.placeStoneVault(cfg.vaultW, cfg.vaultH);
+        bossBounds = board.coreBounds(cfg.vaultW, cfg.vaultH);
       } else if (cfg.kind === "color") {
         const dc = board.dominantColor();
         bossTargetColor = dc == null ? -1 : dc;
@@ -612,8 +618,10 @@ class Game {
           bossTargetColor >= 0 ? board.colorCells(bossTargetColor).length : 0;
       } else if (cfg.kind === "vine") {
         bossCoreTotal = board.placeVineCore(cfg.vineW, cfg.vineH);
+        bossBounds = board.coreBounds(cfg.vineW, cfg.vineH);
       } else {
         bossCoreTotal = board.placeFrozenCore(cfg.coreW, cfg.coreH);
+        bossBounds = board.coreBounds(cfg.coreW, cfg.coreH);
       }
     }
     const buffs = this._equippedBuffs();
@@ -648,6 +656,7 @@ class Game {
       bossCoreTotal,
       bossKind,
       bossTargetColor,
+      bossBounds,
       objective: (mode === "campaign" && level.objective) || null,
       objectiveMet: false,
       usedPowerup: false,
@@ -5374,6 +5383,12 @@ class Game {
         const sweet = m.sweet == null ? 0.5 : m.sweet;
         const closeness = Math.max(0, 1 - Math.abs(m.value - sweet) / MAGNET_HALF);
         aim = { color: m.color, intensity: closeness, time };
+      }
+      // Boss focus aura: a shared pulsing highlight around the seeded core so
+      // frozen/stone/vine bosses all read as "the boss objective is here",
+      // the same way the colour boss's target pips do for its own archetype.
+      if (this.session.bossBounds && this._bossObjectiveRemaining() > 0) {
+        this.renderer.drawBossAura(this.session.board, this.session.bossBounds, time);
       }
       const markColor =
         this.session.bossKind === "color" ? this.session.bossTargetColor : -1;

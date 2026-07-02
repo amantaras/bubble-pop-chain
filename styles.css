@@ -286,6 +286,13 @@ body {
 }
 .win-share-btn {
   margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.win-share-ic {
+  flex-shrink: 0;
 }
 .btn:disabled {
   opacity: 0.4;

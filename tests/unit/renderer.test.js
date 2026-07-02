@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { CB_SYMBOLS, Renderer, SPECIAL_ICON_ASSETS, hexToRgb, shade, lighten, themeMotif } from "../../src/renderer.js";
 import { THEMES } from "../../src/themes.js";
 import { getLevel, LEVEL_COUNT } from "../../src/levels.js";
@@ -51,7 +51,11 @@ describe("theme background motifs", () => {
   it("gives the new Eclipse Bloom theme its own motif (not silently falling back to aurora)", () => {
     const motif = themeMotif("eclipse");
     expect(motif).not.toBe(themeMotif("does-not-exist"));
-    expect(motif.kind).toBe("stars");
+    expect(motif.kind).toBe("corona");
+    // Distinct from the other star-gated space theme (Solar Nova, the very
+    // next unlock tier below it) so the two top-tier rewards don't render as
+    // the same drifting-dot background in motion.
+    expect(motif.kind).not.toBe(themeMotif("nova").kind);
   });
 
   it("drawBackground handles motifs in normal and reduced-motion modes", () => {
@@ -217,6 +221,55 @@ describe("Archer aim power gauge (on-screen clamp)", () => {
     expect(() =>
       renderer.drawArcherAim(board, baseAim({ x: 10, y: 172 }, { x: 40, y: 172 }), 0)
     ).not.toThrow();
+  });
+});
+
+// Frozen/stone/vine boss archetypes seed a core via ordinary special-bubble
+// types, with no shared visual language tying the cells together as "the boss
+// objective" (unlike the colour boss's per-bubble target pips). drawBossAura
+// draws one pulsing highlight around the core's bounding box for all three.
+describe("boss focus aura (drawBossAura)", () => {
+  function fakeCtx() {
+    const handler = {
+      get(_t, prop) {
+        if (
+          ["save", "restore", "beginPath", "moveTo", "arcTo", "closePath", "fill", "stroke", "setLineDash"].includes(
+            prop
+          )
+        )
+          return () => {};
+        return undefined;
+      },
+      set: () => true,
+    };
+    return new Proxy({}, handler);
+  }
+
+  it("derives the aura rect from the core bounds and board layout", () => {
+    const ctx = fakeCtx();
+    const renderer = new Renderer(ctx);
+    const spy = vi.spyOn(renderer, "_roundRect");
+    const board = { cell: 40, originX: 20, originY: 168 };
+    const bounds = { c0: 2, r0: 1, w: 3, h: 2 };
+    renderer.drawBossAura(board, bounds, 1000);
+
+    expect(spy).toHaveBeenCalledTimes(2); // fill pass + stroke pass
+    const pad = board.cell * 0.16;
+    for (const call of spy.mock.calls) {
+      const [, x, y, w, h] = call;
+      expect(x).toBeCloseTo(board.originX + bounds.c0 * board.cell - pad, 5);
+      expect(y).toBeCloseTo(board.originY + bounds.r0 * board.cell - pad, 5);
+      expect(w).toBeCloseTo(bounds.w * board.cell + pad * 2, 5);
+      expect(h).toBeCloseTo(bounds.h * board.cell + pad * 2, 5);
+    }
+  });
+
+  it("never throws across different time values (pulse animation) or board sizes", () => {
+    const ctx = fakeCtx();
+    const renderer = new Renderer(ctx);
+    const board = { cell: 40, originX: 20, originY: 168 };
+    expect(() => renderer.drawBossAura(board, { c0: 0, r0: 0, w: 4, h: 4 }, 0)).not.toThrow();
+    expect(() => renderer.drawBossAura(board, { c0: 1, r0: 1, w: 1, h: 1 }, 5000)).not.toThrow();
   });
 });
 

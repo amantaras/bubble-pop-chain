@@ -1548,6 +1548,10 @@ test.describe("shareable win card (viral share/download)", () => {
     await clearBoardByFinalPair(page);
     await expect(page.locator("#win")).toBeVisible();
     await expect(page.locator("#win-share")).toBeVisible();
+    // Uses the app's local SVG icon language (not a raw emoji glyph, which
+    // renders inconsistently across platforms).
+    await expect(page.locator("#win-share .win-share-ic")).toBeAttached();
+    await expect(page.locator("#win-share")).toContainText("Share score");
 
     // Headless Chromium has no navigator.share, so tapping Share falls back
     // to downloading the rendered card image.
@@ -1697,6 +1701,12 @@ test.describe("milestone events (every 5 levels)", () => {
       window.__bpc.game.session.board.frozenRemaining()
     );
     expect(core).toBeGreaterThan(0);
+    // The seeded core's bounding box drives the shared "boss focus" aura
+    // (drawBossAura) so frozen/stone/vine bosses all read as one encounter.
+    const bounds = await page.evaluate(() => window.__bpc.game.session.bossBounds);
+    expect(bounds).toEqual({ c0: expect.any(Number), r0: expect.any(Number), w: expect.any(Number), h: expect.any(Number) });
+    expect(bounds.w).toBeGreaterThan(0);
+    expect(bounds.h).toBeGreaterThan(0);
 
     // Shatter the entire frozen core to satisfy the boss objective, then let
     // the real end-of-move logic resolve the win. (ICE = 1, ICE_CRACKED = 3.)
@@ -1736,6 +1746,9 @@ test.describe("milestone events (every 5 levels)", () => {
       window.__bpc.game.session.board.stoneRemaining()
     );
     expect(stones).toBeGreaterThan(0);
+    const bounds = await page.evaluate(() => window.__bpc.game.session.bossBounds);
+    expect(bounds.w).toBeGreaterThan(0);
+    expect(bounds.h).toBeGreaterThan(0);
 
     // Clear the entire vault (STONE = 5) and let the move logic resolve the win.
     await page.evaluate(() => {
@@ -1777,6 +1790,10 @@ test.describe("milestone events (every 5 levels)", () => {
         ).length
     );
     expect(left).toBeGreaterThan(0);
+    // The colour boss already marks its targets with per-bubble pips, so it
+    // has no bounding-box aura (that's reserved for frozen/stone/vine).
+    const bounds = await page.evaluate(() => window.__bpc.game.session.bossBounds);
+    expect(bounds).toBeNull();
 
     // Remove every bubble of the hunted colour, then resolve the win.
     await page.evaluate(() => {
@@ -1816,6 +1833,9 @@ test.describe("milestone events (every 5 levels)", () => {
       window.__bpc.game.session.board.vineCount()
     );
     expect(vines).toBeGreaterThan(0);
+    const bounds = await page.evaluate(() => window.__bpc.game.session.bossBounds);
+    expect(bounds.w).toBeGreaterThan(0);
+    expect(bounds.h).toBeGreaterThan(0);
 
     // Clear every vine (VINE = 9) and let the move logic resolve the win.
     await page.evaluate(() => {

@@ -778,6 +778,16 @@ export class Board {
     return n;
   }
 
+  // Compute the centred bounding box used by placeFrozenCore/placeStoneVault/
+  // placeVineCore, without mutating the board. Pure — lets the renderer draw a
+  // unifying "boss focus" highlight around the seeded core regardless of which
+  // archetype seeded it (frozen/stone/vine all share one aura treatment).
+  coreBounds(w, h) {
+    const c0 = Math.floor((this.cols - w) / 2);
+    const r0 = Math.floor((this.rows - h) / 2);
+    return { c0, r0, w, h };
+  }
+
   // Freeze a centred block of bubbles into ice for a boss objective. Returns the
   // number of cells actually frozen. Empty cells are skipped.
   placeFrozenCore(coreW, coreH) {

@@ -694,6 +694,18 @@ describe("grid / Board", () => {
     if (sp) expect(sp.type).toBe(STONE);
   });
 
+  it("coreBounds computes the same centred box used by placeFrozenCore/placeStoneVault/placeVineCore without mutating the board", () => {
+    const b = new Board(6, 6, 4, 1);
+    expect(b.coreBounds(2, 2)).toEqual({ c0: 2, r0: 2, w: 2, h: 2 });
+    // Pure — calling it doesn't seed anything.
+    expect(b.stoneRemaining()).toBe(0);
+    expect(b.frozenRemaining()).toBe(0);
+    expect(b.vineCount()).toBe(0);
+    // Odd sizing rounds down like the placement helpers do internally.
+    const b2 = new Board(7, 5, 4, 1);
+    expect(b2.coreBounds(3, 2)).toEqual({ c0: 2, r0: 1, w: 3, h: 2 });
+  });
+
   it("placeVineCore tags a centred block and vineCount counts them (boss objective)", () => {
     const b = new Board(6, 6, 4, 1);
     expect(b.vineCount()).toBe(0);

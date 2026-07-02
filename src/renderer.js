@@ -33,7 +33,7 @@ const THEME_MOTIFS = {
   sandstorm: { kind: "dunes", count: 7, alpha: 0.12 },
   petal: { kind: "petals", count: 38, alpha: 0.15 },
   nova: { kind: "stars", count: 62, alpha: 0.18 },
-  eclipse: { kind: "stars", count: 50, alpha: 0.16 },
+  eclipse: { kind: "corona", count: 12, alpha: 0.16 },
 };
 
 export function themeMotif(themeId) {
@@ -206,6 +206,24 @@ export class Renderer {
         ctx.lineTo(w * 0.92, y + Math.sin(t + i) * 4);
         ctx.stroke();
       }
+    } else if (motif.kind === "corona") {
+      // A slow-rotating solar corona: concentric broken rings behind the
+      // board, evoking an eclipse rather than the scattered star dots used by
+      // the other space theme (nova). Each ring is drawn as a partial arc so
+      // it reads as rays/flares, not a solid halo.
+      const cx = w * 0.5;
+      const cy = h * 0.32;
+      const spin = t * 0.05;
+      for (let i = 0; i < motif.count; i++) {
+        const rr = max * (0.09 + i * 0.042);
+        const wobble = Math.sin(t * 0.35 + i * 0.6) * (rr * 0.02);
+        const start = spin + i * 0.5;
+        ctx.strokeStyle = colors[i % colors.length];
+        ctx.lineWidth = 1.3 + (i % 3) * 0.5;
+        ctx.beginPath();
+        ctx.arc(cx, cy, rr + wobble, start, start + Math.PI * 1.25);
+        ctx.stroke();
+      }
     } else {
       for (let i = 0; i < motif.count; i++) {
         const seed = i * 97.13;
@@ -292,6 +310,42 @@ export class Renderer {
     ctx.beginPath();
     ctx.moveTo(board.originX, y);
     ctx.lineTo(board.originX + board.boardW, y);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Boss focus aura: a pulsing rounded outline + soft under-glow drawn around
+  // the seeded core's bounding box (`{c0,r0,w,h}` in cell units, from
+  // `Board.coreBounds`). Frozen/stone/vine boss archetypes all seed a core via
+  // ordinary special-bubble types (ice/stone/vine) with no shared visual
+  // language tying the cells together as one boss encounter — unlike the
+  // colour boss, which already marks its targets with per-bubble pips. This
+  // gives every archetype the same "the boss objective lives here" read.
+  // Purely decorative (never affects hit-testing/gameplay).
+  drawBossAura(board, bounds, time) {
+    const ctx = this.ctx;
+    const pad = board.cell * 0.16;
+    const x = board.originX + bounds.c0 * board.cell - pad;
+    const y = board.originY + bounds.r0 * board.cell - pad;
+    const w = bounds.w * board.cell + pad * 2;
+    const h = bounds.h * board.cell + pad * 2;
+    const r = Math.min(24, board.cell * 0.3);
+    const pulse = 0.5 + 0.5 * Math.sin(time * 0.0025);
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = 0.16 + pulse * 0.14;
+    ctx.fillStyle = "#ff5b6b";
+    ctx.beginPath();
+    this._roundRect(ctx, x, y, w, h, r);
+    ctx.fill();
+    ctx.restore();
+    ctx.save();
+    ctx.strokeStyle = `rgba(255,107,123,${0.55 + pulse * 0.35})`;
+    ctx.lineWidth = 2.4;
+    ctx.setLineDash([12, 7]);
+    ctx.lineDashOffset = -time * 0.015;
+    ctx.beginPath();
+    this._roundRect(ctx, x, y, w, h, r);
     ctx.stroke();
     ctx.restore();
   }
