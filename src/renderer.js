@@ -33,6 +33,7 @@ const THEME_MOTIFS = {
   sandstorm: { kind: "dunes", count: 7, alpha: 0.12 },
   petal: { kind: "petals", count: 38, alpha: 0.15 },
   nova: { kind: "stars", count: 62, alpha: 0.18 },
+  eclipse: { kind: "stars", count: 50, alpha: 0.16 },
 };
 
 export function themeMotif(themeId) {

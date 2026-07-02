@@ -28,6 +28,16 @@ describe("themes", () => {
     expect(THEMES.length).toBeGreaterThanOrEqual(15);
   });
 
+  it("includes the new Eclipse Bloom theme, gated behind the next star tier", () => {
+    const eclipse = getTheme("eclipse");
+    expect(eclipse.id).toBe("eclipse");
+    expect(eclipse.price).toBe(0);
+    expect(eclipse.unlockStars).toBeGreaterThan(0);
+    // Sits beyond every other free/star-gated theme's threshold.
+    const starGated = THEMES.filter((t) => t.price === 0 && t.id !== "eclipse");
+    for (const t of starGated) expect(eclipse.unlockStars).toBeGreaterThanOrEqual(t.unlockStars);
+  });
+
   it("uses unique theme ids", () => {
     const ids = THEMES.map((t) => t.id);
     expect(new Set(ids).size).toBe(ids.length);

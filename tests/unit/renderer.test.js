@@ -48,6 +48,12 @@ describe("theme background motifs", () => {
     expect(kinds.size).toBeGreaterThan(6);
   });
 
+  it("gives the new Eclipse Bloom theme its own motif (not silently falling back to aurora)", () => {
+    const motif = themeMotif("eclipse");
+    expect(motif).not.toBe(themeMotif("does-not-exist"));
+    expect(motif.kind).toBe("stars");
+  });
+
   it("drawBackground handles motifs in normal and reduced-motion modes", () => {
     const calls = [];
     const gradient = { addColorStop: (...args) => calls.push(["addColorStop", ...args]) };

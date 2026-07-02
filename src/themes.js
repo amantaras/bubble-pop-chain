@@ -152,6 +152,16 @@ export const THEMES = [
     unlockStars: 110,
     price: 0,
   },
+  {
+    id: "eclipse",
+    name: "Eclipse Bloom",
+    desc: "Corona gold against a starless sky",
+    bg0: "#050308",
+    bg1: "#1a0f2e",
+    bubbles: ["#ffcf7a", "#ff8a3c", "#c86bff", "#5b8bff", "#5be3ff", "#ff5b7a"],
+    unlockStars: 130,
+    price: 0,
+  },
 ];
 
 export function getTheme(id) {

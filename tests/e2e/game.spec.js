@@ -537,6 +537,35 @@ test.describe("diagnostics (support info)", () => {
   });
 });
 
+test.describe("themes catalog", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("Eclipse Bloom is locked until its star threshold, then becomes usable", async ({
+    page,
+  }) => {
+    await page.locator("#btn-themes").click();
+    await expect(page.locator("#themes")).toBeVisible();
+
+    const item = page.locator(".theme-item", { hasText: "Eclipse Bloom" });
+    await expect(item).toBeVisible();
+    await expect(item.locator(".ti-desc")).toContainText("Unlock at 130");
+    await expect(item.locator(".buy-btn")).toBeDisabled();
+
+    // Cross the star threshold and rebuild the list.
+    await page.evaluate(() => {
+      window.__bpc.Storage.set("stars", { 1: 130 });
+      window.__bpc.UI.buildThemes();
+    });
+    const unlocked = page.locator(".theme-item", { hasText: "Eclipse Bloom" });
+    await expect(unlocked.locator(".buy-btn")).toHaveText("Use");
+    await unlocked.locator(".buy-btn").click();
+
+    const current = await page.evaluate(() => window.__bpc.Storage.get("currentTheme"));
+    expect(current).toBe("eclipse");
+    await expect(unlocked.locator(".buy-btn")).toHaveText("Active");
+  });
+});
+
 test.describe("core gameplay (real input)", () => {
   test.beforeEach(({ page }) => openGame(page));
 
