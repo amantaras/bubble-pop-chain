@@ -63,15 +63,24 @@ export function bossReward(id) {
   };
 }
 
-// Frozen-core objective sizing for a boss level. Bosses now come in three
-// archetypes that rotate by boss number so the challenge beats stay varied:
+// Frozen-core objective sizing for a boss level. Bosses now come in four
+// archetypes:
 //   • frozen 🧊 — shatter a centred block of ice bubbles (two hits each).
 //   • stone  🪨 — break a centred vault of locked stone bubbles (only an
 //                 adjacent pop frees each one).
 //   • color  🎨 — purge every bubble of one marked colour from the board.
+//   • vine   🌿 — clear a centred cluster of vine bubbles before it creeps
+//                 across the whole board (the vine spreads by one cell every
+//                 resolved move, same as the campaign's roaming vine threat).
 // Each archetype is granted extra moves to keep the objective fair. The
 // returned shape always carries `kind`, a human `label`, a short `hudLabel`,
-// and `extraMoves`; frozen/stone also carry their block sizing.
+// and `extraMoves`; frozen/stone/vine also carry their block sizing.
+//
+// The first four bosses (levels 10/20/30/40) are hand-authored and keep their
+// EXACT original kinds — frozen → stone → color → frozen — unaffected by
+// adding vine to the rotation. Vine only joins a fair 4-way cycle for
+// endless/procedural bosses beyond the authored campaign (boss 5, i.e. level
+// 50, onward), so no already-shipped boss's archetype changes.
 export const BOSS_ARCHETYPES = ["frozen", "stone", "color"];
 
 // Boss objective sizing grows with the boss number but plateaus at this tier so
@@ -80,10 +89,19 @@ export const BOSS_ARCHETYPES = ["frozen", "stone", "color"];
 // beyond that the size is constant. Kind still rotates by the real boss index.
 export const BOSS_TIER_CAP = 8;
 
+// Resolve which archetype a given boss number gets. See the block comment
+// above `BOSS_ARCHETYPES` for why the first four bosses are hard-pinned to the
+// original 3-way cycle while later bosses get a 4-way cycle including vine.
+function bossKindForIndex(idx) {
+  if (idx <= 4) return BOSS_ARCHETYPES[(idx - 1) % BOSS_ARCHETYPES.length];
+  const cycle = ["vine", "frozen", "stone", "color"];
+  return cycle[(idx - 5) % cycle.length];
+}
+
 export function bossConfig(id) {
   if (milestoneType(id) !== "boss") return null;
   const idx = bossIndex(id);
-  const kind = BOSS_ARCHETYPES[(idx - 1) % BOSS_ARCHETYPES.length];
+  const kind = bossKindForIndex(idx);
   // Capped tier drives the objective size + bonus moves so high bosses stay
   // board-sized and fair; the original bosses 1–4 are unaffected (tier === idx).
   const tier = Math.min(idx, BOSS_TIER_CAP);
@@ -112,6 +130,24 @@ export function bossConfig(id) {
       label: "Colour Purge",
       hudLabel: "Left",
       extraMoves: 8 + tier * 2,
+    };
+  }
+
+  if (kind === "vine") {
+    // A centred cluster of vine bubbles the player must clear before it
+    // overtakes the board — the vine still creeps one cell per resolved move
+    // (main.js `_spreadVines`), so this is a genuine race against growth.
+    const vineW = 2 + Math.floor((tier - 1) / 2);
+    const vineH = 2;
+    return {
+      idx,
+      kind,
+      vineW,
+      vineH,
+      objectiveCount: vineW * vineH,
+      label: "Vine Overgrowth",
+      hudLabel: "Vines",
+      extraMoves: 9 + tier * 2,
     };
   }
 

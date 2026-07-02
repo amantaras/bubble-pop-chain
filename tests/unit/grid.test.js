@@ -694,6 +694,34 @@ describe("grid / Board", () => {
     if (sp) expect(sp.type).toBe(STONE);
   });
 
+  it("placeVineCore tags a centred block and vineCount counts them (boss objective)", () => {
+    const b = new Board(6, 6, 4, 1);
+    expect(b.vineCount()).toBe(0);
+    const n = b.placeVineCore(2, 2);
+    expect(n).toBe(4);
+    expect(b.vineCount()).toBe(4);
+    // The cluster is centred: cols (6-2)/2 = 2, rows (6-2)/2 = 2.
+    for (let c = 2; c < 4; c++)
+      for (let r = 2; r < 4; r++) expect(b.isVine(c, r)).toBe(true);
+    // Sprites are tagged so the renderer draws the vine overlay.
+    const sp = b.spriteGrid[2][2];
+    if (sp) expect(sp.type).toBe(VINE);
+    // Unlike frozen/stone, the underlying colour is untouched — a vine cell
+    // still matches/pops as its existing colour.
+    expect(b.grid[2][2]).not.toBe(-1);
+  });
+
+  it("placeVineCore skips empty cells and can still spread from the seeded cluster", () => {
+    const b = new Board(6, 6, 4, 1);
+    b.placeVineCore(2, 2);
+    const before = b.vineCount();
+    expect(before).toBeGreaterThan(0);
+    const sprouted = b.spreadVines();
+    // A seeded vine cluster has real NORMAL neighbours to creep into.
+    expect(sprouted).toBeTruthy();
+    expect(b.vineCount()).toBe(before + 1);
+  });
+
   it("layout / targetPixel / cellAtPixel round-trip", () => {
     const b = new Board(6, 8, 3, 5);
     b.layout(400, 800, 100, 80);

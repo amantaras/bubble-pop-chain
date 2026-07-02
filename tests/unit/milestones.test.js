@@ -110,6 +110,47 @@ describe("milestones", () => {
     for (const cfg of [f, s, c]) expect(cfg.extraMoves).toBeGreaterThan(0);
   });
 
+  it("vine joins the rotation only beyond the authored campaign (boss 5+, level 50+)", () => {
+    // Bosses 1-4 (the hand-authored campaign) are completely unaffected by
+    // adding a 4th archetype — the exact original sequence is preserved.
+    expect(bossConfig(10).kind).toBe("frozen");
+    expect(bossConfig(20).kind).toBe("stone");
+    expect(bossConfig(30).kind).toBe("color");
+    expect(bossConfig(40).kind).toBe("frozen");
+
+    // From boss 5 (level 50) onward, vine joins a fair 4-way cycle.
+    const kinds = [50, 60, 70, 80, 90, 100, 110, 120].map((id) => bossConfig(id).kind);
+    expect(kinds).toEqual([
+      "vine", "frozen", "stone", "color",
+      "vine", "frozen", "stone", "color",
+    ]);
+  });
+
+  it("a vine boss config describes a clearable cluster with extra moves", () => {
+    const v = bossConfig(50);
+    expect(v.kind).toBe("vine");
+    expect(v.label).toBe("Vine Overgrowth");
+    expect(v.hudLabel).toBe("Vines");
+    expect(v.objectiveCount).toBe(v.vineW * v.vineH);
+    // A 2-row cluster, consistent with the other block archetypes.
+    expect(v.vineH).toBe(2);
+    expect(v.extraMoves).toBeGreaterThan(0);
+    // No fixed frozen/stone/color fields leak onto the vine shape.
+    expect(v.coreW).toBeUndefined();
+    expect(v.vaultW).toBeUndefined();
+  });
+
+  it("the vine cluster fits inside its boss level board and grows with tier", () => {
+    const v50 = bossConfig(50); // first vine boss, tier 5
+    const lvl50 = getLevel(50);
+    expect(v50.vineW).toBeLessThanOrEqual(lvl50.cols);
+    expect(v50.vineH).toBeLessThanOrEqual(lvl50.rows);
+
+    const v90 = bossConfig(90); // later vine boss, higher tier
+    expect(v90.vineW).toBeGreaterThanOrEqual(v50.vineW);
+    expect(v90.extraMoves).toBeGreaterThanOrEqual(v50.extraMoves);
+  });
+
   it("high boss objectives stay board-sized (tier cap) for the endless campaign", () => {
     // A very deep boss still produces a vault/core that fits the largest board
     // (cols ≤ 9, rows ≤ 11) instead of growing without bound.
@@ -123,6 +164,9 @@ describe("milestones", () => {
       } else if (cfg.kind === "stone") {
         expect(cfg.vaultW).toBeLessThanOrEqual(lvl.cols);
         expect(cfg.vaultH).toBeLessThanOrEqual(lvl.rows);
+      } else if (cfg.kind === "vine") {
+        expect(cfg.vineW).toBeLessThanOrEqual(lvl.cols);
+        expect(cfg.vineH).toBeLessThanOrEqual(lvl.rows);
       }
       // Bonus moves stay sane (not thousands).
       expect(cfg.extraMoves).toBeLessThanOrEqual(40);

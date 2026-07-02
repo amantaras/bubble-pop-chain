@@ -1382,6 +1382,7 @@ class UIManager {
     if (level.boss) {
       if (level.boss.kind === "stone") return "Open space beside the vault first; adjacent pops break stone faster than chasing loose score.";
       if (level.boss.kind === "color") return "Purge the marked colour early, then use the remaining board for score and cleanup.";
+      if (level.boss.kind === "vine") return "Pop the vine cluster fast — it creeps to a new bubble every move, so don't let it get away from you.";
       return "Crack the core in layers. Save row, column, and area clears for the centre once matches get thin.";
     }
     if (level.downpour) return "Keep the top lanes open and clear tall stacks before each downpour tick adds pressure.";

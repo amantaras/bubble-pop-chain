@@ -610,6 +610,8 @@ class Game {
         bossTargetColor = dc == null ? -1 : dc;
         bossCoreTotal =
           bossTargetColor >= 0 ? board.colorCells(bossTargetColor).length : 0;
+      } else if (cfg.kind === "vine") {
+        bossCoreTotal = board.placeVineCore(cfg.vineW, cfg.vineH);
       } else {
         bossCoreTotal = board.placeFrozenCore(cfg.coreW, cfg.coreH);
       }
@@ -733,6 +735,8 @@ class Game {
           ? "Pop beside the locked stones to shatter the vault!"
           : cfg.kind === "color"
           ? "Clear every marked bubble off the board!"
+          : cfg.kind === "vine"
+          ? "Pop the vine cluster fast — it spreads every move!"
           : "Shatter the whole frozen core!";
       UI.toast(`👹 ${cfg.label}: ${how}`, 3000);
     }
@@ -1838,6 +1842,7 @@ class Game {
     const s = this.session;
     if (!s || !s.level || s.level.milestone !== "boss") return 0;
     if (s.bossKind === "stone") return s.board.stoneRemaining();
+    if (s.bossKind === "vine") return s.board.vineCount();
     if (s.bossKind === "color")
       return s.bossTargetColor >= 0
         ? s.board.colorCells(s.bossTargetColor).length

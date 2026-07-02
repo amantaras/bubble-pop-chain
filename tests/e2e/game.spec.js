@@ -1771,6 +1771,44 @@ test.describe("milestone events (every 5 levels)", () => {
     );
     expect(save.milestonesCleared).toContain(30);
   });
+
+  test("a vine-overgrowth boss is won by clearing every vine before it spreads", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.Storage.set("maxUnlockedLevel", 50));
+    await page.evaluate(() => window.__bpc.game.startCampaign(50));
+    await page.waitForTimeout(600);
+    // Boss 5 is the first to rotate to the new vine archetype (the authored
+    // bosses 1-4 at levels 10/20/30/40 are untouched).
+    await expect(page.locator("#hud-target-label")).toHaveText("Vines");
+    const kind = await page.evaluate(() => window.__bpc.game.session.bossKind);
+    expect(kind).toBe("vine");
+    const vines = await page.evaluate(() =>
+      window.__bpc.game.session.board.vineCount()
+    );
+    expect(vines).toBeGreaterThan(0);
+
+    // Clear every vine (VINE = 9) and let the move logic resolve the win.
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          if (b.types[c][r] === 9) {
+            b.grid[c][r] = -1;
+            b.types[c][r] = 0;
+            b.spriteGrid[c][r] = null;
+          }
+        }
+      g.afterMove();
+    });
+
+    await expect(page.locator("#win")).toBeVisible();
+    const save = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem("bpc_save_v1"))
+    );
+    expect(save.milestonesCleared).toContain(50);
+  });
 });
 
 test.describe("endless & daily modes", () => {

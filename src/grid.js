@@ -826,6 +826,29 @@ export class Board {
     return n;
   }
 
+  // Tag a centred block of bubbles as vine for the "Vine Overgrowth" boss
+  // objective. Unlike frozen/stone, vine cells keep matching/popping as their
+  // existing colour (see `isVine`) and the cluster still creeps one cell per
+  // resolved move via `spreadVines` — the player races to clear it before it
+  // overtakes the board. Returns the number of cells actually tagged. Empty
+  // cells are skipped.
+  placeVineCore(vineW, vineH) {
+    const c0 = Math.floor((this.cols - vineW) / 2);
+    const r0 = Math.floor((this.rows - vineH) / 2);
+    let n = 0;
+    for (let c = c0; c < c0 + vineW; c++) {
+      for (let r = r0; r < r0 + vineH; r++) {
+        if (c < 0 || c >= this.cols || r < 0 || r >= this.rows) continue;
+        if (this.grid[c][r] === -1) continue;
+        this.types[c][r] = VINE;
+        const sp = this.spriteGrid[c][r];
+        if (sp) sp.type = VINE;
+        n++;
+      }
+    }
+    return n;
+  }
+
   // ---- Mutations --------------------------------------------------------
   // Shift an entire row horizontally with wrap-around (2048-style).
   // `dir` is "left" or "right". Returns true if the row had any bubbles.

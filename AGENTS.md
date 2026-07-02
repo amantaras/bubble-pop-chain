@@ -1494,7 +1494,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 677 unit tests + 558 E2E
+- **Current baseline (keep growing, never shrink)**: 682 unit tests + 560 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests
@@ -1593,11 +1593,15 @@ defines the campaign's reward/challenge rhythm. It must stay in sync with
   `"boss"` on levels 10/20/30/40 — the two beats always alternate.
 - **Treasure 🎁** (`treasureReward`): first clear pays `100 + idx*25` bonus coins
   plus one rotating free power-up (`magnet`/`bomb`/`colorClear`/`shuffle`).
-- **Boss 👹** (`bossReward` + `bossConfig`): bosses rotate through **three
-  archetypes** by boss number (`BOSS_ARCHETYPES = ["frozen","stone","color"]`,
-  `kind = BOSS_ARCHETYPES[(idx-1) % 3]` → lvl10 frozen, lvl20 stone, lvl30 color,
-  lvl40 frozen). Each `bossConfig` shape carries `kind`, `label`, `hudLabel`,
-  `extraMoves`:
+- **Boss 👹** (`bossReward` + `bossConfig`): the first four (authored) bosses
+  rotate through **three archetypes** by boss number
+  (`BOSS_ARCHETYPES = ["frozen","stone","color"]`) → lvl10 frozen, lvl20 stone,
+  lvl30 color, lvl40 frozen. Boss 5 (level 50) onward — beyond the authored
+  campaign — joins a **4-way rotation that adds vine**: lvl50 vine, lvl60
+  frozen, lvl70 stone, lvl80 color, lvl90 vine, … (`bossKindForIndex`, private
+  to `milestones.js`); the first four bosses are hard-pinned to their exact
+  original kind so nothing already shipped changes. Each `bossConfig` shape
+  carries `kind`, `label`, `hudLabel`, `extraMoves`:
   - **frozen** 🧊 — seeds a centred **frozen core** of ice bubbles
     (`Board.placeFrozenCore`, sizing `coreW`/`coreH`); clear it via two-hit pops.
   - **stone** 🪨 — seeds a centred 2-row **stone vault** (`Board.placeStoneVault`,
@@ -1606,20 +1610,32 @@ defines the campaign's reward/challenge rhythm. It must stay in sync with
   - **color** 🎨 — picks `Board.dominantColor()` at session start and the player
     must **purge every bubble of that colour** from the board; the renderer tags
     each target bubble with a pip (`drawBubbles(..., markColor)`).
+  - **vine** 🌿 — seeds a centred 2-row **vine cluster** (`Board.placeVineCore`,
+    sizing `vineW`/`vineH`) that must be cleared before it overtakes the board.
+    Vine cells keep matching/popping as their existing colour (unlike
+    frozen/stone, `placeVineCore` never changes the underlying colour), and the
+    cluster still creeps one cell per resolved move via the same
+    `main._spreadVines()`/`Board.spreadVines()` mechanic that drives the
+    campaign's roaming vine threat — so a vine boss is a genuine race against
+    growth, not just a bigger version of the ordinary vine hazard.
   The remaining-count for any archetype comes from `main.js`
   `_bossObjectiveRemaining()` (`stoneRemaining()` / `colorCells(target).length` /
-  `frozenRemaining()`); the win fires when it hits 0 before moves run out. Boss
-  levels suppress random ice **and** stone and get extra moves (`getLevel`).
-  First defeat pays a coin jackpot (`250 + idx*75`) and unlocks the next cosmetic
-  theme. Bosses have **no tutorial step** (the start toast explains the goal).
+  `frozenRemaining()` / `vineCount()`); the win fires when it hits 0 before moves
+  run out. Boss levels suppress random ice, stone, **and** vine spawns and get
+  extra moves (`getLevel`) — a vine boss's vines are only ever the seeded core
+  plus its own spread, never random ambient vines. First defeat pays a coin
+  jackpot (`250 + idx*75`) and unlocks the next cosmetic theme (only the first
+  four bosses have a cosmetic theme queued; later bosses, including every vine
+  boss, still pay the coin jackpot). Bosses have **no tutorial step** (the start
+  toast explains the goal, including a vine-specific "spreads every move!" nudge).
 - **Wiring**: `getLevel` tags `level.milestone` / `level.boss`; `main.js`
   `_newSession` dispatches on `cfg.kind` to place the objective and tracks
   `bossCoreTotal` / `bossKind` / `bossTargetColor` (all persisted in the session
   snapshot); the boss objective is evaluated in `afterMove` via
   `_bossObjectiveRemaining()`, and the one-time rewards are paid in `_finish`. The
   level map (`ui.js buildLevelMap`) and the boss HUD (`hudLabel`:
-  `Core`/`Stone`/`Left`) surface the beats; the recap window shows the reward
-  lines via `win-reward`.
+  `Core`/`Stone`/`Left`/`Vines`) surface the beats; the recap window shows the
+  reward lines via `win-reward`.
 
 ## 9. Git / workflow conventions
 
