@@ -1299,6 +1299,96 @@ test.describe("special bubbles (ice + rainbow)", () => {
   });
 });
 
+test.describe("chain reactor bubbles (sequence)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("popping 1 -> 2 -> 3 in order primes a big diamond blast", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await page.waitForTimeout(400);
+    const result = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      // Paint the whole board background colour 1 so any pop can chain
+      // freely, then carve three separate colour-0 pairs (rows 0/2/4,
+      // separated by a background row so they never merge into one group)
+      // carrying SEQUENCE_1/2/3 (types 10/11/12) so each number pops alone.
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          b.grid[c][r] = 1;
+          b.types[c][r] = 0; // NORMAL
+        }
+      b.grid[0][0] = 0;
+      b.grid[1][0] = 0;
+      b.types[0][0] = 10; // SEQUENCE_1
+      b.types[1][0] = 10;
+      b.grid[0][2] = 0;
+      b.grid[1][2] = 0;
+      b.types[0][2] = 11; // SEQUENCE_2
+      b.types[1][2] = 11;
+      b.grid[0][4] = 0;
+      b.grid[1][4] = 0;
+      b.types[0][4] = 12; // SEQUENCE_3
+      b.types[1][4] = 12;
+
+      g.popAt(0, 0); // pop "1"
+      const progressAfter1 = g.session.sequenceProgress;
+      g.popAt(0, 2); // pop "2"
+      const progressAfter2 = g.session.sequenceProgress;
+      const before3 = b.countRemaining();
+      g.popAt(0, 4); // pop "3" while primed — detonates a big diamond blast
+      const after3 = b.countRemaining();
+      return {
+        progressAfter1,
+        progressAfter2,
+        cleared: before3 - after3,
+        progressAfter3: g.session.sequenceProgress,
+      };
+    });
+    expect(result.progressAfter1).toBe(1);
+    expect(result.progressAfter2).toBe(2);
+    // The "3" pop cleared far more than its own 2-cell group — the diamond
+    // blast (radius 3) sweeps in extra cells from the surrounding colour-1
+    // filled board.
+    expect(result.cleared).toBeGreaterThan(2);
+    expect(result.progressAfter3).toBe(0); // consumed, ready for a new chain
+  });
+
+  test("popping out of order breaks the chain — no bonus, just a normal pop", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await page.waitForTimeout(400);
+    const result = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          b.grid[c][r] = 1;
+          b.types[c][r] = 0;
+        }
+      b.grid[0][0] = 0;
+      b.grid[1][0] = 0;
+      b.types[0][0] = 11; // SEQUENCE_2 — popped first, out of order
+      b.types[1][0] = 11;
+      b.grid[0][2] = 0;
+      b.grid[1][2] = 0;
+      b.types[0][2] = 12; // SEQUENCE_3
+      b.types[1][2] = 12;
+
+      g.popAt(0, 0); // pop "2" first — the chain never started, so it resets
+      const progressAfterOutOfOrder = g.session.sequenceProgress;
+      const before3 = b.countRemaining();
+      g.popAt(0, 2); // pop "3" while NOT primed — just a normal pop
+      const after3 = b.countRemaining();
+      return { progressAfterOutOfOrder, cleared: before3 - after3 };
+    });
+    expect(result.progressAfterOutOfOrder).toBe(0);
+    expect(result.cleared).toBe(2); // only its own 2-cell group, no blast
+  });
+});
+
 test.describe("daily retention engine", () => {
   test.beforeEach(({ page }) => openGame(page));
 
@@ -5451,9 +5541,25 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
             return;
           }
     });
+    await expect.poll(() => stepId(page)).toBe("sequence");
+
+    // 8g) sequence — pop the Chain Reactor clusters in order (1 -> 2 -> 3);
+    // only the final "3" pop (with the chain primed) advances the step.
+    for (const num of [1, 2, 3]) {
+      await page.evaluate((n) => {
+        const g = window.__bpc.game;
+        const b = g.session.board;
+        for (let c = 0; c < b.cols; c++)
+          for (let r = 0; r < b.rows; r++)
+            if (b.isSequenceNum(c, r, n) && b.getGroupAt(c, r).length >= 2) {
+              g.popAt(c, r);
+              return;
+            }
+      }, num);
+    }
     await expect.poll(() => stepId(page)).toBe("pets");
 
-    // 8g) pets (informational) — introduces the companion system.
+    // 8h) pets (informational) — introduces the companion system.
     await page.locator("#coach-next").click();
     expect(await stepId(page)).toBe("done");
 

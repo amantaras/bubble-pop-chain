@@ -1,5 +1,5 @@
 // Game orchestrator: canvas loop, state machine, and all session logic.
-import { Board, NORMAL, RAINBOW, ICE, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN, VINE } from "./grid.js";
+import { Board, NORMAL, RAINBOW, ICE, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN, VINE, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3 } from "./grid.js";
 import { Renderer, themeMotif } from "./renderer.js";
 import { ParticleSystem, popStyleForGroup } from "./particles.js";
 import {
@@ -679,6 +679,10 @@ class Game {
       archerAim: null,
       shiftTokens: mode === "campaign" || mode === "puzzle" ? 0 : 5,
       stats: this._newStats(),
+      // Chain Reactor progress: 0 = no chain started, 1 = "1" popped (waiting
+      // for "2"), 2 = "1"+"2" popped in order (waiting for "3" to detonate).
+      // See _updateSequenceProgress.
+      sequenceProgress: 0,
       bossCoreTotal,
       bossKind,
       bossTargetColor,
@@ -1614,6 +1618,20 @@ class Game {
       decorateSpecials(types);
       this._placeTutorialVine(types);
       b.restore(g, types);
+    } else if (kind === "sequence") {
+      // Fresh practice board with three separate guaranteed clusters, each
+      // seeded with one numbered Chain Reactor bubble (1, 2, 3), so the full
+      // chain can always be completed in order.
+      const b = s.board;
+      const { colors: g, types } = buildTutorialBoard(
+        b.cols,
+        b.rows,
+        s.level.colors || 4
+      );
+      decorateSpecials(types);
+      this._placeTutorialSequence(types);
+      b.restore(g, types);
+      s.sequenceProgress = 0;
     } else if (kind === "event") {
       this._spawnTutorialEvent();
     } else if (kind === "undo") {
@@ -1671,6 +1689,16 @@ class Game {
     if (types && types[0] && types[0][0] !== undefined) types[0][0] = VINE;
   }
 
+  // Drop the three numbered Chain Reactor bubbles into three SEPARATE
+  // guaranteed 2×2 colour blocks (buildTutorialBoard colours every 2×2 block
+  // uniformly, so cols 0-1 / 2-3 / 4-5 of row 0 are three independent
+  // clusters) so the player can always pop 1, then 2, then 3 in order.
+  _placeTutorialSequence(types) {
+    if (types && types[0] && types[0][0] !== undefined) types[0][0] = SEQUENCE_1;
+    if (types && types[2] && types[2][0] !== undefined) types[2][0] = SEQUENCE_2;
+    if (types && types[4] && types[4][0] !== undefined) types[4][0] = SEQUENCE_3;
+  }
+
   // Rebuild the controlled practice board so the tutorial never runs out of
   // poppable clusters no matter how much the player pops/blasts.
   _refillTutorialBoard() {
@@ -1706,6 +1734,16 @@ class Game {
     // Keep a vine bubble available while the vine step is active.
     if (this.tutorial && this.tutorial.stepId === "vine") {
       this._placeTutorialVine(types);
+    }
+    // Keep the Chain Reactor bubbles available while the sequence step is
+    // active — only re-seed a "1"/"2" if that step hasn't been popped yet, so
+    // a refill mid-chain can't reintroduce an already-cleared step and reset
+    // progress the player already made. The "3" is always safe to re-seed.
+    if (this.tutorial && this.tutorial.stepId === "sequence") {
+      const prog = s.sequenceProgress || 0;
+      if (prog === 0 && types[0] && types[0][0] !== undefined) types[0][0] = SEQUENCE_1;
+      if (prog <= 1 && types[2] && types[2][0] !== undefined) types[2][0] = SEQUENCE_2;
+      if (types[4] && types[4][0] !== undefined) types[4][0] = SEQUENCE_3;
     }
     b.restore(g, types);
     b.layout(this.W, this.H, TOP_INSET, this._bottomInset());
@@ -2252,20 +2290,32 @@ class Game {
   }
 
   // Expand a cleared set through chained special strikes until it stabilizes:
-  // lightning bubbles add row+column cells, bomb bubbles add 3x3 cells. Newly
-  // included specials can trigger further expansions in later passes.
+  // lightning bubbles add row+column cells, bomb bubbles add 3x3 cells, and a
+  // primed Chain Reactor "3" (session.sequenceProgress === 2) adds a big
+  // diamond blast. Newly included specials can trigger further expansions in
+  // later passes.
+  //
+  // Pure preview vs. real move: this is ALSO called speculatively by
+  // _bestBlastTarget (which probes every filled cell to find the best Charged
+  // Blast target) — it must NOT mutate session state. Chain Reactor progress
+  // is therefore updated separately by each REAL move's caller (popAt,
+  // _petPopCells, chargedBlast, applyPowerup) via _updateSequenceProgress, not
+  // from inside this shared resolver.
   _resolveSpecialStrikes(cells) {
     const s = this.session;
     if (!s || !cells || !cells.length) {
-      return { cells: cells || [], hitLightning: false, hitBomb: false };
+      return { cells: cells || [], hitLightning: false, hitBomb: false, hitSequence: false };
     }
     let out = cells;
     let hitLightning = false;
     let hitBomb = false;
+    let hitSequence = false;
     for (let guard = 0; guard < 64; guard++) {
       const before = out.length;
       const hasLightning = out.some((p) => s.board.isLightning(p.c, p.r));
       const hasBomb = out.some((p) => s.board.isBomb(p.c, p.r));
+      const seqPrimed =
+        s.sequenceProgress === 2 && out.some((p) => s.board.isSequenceNum(p.c, p.r, 3));
       if (hasLightning) {
         hitLightning = true;
         out = s.board.lightningStrike(out);
@@ -2274,9 +2324,39 @@ class Game {
         hitBomb = true;
         out = s.board.bombStrike(out);
       }
+      if (seqPrimed) {
+        hitSequence = true;
+        out = s.board.sequenceStrike(out);
+      }
       if (out.length === before) break;
     }
-    return { cells: out, hitLightning, hitBomb };
+    return { cells: out, hitLightning, hitBomb, hitSequence };
+  }
+
+  // Advance/break the Chain Reactor: popping "1" (re)starts the chain, "2"
+  // right after a "1" continues it, and "3" while primed (progress===2, which
+  // _resolveSpecialStrikes already consumed via sequenceStrike) resets it for
+  // the next attempt. Popping a number out of order breaks the chain (the
+  // bubble still pops normally — no bonus, just no bonus either).
+  _updateSequenceProgress(cells, exploded) {
+    const s = this.session;
+    if (!s) return;
+    if (exploded) {
+      s.sequenceProgress = 0;
+      return;
+    }
+    const has3 = cells.some((p) => s.board.isSequenceNum(p.c, p.r, 3));
+    if (has3) {
+      s.sequenceProgress = 0; // popped "3" without the chain being primed — wasted
+      return;
+    }
+    const has2 = cells.some((p) => s.board.isSequenceNum(p.c, p.r, 2));
+    if (has2) {
+      s.sequenceProgress = s.sequenceProgress === 1 ? 2 : 0;
+      return;
+    }
+    const has1 = cells.some((p) => s.board.isSequenceNum(p.c, p.r, 1));
+    if (has1) s.sequenceProgress = 1;
   }
 
   _petPopCells(cells, rawPoints, opts = {}) {
@@ -2285,6 +2365,8 @@ class Game {
     const strike = this._resolveSpecialStrikes(cells);
     const resolved = strike.cells;
     if (!resolved.length) return null;
+    // A real move (a pet's board action) — advance/break the Chain Reactor.
+    this._updateSequenceProgress(resolved, strike.hitSequence);
     const anchor = opts.anchor || s.board.targetPixel(resolved[0].c, resolved[0].r);
     const basePoints = Math.round(
       feverPoints(rawPoints, s.feverActive) * s.petBuffs.scoreMult
@@ -2343,14 +2425,23 @@ class Game {
     // Record an undo snapshot before this move mutates the board.
     this._pushUndo();
 
+    // Chain Reactor progress before this pop resolves (used below to tell
+    // "just started"/"just continued" apart from an already-primed chain).
+    const seqBefore = s.sequenceProgress;
+
     // Lightning bubbles discharge along their row + column; Bomb bubbles
-    // detonate a 3×3 area. Either expands the cleared set; score reflects
-    // everything cleared.
+    // detonate a 3×3 area; a primed Chain Reactor "3" detonates a big diamond
+    // blast. Any of these expands the cleared set; score reflects everything
+    // cleared.
     const strike = this._resolveSpecialStrikes(group);
     const struckBolt = strike.hitLightning;
     const struckBomb = strike.hitBomb;
+    const struckSequence = strike.hitSequence;
     const cells = strike.cells;
-    const struck = struckBolt || struckBomb;
+    const struck = struckBolt || struckBomb || struckSequence;
+    // This is a REAL move (unlike _bestBlastTarget's speculative probing of
+    // every cell), so advance/break the Chain Reactor now.
+    this._updateSequenceProgress(cells, struckSequence);
 
     // Score with combo multiplier.
     const base = groupScore(cells.length);
@@ -2389,6 +2480,23 @@ class Game {
       this.floating.spawn(p.x, p.y - 28, "💥 BOOM!", "#ffb066", 30);
       Audio.powerup();
     }
+    if (struckSequence) {
+      // The "3" popped while the chain was primed (1 -> 2 already landed) —
+      // a big diamond blast, the payoff for completing the chain across
+      // separate turns.
+      const p = s.board.targetPixel(c, r);
+      this.floating.spawn(p.x, p.y - 34, "🔗 CHAIN REACTOR!", "#ff5b8b", 34);
+      Audio.powerup();
+      this._tut("sequence");
+    } else if (s.sequenceProgress === 1 && seqBefore !== 1) {
+      const p = s.board.targetPixel(c, r);
+      this.floating.spawn(p.x, p.y - 28, "🔗 Chain started (1/3)", "#ff8ae0", 24);
+      Audio.powerup();
+    } else if (s.sequenceProgress === 2 && seqBefore === 1) {
+      const p = s.board.targetPixel(c, r);
+      this.floating.spawn(p.x, p.y - 28, "🔗 2/3 — pop the 3!", "#ff8ae0", 26);
+      Audio.powerup();
+    }
     if (multCount > 0) {
       const p = s.board.targetPixel(c, r);
       this.floating.spawn(p.x, p.y - 28, `✨ ×${scoreMult}!`, "#ffd35b", 32);
@@ -2408,7 +2516,8 @@ class Game {
         s.board.isBomb(p.c, p.r) ||
         s.board.isMultiplier(p.c, p.r) ||
         s.board.isCoin(p.c, p.r) ||
-        s.board.isVine(p.c, p.r)
+        s.board.isVine(p.c, p.r) ||
+        s.board.isSequence(p.c, p.r)
     ).length;
     if (coinCount > 0) {
       const coinsDropped = coinCount * COIN_BUBBLE_VALUE;
@@ -2420,7 +2529,7 @@ class Game {
       this.floating.spawn(p.x, p.y - 28, `🪙 +${coinsDropped}`, "#ffe08a", 30);
       Audio.powerup();
     }
-    this._popCells(cells, finalPoints, cells.length, s.combo, struck ? 1.3 : 1);
+    this._popCells(cells, finalPoints, cells.length, s.combo, struckSequence ? 1.6 : struck ? 1.3 : 1);
     if (this.isBlastReady()) this._showBlastCue();
 
     // Cascade callout: a distinct, escalating chain-reaction flourish above the
@@ -2887,6 +2996,8 @@ class Game {
     const strike = this._resolveSpecialStrikes(s.board.blastArea(c, r));
     const cells = strike.cells;
     if (!cells.length) return;
+    // A real move — advance/break the Chain Reactor.
+    this._updateSequenceProgress(cells, strike.hitSequence);
     // Record an undo snapshot (the spent charge is restored from the snapshot).
     this._pushUndo();
     s.power = 0;
@@ -3020,6 +3131,9 @@ class Game {
     const hitBomb = strike.hitBomb;
     cells = strike.cells;
     if (cells.length === 0) return;
+
+    // A real move (a tool) — advance/break the Chain Reactor.
+    this._updateSequenceProgress(cells, strike.hitSequence);
 
     // Tutorial mode bypasses the economy so it never spends real inventory.
     if (s.mode !== "tutorial" && !Economy.usePowerup(type)) return;

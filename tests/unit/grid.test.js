@@ -11,6 +11,9 @@ import {
   MULTIPLIER,
   COIN,
   VINE,
+  SEQUENCE_1,
+  SEQUENCE_2,
+  SEQUENCE_3,
   MAGNET_GLIDE,
   DOWNPOUR_FALL_MULT,
   DOWNPOUR_FALL_SECONDS,
@@ -436,6 +439,72 @@ describe("grid / Board", () => {
     // The new vine is orthogonally adjacent to the original.
     const dist = Math.abs(sprouted.c - 1) + Math.abs(sprouted.r - 1);
     expect(dist).toBe(1);
+  });
+
+  // ---- Chain Reactor (SEQUENCE_1/2/3) ------------------------------------
+  it("a sequence spawn rate sprinkles all three numbered bubbles deterministically", () => {
+    const b = new Board(10, 10, 4, 21, { rainbow: 0, ice: 0, sequence: 0.5 });
+    let n1 = 0, n2 = 0, n3 = 0;
+    for (let c = 0; c < b.cols; c++)
+      for (let r = 0; r < b.rows; r++) {
+        if (b.types[c][r] === SEQUENCE_1) n1++;
+        else if (b.types[c][r] === SEQUENCE_2) n2++;
+        else if (b.types[c][r] === SEQUENCE_3) n3++;
+      }
+    expect(n1).toBeGreaterThan(0);
+    expect(n2).toBeGreaterThan(0);
+    expect(n3).toBeGreaterThan(0);
+  });
+
+  it("a sequence bubble joins same-colour groups like a normal bubble", () => {
+    const b = new Board(3, 1, 2, 1);
+    setGrid(b, [[0], [0], [1]]);
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[1][0] = SEQUENCE_2; // middle cell of the colour-0 pair
+    expect(b.getGroupAt(0, 0).length).toBe(2);
+    expect(b.isSequenceNum(1, 0, 2)).toBe(true);
+    expect(b.isSequenceNum(1, 0, 1)).toBe(false);
+    expect(b.isSequence(1, 0)).toBe(true);
+    expect(b.isSequence(0, 0)).toBe(false);
+  });
+
+  it("sequenceStrike leaves the group unchanged when it has no primed '3'", () => {
+    const b = new Board(3, 3, 3, 1);
+    setGrid(b, [
+      [0, 1, 2],
+      [0, 1, 2],
+      [0, 1, 2],
+    ]);
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    const group = [
+      { c: 0, r: 0 },
+      { c: 0, r: 1 },
+    ];
+    expect(b.sequenceStrike(group)).toHaveLength(2);
+  });
+
+  it("sequenceStrike adds a big diamond blast (radius 3) around each '3' bubble", () => {
+    const b = new Board(9, 9, 3, 1);
+    for (let c = 0; c < b.cols; c++)
+      for (let r = 0; r < b.rows; r++) b.grid[c][r] = 0;
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[4][4] = SEQUENCE_3;
+    const cells = b.sequenceStrike([{ c: 4, r: 4 }]);
+    const keys = new Set(cells.map((p) => `${p.c},${p.r}`));
+    expect(keys.size).toBe(cells.length); // no dupes
+    // blastArea(4,4,3) on a fully-filled board matches the pure helper exactly.
+    expect(cells.length).toBe(b.blastArea(4, 4, 3).length);
+  });
+
+  it("a corner '3' clips its blast to the board", () => {
+    const b = new Board(5, 5, 3, 1);
+    for (let c = 0; c < b.cols; c++)
+      for (let r = 0; r < b.rows; r++) b.grid[c][r] = 0;
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[0][0] = SEQUENCE_3;
+    const cells = b.sequenceStrike([{ c: 0, r: 0 }]);
+    expect(cells.length).toBe(b.blastArea(0, 0, 3).length);
+    expect(cells.length).toBeLessThan(25); // clipped, not the full 7x7 diamond
   });
 
   it("spreadVines returns null when there is no room or no vines", () => {

@@ -389,17 +389,42 @@ never re‑discovered the hard way.
   double-spreads, and never in the tutorial sandbox — dropping a small `🌿` cue
   at the new cell). Vines pop like any coloured bubble (they join groups); popping
   a group that contains one emits `_tut("vine")` (captured before `_popCells` so
-  a grant-driven board rebuild can't misfire it). `_gridHasMoves`
+  a grant-driven board rebuild can't misfire it). **Chain Reactor** (`SEQUENCE_1`/
+  `SEQUENCE_2`/`SEQUENCE_3`, numbered coloured bubbles labelled 1/2/3) = a
+  multi-move planning payoff: pop a cluster containing a **"1"**, then (on a
+  **later, separate move**) a cluster containing a **"2"**, then a cluster
+  containing a **"3"** — completing that exact order **detonates a huge radius-3
+  diamond blast** centred on every popped "3" (`grid.sequenceStrike`, reusing
+  `blastArea`, merged into the cleared set and re-checked so it can chain into
+  other specials, just like lightning/bomb). Popping out of order, popping the
+  same number twice, or clearing a numbered bubble any other way (tool, Charged
+  Blast, pet action) still pops it normally but **resets or fails to advance**
+  the chain. Session state is a single `session.sequenceProgress` counter
+  (0 → saw "1" → 1 → saw "2" after a "1" → 2 ("primed") → popping a "3" while
+  primed detonates and resets to 0; popping a "3" unprimed just resets to 0).
+  Progress is updated by `main._updateSequenceProgress(cells, hitSequence)`,
+  called explicitly by every **real** move-resolution path (`popAt`,
+  `_petPopCells`, `chargedBlast`, `applyPowerup`) right after they obtain their
+  `_resolveSpecialStrikes` result — **never from inside `_resolveSpecialStrikes`
+  itself**, because that shared resolver is also called *speculatively* by
+  `_bestBlastTarget` (which probes every filled cell after each move to find the
+  best Charged Blast target) and must stay a pure, side-effect-free function.
+  Popping a group with a Chain Reactor bubble emits `_tut("sequence")` and a
+  floating callout ("🔗 Chain started (1/3)" → "🔗 2/3 — pop the 3!" →
+  "🔗 CHAIN REACTOR!" on the detonation). `_gridHasMoves`
   excludes stones as both move origin and same-colour neighbour so
   generation/deadlock detection stay correct (the coloured specials —
-  lightning/bomb/multiplier/coin/vine — need no exclusion). Seeded spawn rates
+  lightning/bomb/multiplier/coin/vine/sequence — need no exclusion). Seeded spawn rates
   ramp in by level (rainbow ≥6, coin ≥8, ice ≥10, multiplier ≥12, lightning ≥14,
-  bomb ≥16, stone ≥18, vine ≥20 — see `levels.js specialsForLevel`; bosses force
-  `specials.ice`/`specials.stone`/`specials.vine` to 0, but allow
-  lightning/bomb/multiplier/coin). Lightning draws a glowing pulsing bolt glyph,
+  bomb ≥16, stone ≥18, vine ≥20, sequence ≥24 — see `levels.js specialsForLevel`;
+  bosses force `specials.ice`/`specials.stone`/`specials.vine` to 0, but allow
+  lightning/bomb/multiplier/coin/sequence, since sequence is a reward not a
+  hazard). Lightning draws a glowing pulsing bolt glyph,
   Stone a grey padlock shell, Bomb a dark fused shell with a pulsing lit spark,
   Multiplier a pulsing gold ring with a "×2" glyph, Coin a shiny gold disc with a
-  "$" glyph, and Vine curling green tendrils + leaf dots (`renderer.js`). These
+  "$" glyph, Vine curling green tendrils + leaf dots, and Chain Reactor a pulsing
+  stroked ring with a bold centred "1"/"2"/"3" glyph that reads cooler-to-hotter
+  as the number climbs (`renderer.js`). These
   procedural marks are now reinforced with local white SVG overlays from
   **Game-icons.net** (`assets/icons/game-icons/`, CC BY 3.0 attribution recorded
   in that folder's `README.txt`; no remote runtime loading), with Lightning using
@@ -413,8 +438,11 @@ never re‑discovered the hard way.
   `Game._placeTutorialBomb`, advancing on `_tut("bombbubble")`), Multiplier
   (`grant: "multiplier"` → `Game._placeTutorialMultiplier`, advancing on
   `_tut("multiplier")`), Coin (`grant: "coinbubble"` →
-  `Game._placeTutorialCoin`, advancing on `_tut("coinbubble")`) and Vine
-  (`grant: "vine"` → `Game._placeTutorialVine`, advancing on `_tut("vine")`)
+  `Game._placeTutorialCoin`, advancing on `_tut("coinbubble")`), Vine
+  (`grant: "vine"` → `Game._placeTutorialVine`, advancing on `_tut("vine")`) and
+  Chain Reactor (`grant: "sequence"` → `Game._placeTutorialSequence`, seeding
+  three separate 2×2 blocks so "1"/"2"/"3" can each be popped independently,
+  advancing on `_tut("sequence")` once the full in-order chain detonates)
   with gated steps. (The bomb **bubble** uses the `bombbubble` step/grant/action
   id to avoid colliding with the bomb **power-up** step's `grant: "bomb"`.)
 - **Downpour** (the Tetris-style advanced-level modifier) drops a fresh row of
@@ -1543,7 +1571,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 695 unit tests + 574 E2E
+- **Current baseline (keep growing, never shrink)**: 703 unit tests + 578 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

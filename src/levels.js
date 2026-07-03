@@ -150,7 +150,12 @@ function specialsForLevel(n) {
   // adjacent bubble every move until its cluster is popped. Kept very sparse so
   // the board stays solvable and the tension reads as a puzzle, not a flood.
   const vine = n >= 20 ? Math.min(0.02, 0.006 + (n - 20) * 0.0006) : 0;
-  return { rainbow, ice, lightning, stone, bomb, multiplier, coin, vine };
+  // Chain Reactor ("sequence") bubbles ramp in from level 24 — three numbered
+  // bubbles (1/2/3, split evenly within this one rate); popping them in order
+  // across separate turns primes a big diamond blast on the "3". Kept sparse
+  // — it's a rare, planned-ahead payoff, not a frequent occurrence.
+  const sequence = n >= 24 ? Math.min(0.03, 0.009 + (n - 24) * 0.0009) : 0;
+  return { rainbow, ice, lightning, stone, bomb, multiplier, coin, vine, sequence };
 }
 
 // Downpour (advanced levels) ------------------------------------------------

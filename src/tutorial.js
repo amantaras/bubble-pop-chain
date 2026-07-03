@@ -10,7 +10,7 @@
 // emitted from `main.js` (see `_tut(...)` call sites). This is mandated by
 // AGENTS.md §"Tutorial" — the tutorial is part of the definition of done.
 
-import { NORMAL, ICE, RAINBOW } from "./grid.js";
+import { NORMAL, ICE, RAINBOW, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3 } from "./grid.js";
 
 // Each step:
 //   id      — stable identifier (used by tests; never reuse/repurpose)
@@ -23,12 +23,13 @@ import { NORMAL, ICE, RAINBOW } from "./grid.js";
 //                           | "blast" | "powerup" | "magnet" | "event"
 //                           | "lightning" | "stone" | "bombbubble"
 //                           | "multiplier" | "coinbubble" | "vine"
+//                           | "sequence"
 //   cta     — button label for "button" steps
 //   hint    — short call-to-action shown for action steps
 //   grant   — optional setup applied when the step is entered
 //             ("power" | "fever" | "bomb" | "specials" | "magnet" | "event"
 //              | "lightning" | "stone" | "bombbubble" | "multiplier"
-//              | "coinbubble" | "vine" | "undo" | "paint")
+//              | "coinbubble" | "vine" | "sequence" | "undo" | "paint")
 export const TUTORIAL_STEPS = [
   {
     id: "welcome",
@@ -176,6 +177,14 @@ export const TUTORIAL_STEPS = [
     advance: "vine",
     hint: "🌿 Pop the cluster with the vine bubble",
     grant: "vine",
+  },
+  {
+    id: "sequence",
+    title: "Chain Reactor",
+    body: "🔗 Some levels seed three numbered bubbles: 1, 2 and 3. Pop their clusters in order — 1, then 2, then 3 — across separate turns, and the \"3\" detonates a huge blast! Popping out of order just pops normally, no bonus. Try the full chain now!",
+    advance: "sequence",
+    hint: "🔗 Pop the clusters in order: 1 → 2 → 3",
+    grant: "sequence",
   },
   {
     id: "pets",

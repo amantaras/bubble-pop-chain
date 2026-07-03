@@ -133,6 +133,23 @@ describe("levels", () => {
     expect(getLevel(39).specials.vine).toBeLessThanOrEqual(0.02);
   });
 
+  it("sequence (Chain Reactor) bubbles ramp in from level 24 and not before", () => {
+    expect(getLevel(23).specials.sequence || 0).toBe(0);
+    expect(getLevel(24).specials.sequence).toBeGreaterThan(0);
+    expect(getLevel(39).specials.sequence).toBeGreaterThanOrEqual(
+      getLevel(24).specials.sequence
+    );
+    expect(getLevel(39).specials.sequence).toBeLessThanOrEqual(0.03);
+  });
+
+  it("bosses do NOT suppress sequence bubbles (a reward, not a hazard)", () => {
+    // Level 60 is a boss beyond level 24, so sequence should stay live there,
+    // unlike ice/stone/vine which bosses always force to 0.
+    const boss = getLevel(60);
+    expect(boss.boss).toBeTruthy();
+    expect(boss.specials.sequence).toBeGreaterThan(0);
+  });
+
   it("bosses suppress random stone bubbles (hand-placed frozen core only)", () => {
     // Level 20 is a boss; its random stone rate is forced to 0.
     const boss = getLevel(20);

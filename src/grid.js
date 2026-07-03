@@ -23,8 +23,16 @@ export const COIN = 8; // treasure — popping its group drops bonus coins. A
 export const VINE = 9; // creeping threat — every resolved move it spreads into
 //                        an adjacent ordinary bubble. Pop its cluster to clear
 //                        it. A normal coloured bubble for matching; no AoE.
+export const SEQUENCE_1 = 10; // "Chain Reactor" step 1 of 3 — an ordinary
+export const SEQUENCE_2 = 11; // coloured bubble for matching. Popping the
+export const SEQUENCE_3 = 12; // three numbered bubbles in order (1 -> 2 -> 3),
+//                                 across separate pops, primes a big diamond
+//                                 blast (via blastArea, radius 3) when the "3"
+//                                 is cleared. Popping out of order breaks the
+//                                 chain (the bubble still pops normally, no
+//                                 bonus) — see main.js _updateSequenceProgress.
 
-const COLORED_POP_TYPES = new Set([NORMAL, LIGHTNING, BOMB, MULTIPLIER, COIN, VINE]);
+const COLORED_POP_TYPES = new Set([NORMAL, LIGHTNING, BOMB, MULTIPLIER, COIN, VINE, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3]);
 
 // How long a magnet-pulled bubble takes to glide to its new cell (seconds).
 // Deliberately slower than the snappy gravity settle so the player can see the
@@ -86,6 +94,7 @@ export class Board {
     const multRate = this.specials.multiplier || 0;
     const coinRate = this.specials.coin || 0;
     const vineRate = this.specials.vine || 0;
+    const seqRate = this.specials.sequence || 0;
     this.types = [];
     for (let c = 0; c < this.cols; c++) {
       this.types[c] = [];
@@ -134,7 +143,25 @@ export class Board {
             vineRate
         )
           this.types[c][r] = VINE;
-        else this.types[c][r] = NORMAL;
+        else if (
+          roll <
+          rainbowRate +
+            iceRate +
+            lightningRate +
+            stoneRate +
+            bombRate +
+            multRate +
+            coinRate +
+            vineRate +
+            seqRate
+        ) {
+          // Evenly split this band across the three Chain Reactor steps so
+          // roughly equal numbers of 1s/2s/3s appear on the board.
+          const base =
+            rainbowRate + iceRate + lightningRate + stoneRate + bombRate + multRate + coinRate + vineRate;
+          const frac = (roll - base) / seqRate;
+          this.types[c][r] = frac < 1 / 3 ? SEQUENCE_1 : frac < 2 / 3 ? SEQUENCE_2 : SEQUENCE_3;
+        } else this.types[c][r] = NORMAL;
       }
     }
   }
@@ -352,6 +379,22 @@ export class Board {
     return this.types[c] && this.types[c][r] === VINE;
   }
 
+  // `num` is 1, 2 or 3 — which step of the Chain Reactor sequence this cell is.
+  isSequenceNum(c, r, num) {
+    const t = this.types[c] && this.types[c][r];
+    return (
+      (num === 1 && t === SEQUENCE_1) ||
+      (num === 2 && t === SEQUENCE_2) ||
+      (num === 3 && t === SEQUENCE_3)
+    );
+  }
+
+  // True for any of the three numbered Chain Reactor bubbles (any step).
+  isSequence(c, r) {
+    const t = this.types[c] && this.types[c][r];
+    return t === SEQUENCE_1 || t === SEQUENCE_2 || t === SEQUENCE_3;
+  }
+
   _isColoredPopTarget(c, r) {
     return this.grid[c]?.[r] !== -1 && COLORED_POP_TYPES.has(this.types[c]?.[r]);
   }
@@ -535,6 +578,28 @@ export class Board {
     group.forEach(add);
     for (const p of group) {
       if (this.isBomb(p.c, p.r)) this.bombArea(p.c, p.r).forEach(add);
+    }
+    return out;
+  }
+
+  // Expand a popped group that contains a "3" Chain Reactor bubble whose chain
+  // is primed (checked by the caller — main.js only invokes this when
+  // session.sequenceProgress === 2): each such bubble detonates a big diamond
+  // blast (radius 3, via blastArea — bigger than the 3×3 bomb), and those
+  // cells are merged into the cleared set (deduped). Returns the full cell
+  // list to remove.
+  sequenceStrike(group) {
+    const seen = new Set();
+    const out = [];
+    const add = (cell) => {
+      const k = cell.c * this.rows + cell.r;
+      if (seen.has(k)) return;
+      seen.add(k);
+      out.push({ c: cell.c, r: cell.r });
+    };
+    group.forEach(add);
+    for (const p of group) {
+      if (this.isSequenceNum(p.c, p.r, 3)) this.blastArea(p.c, p.r, 3).forEach(add);
     }
     return out;
   }

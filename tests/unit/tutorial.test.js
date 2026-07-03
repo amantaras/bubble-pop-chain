@@ -18,7 +18,7 @@ describe("tutorial step definitions", () => {
 
   it("covers every core feature exactly once", () => {
     const actions = TUTORIAL_STEPS.map((s) => s.advance);
-    for (const a of ["pop", "combo", "undo", "preview", "swipe", "blast", "powerup", "magnet", "event", "lightning", "stone", "bombbubble", "multiplier", "coinbubble", "vine"]) {
+    for (const a of ["pop", "combo", "undo", "preview", "swipe", "blast", "powerup", "magnet", "event", "lightning", "stone", "bombbubble", "multiplier", "coinbubble", "vine", "sequence"]) {
       expect(actions).toContain(a);
     }
   });
@@ -105,6 +105,17 @@ describe("tutorial step definitions", () => {
     // It sits right after the coin step (the special-bubbles run).
     const idx = TUTORIAL_STEPS.indexOf(vine);
     expect(TUTORIAL_STEPS[idx - 1].id).toBe("coinbubble");
+  });
+
+  it("includes a gated sequence step that grants a Chain Reactor board", () => {
+    const seq = TUTORIAL_STEPS.find((s) => s.id === "sequence");
+    expect(seq).toBeTruthy();
+    expect(seq.advance).toBe("sequence");
+    expect(seq.grant).toBe("sequence");
+    expect(seq.hint).toBeTruthy();
+    // It sits right after the vine step (the special-bubbles run).
+    const idx = TUTORIAL_STEPS.indexOf(seq);
+    expect(TUTORIAL_STEPS[idx - 1].id).toBe("vine");
   });
 
   it("includes an informational pets step before the finish", () => {

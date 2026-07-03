@@ -1,6 +1,6 @@
 // Canvas renderer: animated background + glossy neon bubbles.
 
-import { RAINBOW, ICE, ICE_CRACKED, NORMAL, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN, VINE } from "./grid.js";
+import { RAINBOW, ICE, ICE_CRACKED, NORMAL, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN, VINE, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3 } from "./grid.js";
 
 // Distinct glyphs used by colourblind mode — one per colour index. There are
 // always at least as many symbols as a level has colours.
@@ -797,6 +797,33 @@ export class Renderer {
           shadow: "rgba(70,210,100,0.95)",
           glow: 0.34,
         });
+      }
+
+      // Chain Reactor overlay: a numbered ring (1/2/3) — the payoff for
+      // popping them in order across separate turns is a big diamond blast on
+      // the "3". Colour escalates cool -> hot as the chain nears its finale.
+      if (s.type === SEQUENCE_1 || s.type === SEQUENCE_2 || s.type === SEQUENCE_3) {
+        const num = s.type === SEQUENCE_1 ? 1 : s.type === SEQUENCE_2 ? 2 : 3;
+        const ringColor =
+          num === 1 ? "rgba(120,220,255,0.95)" : num === 2 ? "rgba(200,140,255,0.95)" : "rgba(255,120,140,0.95)";
+        const textColor =
+          num === 1 ? "rgba(210,245,255,0.98)" : num === 2 ? "rgba(240,220,255,0.98)" : "rgba(255,225,225,0.98)";
+        ctx.globalAlpha = s.alpha;
+        const pulse = 0.6 + 0.4 * Math.abs(Math.sin(performance.now() / (num === 3 ? 150 : 260)));
+        ctx.shadowColor = ringColor;
+        ctx.shadowBlur = rad * 0.65 * pulse;
+        ctx.strokeStyle = ringColor;
+        ctx.lineWidth = Math.max(1.6, rad * 0.14);
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, rad * 0.68, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.shadowBlur = rad * 0.35 * pulse;
+        ctx.fillStyle = textColor;
+        ctx.font = `800 ${Math.round(rad * 0.9)}px system-ui, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(String(num), s.x, s.y + rad * 0.04);
+        ctx.shadowBlur = 0;
       }
 
       // Boss "Colour Purge" marker: a crisp target pip on every plain bubble of
