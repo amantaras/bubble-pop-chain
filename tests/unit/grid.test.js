@@ -19,6 +19,7 @@ import {
   POLARITY_MINUS,
   BLOOM_SEED,
   BLOOM_BUD,
+  ECHO_DURATION,
   MAGNET_GLIDE,
   DOWNPOUR_FALL_MULT,
   DOWNPOUR_FALL_SECONDS,
@@ -773,6 +774,75 @@ describe("grid / Board", () => {
     const b = new Board(3, 3, 3, 1);
     b.types = b.grid.map((col) => col.map(() => NORMAL));
     expect(b.growBloom()).toBeNull();
+  });
+
+  // ---- Echo Pops (Board.echoes / recordEcho / resolveEchoes) --------------
+  it("recordEcho stores a fresh echo with the full duration", () => {
+    const b = new Board(3, 1, 3, 1);
+    b.grid[0][0] = 2;
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.recordEcho(0, 0, 2);
+    expect(b.echoes.get("0,0")).toEqual({ color: 2, movesLeft: ECHO_DURATION });
+  });
+
+  it("recordEchoes records one echo per fx entry (from a removeCells-style array)", () => {
+    const b = new Board(3, 1, 3, 1);
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.recordEchoes([
+      { c: 0, r: 0, colorIndex: 1 },
+      { c: 2, r: 0, colorIndex: 2 },
+    ]);
+    expect(b.echoes.size).toBe(2);
+    expect(b.echoes.get("0,0").color).toBe(1);
+    expect(b.echoes.get("2,0").color).toBe(2);
+  });
+
+  it("resolveEchoes ages an echo by one move when there is no colour match", () => {
+    const b = new Board(3, 1, 3, 1);
+    b.grid[0][0] = -1; // popped, empty
+    b.grid[1][0] = 0;
+    b.grid[2][0] = 0;
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.recordEcho(0, 0, 1); // echo remembers colour 1, but the cell is empty
+    const triggered = b.resolveEchoes();
+    expect(triggered).toEqual([]);
+    expect(b.echoes.get("0,0").movesLeft).toBe(ECHO_DURATION - 1);
+  });
+
+  it("resolveEchoes expires an echo once its move budget runs out", () => {
+    const b = new Board(1, 1, 3, 1);
+    b.grid[0][0] = -1;
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.recordEcho(0, 0, 1);
+    for (let i = 0; i < ECHO_DURATION; i++) b.resolveEchoes();
+    expect(b.echoes.has("0,0")).toBe(false);
+  });
+
+  it("resolveEchoes auto-clears a matching-coloured bubble and drops the echo (a bonus pop)", () => {
+    const b = new Board(3, 1, 3, 1);
+    b.grid[0][0] = 2; // a colour-2 bubble is now sitting in the echoed cell
+    b.grid[1][0] = 0;
+    b.grid[2][0] = 0;
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.recordEcho(0, 0, 2);
+    const triggered = b.resolveEchoes();
+    expect(triggered).toEqual([{ c: 0, r: 0, color: 2 }]);
+    expect(b.echoes.has("0,0")).toBe(false);
+    expect(b.grid[0][0]).toBe(-1); // auto-cleared, caller must settle()
+  });
+
+  it("resolveEchoes does not trigger on a mismatched colour or a special bubble", () => {
+    const b = new Board(2, 1, 3, 1);
+    b.grid[0][0] = 0; // different colour than the echo (1)
+    b.grid[1][0] = 1;
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[1][0] = STONE; // same colour as its echo, but not a plain bubble
+    b.recordEcho(0, 0, 1);
+    b.recordEcho(1, 0, 1);
+    const triggered = b.resolveEchoes();
+    expect(triggered).toEqual([]);
+    expect(b.echoes.get("0,0").movesLeft).toBe(ECHO_DURATION - 1);
+    expect(b.echoes.get("1,0").movesLeft).toBe(ECHO_DURATION - 1);
   });
 
   it("spreadVines returns null when there is no room or no vines", () => {

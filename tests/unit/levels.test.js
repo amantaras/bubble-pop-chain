@@ -13,6 +13,7 @@ import {
 } from "../../src/levels.js";
 
 import { downpourForLevel, DOWNPOUR_MIN_LEVEL } from "../../src/levels.js";
+import { echoForLevel, ECHO_MIN_LEVEL } from "../../src/levels.js";
 
 describe("levels", () => {
   it("exposes a positive level count", () => {
@@ -395,5 +396,18 @@ describe("levels", () => {
   it("getLevel carries its downpour config", () => {
     expect(getLevel(31).downpour).toEqual(downpourForLevel(31));
     expect(getLevel(10).downpour).toBeNull();
+  });
+
+  it("echo pops unlock from level 40 and not before", () => {
+    expect(echoForLevel(ECHO_MIN_LEVEL - 1)).toBe(false);
+    expect(echoForLevel(ECHO_MIN_LEVEL)).toBe(true);
+    expect(echoForLevel(ECHO_MIN_LEVEL + 50)).toBe(true);
+    expect(echoForLevel(1)).toBe(false);
+  });
+
+  it("getLevel carries its echo flag", () => {
+    expect(getLevel(ECHO_MIN_LEVEL - 1).echo).toBe(false);
+    expect(getLevel(ECHO_MIN_LEVEL).echo).toBe(true);
+    expect(getLevel(5).echo).toBe(false);
   });
 });

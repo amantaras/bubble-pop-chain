@@ -235,6 +235,11 @@ const EVENT_BOARD_IDLE_GRACE = 8;
 // tutorial, which never touches the real economy).
 const COIN_BUBBLE_VALUE = 12;
 
+// Echo Pops: a small automatic bonus when a same-coloured bubble settles into
+// a recently-popped cell before its echo fades — see Board.resolveEchoes.
+const ECHO_BONUS_SCORE = 40;
+const ECHO_BONUS_COINS = 15;
+
 // Downpour relief: every successful rain tick grants one extra move, regardless
 // of how many bubbles were added in that drop.
 const DOWNPOUR_MOVES_PER_DROP = 1;
@@ -1670,6 +1675,25 @@ class Game {
       decorateSpecials(types);
       this._placeTutorialBloom(types);
       b.restore(g, types);
+    } else if (kind === "echo") {
+      // Echo Pops is a universal passive layer on ordinary pops (not a
+      // poppable special bubble), so it's normally gated to unlocked
+      // campaign levels (_echoActive). Demonstrate the bonus directly here,
+      // the same way the "fever" step calls _startFever() directly instead
+      // of waiting for organic buildup.
+      const b = s.board;
+      const cell = b.randomFilledCell ? b.randomFilledCell() : null;
+      if (cell && b.grid[cell.c] && b.grid[cell.c][cell.r] !== -1) {
+        b.recordEcho(cell.c, cell.r, b.grid[cell.c][cell.r]);
+        const triggered = b.resolveEchoes();
+        if (triggered.length) {
+          const p = b.targetPixel(cell.c, cell.r);
+          const hex = this.theme.bubbles[triggered[0].color % this.theme.bubbles.length];
+          this.particles.burst(p.x, p.y, hex, 10, 0.9);
+          this.floating.spawn(p.x, p.y - 20, "✨ Echo!", "#ffe08a", 22);
+          b.settle();
+        }
+      }
     } else if (kind === "event") {
       this._spawnTutorialEvent();
     } else if (kind === "undo") {
@@ -4081,6 +4105,9 @@ class Game {
     // A neighbouring pop shattered a locked stone bubble — let the tutorial's
     // stone step advance, no matter which pop path triggered it.
     if (fx.stonesBroken) this._tut("stone");
+    // Echo Pops: every cleared cell leaves a fading echo of its colour (only
+    // once unlocked for this session — see _resolveEchoes).
+    if (this._echoActive()) s.board.recordEchoes(fx);
     // Pick one of five escalating explosion styles by group size — the bigger
     // the group, the more impactful the animation (more particles, then rings,
     // a flash bloom and a sparkle shower at the top end).
@@ -4284,6 +4311,10 @@ class Game {
     // alone instead of popping it early.
     this._growBloom();
 
+    // Echo Pops: a small automatic bonus when a same-coloured bubble settles
+    // into a recently-popped cell before its echo fades.
+    this._resolveEchoes();
+
     // A single un-poppable bubble is left: rather than strand the player on a
     // jam (a lone bubble can never form a group of 2+), give it a celebratory
     // glow-and-explode finale — one of several random styles — that clears the
@@ -4445,6 +4476,37 @@ class Game {
     } else {
       this.floating.spawn(p.x, p.y - 24, "🌱", "#8effb0", 16);
     }
+  }
+
+  // Echo Pops only run in campaign levels that have unlocked them (see
+  // levels.js echoForLevel/level.echo) — a universal passive layer on top of
+  // ordinary pops, not a spawn-rate special, so it's gated by level rather
+  // than by NEW_MECHANIC_IDS.
+  _echoActive() {
+    const s = this.session;
+    return !!(s && !s.ended && s.mode === "campaign" && s.level && s.level.echo);
+  }
+
+  // Every resolved move: age active Echoes and auto-clear any that a
+  // matching-coloured bubble has settled into (a small bonus pop) — see
+  // Board.resolveEchoes. Suppressed outside unlocked campaign levels.
+  _resolveEchoes() {
+    const s = this.session;
+    if (!this._echoActive()) return;
+    if (!s.board || typeof s.board.resolveEchoes !== "function") return;
+    const triggered = s.board.resolveEchoes();
+    if (!triggered.length) return;
+    for (const hit of triggered) {
+      const p = s.board.targetPixel(hit.c, hit.r);
+      const hex = this.theme.bubbles[hit.color % this.theme.bubbles.length];
+      this.particles.burst(p.x, p.y, hex, 10, 0.9);
+      this.floating.spawn(p.x, p.y - 20, "✨ Echo!", "#ffe08a", 22);
+    }
+    s.score += ECHO_BONUS_SCORE * triggered.length;
+    Economy.addCoins(ECHO_BONUS_COINS * triggered.length);
+    Audio.coin();
+    s.board.settle();
+    this.refreshHud();
   }
 
   // Downpour pressure for advanced campaign levels: tick a per-move counter and,
@@ -5758,6 +5820,9 @@ class Game {
     ctx.translate(this.shake.x, this.shake.y);
     if (this.session) {
       this.renderer.drawBoardFrame(this.session.board);
+      // Echo Pops: a soft fading ring over any cell with an active echo,
+      // cueing "land a matching bubble here for a bonus" while it lasts.
+      this.renderer.drawEchoes(this.session.board, this.theme, time);
       // Downpour: warn the player when the rising stack climbs into the top
       // rows, so being buried never feels unfair.
       if (this.session.downpour) {

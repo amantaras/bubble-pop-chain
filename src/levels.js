@@ -229,6 +229,19 @@ export function downpourForLevel(n) {
   return { interval };
 }
 
+// Echo Pops (advanced levels) ------------------------------------------------
+// From a high level on, every cleared cell leaves a fading "echo" of its
+// colour for a few resolved moves (see grid.js ECHO_DURATION/resolveEchoes) —
+// land a matching bubble there before it fades for a small automatic bonus.
+// Unlike the spawn-rate specials, Echo is a universal passive layer on top of
+// EVERY pop rather than a rare bubble, so it's gated by a simple level
+// threshold (like Downpour) instead of a spawn rate / NEW_MECHANIC_IDS entry.
+export const ECHO_MIN_LEVEL = 40;
+
+export function echoForLevel(n) {
+  return n >= ECHO_MIN_LEVEL;
+}
+
 // Bonus objectives ----------------------------------------------------------
 // Each ordinary campaign level carries an optional bonus objective: an extra
 // challenge layered on top of the score target. Meeting it pays bonus coins on
@@ -314,6 +327,7 @@ export function getLevel(id) {
     chapter: chapterForLevel(n),
     objective: objectiveForLevel(n),
     downpour: downpourForLevel(n),
+    echo: echoForLevel(n),
   };
 }
 

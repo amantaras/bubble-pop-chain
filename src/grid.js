@@ -68,6 +68,14 @@ export const MAGNET_GLIDE = 0.6;
 // normal snappy board follow so players can react before the stack settles.
 export const DOWNPOUR_FALL_MULT = 0.45;
 export const DOWNPOUR_FALL_SECONDS = 3.8;
+// Echo Pops: a popped cell leaves a fading "echo" of its colour for this many
+// resolved moves (see Board.recordEcho/resolveEchoes). Not a bubble TYPE —
+// it's a per-cell transient marker (Board.echoes, "c,r" -> {color,movesLeft}),
+// so unlike Tether it deliberately carries NO save/resume or undo persistence
+// (a lightweight bonus layer, not core board state; it simply resets to empty
+// on reload/undo, and every entry expires on its own within ECHO_DURATION
+// moves regardless).
+export const ECHO_DURATION = 3;
 
 export class Board {
   constructor(cols, rows, colorCount, seed, specials = null) {
@@ -84,6 +92,9 @@ export class Board {
     // "c,r" -> {c,r} partner, bidirectional. Built by _linkTethers() at
     // generation time (or restored explicitly — see restore()/restoreTetherPairs).
     this.tetherPairs = new Map();
+    // "c,r" -> { color, movesLeft } — see recordEcho/resolveEchoes. Not
+    // persisted (see ECHO_DURATION comment above).
+    this.echoes = new Map();
 
     // Pixel layout (set by layout()).
     this.cell = 40;
@@ -1376,7 +1387,7 @@ export class Board {
       if (s) {
         s.state = "pop";
         s.t = 0;
-        fx.push({ x: s.x, y: s.y, colorIndex: s.color });
+        fx.push({ x: s.x, y: s.y, colorIndex: s.color, c, r });
       }
       this.grid[c][r] = -1;
       this.types[c][r] = NORMAL;
@@ -1403,7 +1414,7 @@ export class Board {
         if (ss) {
           ss.state = "pop";
           ss.t = 0;
-          fx.push({ x: ss.x, y: ss.y, colorIndex: ss.color });
+          fx.push({ x: ss.x, y: ss.y, colorIndex: ss.color, c: cc, r: rr });
         }
         this.grid[cc][rr] = -1;
         this.types[cc][rr] = NORMAL;
@@ -1412,6 +1423,54 @@ export class Board {
     }
     fx.stonesBroken = seen.size;
     return fx;
+  }
+
+  // Record a fading Echo at (c,r) remembering `color` — see ECHO_DURATION and
+  // resolveEchoes(). Overwrites any existing echo at that cell (a fresh pop
+  // resets the clock). Pure bookkeeping, no visual side effect by itself.
+  recordEcho(c, r, color) {
+    this.echoes.set(`${c},${r}`, { color, movesLeft: ECHO_DURATION });
+  }
+
+  // Convenience: record an echo for every entry of a removeCells()-style fx
+  // array (each needs .c/.r/.colorIndex).
+  recordEchoes(fx) {
+    for (const f of fx || []) this.recordEcho(f.c, f.r, f.colorIndex);
+  }
+
+  // Every resolved move: age every active echo by one move, expiring it at 0.
+  // If a same-coloured plain (NORMAL) bubble is currently sitting in an
+  // echoed cell, that's a match — auto-clear it (a small bonus pop) instead
+  // of ageing it, and drop the echo. Returns the list of {c,r,color} cells
+  // that were auto-cleared this call (empty if none); the caller is
+  // responsible for scoring/animating them and calling settle() once if any
+  // were returned (clearing a cell leaves a hole gravity must fill).
+  resolveEchoes() {
+    const triggered = [];
+    for (const [key, echo] of this.echoes) {
+      const [c, r] = key.split(",").map(Number);
+      if (
+        this.grid[c] &&
+        this.grid[c][r] !== -1 &&
+        this.types[c][r] === NORMAL &&
+        this.grid[c][r] === echo.color
+      ) {
+        triggered.push({ c, r, color: echo.color });
+        this.echoes.delete(key);
+        const sp = this.spriteGrid[c][r];
+        if (sp) {
+          sp.state = "pop";
+          sp.t = 0;
+        }
+        this.grid[c][r] = -1;
+        this.types[c][r] = NORMAL;
+        this.spriteGrid[c][r] = null;
+        continue;
+      }
+      echo.movesLeft -= 1;
+      if (echo.movesLeft <= 0) this.echoes.delete(key);
+    }
+    return triggered;
   }
 
   settle() {

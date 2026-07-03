@@ -151,6 +151,19 @@ describe("tutorial step definitions", () => {
     expect(TUTORIAL_STEPS[idx - 1].id).toBe("polarity");
   });
 
+  it("includes an informational echo step that demonstrates the bonus directly", () => {
+    const echo = TUTORIAL_STEPS.find((s) => s.id === "echo");
+    expect(echo).toBeTruthy();
+    // Echo isn't a poppable special bubble (a passive layer on ordinary
+    // pops), so — like fever — it's informational and demonstrated via grant.
+    expect(echo.advance).toBe("button");
+    expect(echo.grant).toBe("echo");
+    expect(echo.cta).toBeTruthy();
+    // It sits right after the bloom step (the special-bubbles run).
+    const idx = TUTORIAL_STEPS.indexOf(echo);
+    expect(TUTORIAL_STEPS[idx - 1].id).toBe("bloom");
+  });
+
   it("includes an informational pets step before the finish", () => {
     const pets = TUTORIAL_STEPS.find((s) => s.id === "pets");
     expect(pets).toBeTruthy();

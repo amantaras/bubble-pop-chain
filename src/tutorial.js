@@ -30,7 +30,7 @@ import { NORMAL, ICE, RAINBOW, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3, TETHER, POLAR
 //             ("power" | "fever" | "bomb" | "specials" | "magnet" | "event"
 //              | "lightning" | "stone" | "bombbubble" | "multiplier"
 //              | "coinbubble" | "vine" | "sequence" | "tether" | "polarity"
-//              | "bloom" | "undo" | "paint")
+//              | "bloom" | "echo" | "undo" | "paint")
 export const TUTORIAL_STEPS = [
   {
     id: "welcome",
@@ -210,6 +210,14 @@ export const TUTORIAL_STEPS = [
     advance: "bloom",
     hint: "🌱 Pop the cluster with the bloom seed",
     grant: "bloom",
+  },
+  {
+    id: "echo",
+    title: "Echo Pops",
+    body: "✨ On advanced levels, a popped cell leaves a fading colour echo behind for a few moves. Land a matching bubble there before it fades and it auto-pops for a free bonus — here's a preview of it firing!",
+    advance: "button",
+    cta: "Nice!",
+    grant: "echo",
   },
   {
     id: "pets",

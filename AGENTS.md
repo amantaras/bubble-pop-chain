@@ -516,6 +516,39 @@ never re‑discovered the hard way.
   is taught by popping the bubble — advancing on `_tut("bloom")`)
   with gated steps. (The bomb **bubble** uses the `bombbubble` step/grant/action
   id to avoid colliding with the bomb **power-up** step's `grant: "bomb"`.)
+- **Echo Pops** (`grid.js` `ECHO_DURATION`/`Board.echoes`/`recordEcho`/
+  `recordEchoes`/`resolveEchoes`, `levels.js` `ECHO_MIN_LEVEL`/`echoForLevel`):
+  unlike the other four new mechanics, Echo is **not a spawnable bubble
+  type** — it's a universal passive layer over **every ordinary pop** once
+  unlocked, so it's gated by a simple level threshold (`ECHO_MIN_LEVEL` = 40,
+  like Downpour) rather than a spawn rate or `NEW_MECHANIC_IDS` entry. Every
+  cell a real move clears (`main._popCells`, the shared choke point for
+  popAt/`_petPopCells`/chargedBlast/applyPowerup) leaves a fading **echo** of
+  its colour (`Board.recordEcho(c,r,color)`, `ECHO_DURATION` = 3 moves,
+  stored in `Board.echoes` — a plain `"c,r"` → `{color,movesLeft}` Map, not
+  a `types` value). Every resolved move (`main._resolveEchoes`, called from
+  `afterMove` after `_growBloom`), `Board.resolveEchoes()` ages every active
+  echo by one move (expiring at 0) **unless** a same-coloured plain (`NORMAL`)
+  bubble is now sitting in that cell — a match instead **auto-clears** that
+  single cell (a small bonus pop, no group/flood-fill) and drops the echo.
+  main.js scores the bonus (`ECHO_BONUS_SCORE` = 40, `ECHO_BONUS_COINS` = 15
+  per triggered cell), plays a `✨ Echo!` flourish, then calls
+  `Board.settle()` once (an auto-clear leaves a hole gravity must fill).
+  Gated to **campaign-only, unlocked levels** (`main._echoActive()`:
+  `s.mode === "campaign" && s.level.echo`), so it's naturally off in
+  endless/puzzle/daily and the tutorial sandbox. Deliberately carries **no
+  save/resume or undo persistence** (unlike Tether's side-map) — a
+  lightweight bonus layer, not core board state; it simply resets to empty
+  on reload/undo, and every entry expires on its own within `ECHO_DURATION`
+  moves regardless. Renders as a soft dashed ring (`Renderer.drawEchoes`,
+  tinted the echo's remembered colour, fading with `movesLeft`) drawn once
+  per frame under the bubble sprites — purely decorative, no new assets. The
+  tutorial step is **informational** (unlike every other special-bubble
+  step): Echo has no poppable bubble of its own to gate on, so
+  `grant: "echo"` demonstrates the bonus **directly** (records an echo
+  matching whatever bubble is already at a random filled cell, then resolves
+  it immediately) the same way the Fever step calls `_startFever()` directly
+  instead of waiting for organic buildup.
 - **Board mechanic budget** (`levels.js` `NEW_MECHANIC_IDS`/
   `MAX_NEW_MECHANICS_PER_BOARD`/`featuredMechanicIds`): the newer "richer board
   mechanics" batch (Tether, Polarity, Bloom) each add a whole extra rule the
@@ -1663,7 +1696,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 740 unit tests + 590 E2E
+- **Current baseline (keep growing, never shrink)**: 749 unit tests + 594 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

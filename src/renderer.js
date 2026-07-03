@@ -1,6 +1,6 @@
 // Canvas renderer: animated background + glossy neon bubbles.
 
-import { RAINBOW, ICE, ICE_CRACKED, NORMAL, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN, VINE, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3, TETHER, POLARITY_PLUS, POLARITY_MINUS, BLOOM_SEED, BLOOM_BUD } from "./grid.js";
+import { RAINBOW, ICE, ICE_CRACKED, NORMAL, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN, VINE, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3, TETHER, POLARITY_PLUS, POLARITY_MINUS, BLOOM_SEED, BLOOM_BUD, ECHO_DURATION } from "./grid.js";
 
 // Distinct glyphs used by colourblind mode — one per colour index. There are
 // always at least as many symbols as a level has colours.
@@ -348,6 +348,33 @@ export class Renderer {
     this._roundRect(ctx, x, y, w, h, r);
     ctx.stroke();
     ctx.restore();
+  }
+
+  // Echo Pops: a soft fading ring (tinted the echo's remembered colour) over
+  // every cell with an active echo — a quiet "land a matching bubble here"
+  // cue that visibly fades out as the echo ages toward expiry. Purely
+  // decorative; `board.echoes` is a plain Map ("c,r" -> {color,movesLeft}).
+  drawEchoes(board, theme, time) {
+    if (!board.echoes || board.echoes.size === 0) return;
+    const ctx = this.ctx;
+    const rad = board.cell * 0.46;
+    for (const [key, echo] of board.echoes) {
+      const [c, r] = key.split(",").map(Number);
+      const p = board.targetPixel(c, r);
+      const hex = theme.bubbles[echo.color % theme.bubbles.length];
+      const life = Math.max(0, Math.min(1, echo.movesLeft / ECHO_DURATION));
+      const pulse = 0.55 + 0.45 * Math.abs(Math.sin(time / 260));
+      ctx.save();
+      ctx.globalAlpha = 0.18 + life * 0.32 * pulse;
+      ctx.strokeStyle = hex;
+      ctx.lineWidth = Math.max(1.4, rad * 0.12);
+      ctx.setLineDash([6, 5]);
+      ctx.lineDashOffset = -time * 0.02;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, rad * (0.78 + 0.1 * (1 - life)), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 
   // `aim` (optional) describes an in-progress magnet: { color, intensity, time }.

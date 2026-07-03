@@ -1585,6 +1585,51 @@ test.describe("bloom seeds (patient growth)", () => {
   });
 });
 
+test.describe("echo pops (fading colour anticipation)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("a matching-coloured bubble settling into a fresh echo auto-pops for a bonus", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await page.waitForTimeout(400);
+    const result = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const s = g.session;
+      s.level.echo = true; // manually unlock Echo Pops for this test session
+      const b = s.board;
+      const before = s.score;
+      b.grid[0][0] = 2;
+      b.types[0][0] = 0; // NORMAL
+      b.recordEcho(0, 0, 2); // echo remembers colour 2, already matches
+      g._resolveEchoes(); // applies the real scoring/coin/flourish/settle
+      return {
+        echoesLeft: b.echoes.size,
+        scoreGained: s.score - before,
+      };
+    });
+    expect(result.echoesLeft).toBe(0);
+    expect(result.scoreGained).toBeGreaterThan(0);
+  });
+
+  test("Echo Pops stays inactive below its unlock level", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await page.waitForTimeout(400);
+    const result = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const s = g.session;
+      // Level 1 has echo unlocked = false by default.
+      const b = s.board;
+      b.recordEcho(0, 0, b.grid[0][0]);
+      g._resolveEchoes();
+      // _resolveEchoes should no-op (guarded by _echoActive) — the echo we
+      // manually recorded is untouched (neither aged nor triggered).
+      return b.echoes.get("0,0");
+    });
+    expect(result).toEqual({ color: expect.any(Number), movesLeft: 3 });
+  });
+});
+
 test.describe("daily retention engine", () => {
   test.beforeEach(({ page }) => openGame(page));
 
@@ -5795,9 +5840,13 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
             return;
           }
     });
+    await expect.poll(() => stepId(page)).toBe("echo");
+
+    // 8k) echo (informational) — demonstrates the Echo bonus directly.
+    await page.locator("#coach-next").click();
     await expect.poll(() => stepId(page)).toBe("pets");
 
-    // 8k) pets (informational) — introduces the companion system.
+    // 8l) pets (informational) — introduces the companion system.
     await page.locator("#coach-next").click();
     expect(await stepId(page)).toBe("done");
 
