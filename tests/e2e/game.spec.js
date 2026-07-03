@@ -875,6 +875,35 @@ test.describe("gestures: double-tap Charged Blast (real input)", () => {
     expect(after).toBeTruthy();
   });
 
+  test("blast cue recompute is throttled while charge sits idle (perf regression guard)", async ({
+    page,
+  }) => {
+    // _bestBlastTarget() is a real speculative scan (every filled cell × a
+    // special-strike resolve each) — it must not be re-run on every single
+    // animation frame while the board is otherwise idle. Count real calls
+    // over ~1s of live play and assert it stays far below a 60fps rate.
+    await page.evaluate(() => window.__bpc.game.startCampaign(5));
+    await page.waitForTimeout(700);
+
+    const calls = await page.evaluate(async () => {
+      const g = window.__bpc.game;
+      g.session.power = 0;
+      g._addPower(1); // arms charge + does one immediate compute
+      let count = 0;
+      const orig = g._bestBlastTarget.bind(g);
+      g._bestBlastTarget = (...args) => {
+        count++;
+        return orig(...args);
+      };
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      g._bestBlastTarget = orig;
+      return count;
+    });
+    // At 60fps a naive per-frame recompute would be ~60 calls/sec; the
+    // throttle bounds it to a handful (BLAST_CUE_REFRESH = 0.25s → ~4/sec).
+    expect(calls).toBeLessThan(15);
+  });
+
   test("charged blast cue is not born on bubbles cleared by the pop that filled charge", async ({
     page,
   }) => {

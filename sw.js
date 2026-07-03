@@ -1,4 +1,4 @@
-const CACHE = "bubble-pop-chain-v90";
+const CACHE = "bubble-pop-chain-v91";
 const ASSETS = [
   "./",
   "./index.html",
@@ -94,7 +94,11 @@ const ASSETS = [
   "./src/spotlight.js",
   "./src/diagnostics.js",
   "./src/sharecard.js",
-  "./src/tutorial.js"
+  "./src/tutorial.js",
+  "./src/achievements.js",
+  "./src/daily.js",
+  "./src/events.js",
+  "./src/pets.js"
 ];
 
 self.addEventListener("install", (e) => {

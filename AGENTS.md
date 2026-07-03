@@ -1696,7 +1696,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 749 unit tests + 594 E2E
+- **Current baseline (keep growing, never shrink)**: 751 unit tests + 596 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests
@@ -1743,7 +1743,12 @@ return 200. If CI is red, the deploy is correctly skipped — fix CI first.
   `/bubble-pop-chain/`. Never switch to absolute root paths.
 - **Service worker is network-first** (so updates aren't masked by stale cache).
   When you add/rename a source or asset file, add it to the `ASSETS` list in
-  `sw.js`, or it won't be available offline.
+  `sw.js`, or it won't be available offline. `tests/unit/sw-assets.test.js`
+  statically diffs `sw.js`'s `ASSETS` list against the real `src/` and
+  `assets/` directories and fails if anything is missing — a real bug (4
+  modules: `achievements.js`/`daily.js`/`events.js`/`pets.js` had silently
+  fallen out of the cache list) was found and fixed this way; keep this test
+  green rather than special-casing it.
 - **iOS Safari**: `navigator.vibrate` is unsupported — input code guards this;
   keep haptics optional. Audio must start after a user gesture — `audio.js`
   already unlocks on first `pointerdown`. Don't autoplay audio.

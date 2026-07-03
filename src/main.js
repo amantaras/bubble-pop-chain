@@ -212,6 +212,12 @@ const HINT_DELAY = 5;
 // Charged-blast cue stays visible while charge is ready so the recommended
 // double-tap target remains obvious until the player spends it.
 const BLAST_CUE_DURATION = Infinity;
+// _bestBlastTarget() speculatively scans every filled cell and resolves
+// special-strike chains for each one — real work, not a cheap read. It only
+// needs to stay fresh enough to track real-time board changes (e.g. the Nova
+// gunship), so the live per-frame poll in update() is throttled to this
+// interval instead of recomputing on every single animation frame.
+const BLAST_CUE_REFRESH = 0.25;
 // Magnet gauge: half-width of the green "sweet" band, in gauge units (0..1).
 // Strength tapers from 1 (dead on the sweet spot) to 0 at this distance.
 // Widened from 0.2 → 0.3 so the green zone is more forgiving to lock onto.
@@ -5544,20 +5550,31 @@ class Game {
       }
       this._updateEvents(dt);
       this._updateHint(dt);
+      // Keep the Charged Blast cue in sync with real-time board changes (e.g.
+      // the Nova gunship), but _bestBlastTarget() is a real speculative scan
+      // (every filled cell × a special-strike resolve each), so only poll it
+      // on a bounded interval rather than every single animation frame — the
+      // cue is still refreshed immediately the moment it's first needed
+      // (handled by the direct _showBlastCue() calls after real moves).
       if (this.isBlastReady()) {
-        const best = this._bestBlastTarget();
-        if (best) {
-          if (!this.session.blastCue) this._showBlastCue();
-          else {
-            this.session.blastCue.c = best.c;
-            this.session.blastCue.r = best.r;
-            this.session.blastCue.count = best.count;
+        this._blastCuePoll = (this._blastCuePoll || 0) + dt;
+        if (!this.session.blastCue || this._blastCuePoll >= BLAST_CUE_REFRESH) {
+          this._blastCuePoll = 0;
+          const best = this._bestBlastTarget();
+          if (best) {
+            if (!this.session.blastCue) this._showBlastCue();
+            else {
+              this.session.blastCue.c = best.c;
+              this.session.blastCue.r = best.r;
+              this.session.blastCue.count = best.count;
+            }
+          } else {
+            this.session.blastCue = null;
           }
-        } else {
-          this.session.blastCue = null;
         }
-      } else if (this.session.blastCue) {
-        this.session.blastCue = null;
+      } else {
+        this._blastCuePoll = 0;
+        if (this.session.blastCue) this.session.blastCue = null;
       }
     }
   }
