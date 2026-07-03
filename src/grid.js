@@ -39,8 +39,15 @@ export const TETHER = 13; // linked pair — placed as two matching bubbles
 //                            function of the board, safe for both real moves
 //                            and _bestBlastTarget's speculative preview scan).
 //                            A normal coloured bubble for matching; no AoE.
+export const POLARITY_PLUS = 14; // magnetic charge (+) — every resolved move,
+export const POLARITY_MINUS = 15; // an adjacent SAME-charge bubble (++ or --)
+//                            repels one cell further apart (see
+//                            Board.spreadPolarity); an adjacent OPPOSITE
+//                            charge (+-) is already "attracted" together and
+//                            stays put. A normal coloured bubble for matching;
+//                            no AoE, no session state (like tether).
 
-const COLORED_POP_TYPES = new Set([NORMAL, LIGHTNING, BOMB, MULTIPLIER, COIN, VINE, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3, TETHER]);
+const COLORED_POP_TYPES = new Set([NORMAL, LIGHTNING, BOMB, MULTIPLIER, COIN, VINE, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3, TETHER, POLARITY_PLUS, POLARITY_MINUS]);
 
 // How long a magnet-pulled bubble takes to glide to its new cell (seconds).
 // Deliberately slower than the snappy gravity settle so the player can see the
@@ -107,6 +114,7 @@ export class Board {
     const vineRate = this.specials.vine || 0;
     const seqRate = this.specials.sequence || 0;
     const tetherRate = this.specials.tether || 0;
+    const polarityRate = this.specials.polarity || 0;
     this.types = [];
     for (let c = 0; c < this.cols; c++) {
       this.types[c] = [];
@@ -187,7 +195,36 @@ export class Board {
             tetherRate
         )
           this.types[c][r] = TETHER;
-        else this.types[c][r] = NORMAL;
+        else if (
+          roll <
+          rainbowRate +
+            iceRate +
+            lightningRate +
+            stoneRate +
+            bombRate +
+            multRate +
+            coinRate +
+            vineRate +
+            seqRate +
+            tetherRate +
+            polarityRate
+        ) {
+          // Evenly split this band between the two charges so roughly equal
+          // numbers of +/- bubbles appear on the board.
+          const base =
+            rainbowRate +
+            iceRate +
+            lightningRate +
+            stoneRate +
+            bombRate +
+            multRate +
+            coinRate +
+            vineRate +
+            seqRate +
+            tetherRate;
+          const frac = (roll - base) / polarityRate;
+          this.types[c][r] = frac < 0.5 ? POLARITY_PLUS : POLARITY_MINUS;
+        } else this.types[c][r] = NORMAL;
       }
     }
     // TETHER cells only mean something in PAIRS — link every one just placed
@@ -509,6 +546,18 @@ export class Board {
     return this.tetherPairs.get(`${c},${r}`) || null;
   }
 
+  // +1 for POLARITY_PLUS, -1 for POLARITY_MINUS, 0 for anything else.
+  polarityCharge(c, r) {
+    const t = this.types[c] && this.types[c][r];
+    if (t === POLARITY_PLUS) return 1;
+    if (t === POLARITY_MINUS) return -1;
+    return 0;
+  }
+
+  isPolarity(c, r) {
+    return this.polarityCharge(c, r) !== 0;
+  }
+
   _isColoredPopTarget(c, r) {
     return this.grid[c]?.[r] !== -1 && COLORED_POP_TYPES.has(this.types[c]?.[r]);
   }
@@ -551,6 +600,69 @@ export class Board {
     const pick = candidates[Math.floor(this.rng() * candidates.length)];
     this.types[pick[0]][pick[1]] = VINE;
     return { c: pick[0], r: pick[1] };
+  }
+
+  // Magnetic "polarity" bubbles: every resolved move, one same-charge
+  // orthogonal pair (++ or --) repels — the charge moves one cell further
+  // away from its like neighbour, swapping places with whatever plain bubble
+  // sits there. Opposite charges (+-) are already "attracted" together and
+  // never move. Deterministic via the board rng; capped at one swap per call,
+  // mirroring spreadVines' single-step-per-move contract, so the board stays
+  // readable and the reorganisation unfolds gradually over turns. Only swaps
+  // into a plain (NORMAL) neighbour — never displaces another special or a
+  // locked STONE — so it can't interfere with other mechanics. Returns
+  // { from: {c,r}, to: {c,r} } (the charge's old/new cell) or null when
+  // nothing can repel (no charges, or every same-charge pair is boxed in).
+  spreadPolarity() {
+    const candidates = [];
+    for (let c = 0; c < this.cols; c++) {
+      for (let r = 0; r < this.rows; r++) {
+        const charge = this.polarityCharge(c, r);
+        if (charge === 0) continue;
+        const neigh = [
+          [c + 1, r, 1, 0],
+          [c - 1, r, -1, 0],
+          [c, r + 1, 0, 1],
+          [c, r - 1, 0, -1],
+        ];
+        for (const [nc, nr, dx, dy] of neigh) {
+          if (nc < 0 || nr < 0 || nc >= this.cols || nr >= this.rows) continue;
+          if (this.polarityCharge(nc, nr) !== charge) continue; // only same-charge repels
+          // Move AWAY from the like neighbour (opposite of the direction to it).
+          const tc = c - dx;
+          const tr = r - dy;
+          if (tc < 0 || tr < 0 || tc >= this.cols || tr >= this.rows) continue;
+          if (this.grid[tc][tr] === -1) continue; // empty cell
+          if (this.types[tc][tr] !== NORMAL) continue; // only swap with a plain bubble
+          candidates.push({ c, r, tc, tr });
+        }
+      }
+    }
+    if (candidates.length === 0) return null;
+    const { c, r, tc, tr } = candidates[Math.floor(this.rng() * candidates.length)];
+    const gridA = this.grid[c][r];
+    const gridB = this.grid[tc][tr];
+    const typeA = this.types[c][r];
+    const typeB = this.types[tc][tr];
+    this.grid[c][r] = gridB;
+    this.grid[tc][tr] = gridA;
+    this.types[c][r] = typeB;
+    this.types[tc][tr] = typeA;
+    const spriteA = this.spriteGrid[c][r];
+    const spriteB = this.spriteGrid[tc][tr];
+    if (spriteA) {
+      spriteA.color = gridB;
+      spriteA.type = typeB;
+      spriteA.scale = 0.7;
+      spriteA.state = "idle";
+    }
+    if (spriteB) {
+      spriteB.color = gridA;
+      spriteB.type = typeA;
+      spriteB.scale = 0.7;
+      spriteB.state = "idle";
+    }
+    return { from: { c, r }, to: { c: tc, r: tr } };
   }
 
   // ---- Downpour (advanced levels) --------------------------------------

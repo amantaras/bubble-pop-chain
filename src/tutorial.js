@@ -10,7 +10,7 @@
 // emitted from `main.js` (see `_tut(...)` call sites). This is mandated by
 // AGENTS.md §"Tutorial" — the tutorial is part of the definition of done.
 
-import { NORMAL, ICE, RAINBOW, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3, TETHER } from "./grid.js";
+import { NORMAL, ICE, RAINBOW, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3, TETHER, POLARITY_PLUS } from "./grid.js";
 
 // Each step:
 //   id      — stable identifier (used by tests; never reuse/repurpose)
@@ -23,13 +23,14 @@ import { NORMAL, ICE, RAINBOW, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3, TETHER } from
 //                           | "blast" | "powerup" | "magnet" | "event"
 //                           | "lightning" | "stone" | "bombbubble"
 //                           | "multiplier" | "coinbubble" | "vine"
-//                           | "sequence" | "tether"
+//                           | "sequence" | "tether" | "polarity"
 //   cta     — button label for "button" steps
 //   hint    — short call-to-action shown for action steps
 //   grant   — optional setup applied when the step is entered
 //             ("power" | "fever" | "bomb" | "specials" | "magnet" | "event"
 //              | "lightning" | "stone" | "bombbubble" | "multiplier"
-//              | "coinbubble" | "vine" | "sequence" | "tether" | "undo" | "paint")
+//              | "coinbubble" | "vine" | "sequence" | "tether" | "polarity"
+//              | "undo" | "paint")
 export const TUTORIAL_STEPS = [
   {
     id: "welcome",
@@ -193,6 +194,14 @@ export const TUTORIAL_STEPS = [
     advance: "tether",
     hint: "🪢 Pop either tethered cluster — its partner pops too",
     grant: "tether",
+  },
+  {
+    id: "polarity",
+    title: "Polarity Bubbles",
+    body: "🧲 Magnetic +/− bubbles nudge the board every move — two matching charges (++ or −−) repel apart, drifting further away each turn, while opposite charges (+−) are already attracted together and stay put. Pop the polarity cluster now!",
+    advance: "polarity",
+    hint: "🧲 Pop the cluster with the polarity bubble",
+    grant: "polarity",
   },
   {
     id: "pets",

@@ -1,5 +1,5 @@
 // Game orchestrator: canvas loop, state machine, and all session logic.
-import { Board, NORMAL, RAINBOW, ICE, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN, VINE, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3, TETHER } from "./grid.js";
+import { Board, NORMAL, RAINBOW, ICE, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN, VINE, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3, TETHER, POLARITY_PLUS, POLARITY_MINUS } from "./grid.js";
 import { Renderer, themeMotif } from "./renderer.js";
 import { ParticleSystem, popStyleForGroup } from "./particles.js";
 import {
@@ -1646,6 +1646,18 @@ class Game {
       decorateSpecials(types);
       this._placeTutorialTether(types);
       b.restore(g, types);
+    } else if (kind === "polarity") {
+      // Fresh practice board with a magnetic polarity bubble parked inside a
+      // guaranteed cluster, so popping it always advances the step.
+      const b = s.board;
+      const { colors: g, types } = buildTutorialBoard(
+        b.cols,
+        b.rows,
+        s.level.colors || 4
+      );
+      decorateSpecials(types);
+      this._placeTutorialPolarity(types);
+      b.restore(g, types);
     } else if (kind === "event") {
       this._spawnTutorialEvent();
     } else if (kind === "undo") {
@@ -1723,6 +1735,16 @@ class Game {
     if (types && types[2] && types[2][0] !== undefined) types[2][0] = TETHER;
   }
 
+  // Drop a magnetic POLARITY_PLUS bubble into a corner 2×2 block of the
+  // practice board (a guaranteed same-colour cluster), so the polarity step
+  // can always be cleared by popping that cluster. (The passive repel drift
+  // itself is suppressed in the tutorial — see _spreadPolarity — so this step
+  // teaches the bubble by having the player pop one, same as every other
+  // special-bubble step.)
+  _placeTutorialPolarity(types) {
+    if (types && types[0] && types[0][0] !== undefined) types[0][0] = POLARITY_PLUS;
+  }
+
   // Rebuild the controlled practice board so the tutorial never runs out of
   // poppable clusters no matter how much the player pops/blasts.
   _refillTutorialBoard() {
@@ -1772,6 +1794,10 @@ class Game {
     // Keep a linked TETHER pair available while the tether step is active.
     if (this.tutorial && this.tutorial.stepId === "tether") {
       this._placeTutorialTether(types);
+    }
+    // Keep a polarity bubble available while the polarity step is active.
+    if (this.tutorial && this.tutorial.stepId === "polarity") {
+      this._placeTutorialPolarity(types);
     }
     b.restore(g, types);
     b.layout(this.W, this.H, TOP_INSET, this._bottomInset());
@@ -2420,6 +2446,7 @@ class Game {
     const points = basePoints * scoreMult;
     const coinCount = resolved.filter((p) => s.board.isCoin(p.c, p.r)).length;
     const vinePopped = resolved.some((p) => s.board.isVine(p.c, p.r));
+    const polarityPopped = resolved.some((p) => s.board.isPolarity(p.c, p.r));
     s.score += points;
     if (strike.hitLightning) {
       this.floating.spawn(anchor.x, anchor.y - 28, "⚡ ZAP!", "#9fe8ff", 30);
@@ -2452,6 +2479,7 @@ class Game {
       this._tut("coinbubble");
     }
     if (vinePopped) this._tut("vine");
+    if (polarityPopped) this._tut("polarity");
     this._popCells(
       resolved,
       points,
@@ -2570,6 +2598,7 @@ class Game {
     // Whether the cleared set included a creeping vine bubble (captured before
     // _popCells/_tut may rebuild the board, so the flag stays accurate).
     const vinePopped = cells.some((p) => s.board.isVine(p.c, p.r));
+    const polarityPopped = cells.some((p) => s.board.isPolarity(p.c, p.r));
     // Count of special bubbles in the cleared set (also captured before the
     // board is cleared) for daily/weekly quest progress.
     const specialsPopped = cells.filter(
@@ -2580,7 +2609,8 @@ class Game {
         s.board.isCoin(p.c, p.r) ||
         s.board.isVine(p.c, p.r) ||
         s.board.isSequence(p.c, p.r) ||
-        s.board.isTether(p.c, p.r)
+        s.board.isTether(p.c, p.r) ||
+        s.board.isPolarity(p.c, p.r)
     ).length;
     if (coinCount > 0) {
       const coinsDropped = coinCount * COIN_BUBBLE_VALUE;
@@ -2637,6 +2667,7 @@ class Game {
     if (multCount > 0) this._tut("multiplier");
     if (coinCount > 0) this._tut("coinbubble");
     if (vinePopped) this._tut("vine");
+    if (polarityPopped) this._tut("polarity");
     if (s.combo >= 2) this._tut("combo");
     // Bonus objective progress: a big combo or a single large group.
     this._trackObjective({ combo: s.combo, group: group.length });
@@ -3078,6 +3109,7 @@ class Game {
 
     const coinCount = cells.filter((p) => s.board.isCoin(p.c, p.r)).length;
     const vinePopped = cells.some((p) => s.board.isVine(p.c, p.r));
+    const polarityPopped = cells.some((p) => s.board.isPolarity(p.c, p.r));
     if (coinCount > 0) {
       const coinsDropped = coinCount * COIN_BUBBLE_VALUE;
       if (s.mode !== "tutorial") {
@@ -3114,6 +3146,7 @@ class Game {
     if (multCount > 0) this._tut("multiplier");
     if (coinCount > 0) this._tut("coinbubble");
     if (vinePopped) this._tut("vine");
+    if (polarityPopped) this._tut("polarity");
     if (strike.hitTether) this._tut("tether");
     this.afterMove();
   }
@@ -3222,6 +3255,7 @@ class Game {
 
     const coinCount = cells.filter((p) => s.board.isCoin(p.c, p.r)).length;
     const vinePopped = cells.some((p) => s.board.isVine(p.c, p.r));
+    const polarityPopped = cells.some((p) => s.board.isPolarity(p.c, p.r));
     if (coinCount > 0) {
       const coinsDropped = coinCount * COIN_BUBBLE_VALUE;
       if (s.mode !== "tutorial") {
@@ -3276,6 +3310,7 @@ class Game {
     if (multCount > 0) this._tut("multiplier");
     if (coinCount > 0) this._tut("coinbubble");
     if (vinePopped) this._tut("vine");
+    if (polarityPopped) this._tut("polarity");
     this.afterMove();
   }
 
@@ -4203,6 +4238,12 @@ class Game {
     // flourish is skipped via the guards above so it never double-spreads.)
     this._spreadVines();
 
+    // Polarity bubbles: any same-charge (++/--) pair still on the board
+    // repels one cell further apart every resolved move (opposite charges are
+    // already "attracted" together and stay put). A gentle, friendly board
+    // reorganiser — not a threat like vine — so it never blocks a win.
+    this._spreadPolarity();
+
     // A single un-poppable bubble is left: rather than strand the player on a
     // jam (a lone bubble can never form a group of 2+), give it a celebratory
     // glow-and-explode finale — one of several random styles — that clears the
@@ -4334,6 +4375,19 @@ class Game {
     if (!sprouted) return;
     const p = s.board.targetPixel(sprouted.c, sprouted.r);
     this.floating.spawn(p.x, p.y - 24, "🌿", "#7ff0a0", 18);
+  }
+
+  // Magnetic polarity bubbles repel apart one cell at a time — see
+  // Board.spreadPolarity. Suppressed in the tutorial like _spreadVines, so
+  // the controlled practice board never reorganises itself under the player.
+  _spreadPolarity() {
+    const s = this.session;
+    if (!s || s.ended || s.mode === "tutorial") return;
+    if (!s.board || typeof s.board.spreadPolarity !== "function") return;
+    const moved = s.board.spreadPolarity();
+    if (!moved) return;
+    const p = s.board.targetPixel(moved.to.c, moved.to.r);
+    this.floating.spawn(p.x, p.y - 24, "⇄", "#c9a2ff", 18);
   }
 
   // Downpour pressure for advanced campaign levels: tick a per-move counter and,

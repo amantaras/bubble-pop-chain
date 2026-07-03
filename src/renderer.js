@@ -1,6 +1,6 @@
 // Canvas renderer: animated background + glossy neon bubbles.
 
-import { RAINBOW, ICE, ICE_CRACKED, NORMAL, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN, VINE, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3, TETHER } from "./grid.js";
+import { RAINBOW, ICE, ICE_CRACKED, NORMAL, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN, VINE, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3, TETHER, POLARITY_PLUS, POLARITY_MINUS } from "./grid.js";
 
 // Distinct glyphs used by colourblind mode — one per colour index. There are
 // always at least as many symbols as a level has colours.
@@ -850,6 +850,31 @@ export class Renderer {
         ctx.beginPath();
         ctx.arc(s.x + ringR * 0.55, s.y, ringR, 0, Math.PI * 2);
         ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+
+      // Polarity overlay: a pulsing ring around a bold +/- glyph — matching
+      // charges (warm red "+", cool blue "-") repel apart one cell every
+      // resolved move; opposite charges are already "attracted" and stay put.
+      if (s.type === POLARITY_PLUS || s.type === POLARITY_MINUS) {
+        const isPlus = s.type === POLARITY_PLUS;
+        const ringColor = isPlus ? "rgba(255,140,110,0.95)" : "rgba(120,190,255,0.95)";
+        const textColor = isPlus ? "rgba(255,225,215,0.98)" : "rgba(220,240,255,0.98)";
+        ctx.globalAlpha = s.alpha;
+        const pulse = 0.55 + 0.45 * Math.abs(Math.sin(performance.now() / 300));
+        ctx.shadowColor = ringColor;
+        ctx.shadowBlur = rad * 0.6 * pulse;
+        ctx.strokeStyle = ringColor;
+        ctx.lineWidth = Math.max(1.6, rad * 0.14);
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, rad * 0.68, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.shadowBlur = rad * 0.3 * pulse;
+        ctx.fillStyle = textColor;
+        ctx.font = `800 ${Math.round(rad * 0.95)}px system-ui, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(isPlus ? "+" : "−", s.x, s.y + rad * 0.04);
         ctx.shadowBlur = 0;
       }
 

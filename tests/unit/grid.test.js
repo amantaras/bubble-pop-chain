@@ -15,6 +15,8 @@ import {
   SEQUENCE_2,
   SEQUENCE_3,
   TETHER,
+  POLARITY_PLUS,
+  POLARITY_MINUS,
   MAGNET_GLIDE,
   DOWNPOUR_FALL_MULT,
   DOWNPOUR_FALL_SECONDS,
@@ -609,6 +611,96 @@ describe("grid / Board", () => {
     b.restore(grid, types); // no third arg -> fallback scan-order pairing
     expect(b.tetherPartner(0, 0)).toEqual({ c: 3, r: 3 });
     expect(b.tetherPartner(3, 3)).toEqual({ c: 0, r: 0 });
+  });
+
+  // ---- Polarity bubbles (POLARITY_PLUS/POLARITY_MINUS) -------------------
+  it("a polarity spawn rate sprinkles both charges deterministically", () => {
+    const b = new Board(10, 10, 4, 13, { rainbow: 0, ice: 0, polarity: 0.5 });
+    let plus = 0, minus = 0;
+    for (let c = 0; c < b.cols; c++)
+      for (let r = 0; r < b.rows; r++) {
+        if (b.types[c][r] === POLARITY_PLUS) plus++;
+        else if (b.types[c][r] === POLARITY_MINUS) minus++;
+      }
+    expect(plus).toBeGreaterThan(0);
+    expect(minus).toBeGreaterThan(0);
+  });
+
+  it("a polarity bubble joins same-colour groups like a normal bubble", () => {
+    const b = new Board(3, 1, 2, 1);
+    setGrid(b, [[0], [0], [1]]);
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[1][0] = POLARITY_PLUS;
+    expect(b.getGroupAt(0, 0).length).toBe(2);
+    expect(b.isPolarity(1, 0)).toBe(true);
+    expect(b.isPolarity(0, 0)).toBe(false);
+  });
+
+  it("polarityCharge reports +1/-1/0 and isPolarity follows it", () => {
+    const b = new Board(3, 1, 2, 1);
+    setGrid(b, [[0], [0], [0]]);
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[0][0] = POLARITY_PLUS;
+    b.types[1][0] = POLARITY_MINUS;
+    expect(b.polarityCharge(0, 0)).toBe(1);
+    expect(b.polarityCharge(1, 0)).toBe(-1);
+    expect(b.polarityCharge(2, 0)).toBe(0);
+    expect(b.isPolarity(0, 0)).toBe(true);
+    expect(b.isPolarity(1, 0)).toBe(true);
+    expect(b.isPolarity(2, 0)).toBe(false);
+  });
+
+  it("spreadPolarity repels an adjacent same-charge pair one cell further apart", () => {
+    const b = new Board(6, 1, 3, 1);
+    for (let c = 0; c < b.cols; c++) b.grid[c][0] = 0;
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[2][0] = POLARITY_PLUS;
+    b.types[3][0] = POLARITY_PLUS; // adjacent, same charge
+    const moved = b.spreadPolarity();
+    expect(moved).toBeTruthy();
+    // Exactly one of the two plus bubbles stepped one cell further outward
+    // (to col 1 or col 4), while the other stayed put — a genuine repel.
+    const outward = [b.polarityCharge(1, 0), b.polarityCharge(4, 0)].filter((c) => c === 1).length;
+    expect(outward).toBe(1);
+  });
+
+  it("spreadPolarity leaves an adjacent opposite-charge pair stable (already attracted)", () => {
+    const b = new Board(6, 1, 3, 1);
+    for (let c = 0; c < b.cols; c++) b.grid[c][0] = 0;
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[2][0] = POLARITY_PLUS;
+    b.types[3][0] = POLARITY_MINUS; // adjacent, opposite charge
+    expect(b.spreadPolarity()).toBeNull();
+    expect(b.polarityCharge(2, 0)).toBe(1);
+    expect(b.polarityCharge(3, 0)).toBe(-1);
+  });
+
+  it("spreadPolarity returns null when there are no charges, or a same-charge pair is boxed in", () => {
+    const empty = new Board(3, 3, 3, 1);
+    empty.types = empty.grid.map((col) => col.map(() => NORMAL));
+    expect(empty.spreadPolarity()).toBeNull();
+
+    // Same-charge pair at the very edge, with nowhere to repel outward to.
+    const boxed = new Board(2, 1, 2, 1);
+    boxed.grid[0][0] = 0;
+    boxed.grid[1][0] = 0;
+    boxed.types = boxed.grid.map((col) => col.map(() => NORMAL));
+    boxed.types[0][0] = POLARITY_PLUS;
+    boxed.types[1][0] = POLARITY_PLUS;
+    expect(boxed.spreadPolarity()).toBeNull();
+  });
+
+  it("spreadPolarity only swaps into a plain bubble, never another special", () => {
+    const b = new Board(5, 1, 3, 1);
+    for (let c = 0; c < b.cols; c++) b.grid[c][0] = 0;
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[1][0] = STONE; // blocks the leftward repel target
+    b.types[2][0] = POLARITY_PLUS;
+    b.types[3][0] = POLARITY_PLUS;
+    // rightward repel (col 3 -> col 4) is still open even though leftward is blocked
+    const moved = b.spreadPolarity();
+    expect(moved).toEqual({ from: { c: 3, r: 0 }, to: { c: 4, r: 0 } });
+    expect(b.types[1][0]).toBe(STONE); // untouched
   });
 
   it("spreadVines returns null when there is no room or no vines", () => {

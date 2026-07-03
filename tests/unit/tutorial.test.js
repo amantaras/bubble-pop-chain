@@ -18,7 +18,7 @@ describe("tutorial step definitions", () => {
 
   it("covers every core feature exactly once", () => {
     const actions = TUTORIAL_STEPS.map((s) => s.advance);
-    for (const a of ["pop", "combo", "undo", "preview", "swipe", "blast", "powerup", "magnet", "event", "lightning", "stone", "bombbubble", "multiplier", "coinbubble", "vine", "sequence", "tether"]) {
+    for (const a of ["pop", "combo", "undo", "preview", "swipe", "blast", "powerup", "magnet", "event", "lightning", "stone", "bombbubble", "multiplier", "coinbubble", "vine", "sequence", "tether", "polarity"]) {
       expect(actions).toContain(a);
     }
   });
@@ -127,6 +127,17 @@ describe("tutorial step definitions", () => {
     // It sits right after the sequence step (the special-bubbles run).
     const idx = TUTORIAL_STEPS.indexOf(tether);
     expect(TUTORIAL_STEPS[idx - 1].id).toBe("sequence");
+  });
+
+  it("includes a gated polarity step that grants a magnetic-bubble board", () => {
+    const polarity = TUTORIAL_STEPS.find((s) => s.id === "polarity");
+    expect(polarity).toBeTruthy();
+    expect(polarity.advance).toBe("polarity");
+    expect(polarity.grant).toBe("polarity");
+    expect(polarity.hint).toBeTruthy();
+    // It sits right after the tether step (the special-bubbles run).
+    const idx = TUTORIAL_STEPS.indexOf(polarity);
+    expect(TUTORIAL_STEPS[idx - 1].id).toBe("tether");
   });
 
   it("includes an informational pets step before the finish", () => {

@@ -1464,6 +1464,58 @@ test.describe("tether bubbles (linked pairs)", () => {
   });
 });
 
+test.describe("polarity bubbles (magnetic pairs)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("a same-charge pair repels one cell further apart each resolved move", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await page.waitForTimeout(400);
+    const result = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          b.grid[c][r] = 0;
+          b.types[c][r] = 0; // NORMAL
+        }
+      b.types[2][0] = 14; // POLARITY_PLUS
+      b.types[3][0] = 14; // POLARITY_PLUS, adjacent, same charge
+      const moved = b.spreadPolarity();
+      return {
+        moved,
+        outwardLeft: b.polarityCharge(1, 0),
+        outwardRight: b.polarityCharge(4, 0),
+      };
+    });
+    expect(result.moved).toBeTruthy();
+    // Exactly one of the two plus bubbles stepped one cell further outward.
+    const outward = [result.outwardLeft, result.outwardRight].filter((c) => c === 1).length;
+    expect(outward).toBe(1);
+  });
+
+  test("an opposite-charge pair stays put — already attracted together", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await page.waitForTimeout(400);
+    const result = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          b.grid[c][r] = 0;
+          b.types[c][r] = 0;
+        }
+      b.types[2][0] = 14; // POLARITY_PLUS
+      b.types[3][0] = 15; // POLARITY_MINUS, adjacent, opposite charge
+      return b.spreadPolarity();
+    });
+    expect(result).toBeNull();
+  });
+});
+
 test.describe("daily retention engine", () => {
   test.beforeEach(({ page }) => openGame(page));
 
@@ -5646,9 +5698,23 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
             return;
           }
     });
+    await expect.poll(() => stepId(page)).toBe("polarity");
+
+    // 8i) polarity — popping a cluster that contains a magnetic +/- bubble
+    // advances the step.
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++)
+          if (b.isPolarity(c, r) && b.getGroupAt(c, r).length >= 2) {
+            g.popAt(c, r);
+            return;
+          }
+    });
     await expect.poll(() => stepId(page)).toBe("pets");
 
-    // 8i) pets (informational) — introduces the companion system.
+    // 8j) pets (informational) — introduces the companion system.
     await page.locator("#coach-next").click();
     expect(await stepId(page)).toBe("done");
 

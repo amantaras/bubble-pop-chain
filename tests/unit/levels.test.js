@@ -180,6 +180,31 @@ describe("levels", () => {
     expect(boss.specials.tether).toBeGreaterThan(0);
   });
 
+  it("polarity bubbles ramp in from level 32 and not before", () => {
+    expect(getLevel(31).specials.polarity || 0).toBe(0);
+    expect(getLevel(32).specials.polarity).toBeGreaterThan(0);
+    // Rate climbs with level but stays capped (level 55 is a non-boss level).
+    expect(getLevel(55).specials.polarity).toBeGreaterThanOrEqual(
+      getLevel(32).specials.polarity
+    );
+    expect(getLevel(55).specials.polarity).toBeLessThanOrEqual(0.03);
+  });
+
+  it("bosses do NOT suppress polarity bubbles (a reward, not a hazard)", () => {
+    const boss = getLevel(60);
+    expect(boss.boss).toBeTruthy();
+    expect(boss.specials.polarity).toBeGreaterThan(0);
+  });
+
+  it("tether and polarity are both featured together (pool == cap, no suppression yet)", () => {
+    // Once both unlock (level 32+), NEW_MECHANIC_IDS pool size is exactly 2,
+    // matching MAX_NEW_MECHANICS_PER_BOARD — so the budget doesn't need to
+    // trim anything yet; both stay live on the same board.
+    const lvl = getLevel(60);
+    expect(lvl.specials.tether).toBeGreaterThan(0);
+    expect(lvl.specials.polarity).toBeGreaterThan(0);
+  });
+
   describe("featuredMechanicIds (board mechanic budget)", () => {
     it("returns every id unchanged when the pool is at or under the cap", () => {
       expect(featuredMechanicIds([], "seed-empty", 2)).toEqual([]);
@@ -207,10 +232,10 @@ describe("levels", () => {
       expect(seen.size).toBeGreaterThan(1); // varies rather than a fixed pick
     });
 
-    it("today's real pool (just Tether) is at/under the cap, so nothing is suppressed yet", () => {
+    it("today's real pool (Tether + Polarity) is at/under the cap, so nothing is suppressed yet", () => {
       // Documents the current state of the rotation: it's live infrastructure
-      // ready for Polarity/Bloom, but with only one real id today it never
-      // actually trims anything (1 <= MAX_NEW_MECHANICS_PER_BOARD).
+      // ready for Bloom, but with only two real ids today it never actually
+      // trims anything (2 <= MAX_NEW_MECHANICS_PER_BOARD).
       expect(NEW_MECHANIC_IDS.length).toBeLessThanOrEqual(MAX_NEW_MECHANICS_PER_BOARD);
     });
   });
