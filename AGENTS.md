@@ -411,20 +411,45 @@ never re‑discovered the hard way.
   best Charged Blast target) and must stay a pure, side-effect-free function.
   Popping a group with a Chain Reactor bubble emits `_tut("sequence")` and a
   floating callout ("🔗 Chain started (1/3)" → "🔗 2/3 — pop the 3!" →
-  "🔗 CHAIN REACTOR!" on the detonation). `_gridHasMoves`
+  "🔗 CHAIN REACTOR!" on the detonation). **Tether** (`TETHER`, a linked-pair
+  bubble) = placed as **two matching bubbles anywhere on the board**
+  (`Board.tetherPairs`, a "c,r" → {c,r} map built by `_linkTethers()` at
+  generation time; an odd unpaired leftover reverts to a plain bubble so a
+  tether never exists without a partner) — popping **either** one's cluster
+  **instantly also clears its linked partner cell**, wherever it sits on the
+  board (`grid.tetherStrike`, merged into the cleared set and re-checked so it
+  can chain into other specials, just like lightning/bomb/sequence). Unlike
+  Chain Reactor, Tether carries **no session-level state** — it's a pure
+  function of the board's static pairing map, so (unlike
+  `_updateSequenceProgress`) it resolves safely from directly **inside the
+  shared `_resolveSpecialStrikes` loop**, for both real moves and
+  `_bestBlastTarget`'s speculative preview scan. If the partner's already gone
+  (its own half already popped), nothing extra happens — just a normal pop.
+  Because the pairing lives in a side map (not the serialized grid/types), it
+  is explicitly carried through **every persistence point** alongside the
+  usual grid/types snapshot: `Board.serializeTether()`/`restoreTetherPairs()`
+  round-trip it for the campaign save/resume snapshot (`_persistSession`/
+  `resumeCampaign`) and every undo snapshot (`_pushUndo`/`undoMove`); a fresh
+  in-memory board (tutorial, magnet/paint board rebuilds) instead lets
+  `Board.restore(grid, types)` **fall back** to `_relinkTethersFromScan()`,
+  which safely re-derives pairs by scanning for `TETHER` cells in stable
+  column-major order — correct for a freshly-built board where partial pops
+  can't have desynced the pairing. Popping a tethered cluster emits
+  `_tut("tether")` and a `🪢 Tethered!` flourish. `_gridHasMoves`
   excludes stones as both move origin and same-colour neighbour so
   generation/deadlock detection stay correct (the coloured specials —
-  lightning/bomb/multiplier/coin/vine/sequence — need no exclusion). Seeded spawn rates
+  lightning/bomb/multiplier/coin/vine/sequence/tether — need no exclusion). Seeded spawn rates
   ramp in by level (rainbow ≥6, coin ≥8, ice ≥10, multiplier ≥12, lightning ≥14,
-  bomb ≥16, stone ≥18, vine ≥20, sequence ≥24 — see `levels.js specialsForLevel`;
-  bosses force `specials.ice`/`specials.stone`/`specials.vine` to 0, but allow
-  lightning/bomb/multiplier/coin/sequence, since sequence is a reward not a
-  hazard). Lightning draws a glowing pulsing bolt glyph,
+  bomb ≥16, stone ≥18, vine ≥20, sequence ≥24, tether ≥28 — see `levels.js
+  specialsForLevel`; bosses force `specials.ice`/`specials.stone`/
+  `specials.vine` to 0, but allow lightning/bomb/multiplier/coin/sequence/tether,
+  since these are rewards, not hazards). Lightning draws a glowing pulsing bolt glyph,
   Stone a grey padlock shell, Bomb a dark fused shell with a pulsing lit spark,
   Multiplier a pulsing gold ring with a "×2" glyph, Coin a shiny gold disc with a
-  "$" glyph, Vine curling green tendrils + leaf dots, and Chain Reactor a pulsing
+  "$" glyph, Vine curling green tendrils + leaf dots, Chain Reactor a pulsing
   stroked ring with a bold centred "1"/"2"/"3" glyph that reads cooler-to-hotter
-  as the number climbs (`renderer.js`). These
+  as the number climbs, and Tether a pulsing violet ring around two small
+  interlocking circles — a "linked" glyph, no text needed (`renderer.js`). These
   procedural marks are now reinforced with local white SVG overlays from
   **Game-icons.net** (`assets/icons/game-icons/`, CC BY 3.0 attribution recorded
   in that folder's `README.txt`; no remote runtime loading), with Lightning using
@@ -439,12 +464,34 @@ never re‑discovered the hard way.
   (`grant: "multiplier"` → `Game._placeTutorialMultiplier`, advancing on
   `_tut("multiplier")`), Coin (`grant: "coinbubble"` →
   `Game._placeTutorialCoin`, advancing on `_tut("coinbubble")`), Vine
-  (`grant: "vine"` → `Game._placeTutorialVine`, advancing on `_tut("vine")`) and
+  (`grant: "vine"` → `Game._placeTutorialVine`, advancing on `_tut("vine")`),
   Chain Reactor (`grant: "sequence"` → `Game._placeTutorialSequence`, seeding
   three separate 2×2 blocks so "1"/"2"/"3" can each be popped independently,
-  advancing on `_tut("sequence")` once the full in-order chain detonates)
+  advancing on `_tut("sequence")` once the full in-order chain detonates) and
+  Tether (`grant: "tether"` → `Game._placeTutorialTether`, seeding a linked pair
+  across two separate 2×2 blocks, advancing on `_tut("tether")`)
   with gated steps. (The bomb **bubble** uses the `bombbubble` step/grant/action
   id to avoid colliding with the bomb **power-up** step's `grant: "bomb"`.)
+- **Board mechanic budget** (`levels.js` `NEW_MECHANIC_IDS`/
+  `MAX_NEW_MECHANICS_PER_BOARD`/`featuredMechanicIds`): the newer "richer board
+  mechanics" batch (Tether now; Polarity/Bloom to follow) each add a whole
+  extra rule the player must track — very different from a single-tap reward
+  like a coin or multiplier bubble. Stacking every one of them onto every board
+  once all are unlocked would overwhelm rather than delight a board, so only a
+  bounded subset (`MAX_NEW_MECHANICS_PER_BOARD` = 2) is **featured** on any
+  given board, chosen by `featuredMechanicIds(unlockedIds, seedKey, cap)` — a
+  pure, deterministic seeded shuffle (`makeRng(hashSeed(seedKey))`) keyed on the
+  level's (capped) difficulty `d`, so the same level always looks the same and
+  the existing "two levels sharing a capped difficulty get identical specials"
+  plateau invariant still holds. `specialsForLevel(n)` computes each new
+  mechanic's raw ramp rate as usual, then zeroes out any id in
+  `NEW_MECHANIC_IDS` that isn't in the featured subset for that level. Today
+  there's only one id (`tether`), so the pool (1) is already at/under the cap
+  (2) and nothing is actually suppressed yet — this is live infrastructure
+  ready to engage for real the moment Polarity/Bloom push the pool past the
+  cap. Deliberately scoped to just the newer mechanics: the 7 already-shipped
+  types (rainbow/ice/lightning/stone/bomb/multiplier/coin/vine/sequence) are
+  untouched by this budget, so no previously-tuned board ever changes.
 - **Downpour** (the Tetris-style advanced-level modifier) drops a fresh row of
   ordinary bubbles in from the **top** every N resolved moves; with gravity
   settling **downward**, each column's new bubble rests directly on top of its
@@ -1571,7 +1618,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 703 unit tests + 578 E2E
+- **Current baseline (keep growing, never shrink)**: 718 unit tests + 582 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

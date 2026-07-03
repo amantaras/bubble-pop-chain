@@ -1,6 +1,6 @@
 // Canvas renderer: animated background + glossy neon bubbles.
 
-import { RAINBOW, ICE, ICE_CRACKED, NORMAL, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN, VINE, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3 } from "./grid.js";
+import { RAINBOW, ICE, ICE_CRACKED, NORMAL, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN, VINE, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3, TETHER } from "./grid.js";
 
 // Distinct glyphs used by colourblind mode — one per colour index. There are
 // always at least as many symbols as a level has colours.
@@ -823,6 +823,33 @@ export class Renderer {
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(String(num), s.x, s.y + rad * 0.04);
+        ctx.shadowBlur = 0;
+      }
+
+      // Tether overlay: a violet pulsing ring around two small interlocking
+      // rings (a "linked" glyph) — popping either tethered bubble's cluster
+      // also clears its partner cell wherever it sits on the board.
+      if (s.type === TETHER) {
+        const linkColor = "rgba(201,162,255,0.95)";
+        ctx.globalAlpha = s.alpha;
+        const pulse = 0.55 + 0.45 * Math.abs(Math.sin(performance.now() / 320));
+        ctx.shadowColor = linkColor;
+        ctx.shadowBlur = rad * 0.6 * pulse;
+        ctx.strokeStyle = linkColor;
+        ctx.lineWidth = Math.max(1.6, rad * 0.14);
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, rad * 0.68, 0, Math.PI * 2);
+        ctx.stroke();
+        // Two small overlapping rings read as a "link" without needing text.
+        ctx.shadowBlur = rad * 0.3 * pulse;
+        ctx.lineWidth = Math.max(1.3, rad * 0.11);
+        const ringR = rad * 0.24;
+        ctx.beginPath();
+        ctx.arc(s.x - ringR * 0.55, s.y, ringR, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(s.x + ringR * 0.55, s.y, ringR, 0, Math.PI * 2);
+        ctx.stroke();
         ctx.shadowBlur = 0;
       }
 

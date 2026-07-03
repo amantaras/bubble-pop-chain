@@ -31,8 +31,16 @@ export const SEQUENCE_3 = 12; // three numbered bubbles in order (1 -> 2 -> 3),
 //                                 is cleared. Popping out of order breaks the
 //                                 chain (the bubble still pops normally, no
 //                                 bonus) — see main.js _updateSequenceProgress.
+export const TETHER = 13; // linked pair — placed as two matching bubbles
+//                            anywhere on the board (see Board.tetherPairs).
+//                            Popping either one's group instantly also clears
+//                            its partner cell, wherever it sits — a spatial
+//                            planning tool with no session-level state (a pure
+//                            function of the board, safe for both real moves
+//                            and _bestBlastTarget's speculative preview scan).
+//                            A normal coloured bubble for matching; no AoE.
 
-const COLORED_POP_TYPES = new Set([NORMAL, LIGHTNING, BOMB, MULTIPLIER, COIN, VINE, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3]);
+const COLORED_POP_TYPES = new Set([NORMAL, LIGHTNING, BOMB, MULTIPLIER, COIN, VINE, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3, TETHER]);
 
 // How long a magnet-pulled bubble takes to glide to its new cell (seconds).
 // Deliberately slower than the snappy gravity settle so the player can see the
@@ -55,6 +63,9 @@ export class Board {
     this.types = []; // [c][r] => NORMAL | ICE | RAINBOW | ICE_CRACKED
     this.spriteGrid = []; // [c][r] => sprite ref or null
     this.sprites = [];
+    // "c,r" -> {c,r} partner, bidirectional. Built by _linkTethers() at
+    // generation time (or restored explicitly — see restore()/restoreTetherPairs).
+    this.tetherPairs = new Map();
 
     // Pixel layout (set by layout()).
     this.cell = 40;
@@ -95,6 +106,7 @@ export class Board {
     const coinRate = this.specials.coin || 0;
     const vineRate = this.specials.vine || 0;
     const seqRate = this.specials.sequence || 0;
+    const tetherRate = this.specials.tether || 0;
     this.types = [];
     for (let c = 0; c < this.cols; c++) {
       this.types[c] = [];
@@ -161,8 +173,67 @@ export class Board {
             rainbowRate + iceRate + lightningRate + stoneRate + bombRate + multRate + coinRate + vineRate;
           const frac = (roll - base) / seqRate;
           this.types[c][r] = frac < 1 / 3 ? SEQUENCE_1 : frac < 2 / 3 ? SEQUENCE_2 : SEQUENCE_3;
-        } else this.types[c][r] = NORMAL;
+        } else if (
+          roll <
+          rainbowRate +
+            iceRate +
+            lightningRate +
+            stoneRate +
+            bombRate +
+            multRate +
+            coinRate +
+            vineRate +
+            seqRate +
+            tetherRate
+        )
+          this.types[c][r] = TETHER;
+        else this.types[c][r] = NORMAL;
       }
+    }
+    // TETHER cells only mean something in PAIRS — link every one just placed
+    // to a partner elsewhere on the board (an odd leftover reverts to a plain
+    // bubble so there's never an orphaned, partner-less tether).
+    this._linkTethers();
+  }
+
+  // Pair up every TETHER-typed cell (in stable column-major scan order) into
+  // partners, storing the link bidirectionally in this.tetherPairs. An odd
+  // leftover cell (no partner available) reverts to a plain coloured bubble —
+  // a tether with nothing to pop is just a normal bubble.
+  _linkTethers() {
+    this.tetherPairs = new Map();
+    const cells = [];
+    for (let c = 0; c < this.cols; c++)
+      for (let r = 0; r < this.rows; r++)
+        if (this.types[c][r] === TETHER) cells.push({ c, r });
+    for (let i = 0; i + 1 < cells.length; i += 2) {
+      const a = cells[i];
+      const b = cells[i + 1];
+      this.tetherPairs.set(`${a.c},${a.r}`, b);
+      this.tetherPairs.set(`${b.c},${b.r}`, a);
+    }
+    if (cells.length % 2 === 1) {
+      const odd = cells[cells.length - 1];
+      this.types[odd.c][odd.r] = NORMAL;
+    }
+  }
+
+  // Fallback used by restore() when no explicit tether-pair snapshot is given
+  // (e.g. a freshly built tutorial/practice board): pair up whatever TETHER
+  // cells are present in scan order, WITHOUT reverting an odd leftover (unlike
+  // _linkTethers, restore() must never mutate a caller-supplied types grid —
+  // an unpaired tether just behaves like a normal bubble, no partner action).
+  _relinkTethersFromScan() {
+    this.tetherPairs = new Map();
+    const cells = [];
+    for (let c = 0; c < this.cols; c++)
+      for (let r = 0; r < this.rows; r++)
+        if (this.types[c] && this.types[c][r] === TETHER) cells.push({ c, r });
+    for (let i = 0; i + 1 < cells.length; i += 2) {
+      const a = cells[i];
+      const b = cells[i + 1];
+      this.tetherPairs.set(`${a.c},${a.r}`, b);
+      this.tetherPairs.set(`${b.c},${b.r}`, a);
     }
   }
 
@@ -208,13 +279,45 @@ export class Board {
     return this.types.map((col) => col.slice());
   }
 
+  // Return the tether pairing as a plain array of one-directional [{c,r},{c,r}]
+  // tuples (each pair listed once) for persistence alongside grid/types.
+  serializeTether() {
+    const seen = new Set();
+    const pairs = [];
+    for (const [key, partner] of this.tetherPairs) {
+      const [c, r] = key.split(",").map(Number);
+      const partnerKey = `${partner.c},${partner.r}`;
+      if (seen.has(key) || seen.has(partnerKey)) continue;
+      seen.add(key);
+      seen.add(partnerKey);
+      pairs.push([{ c, r }, { c: partner.c, r: partner.r }]);
+    }
+    return pairs;
+  }
+
+  // Rebuild this.tetherPairs (bidirectional) from a serializeTether() snapshot.
+  restoreTetherPairs(pairs) {
+    this.tetherPairs = new Map();
+    for (const pair of pairs || []) {
+      const [a, b] = pair;
+      this.tetherPairs.set(`${a.c},${a.r}`, b);
+      this.tetherPairs.set(`${b.c},${b.r}`, a);
+    }
+  }
+
   // Replace the colour grid (and optional type grid) from a saved snapshot and
   // rebuild sprites so the board appears exactly as it was, already settled.
-  restore(grid2d, types2d) {
+  // `tetherPairs` should be the output of serializeTether() when restoring a
+  // real snapshot (save/resume, undo) so linked pairs survive exactly as they
+  // were. When omitted (fresh boards built in-memory, e.g. the tutorial),
+  // pairs are safely re-derived by scanning for TETHER cells in order.
+  restore(grid2d, types2d, tetherPairs) {
     this.grid = grid2d.map((col) => col.slice());
     this.types = types2d
       ? types2d.map((col) => col.slice())
       : this.grid.map((col) => col.map(() => NORMAL));
+    if (tetherPairs) this.restoreTetherPairs(tetherPairs);
+    else this._relinkTethersFromScan();
     this._buildSprites();
     this.snapToTargets();
     return this;
@@ -393,6 +496,17 @@ export class Board {
   isSequence(c, r) {
     const t = this.types[c] && this.types[c][r];
     return t === SEQUENCE_1 || t === SEQUENCE_2 || t === SEQUENCE_3;
+  }
+
+  isTether(c, r) {
+    return this.types[c] && this.types[c][r] === TETHER;
+  }
+
+  // The linked partner cell of a TETHER bubble at (c,r), or null if it has
+  // none (unpaired leftover) or isn't a tether at all.
+  tetherPartner(c, r) {
+    if (!this.isTether(c, r)) return null;
+    return this.tetherPairs.get(`${c},${r}`) || null;
   }
 
   _isColoredPopTarget(c, r) {
@@ -600,6 +714,32 @@ export class Board {
     group.forEach(add);
     for (const p of group) {
       if (this.isSequenceNum(p.c, p.r, 3)) this.blastArea(p.c, p.r, 3).forEach(add);
+    }
+    return out;
+  }
+
+  // Expand a popped group that contains a TETHER bubble: each such bubble's
+  // linked partner cell (wherever it is on the board) is merged into the
+  // cleared set, IF that partner is still present (its half of the pair may
+  // already be gone). Pure function of the board's static pairing map — no
+  // session state involved, so it's safe to call from both real moves and
+  // _bestBlastTarget's speculative preview scan. Returns the full cell list
+  // to remove; when the group has no tether, the group is returned as-is.
+  tetherStrike(group) {
+    const hasTether = group.some((p) => this.isTether(p.c, p.r));
+    if (!hasTether) return group;
+    const seen = new Set();
+    const out = [];
+    const add = (cell) => {
+      const k = cell.c * this.rows + cell.r;
+      if (seen.has(k)) return;
+      seen.add(k);
+      out.push({ c: cell.c, r: cell.r });
+    };
+    group.forEach(add);
+    for (const p of group) {
+      const partner = this.tetherPartner(p.c, p.r);
+      if (partner && this.grid[partner.c][partner.r] !== -1) add(partner);
     }
     return out;
   }

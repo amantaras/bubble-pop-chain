@@ -7,6 +7,9 @@ import {
   CHAPTER_SIZE,
   chapterForLevel,
   objectiveForLevel,
+  featuredMechanicIds,
+  NEW_MECHANIC_IDS,
+  MAX_NEW_MECHANICS_PER_BOARD,
 } from "../../src/levels.js";
 
 import { downpourForLevel, DOWNPOUR_MIN_LEVEL } from "../../src/levels.js";
@@ -157,6 +160,59 @@ describe("levels", () => {
     expect(boss.specials.stone || 0).toBe(0);
     // Vines are a creeping threat, also suppressed on bosses.
     expect(boss.specials.vine || 0).toBe(0);
+  });
+
+  it("tether bubbles ramp in from level 28 and not before", () => {
+    expect(getLevel(27).specials.tether || 0).toBe(0);
+    expect(getLevel(28).specials.tether).toBeGreaterThan(0);
+    // Rate climbs with level but stays capped (level 50 is a non-boss level).
+    expect(getLevel(50).specials.tether).toBeGreaterThanOrEqual(
+      getLevel(28).specials.tether
+    );
+    expect(getLevel(50).specials.tether).toBeLessThanOrEqual(0.03);
+  });
+
+  it("bosses do NOT suppress tether bubbles (a reward, not a hazard)", () => {
+    // Level 60 is a boss beyond level 28, so tether should stay live there,
+    // unlike ice/stone/vine which bosses always force to 0.
+    const boss = getLevel(60);
+    expect(boss.boss).toBeTruthy();
+    expect(boss.specials.tether).toBeGreaterThan(0);
+  });
+
+  describe("featuredMechanicIds (board mechanic budget)", () => {
+    it("returns every id unchanged when the pool is at or under the cap", () => {
+      expect(featuredMechanicIds([], "seed-empty", 2)).toEqual([]);
+      const one = featuredMechanicIds(["a"], "seed-1", 2);
+      expect(one).toEqual(["a"]);
+      const two = featuredMechanicIds(["a", "b"], "seed-2", 2);
+      expect(two.slice().sort()).toEqual(["a", "b"]);
+    });
+
+    it("caps the featured set once the pool exceeds the cap, deterministically by seed", () => {
+      const ids = ["a", "b", "c", "d", "e"];
+      const a = featuredMechanicIds(ids, "level-42", 2);
+      const b = featuredMechanicIds(ids, "level-42", 2);
+      expect(a).toHaveLength(2);
+      expect(a).toEqual(b); // same seed -> same featured subset (reproducible)
+      for (const id of a) expect(ids).toContain(id);
+    });
+
+    it("rotates which subset is featured across different seeds", () => {
+      const ids = ["a", "b", "c", "d", "e", "f"];
+      const seen = new Set();
+      for (let i = 0; i < 20; i++) {
+        seen.add(featuredMechanicIds(ids, `level-${i}`, 2).slice().sort().join(","));
+      }
+      expect(seen.size).toBeGreaterThan(1); // varies rather than a fixed pick
+    });
+
+    it("today's real pool (just Tether) is at/under the cap, so nothing is suppressed yet", () => {
+      // Documents the current state of the rotation: it's live infrastructure
+      // ready for Polarity/Bloom, but with only one real id today it never
+      // actually trims anything (1 <= MAX_NEW_MECHANICS_PER_BOARD).
+      expect(NEW_MECHANIC_IDS.length).toBeLessThanOrEqual(MAX_NEW_MECHANICS_PER_BOARD);
+    });
   });
 
   it("resolves a well-formed chapter for every level, authored or procedural", () => {

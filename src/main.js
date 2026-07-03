@@ -1,5 +1,5 @@
 // Game orchestrator: canvas loop, state machine, and all session logic.
-import { Board, NORMAL, RAINBOW, ICE, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN, VINE, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3 } from "./grid.js";
+import { Board, NORMAL, RAINBOW, ICE, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN, VINE, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3, TETHER } from "./grid.js";
 import { Renderer, themeMotif } from "./renderer.js";
 import { ParticleSystem, popStyleForGroup } from "./particles.js";
 import {
@@ -824,7 +824,7 @@ class Game {
       level.specials
     );
     board.layout(this.W, this.H, TOP_INSET, this._bottomInset());
-    board.restore(snap.grid, snap.types);
+    board.restore(snap.grid, snap.types, snap.tether);
     this.session = {
       mode: "campaign",
       level,
@@ -893,6 +893,7 @@ class Game {
       ended: false,
       grid: s.board.serialize(),
       types: s.board.serializeTypes(),
+      tether: s.board.serializeTether(),
       stats: s.stats,
       bossCoreTotal: s.bossCoreTotal || 0,
       bossKind: s.bossKind || null,
@@ -1632,6 +1633,19 @@ class Game {
       this._placeTutorialSequence(types);
       b.restore(g, types);
       s.sequenceProgress = 0;
+    } else if (kind === "tether") {
+      // Fresh practice board with a linked TETHER pair parked in two SEPARATE
+      // guaranteed clusters, so popping either one always pulls in its
+      // partner and advances the step.
+      const b = s.board;
+      const { colors: g, types } = buildTutorialBoard(
+        b.cols,
+        b.rows,
+        s.level.colors || 4
+      );
+      decorateSpecials(types);
+      this._placeTutorialTether(types);
+      b.restore(g, types);
     } else if (kind === "event") {
       this._spawnTutorialEvent();
     } else if (kind === "undo") {
@@ -1699,6 +1713,16 @@ class Game {
     if (types && types[4] && types[4][0] !== undefined) types[4][0] = SEQUENCE_3;
   }
 
+  // Drop a linked TETHER pair into two SEPARATE guaranteed 2×2 colour blocks
+  // (cols 0-1 and cols 2-3 of row 0) so popping either cluster always pulls
+  // in its partner from elsewhere on the board — Board.restore()'s scan-order
+  // pairing fallback links these two correctly since they're the only TETHER
+  // cells on a freshly-built practice board.
+  _placeTutorialTether(types) {
+    if (types && types[0] && types[0][0] !== undefined) types[0][0] = TETHER;
+    if (types && types[2] && types[2][0] !== undefined) types[2][0] = TETHER;
+  }
+
   // Rebuild the controlled practice board so the tutorial never runs out of
   // poppable clusters no matter how much the player pops/blasts.
   _refillTutorialBoard() {
@@ -1744,6 +1768,10 @@ class Game {
       if (prog === 0 && types[0] && types[0][0] !== undefined) types[0][0] = SEQUENCE_1;
       if (prog <= 1 && types[2] && types[2][0] !== undefined) types[2][0] = SEQUENCE_2;
       if (types[4] && types[4][0] !== undefined) types[4][0] = SEQUENCE_3;
+    }
+    // Keep a linked TETHER pair available while the tether step is active.
+    if (this.tutorial && this.tutorial.stepId === "tether") {
+      this._placeTutorialTether(types);
     }
     b.restore(g, types);
     b.layout(this.W, this.H, TOP_INSET, this._bottomInset());
@@ -1817,6 +1845,7 @@ class Game {
     s.undoStack.push({
       grid: s.board.serialize(),
       types: s.board.serializeTypes(),
+      tether: s.board.serializeTether(),
       score: s.score,
       movesLeft: s.movesLeft,
       combo: s.combo,
@@ -1865,7 +1894,7 @@ class Game {
       return false;
     }
     const snap = s.undoStack.pop();
-    s.board.restore(snap.grid, snap.types);
+    s.board.restore(snap.grid, snap.types, snap.tether);
     s.board.layout(this.W, this.H, TOP_INSET, this._bottomInset());
     s.score = snap.score;
     s.movesLeft = snap.movesLeft;
@@ -2290,32 +2319,43 @@ class Game {
   }
 
   // Expand a cleared set through chained special strikes until it stabilizes:
-  // lightning bubbles add row+column cells, bomb bubbles add 3x3 cells, and a
+  // lightning bubbles add row+column cells, bomb bubbles add 3x3 cells, a
   // primed Chain Reactor "3" (session.sequenceProgress === 2) adds a big
-  // diamond blast. Newly included specials can trigger further expansions in
-  // later passes.
+  // diamond blast, and a tether bubble adds its linked partner cell wherever
+  // it sits on the board. Newly included specials can trigger further
+  // expansions in later passes.
   //
   // Pure preview vs. real move: this is ALSO called speculatively by
   // _bestBlastTarget (which probes every filled cell to find the best Charged
   // Blast target) — it must NOT mutate session state. Chain Reactor progress
   // is therefore updated separately by each REAL move's caller (popAt,
   // _petPopCells, chargedBlast, applyPowerup) via _updateSequenceProgress, not
-  // from inside this shared resolver.
+  // from inside this shared resolver. Tether has no session state at all (a
+  // pure function of the board's static pairing map), so it's always safe to
+  // resolve right here for both real and speculative calls.
   _resolveSpecialStrikes(cells) {
     const s = this.session;
     if (!s || !cells || !cells.length) {
-      return { cells: cells || [], hitLightning: false, hitBomb: false, hitSequence: false };
+      return {
+        cells: cells || [],
+        hitLightning: false,
+        hitBomb: false,
+        hitSequence: false,
+        hitTether: false,
+      };
     }
     let out = cells;
     let hitLightning = false;
     let hitBomb = false;
     let hitSequence = false;
+    let hitTether = false;
     for (let guard = 0; guard < 64; guard++) {
       const before = out.length;
       const hasLightning = out.some((p) => s.board.isLightning(p.c, p.r));
       const hasBomb = out.some((p) => s.board.isBomb(p.c, p.r));
       const seqPrimed =
         s.sequenceProgress === 2 && out.some((p) => s.board.isSequenceNum(p.c, p.r, 3));
+      const hasTether = out.some((p) => s.board.isTether(p.c, p.r));
       if (hasLightning) {
         hitLightning = true;
         out = s.board.lightningStrike(out);
@@ -2328,9 +2368,13 @@ class Game {
         hitSequence = true;
         out = s.board.sequenceStrike(out);
       }
+      if (hasTether) {
+        hitTether = true;
+        out = s.board.tetherStrike(out);
+      }
       if (out.length === before) break;
     }
-    return { cells: out, hitLightning, hitBomb, hitSequence };
+    return { cells: out, hitLightning, hitBomb, hitSequence, hitTether };
   }
 
   // Advance/break the Chain Reactor: popping "1" (re)starts the chain, "2"
@@ -2387,6 +2431,11 @@ class Game {
       Audio.powerup();
       this._tut("bombbubble");
     }
+    if (strike.hitTether) {
+      this.floating.spawn(anchor.x, anchor.y - 28, "🪢 Tethered!", "#c9a2ff", 30);
+      Audio.powerup();
+      this._tut("tether");
+    }
     if (multCount > 0) {
       this.floating.spawn(anchor.x, anchor.y - 28, `✨ ×${scoreMult}!`, "#ffd35b", 32);
       Audio.powerup();
@@ -2408,9 +2457,15 @@ class Game {
       points,
       opts.groupSize || resolved.length,
       1,
-      opts.shakePower || (strike.hitLightning || strike.hitBomb ? 1.2 : 1)
+      opts.shakePower || (strike.hitLightning || strike.hitBomb || strike.hitTether ? 1.2 : 1)
     );
-    return { cells: resolved, points, hitLightning: strike.hitLightning, hitBomb: strike.hitBomb };
+    return {
+      cells: resolved,
+      points,
+      hitLightning: strike.hitLightning,
+      hitBomb: strike.hitBomb,
+      hitTether: strike.hitTether,
+    };
   }
 
   popAt(c, r) {
@@ -2431,14 +2486,16 @@ class Game {
 
     // Lightning bubbles discharge along their row + column; Bomb bubbles
     // detonate a 3×3 area; a primed Chain Reactor "3" detonates a big diamond
-    // blast. Any of these expands the cleared set; score reflects everything
+    // blast; a Tether bubble also clears its linked partner cell wherever it
+    // sits. Any of these expands the cleared set; score reflects everything
     // cleared.
     const strike = this._resolveSpecialStrikes(group);
     const struckBolt = strike.hitLightning;
     const struckBomb = strike.hitBomb;
     const struckSequence = strike.hitSequence;
+    const struckTether = strike.hitTether;
     const cells = strike.cells;
-    const struck = struckBolt || struckBomb || struckSequence;
+    const struck = struckBolt || struckBomb || struckSequence || struckTether;
     // This is a REAL move (unlike _bestBlastTarget's speculative probing of
     // every cell), so advance/break the Chain Reactor now.
     this._updateSequenceProgress(cells, struckSequence);
@@ -2480,6 +2537,11 @@ class Game {
       this.floating.spawn(p.x, p.y - 28, "💥 BOOM!", "#ffb066", 30);
       Audio.powerup();
     }
+    if (struckTether) {
+      const p = s.board.targetPixel(c, r);
+      this.floating.spawn(p.x, p.y - 28, "🪢 Tethered!", "#c9a2ff", 30);
+      Audio.powerup();
+    }
     if (struckSequence) {
       // The "3" popped while the chain was primed (1 -> 2 already landed) —
       // a big diamond blast, the payoff for completing the chain across
@@ -2517,7 +2579,8 @@ class Game {
         s.board.isMultiplier(p.c, p.r) ||
         s.board.isCoin(p.c, p.r) ||
         s.board.isVine(p.c, p.r) ||
-        s.board.isSequence(p.c, p.r)
+        s.board.isSequence(p.c, p.r) ||
+        s.board.isTether(p.c, p.r)
     ).length;
     if (coinCount > 0) {
       const coinsDropped = coinCount * COIN_BUBBLE_VALUE;
@@ -2529,7 +2592,7 @@ class Game {
       this.floating.spawn(p.x, p.y - 28, `🪙 +${coinsDropped}`, "#ffe08a", 30);
       Audio.powerup();
     }
-    this._popCells(cells, finalPoints, cells.length, s.combo, struckSequence ? 1.6 : struck ? 1.3 : 1);
+    this._popCells(cells, finalPoints, cells.length, s.combo, struckSequence ? 1.6 : struckTether ? 1.4 : struck ? 1.3 : 1);
     if (this.isBlastReady()) this._showBlastCue();
 
     // Cascade callout: a distinct, escalating chain-reaction flourish above the
@@ -2570,6 +2633,7 @@ class Game {
     this._tut("pop");
     if (struckBolt) this._tut("lightning");
     if (struckBomb) this._tut("bombbubble");
+    if (struckTether) this._tut("tether");
     if (multCount > 0) this._tut("multiplier");
     if (coinCount > 0) this._tut("coinbubble");
     if (vinePopped) this._tut("vine");
@@ -3029,13 +3093,18 @@ class Game {
       this.floating.spawn(p.x, p.y - 28, `✨ ×${scoreMult}!`, "#ffd35b", 32);
       Audio.powerup();
     }
+    if (strike.hitTether) {
+      const p = s.board.targetPixel(c, r);
+      this.floating.spawn(p.x, p.y - 28, "🪢 Tethered!", "#c9a2ff", 30);
+      Audio.powerup();
+    }
 
     this._popCells(
       cells,
       points,
       cells.length,
       1,
-      strike.hitLightning || strike.hitBomb ? 1.2 : 1.1
+      strike.hitLightning || strike.hitBomb || strike.hitTether ? 1.2 : 1.1
     );
     if (s.stats) s.stats.blasts += 1;
     Audio.blast();
@@ -3045,6 +3114,7 @@ class Game {
     if (multCount > 0) this._tut("multiplier");
     if (coinCount > 0) this._tut("coinbubble");
     if (vinePopped) this._tut("vine");
+    if (strike.hitTether) this._tut("tether");
     this.afterMove();
   }
 
@@ -3129,6 +3199,7 @@ class Game {
     const strike = this._resolveSpecialStrikes(cells);
     const hitLightning = strike.hitLightning;
     const hitBomb = strike.hitBomb;
+    const hitTether = strike.hitTether;
     cells = strike.cells;
     if (cells.length === 0) return;
 
@@ -3182,6 +3253,11 @@ class Game {
       this.floating.spawn(p.x, p.y - 28, "💥 BOOM!", "#ffb066", 30);
       Audio.powerup();
     }
+    if (hitTether) {
+      const p = s.board.targetPixel(c, r);
+      this.floating.spawn(p.x, p.y - 28, "🪢 Tethered!", "#c9a2ff", 30);
+      Audio.powerup();
+    }
     if (multCount > 0) {
       const p = s.board.targetPixel(c, r);
       this.floating.spawn(p.x, p.y - 28, `✨ ×${scoreMult}!`, "#ffd35b", 32);
@@ -3196,6 +3272,7 @@ class Game {
     this._tut("powerup");
     if (hitLightning) this._tut("lightning");
     if (hitBomb) this._tut("bombbubble");
+    if (hitTether) this._tut("tether");
     if (multCount > 0) this._tut("multiplier");
     if (coinCount > 0) this._tut("coinbubble");
     if (vinePopped) this._tut("vine");

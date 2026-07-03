@@ -14,6 +14,7 @@ import {
   SEQUENCE_1,
   SEQUENCE_2,
   SEQUENCE_3,
+  TETHER,
   MAGNET_GLIDE,
   DOWNPOUR_FALL_MULT,
   DOWNPOUR_FALL_SECONDS,
@@ -505,6 +506,109 @@ describe("grid / Board", () => {
     const cells = b.sequenceStrike([{ c: 0, r: 0 }]);
     expect(cells.length).toBe(b.blastArea(0, 0, 3).length);
     expect(cells.length).toBeLessThan(25); // clipped, not the full 7x7 diamond
+  });
+
+  // ---- Tether pairs (TETHER) ----------------------------------------------
+  it("a tether spawn rate sprinkles paired bubbles deterministically", () => {
+    const b = new Board(10, 10, 4, 11, { rainbow: 0, ice: 0, tether: 0.5 });
+    let n = 0;
+    for (let c = 0; c < b.cols; c++)
+      for (let r = 0; r < b.rows; r++) if (b.types[c][r] === TETHER) n++;
+    expect(n).toBeGreaterThan(0);
+    expect(n % 2).toBe(0); // always paired up (or zero) — never an orphan
+  });
+
+  it("a tether bubble joins same-colour groups like a normal bubble", () => {
+    const b = new Board(3, 1, 2, 1);
+    setGrid(b, [[0], [0], [1]]);
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[1][0] = TETHER;
+    expect(b.getGroupAt(0, 0).length).toBe(2);
+    expect(b.isTether(1, 0)).toBe(true);
+    expect(b.isTether(0, 0)).toBe(false);
+  });
+
+  it("_linkTethers pairs cells in scan order and reverts an odd leftover to normal", () => {
+    const b = new Board(3, 3, 3, 1);
+    for (let c = 0; c < b.cols; c++)
+      for (let r = 0; r < b.rows; r++) b.grid[c][r] = 0;
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[0][0] = TETHER;
+    b.types[1][0] = TETHER;
+    b.types[2][0] = TETHER; // odd one out in column-major scan order
+    b._linkTethers();
+    expect(b.tetherPartner(0, 0)).toEqual({ c: 1, r: 0 });
+    expect(b.tetherPartner(1, 0)).toEqual({ c: 0, r: 0 });
+    expect(b.types[2][0]).toBe(NORMAL); // reverted — no orphaned tether
+    expect(b.tetherPartner(2, 0)).toBeNull();
+  });
+
+  it("tetherStrike merges a linked partner cell into the cleared set", () => {
+    const b = new Board(6, 6, 3, 1);
+    for (let c = 0; c < b.cols; c++)
+      for (let r = 0; r < b.rows; r++) b.grid[c][r] = 0;
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[0][0] = TETHER;
+    b.types[5][5] = TETHER;
+    b._linkTethers();
+    const cells = b.tetherStrike([{ c: 0, r: 0 }]);
+    const keys = new Set(cells.map((p) => `${p.c},${p.r}`));
+    expect(cells).toHaveLength(2);
+    expect(keys.has("0,0")).toBe(true);
+    expect(keys.has("5,5")).toBe(true);
+  });
+
+  it("tetherStrike is a no-op when the group has no tether bubble", () => {
+    const b = new Board(4, 4, 3, 1);
+    for (let c = 0; c < b.cols; c++)
+      for (let r = 0; r < b.rows; r++) b.grid[c][r] = 0;
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    const group = [
+      { c: 0, r: 0 },
+      { c: 0, r: 1 },
+    ];
+    expect(b.tetherStrike(group)).toBe(group);
+  });
+
+  it("tetherStrike skips a partner that's already gone (its half already popped)", () => {
+    const b = new Board(4, 4, 3, 1);
+    for (let c = 0; c < b.cols; c++)
+      for (let r = 0; r < b.rows; r++) b.grid[c][r] = 0;
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[0][0] = TETHER;
+    b.types[3][3] = TETHER;
+    b._linkTethers();
+    b.grid[3][3] = -1; // partner already cleared
+    const cells = b.tetherStrike([{ c: 0, r: 0 }]);
+    expect(cells).toEqual([{ c: 0, r: 0 }]);
+  });
+
+  it("serializeTether/restoreTetherPairs round-trips the pairing", () => {
+    const b = new Board(6, 6, 3, 1);
+    for (let c = 0; c < b.cols; c++)
+      for (let r = 0; r < b.rows; r++) b.grid[c][r] = 0;
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[1][1] = TETHER;
+    b.types[4][4] = TETHER;
+    b._linkTethers();
+    const pairs = b.serializeTether();
+    expect(pairs).toHaveLength(1);
+    const b2 = new Board(6, 6, 3, 2);
+    b2.restore(b.serialize(), b.serializeTypes(), pairs);
+    expect(b2.tetherPartner(1, 1)).toEqual({ c: 4, r: 4 });
+    expect(b2.tetherPartner(4, 4)).toEqual({ c: 1, r: 1 });
+  });
+
+  it("restore() without an explicit tether snapshot re-derives pairs by scanning", () => {
+    const b = new Board(4, 4, 3, 1);
+    const grid = b.serialize();
+    for (const col of grid) col.fill(0);
+    const types = grid.map((col) => col.map(() => NORMAL));
+    types[0][0] = TETHER;
+    types[3][3] = TETHER;
+    b.restore(grid, types); // no third arg -> fallback scan-order pairing
+    expect(b.tetherPartner(0, 0)).toEqual({ c: 3, r: 3 });
+    expect(b.tetherPartner(3, 3)).toEqual({ c: 0, r: 0 });
   });
 
   it("spreadVines returns null when there is no room or no vines", () => {

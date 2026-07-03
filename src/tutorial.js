@@ -10,7 +10,7 @@
 // emitted from `main.js` (see `_tut(...)` call sites). This is mandated by
 // AGENTS.md §"Tutorial" — the tutorial is part of the definition of done.
 
-import { NORMAL, ICE, RAINBOW, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3 } from "./grid.js";
+import { NORMAL, ICE, RAINBOW, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3, TETHER } from "./grid.js";
 
 // Each step:
 //   id      — stable identifier (used by tests; never reuse/repurpose)
@@ -23,13 +23,13 @@ import { NORMAL, ICE, RAINBOW, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3 } from "./grid
 //                           | "blast" | "powerup" | "magnet" | "event"
 //                           | "lightning" | "stone" | "bombbubble"
 //                           | "multiplier" | "coinbubble" | "vine"
-//                           | "sequence"
+//                           | "sequence" | "tether"
 //   cta     — button label for "button" steps
 //   hint    — short call-to-action shown for action steps
 //   grant   — optional setup applied when the step is entered
 //             ("power" | "fever" | "bomb" | "specials" | "magnet" | "event"
 //              | "lightning" | "stone" | "bombbubble" | "multiplier"
-//              | "coinbubble" | "vine" | "sequence" | "undo" | "paint")
+//              | "coinbubble" | "vine" | "sequence" | "tether" | "undo" | "paint")
 export const TUTORIAL_STEPS = [
   {
     id: "welcome",
@@ -185,6 +185,14 @@ export const TUTORIAL_STEPS = [
     advance: "sequence",
     hint: "🔗 Pop the clusters in order: 1 → 2 → 3",
     grant: "sequence",
+  },
+  {
+    id: "tether",
+    title: "Tethered Bubbles",
+    body: "🪢 Tethered bubbles come in linked pairs — pop either one's cluster and its partner pops too, wherever it sits on the board! Great for reaching an awkward spot. Pop either tethered cluster now!",
+    advance: "tether",
+    hint: "🪢 Pop either tethered cluster — its partner pops too",
+    grant: "tether",
   },
   {
     id: "pets",

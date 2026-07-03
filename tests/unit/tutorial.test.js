@@ -18,7 +18,7 @@ describe("tutorial step definitions", () => {
 
   it("covers every core feature exactly once", () => {
     const actions = TUTORIAL_STEPS.map((s) => s.advance);
-    for (const a of ["pop", "combo", "undo", "preview", "swipe", "blast", "powerup", "magnet", "event", "lightning", "stone", "bombbubble", "multiplier", "coinbubble", "vine", "sequence"]) {
+    for (const a of ["pop", "combo", "undo", "preview", "swipe", "blast", "powerup", "magnet", "event", "lightning", "stone", "bombbubble", "multiplier", "coinbubble", "vine", "sequence", "tether"]) {
       expect(actions).toContain(a);
     }
   });
@@ -116,6 +116,17 @@ describe("tutorial step definitions", () => {
     // It sits right after the vine step (the special-bubbles run).
     const idx = TUTORIAL_STEPS.indexOf(seq);
     expect(TUTORIAL_STEPS[idx - 1].id).toBe("vine");
+  });
+
+  it("includes a gated tether step that grants a linked-pair board", () => {
+    const tether = TUTORIAL_STEPS.find((s) => s.id === "tether");
+    expect(tether).toBeTruthy();
+    expect(tether.advance).toBe("tether");
+    expect(tether.grant).toBe("tether");
+    expect(tether.hint).toBeTruthy();
+    // It sits right after the sequence step (the special-bubbles run).
+    const idx = TUTORIAL_STEPS.indexOf(tether);
+    expect(TUTORIAL_STEPS[idx - 1].id).toBe("sequence");
   });
 
   it("includes an informational pets step before the finish", () => {

@@ -6,7 +6,7 @@
 // plateaus so every level stays winnable no matter how high you climb, and
 // chapters continue procedurally past the hand-authored worlds.
 
-import { hashSeed } from "./rng.js";
+import { hashSeed, makeRng } from "./rng.js";
 import { milestoneType, bossConfig } from "./milestones.js";
 
 // Total campaign length. The campaign is generative, so this is just a sane
@@ -155,7 +155,52 @@ function specialsForLevel(n) {
   // across separate turns primes a big diamond blast on the "3". Kept sparse
   // — it's a rare, planned-ahead payoff, not a frequent occurrence.
   const sequence = n >= 24 ? Math.min(0.03, 0.009 + (n - 24) * 0.0009) : 0;
-  return { rainbow, ice, lightning, stone, bomb, multiplier, coin, vine, sequence };
+  // Tether bubbles ramp in from level 28 — linked pairs; popping either
+  // one's group instantly also clears its partner cell wherever it sits on
+  // the board. A spatial-planning reward, kept sparse like sequence.
+  const tether = n >= 28 ? Math.min(0.03, 0.01 + (n - 28) * 0.001) : 0;
+
+  const raw = { rainbow, ice, lightning, stone, bomb, multiplier, coin, vine, sequence, tether };
+  // Board mechanic budget: only a bounded number of the newer, rule-heavy
+  // mechanics being rolled out (Tether now, Polarity/Bloom to follow) are
+  // FEATURED on any one board at a time — see featuredMechanicIds below. This
+  // keeps a single board from accumulating every unlocked "extra rule" at
+  // once as more of these mechanics ship; already-shipped types (ice/
+  // lightning/stone/bomb/multiplier/coin/vine/sequence) are untouched.
+  const unlockedNew = NEW_MECHANIC_IDS.filter((id) => raw[id] > 0);
+  const featuredNew = new Set(featuredMechanicIds(unlockedNew, `mechanics-${n}`));
+  for (const id of NEW_MECHANIC_IDS) {
+    if (!featuredNew.has(id)) raw[id] = 0;
+  }
+  return raw;
+}
+
+// Board mechanic rotation ---------------------------------------------------
+// The newer "richer board mechanics" batch (Tether, and soon Polarity/Bloom)
+// each add a whole extra rule the player must track — very different from a
+// single-tap reward like a coin or multiplier bubble. Stacking every one of
+// them onto every board once all are unlocked would overwhelm rather than
+// delight, so only a bounded subset is featured on any given board. Today
+// there's only one id (Tether), so nothing is actually suppressed yet (the
+// pool is at/under the cap); this is the infrastructure that will engage for
+// real the moment Polarity/Bloom push the unlocked pool past the cap.
+export const NEW_MECHANIC_IDS = ["tether"];
+export const MAX_NEW_MECHANICS_PER_BOARD = 2;
+
+// Deterministic seeded pick of up to `cap` ids from `unlockedIds`. Pure and
+// directly testable with synthetic ids/caps, independent of the real
+// thresholds above: same inputs always produce the same featured subset (so
+// the difficulty-plateau invariant — two levels sharing a capped difficulty
+// `d` get identical specials — holds as long as `seedKey` is derived from `d`).
+export function featuredMechanicIds(unlockedIds, seedKey, cap = MAX_NEW_MECHANICS_PER_BOARD) {
+  if (unlockedIds.length <= cap) return unlockedIds.slice();
+  const pool = unlockedIds.slice().sort(); // stable order before shuffling
+  const rng = makeRng(hashSeed(seedKey));
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, cap);
 }
 
 // Downpour (advanced levels) ------------------------------------------------

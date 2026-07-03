@@ -1389,6 +1389,81 @@ test.describe("chain reactor bubbles (sequence)", () => {
   });
 });
 
+test.describe("tether bubbles (linked pairs)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("popping a tethered cluster also clears its linked partner cell elsewhere on the board", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await page.waitForTimeout(400);
+    const result = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          b.grid[c][r] = 1;
+          b.types[c][r] = 0; // NORMAL
+        }
+      // A tapped 2-cell group carrying a TETHER (type 13), plus a single
+      // linked partner cell far away on the board.
+      b.grid[0][0] = 0;
+      b.grid[1][0] = 0;
+      b.types[0][0] = 13; // TETHER
+      b.types[1][0] = 0;
+      const farC = b.cols - 1;
+      const farR = b.rows - 1;
+      b.types[farC][farR] = 13; // TETHER partner
+      b._linkTethers();
+      const before = b.countRemaining();
+      // Check the merge at the source (the pure resolver), not the post-pop
+      // board — gravity immediately refills any emptied cell (including this
+      // far corner), so "still empty after settle" isn't a reliable signal.
+      const strike = g._resolveSpecialStrikes(b.getGroupAt(0, 0));
+      const struckPartner = strike.cells.some((p) => p.c === farC && p.r === farR);
+      g.popAt(0, 0);
+      const after = b.countRemaining();
+      return {
+        cleared: before - after,
+        struckPartner,
+      };
+    });
+    // The tapped 2-cell group PLUS the single linked partner cell.
+    expect(result.cleared).toBe(3);
+    expect(result.struckPartner).toBe(true);
+  });
+
+  test("a tether whose partner is already gone just pops normally", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await page.waitForTimeout(400);
+    const result = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          b.grid[c][r] = 1;
+          b.types[c][r] = 0;
+        }
+      b.grid[0][0] = 0;
+      b.grid[1][0] = 0;
+      b.types[0][0] = 13; // TETHER
+      b.types[1][0] = 0;
+      const farC = b.cols - 1;
+      const farR = b.rows - 1;
+      b.types[farC][farR] = 13; // TETHER partner
+      b._linkTethers();
+      b.grid[farC][farR] = -1; // partner already cleared before this pop
+      const before = b.countRemaining();
+      g.popAt(0, 0);
+      const after = b.countRemaining();
+      return { cleared: before - after };
+    });
+    expect(result.cleared).toBe(2); // just its own group, no partner to add
+  });
+});
+
 test.describe("daily retention engine", () => {
   test.beforeEach(({ page }) => openGame(page));
 
@@ -5557,9 +5632,23 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
             }
       }, num);
     }
+    await expect.poll(() => stepId(page)).toBe("tether");
+
+    // 8h) tether — popping either tethered cluster also clears its linked
+    // partner cell elsewhere on the board, advancing the step.
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++)
+          if (b.isTether(c, r) && b.getGroupAt(c, r).length >= 2) {
+            g.popAt(c, r);
+            return;
+          }
+    });
     await expect.poll(() => stepId(page)).toBe("pets");
 
-    // 8h) pets (informational) — introduces the companion system.
+    // 8i) pets (informational) — introduces the companion system.
     await page.locator("#coach-next").click();
     expect(await stepId(page)).toBe("done");
 
