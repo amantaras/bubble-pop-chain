@@ -164,14 +164,19 @@ function specialsForLevel(n) {
   // (opposite charges stay put, already "attracted" together). A gentle
   // board-reorganiser, kept sparse like tether/sequence.
   const polarity = n >= 32 ? Math.min(0.03, 0.01 + (n - 32) * 0.001) : 0;
+  // Bloom seeds ramp in from level 36 — a patient, friendly counterpart to
+  // Vine: over a couple of resolved moves near a plain neighbour, a seed
+  // grows into a full bubble adopting the best-matching neighbour colour.
+  // Kept sparse like tether/polarity/sequence.
+  const bloom = n >= 36 ? Math.min(0.03, 0.01 + (n - 36) * 0.001) : 0;
 
-  const raw = { rainbow, ice, lightning, stone, bomb, multiplier, coin, vine, sequence, tether, polarity };
+  const raw = { rainbow, ice, lightning, stone, bomb, multiplier, coin, vine, sequence, tether, polarity, bloom };
   // Board mechanic budget: only a bounded number of the newer, rule-heavy
-  // mechanics being rolled out (Tether, Polarity now; Bloom to follow) are
-  // FEATURED on any one board at a time — see featuredMechanicIds below. This
-  // keeps a single board from accumulating every unlocked "extra rule" at
-  // once as more of these mechanics ship; already-shipped types (ice/
-  // lightning/stone/bomb/multiplier/coin/vine/sequence) are untouched.
+  // mechanics being rolled out (Tether, Polarity, Bloom) are FEATURED on any
+  // one board at a time — see featuredMechanicIds below. This keeps a single
+  // board from accumulating every unlocked "extra rule" at once as more of
+  // these mechanics ship; already-shipped types (ice/lightning/stone/bomb/
+  // multiplier/coin/vine/sequence) are untouched.
   const unlockedNew = NEW_MECHANIC_IDS.filter((id) => raw[id] > 0);
   const featuredNew = new Set(featuredMechanicIds(unlockedNew, `mechanics-${n}`));
   for (const id of NEW_MECHANIC_IDS) {
@@ -181,15 +186,15 @@ function specialsForLevel(n) {
 }
 
 // Board mechanic rotation ---------------------------------------------------
-// The newer "richer board mechanics" batch (Tether, Polarity now; Bloom to
-// follow) each add a whole extra rule the player must track — very different
-// from a single-tap reward like a coin or multiplier bubble. Stacking every
-// one of them onto every board once all are unlocked would overwhelm rather
-// than delight, so only a bounded subset is featured on any given board.
-// Today the pool is exactly at the cap (Tether + Polarity = 2), so nothing is
-// actually suppressed yet; this is the infrastructure that will engage for
-// real the moment Bloom pushes the unlocked pool past the cap.
-export const NEW_MECHANIC_IDS = ["tether", "polarity"];
+// The newer "richer board mechanics" batch (Tether, Polarity, Bloom) each add
+// a whole extra rule the player must track — very different from a
+// single-tap reward like a coin or multiplier bubble. Stacking every one of
+// them onto every board once all are unlocked would overwhelm rather than
+// delight, so only a bounded subset is featured on any given board. The pool
+// (3) now exceeds the cap (2), so this ACTUALLY engages: any single board
+// beyond level 36 features at most 2 of the 3, rotating deterministically by
+// level so all three still show up regularly across the campaign.
+export const NEW_MECHANIC_IDS = ["tether", "polarity", "bloom"];
 export const MAX_NEW_MECHANICS_PER_BOARD = 2;
 
 // Deterministic seeded pick of up to `cap` ids from `unlockedIds`. Pure and

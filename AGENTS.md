@@ -451,23 +451,42 @@ never re‑discovered the hard way.
   drops a small `⇄` cue at the cell the charge moved into. Popping a group
   with a polarity bubble emits `_tut("polarity")`; the spawn/persistence model
   is otherwise identical to Vine's (no side-map, so plain `serialize()`/
-  `restore()` already round-trip it). `_gridHasMoves`
+  `restore()` already round-trip it). **Bloom** (`BLOOM_SEED`/`BLOOM_BUD`, a
+  patient, friendly counterpart to Vine) = a seed matures a stage every
+  resolved move it has a plain (`NORMAL`) orthogonal neighbour: `SEED` →
+  `BUD` → a full `NORMAL` bubble adopting the best-matching neighbour colour
+  (`grid.growBloom`, one advance per call like `spreadVines`/`spreadPolarity`;
+  `_bestBloomColor` tries each neighbouring colour and keeps whichever creates
+  the largest immediate group, mirroring Downpour's `_bestDownpourColor`
+  heuristic but scoped to actual neighbours, not every board colour). With no
+  qualifying neighbour on a given move, growth simply **pauses** — never
+  resets or punishes the player, the opposite of Vine's creeping threat.
+  Popped early (still SEED/BUD), it's just a normal pop, no bonus — the
+  reward is patience: leave it alone and it becomes a bubble that already
+  matches its neighbours. Like Polarity, Bloom carries **no session-level
+  state** and needs no extra persistence (plain `serialize()`/`restore()`
+  round-trip the growth stage since it's stored directly in `types`).
+  Popping a group with a bloom bubble (either stage) emits `_tut("bloom")`.
+  `_gridHasMoves`
   excludes stones as both move origin and same-colour neighbour so
   generation/deadlock detection stay correct (the coloured specials —
-  lightning/bomb/multiplier/coin/vine/sequence/tether/polarity — need no exclusion). Seeded spawn rates
+  lightning/bomb/multiplier/coin/vine/sequence/tether/polarity/bloom — need no exclusion). Seeded spawn rates
   ramp in by level (rainbow ≥6, coin ≥8, ice ≥10, multiplier ≥12, lightning ≥14,
-  bomb ≥16, stone ≥18, vine ≥20, sequence ≥24, tether ≥28, polarity ≥32 — see
+  bomb ≥16, stone ≥18, vine ≥20, sequence ≥24, tether ≥28, polarity ≥32,
+  bloom ≥36 — see
   `levels.js specialsForLevel`; bosses force `specials.ice`/`specials.stone`/
-  `specials.vine` to 0, but allow lightning/bomb/multiplier/coin/sequence/tether/polarity,
+  `specials.vine` to 0, but allow lightning/bomb/multiplier/coin/sequence/tether/polarity/bloom,
   since these are rewards, not hazards). Lightning draws a glowing pulsing bolt glyph,
   Stone a grey padlock shell, Bomb a dark fused shell with a pulsing lit spark,
   Multiplier a pulsing gold ring with a "×2" glyph, Coin a shiny gold disc with a
   "$" glyph, Vine curling green tendrils + leaf dots, Chain Reactor a pulsing
   stroked ring with a bold centred "1"/"2"/"3" glyph that reads cooler-to-hotter
   as the number climbs, Tether a pulsing violet ring around two small
-  interlocking circles — a "linked" glyph, no text needed, and Polarity a
-  pulsing ring (warm red for +, cool blue for −) around a bold "+"/"−" glyph
-  (`renderer.js`). These
+  interlocking circles — a "linked" glyph, no text needed, Polarity a
+  pulsing ring (warm red for +, cool blue for −) around a bold "+"/"−" glyph,
+  and Bloom a small earthy dot with a faint sprouting ring (SEED) that grows
+  into a bigger, brighter centre ringed by small petal dots (BUD, closer to
+  blooming) (`renderer.js`). These
   procedural marks are now reinforced with local white SVG overlays from
   **Game-icons.net** (`assets/icons/game-icons/`, CC BY 3.0 attribution recorded
   in that folder's `README.txt`; no remote runtime loading), with Lightning using
@@ -487,19 +506,22 @@ never re‑discovered the hard way.
   three separate 2×2 blocks so "1"/"2"/"3" can each be popped independently,
   advancing on `_tut("sequence")` once the full in-order chain detonates),
   Tether (`grant: "tether"` → `Game._placeTutorialTether`, seeding a linked pair
-  across two separate 2×2 blocks, advancing on `_tut("tether")`) and Polarity
+  across two separate 2×2 blocks, advancing on `_tut("tether")`), Polarity
   (`grant: "polarity"` → `Game._placeTutorialPolarity`, seeding a single
   charge — the passive repel drift itself is suppressed in the tutorial like
   Vine's spread, so the step is taught by popping the bubble, same as every
-  other special-bubble step — advancing on `_tut("polarity")`)
+  other special-bubble step — advancing on `_tut("polarity")`) and Bloom
+  (`grant: "bloom"` → `Game._placeTutorialBloom`, seeding a single seed — the
+  passive growth itself is likewise suppressed in the tutorial, so the step
+  is taught by popping the bubble — advancing on `_tut("bloom")`)
   with gated steps. (The bomb **bubble** uses the `bombbubble` step/grant/action
   id to avoid colliding with the bomb **power-up** step's `grant: "bomb"`.)
 - **Board mechanic budget** (`levels.js` `NEW_MECHANIC_IDS`/
   `MAX_NEW_MECHANICS_PER_BOARD`/`featuredMechanicIds`): the newer "richer board
-  mechanics" batch (Tether, Polarity now; Bloom to follow) each add a whole
-  extra rule the player must track — very different from a single-tap reward
-  like a coin or multiplier bubble. Stacking every one of them onto every board
-  once all are unlocked would overwhelm rather than delight a board, so only a
+  mechanics" batch (Tether, Polarity, Bloom) each add a whole extra rule the
+  player must track — very different from a single-tap reward like a coin or
+  multiplier bubble. Stacking every one of them onto every board once all are
+  unlocked would overwhelm rather than delight a board, so only a
   bounded subset (`MAX_NEW_MECHANICS_PER_BOARD` = 2) is **featured** on any
   given board, chosen by `featuredMechanicIds(unlockedIds, seedKey, cap)` — a
   pure, deterministic seeded shuffle (`makeRng(hashSeed(seedKey))`) keyed on the
@@ -507,11 +529,12 @@ never re‑discovered the hard way.
   the existing "two levels sharing a capped difficulty get identical specials"
   plateau invariant still holds. `specialsForLevel(n)` computes each new
   mechanic's raw ramp rate as usual, then zeroes out any id in
-  `NEW_MECHANIC_IDS` that isn't in the featured subset for that level. Today
-  there are two ids (`tether`, `polarity`), so the pool (2) is exactly at the
-  cap (2) and nothing is actually suppressed yet — this is live infrastructure
-  ready to engage for real the moment Bloom pushes the pool past the cap.
-  Deliberately scoped to just the newer mechanics: the 7 already-shipped
+  `NEW_MECHANIC_IDS` that isn't in the featured subset for that level. With
+  three ids now registered (`tether`, `polarity`, `bloom`), the pool (3)
+  **exceeds** the cap (2) — this is no longer dormant infrastructure: any
+  board beyond level 36 genuinely features at most 2 of the 3, rotating
+  deterministically by level so all three still show up regularly across the
+  campaign. Deliberately scoped to just the newer mechanics: the 7 already-shipped
   types (rainbow/ice/lightning/stone/bomb/multiplier/coin/vine/sequence) are
   untouched by this budget, so no previously-tuned board ever changes.
 - **Downpour** (the Tetris-style advanced-level modifier) drops a fresh row of
@@ -1640,7 +1663,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 729 unit tests + 586 E2E
+- **Current baseline (keep growing, never shrink)**: 740 unit tests + 590 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

@@ -17,6 +17,8 @@ import {
   TETHER,
   POLARITY_PLUS,
   POLARITY_MINUS,
+  BLOOM_SEED,
+  BLOOM_BUD,
   MAGNET_GLIDE,
   DOWNPOUR_FALL_MULT,
   DOWNPOUR_FALL_SECONDS,
@@ -701,6 +703,76 @@ describe("grid / Board", () => {
     const moved = b.spreadPolarity();
     expect(moved).toEqual({ from: { c: 3, r: 0 }, to: { c: 4, r: 0 } });
     expect(b.types[1][0]).toBe(STONE); // untouched
+  });
+
+  // ---- Bloom seeds (BLOOM_SEED/BLOOM_BUD) ---------------------------------
+  it("a bloom spawn rate sprinkles seeds deterministically", () => {
+    const b = new Board(10, 10, 4, 17, { rainbow: 0, ice: 0, bloom: 0.5 });
+    let n = 0;
+    for (let c = 0; c < b.cols; c++)
+      for (let r = 0; r < b.rows; r++) if (b.types[c][r] === BLOOM_SEED) n++;
+    expect(n).toBeGreaterThan(0);
+  });
+
+  it("a bloom seed joins same-colour groups like a normal bubble", () => {
+    const b = new Board(3, 1, 2, 1);
+    setGrid(b, [[0], [0], [1]]);
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[1][0] = BLOOM_SEED;
+    expect(b.getGroupAt(0, 0).length).toBe(2);
+    expect(b.isBloomSeed(1, 0)).toBe(true);
+    expect(b.isBloom(1, 0)).toBe(true);
+    expect(b.isBloomBud(1, 0)).toBe(false);
+    expect(b.isBloom(0, 0)).toBe(false);
+  });
+
+  it("growBloom matures a seed to a bud, then a bud into a matching bubble", () => {
+    const b = new Board(3, 1, 3, 5);
+    b.grid[0][0] = 0;
+    b.grid[1][0] = 2;
+    b.grid[2][0] = 2;
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[0][0] = BLOOM_SEED;
+    const r1 = b.growBloom();
+    expect(r1).toEqual({ c: 0, r: 0, stage: "bud" });
+    expect(b.isBloomBud(0, 0)).toBe(true);
+
+    const r2 = b.growBloom();
+    expect(r2).toEqual({ c: 0, r: 0, stage: "bloomed", color: 2 });
+    expect(b.types[0][0]).toBe(NORMAL);
+    expect(b.grid[0][0]).toBe(2);
+    // It fully joined the neighbouring colour-2 group (3 cells total).
+    expect(b.getGroupAt(0, 0).length).toBe(3);
+  });
+
+  it("growBloom picks the neighbour colour that forms the largest group", () => {
+    // Seed at (1,0) has a lone colour-0 neighbour on the left and a pair of
+    // colour-1 neighbours on the right — the pair should win.
+    const b = new Board(4, 1, 3, 1);
+    b.grid[0][0] = 0;
+    b.grid[1][0] = 5; // seed's own placeholder colour, irrelevant while growing
+    b.grid[2][0] = 1;
+    b.grid[3][0] = 1;
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[1][0] = BLOOM_BUD;
+    const result = b.growBloom();
+    expect(result.stage).toBe("bloomed");
+    expect(result.color).toBe(1);
+    expect(b.getGroupAt(1, 0).length).toBe(3);
+  });
+
+  it("growBloom pauses (returns null) when a growing cell has no plain neighbour", () => {
+    const b = new Board(1, 1, 3, 1);
+    b.grid[0][0] = 0;
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[0][0] = BLOOM_SEED;
+    expect(b.growBloom()).toBeNull();
+  });
+
+  it("growBloom returns null when there are no bloom cells at all", () => {
+    const b = new Board(3, 3, 3, 1);
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    expect(b.growBloom()).toBeNull();
   });
 
   it("spreadVines returns null when there is no room or no vines", () => {

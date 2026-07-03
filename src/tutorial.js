@@ -10,7 +10,7 @@
 // emitted from `main.js` (see `_tut(...)` call sites). This is mandated by
 // AGENTS.md §"Tutorial" — the tutorial is part of the definition of done.
 
-import { NORMAL, ICE, RAINBOW, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3, TETHER, POLARITY_PLUS } from "./grid.js";
+import { NORMAL, ICE, RAINBOW, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3, TETHER, POLARITY_PLUS, BLOOM_SEED } from "./grid.js";
 
 // Each step:
 //   id      — stable identifier (used by tests; never reuse/repurpose)
@@ -23,14 +23,14 @@ import { NORMAL, ICE, RAINBOW, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3, TETHER, POLAR
 //                           | "blast" | "powerup" | "magnet" | "event"
 //                           | "lightning" | "stone" | "bombbubble"
 //                           | "multiplier" | "coinbubble" | "vine"
-//                           | "sequence" | "tether" | "polarity"
+//                           | "sequence" | "tether" | "polarity" | "bloom"
 //   cta     — button label for "button" steps
 //   hint    — short call-to-action shown for action steps
 //   grant   — optional setup applied when the step is entered
 //             ("power" | "fever" | "bomb" | "specials" | "magnet" | "event"
 //              | "lightning" | "stone" | "bombbubble" | "multiplier"
 //              | "coinbubble" | "vine" | "sequence" | "tether" | "polarity"
-//              | "undo" | "paint")
+//              | "bloom" | "undo" | "paint")
 export const TUTORIAL_STEPS = [
   {
     id: "welcome",
@@ -202,6 +202,14 @@ export const TUTORIAL_STEPS = [
     advance: "polarity",
     hint: "🧲 Pop the cluster with the polarity bubble",
     grant: "polarity",
+  },
+  {
+    id: "bloom",
+    title: "Bloom Seeds",
+    body: "🌱 Bloom seeds are patient! Left alone next to a plain bubble, one slowly grows over a couple of moves — sprouting into a bud, then blooming into a full bubble that matches its best neighbour. Pop it early and it's just a normal pop, no bonus. Pop the bloom cluster now!",
+    advance: "bloom",
+    hint: "🌱 Pop the cluster with the bloom seed",
+    grant: "bloom",
   },
   {
     id: "pets",

@@ -1,5 +1,5 @@
 // Game orchestrator: canvas loop, state machine, and all session logic.
-import { Board, NORMAL, RAINBOW, ICE, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN, VINE, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3, TETHER, POLARITY_PLUS, POLARITY_MINUS } from "./grid.js";
+import { Board, NORMAL, RAINBOW, ICE, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN, VINE, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3, TETHER, POLARITY_PLUS, POLARITY_MINUS, BLOOM_SEED } from "./grid.js";
 import { Renderer, themeMotif } from "./renderer.js";
 import { ParticleSystem, popStyleForGroup } from "./particles.js";
 import {
@@ -1658,6 +1658,18 @@ class Game {
       decorateSpecials(types);
       this._placeTutorialPolarity(types);
       b.restore(g, types);
+    } else if (kind === "bloom") {
+      // Fresh practice board with a Bloom seed parked inside a guaranteed
+      // cluster, so popping it always advances the step.
+      const b = s.board;
+      const { colors: g, types } = buildTutorialBoard(
+        b.cols,
+        b.rows,
+        s.level.colors || 4
+      );
+      decorateSpecials(types);
+      this._placeTutorialBloom(types);
+      b.restore(g, types);
     } else if (kind === "event") {
       this._spawnTutorialEvent();
     } else if (kind === "undo") {
@@ -1745,6 +1757,15 @@ class Game {
     if (types && types[0] && types[0][0] !== undefined) types[0][0] = POLARITY_PLUS;
   }
 
+  // Drop a BLOOM_SEED into a corner 2×2 block of the practice board (a
+  // guaranteed same-colour cluster), so the bloom step can always be cleared
+  // by popping that cluster. (The passive growth itself is suppressed in the
+  // tutorial — see _growBloom — so this step teaches the bubble by having the
+  // player pop one, same as every other special-bubble step.)
+  _placeTutorialBloom(types) {
+    if (types && types[0] && types[0][0] !== undefined) types[0][0] = BLOOM_SEED;
+  }
+
   // Rebuild the controlled practice board so the tutorial never runs out of
   // poppable clusters no matter how much the player pops/blasts.
   _refillTutorialBoard() {
@@ -1798,6 +1819,10 @@ class Game {
     // Keep a polarity bubble available while the polarity step is active.
     if (this.tutorial && this.tutorial.stepId === "polarity") {
       this._placeTutorialPolarity(types);
+    }
+    // Keep a bloom seed available while the bloom step is active.
+    if (this.tutorial && this.tutorial.stepId === "bloom") {
+      this._placeTutorialBloom(types);
     }
     b.restore(g, types);
     b.layout(this.W, this.H, TOP_INSET, this._bottomInset());
@@ -2447,6 +2472,7 @@ class Game {
     const coinCount = resolved.filter((p) => s.board.isCoin(p.c, p.r)).length;
     const vinePopped = resolved.some((p) => s.board.isVine(p.c, p.r));
     const polarityPopped = resolved.some((p) => s.board.isPolarity(p.c, p.r));
+    const bloomPopped = resolved.some((p) => s.board.isBloom(p.c, p.r));
     s.score += points;
     if (strike.hitLightning) {
       this.floating.spawn(anchor.x, anchor.y - 28, "⚡ ZAP!", "#9fe8ff", 30);
@@ -2480,6 +2506,7 @@ class Game {
     }
     if (vinePopped) this._tut("vine");
     if (polarityPopped) this._tut("polarity");
+    if (bloomPopped) this._tut("bloom");
     this._popCells(
       resolved,
       points,
@@ -2599,6 +2626,7 @@ class Game {
     // _popCells/_tut may rebuild the board, so the flag stays accurate).
     const vinePopped = cells.some((p) => s.board.isVine(p.c, p.r));
     const polarityPopped = cells.some((p) => s.board.isPolarity(p.c, p.r));
+    const bloomPopped = cells.some((p) => s.board.isBloom(p.c, p.r));
     // Count of special bubbles in the cleared set (also captured before the
     // board is cleared) for daily/weekly quest progress.
     const specialsPopped = cells.filter(
@@ -2610,7 +2638,8 @@ class Game {
         s.board.isVine(p.c, p.r) ||
         s.board.isSequence(p.c, p.r) ||
         s.board.isTether(p.c, p.r) ||
-        s.board.isPolarity(p.c, p.r)
+        s.board.isPolarity(p.c, p.r) ||
+        s.board.isBloom(p.c, p.r)
     ).length;
     if (coinCount > 0) {
       const coinsDropped = coinCount * COIN_BUBBLE_VALUE;
@@ -2668,6 +2697,7 @@ class Game {
     if (coinCount > 0) this._tut("coinbubble");
     if (vinePopped) this._tut("vine");
     if (polarityPopped) this._tut("polarity");
+    if (bloomPopped) this._tut("bloom");
     if (s.combo >= 2) this._tut("combo");
     // Bonus objective progress: a big combo or a single large group.
     this._trackObjective({ combo: s.combo, group: group.length });
@@ -3110,6 +3140,7 @@ class Game {
     const coinCount = cells.filter((p) => s.board.isCoin(p.c, p.r)).length;
     const vinePopped = cells.some((p) => s.board.isVine(p.c, p.r));
     const polarityPopped = cells.some((p) => s.board.isPolarity(p.c, p.r));
+    const bloomPopped = cells.some((p) => s.board.isBloom(p.c, p.r));
     if (coinCount > 0) {
       const coinsDropped = coinCount * COIN_BUBBLE_VALUE;
       if (s.mode !== "tutorial") {
@@ -3147,6 +3178,7 @@ class Game {
     if (coinCount > 0) this._tut("coinbubble");
     if (vinePopped) this._tut("vine");
     if (polarityPopped) this._tut("polarity");
+    if (bloomPopped) this._tut("bloom");
     if (strike.hitTether) this._tut("tether");
     this.afterMove();
   }
@@ -3256,6 +3288,7 @@ class Game {
     const coinCount = cells.filter((p) => s.board.isCoin(p.c, p.r)).length;
     const vinePopped = cells.some((p) => s.board.isVine(p.c, p.r));
     const polarityPopped = cells.some((p) => s.board.isPolarity(p.c, p.r));
+    const bloomPopped = cells.some((p) => s.board.isBloom(p.c, p.r));
     if (coinCount > 0) {
       const coinsDropped = coinCount * COIN_BUBBLE_VALUE;
       if (s.mode !== "tutorial") {
@@ -3311,6 +3344,7 @@ class Game {
     if (coinCount > 0) this._tut("coinbubble");
     if (vinePopped) this._tut("vine");
     if (polarityPopped) this._tut("polarity");
+    if (bloomPopped) this._tut("bloom");
     this.afterMove();
   }
 
@@ -4244,6 +4278,12 @@ class Game {
     // reorganiser — not a threat like vine — so it never blocks a win.
     this._spreadPolarity();
 
+    // Bloom seeds: a patient, friendly counterpart to Vine — a growing seed
+    // matures a stage every resolved move it has a plain neighbour (seed ->
+    // bud -> a full matching bubble), rewarding the player for leaving it
+    // alone instead of popping it early.
+    this._growBloom();
+
     // A single un-poppable bubble is left: rather than strand the player on a
     // jam (a lone bubble can never form a group of 2+), give it a celebratory
     // glow-and-explode finale — one of several random styles — that clears the
@@ -4388,6 +4428,23 @@ class Game {
     if (!moved) return;
     const p = s.board.targetPixel(moved.to.c, moved.to.r);
     this.floating.spawn(p.x, p.y - 24, "⇄", "#c9a2ff", 18);
+  }
+
+  // Bloom seeds mature a stage at a time — see Board.growBloom. Suppressed in
+  // the tutorial like _spreadVines/_spreadPolarity, so the practice board
+  // stays fully controlled.
+  _growBloom() {
+    const s = this.session;
+    if (!s || s.ended || s.mode === "tutorial") return;
+    if (!s.board || typeof s.board.growBloom !== "function") return;
+    const grown = s.board.growBloom();
+    if (!grown) return;
+    const p = s.board.targetPixel(grown.c, grown.r);
+    if (grown.stage === "bloomed") {
+      this.floating.spawn(p.x, p.y - 24, "🌸", "#8effb0", 20);
+    } else {
+      this.floating.spawn(p.x, p.y - 24, "🌱", "#8effb0", 16);
+    }
   }
 
   // Downpour pressure for advanced campaign levels: tick a per-move counter and,

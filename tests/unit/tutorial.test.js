@@ -18,7 +18,7 @@ describe("tutorial step definitions", () => {
 
   it("covers every core feature exactly once", () => {
     const actions = TUTORIAL_STEPS.map((s) => s.advance);
-    for (const a of ["pop", "combo", "undo", "preview", "swipe", "blast", "powerup", "magnet", "event", "lightning", "stone", "bombbubble", "multiplier", "coinbubble", "vine", "sequence", "tether", "polarity"]) {
+    for (const a of ["pop", "combo", "undo", "preview", "swipe", "blast", "powerup", "magnet", "event", "lightning", "stone", "bombbubble", "multiplier", "coinbubble", "vine", "sequence", "tether", "polarity", "bloom"]) {
       expect(actions).toContain(a);
     }
   });
@@ -138,6 +138,17 @@ describe("tutorial step definitions", () => {
     // It sits right after the tether step (the special-bubbles run).
     const idx = TUTORIAL_STEPS.indexOf(polarity);
     expect(TUTORIAL_STEPS[idx - 1].id).toBe("tether");
+  });
+
+  it("includes a gated bloom step that grants a bloom-seed board", () => {
+    const bloom = TUTORIAL_STEPS.find((s) => s.id === "bloom");
+    expect(bloom).toBeTruthy();
+    expect(bloom.advance).toBe("bloom");
+    expect(bloom.grant).toBe("bloom");
+    expect(bloom.hint).toBeTruthy();
+    // It sits right after the polarity step (the special-bubbles run).
+    const idx = TUTORIAL_STEPS.indexOf(bloom);
+    expect(TUTORIAL_STEPS[idx - 1].id).toBe("polarity");
   });
 
   it("includes an informational pets step before the finish", () => {

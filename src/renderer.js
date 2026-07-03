@@ -1,6 +1,6 @@
 // Canvas renderer: animated background + glossy neon bubbles.
 
-import { RAINBOW, ICE, ICE_CRACKED, NORMAL, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN, VINE, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3, TETHER, POLARITY_PLUS, POLARITY_MINUS } from "./grid.js";
+import { RAINBOW, ICE, ICE_CRACKED, NORMAL, LIGHTNING, STONE, BOMB, MULTIPLIER, COIN, VINE, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3, TETHER, POLARITY_PLUS, POLARITY_MINUS, BLOOM_SEED, BLOOM_BUD } from "./grid.js";
 
 // Distinct glyphs used by colourblind mode — one per colour index. There are
 // always at least as many symbols as a level has colours.
@@ -876,6 +876,41 @@ export class Renderer {
         ctx.textBaseline = "middle";
         ctx.fillText(isPlus ? "+" : "−", s.x, s.y + rad * 0.04);
         ctx.shadowBlur = 0;
+      }
+
+      // Bloom overlay: a patient, friendly counterpart to Vine. A SEED draws
+      // a small earthy dot with a faint sprouting ring; a BUD draws a bigger,
+      // brighter centre with small petal dots around it — visibly closer to
+      // blooming into a full matching bubble.
+      if (s.type === BLOOM_SEED || s.type === BLOOM_BUD) {
+        const isBud = s.type === BLOOM_BUD;
+        const ringColor = isBud ? "rgba(255,170,210,0.95)" : "rgba(150,210,120,0.9)";
+        ctx.globalAlpha = s.alpha;
+        const pulse = 0.55 + 0.45 * Math.abs(Math.sin(performance.now() / 340));
+        ctx.shadowColor = ringColor;
+        ctx.shadowBlur = rad * (isBud ? 0.55 : 0.4) * pulse;
+        ctx.strokeStyle = ringColor;
+        ctx.lineWidth = Math.max(1.4, rad * 0.12);
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, rad * (isBud ? 0.4 : 0.26), 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = isBud ? "rgba(255,210,235,0.95)" : "rgba(150,110,70,0.9)";
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, rad * (isBud ? 0.2 : 0.13), 0, Math.PI * 2);
+        ctx.fill();
+        if (isBud) {
+          // Small petal dots ringing the centre — reads as "about to bloom".
+          ctx.fillStyle = "rgba(255,190,225,0.9)";
+          for (let i = 0; i < 4; i++) {
+            const ang = (Math.PI / 2) * i + performance.now() / 900;
+            const px = s.x + Math.cos(ang) * rad * 0.42;
+            const py = s.y + Math.sin(ang) * rad * 0.42;
+            ctx.beginPath();
+            ctx.arc(px, py, rad * 0.1, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
       }
 
       // Boss "Colour Purge" marker: a crisp target pip on every plain bubble of

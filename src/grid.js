@@ -46,8 +46,19 @@ export const POLARITY_MINUS = 15; // an adjacent SAME-charge bubble (++ or --)
 //                            charge (+-) is already "attracted" together and
 //                            stays put. A normal coloured bubble for matching;
 //                            no AoE, no session state (like tether).
+export const BLOOM_SEED = 16; // a patient, friendly counterpart to VINE — a
+export const BLOOM_BUD = 17; // freshly-planted seed that (like ICE's two-hit
+//                            crack) grows in two stages over resolved moves
+//                            whenever it has a plain neighbour: SEED -> BUD,
+//                            then BUD -> a full NORMAL bubble adopting the
+//                            best-matching neighbour colour (see
+//                            Board.growBloom). Left alone, it becomes a great
+//                            piece to pop later; popped early while still
+//                            growing, it just pops normally (no bonus) — the
+//                            opposite tension to Vine's punish-if-you-wait.
+//                            A normal coloured bubble for matching; no AoE.
 
-const COLORED_POP_TYPES = new Set([NORMAL, LIGHTNING, BOMB, MULTIPLIER, COIN, VINE, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3, TETHER, POLARITY_PLUS, POLARITY_MINUS]);
+const COLORED_POP_TYPES = new Set([NORMAL, LIGHTNING, BOMB, MULTIPLIER, COIN, VINE, SEQUENCE_1, SEQUENCE_2, SEQUENCE_3, TETHER, POLARITY_PLUS, POLARITY_MINUS, BLOOM_SEED, BLOOM_BUD]);
 
 // How long a magnet-pulled bubble takes to glide to its new cell (seconds).
 // Deliberately slower than the snappy gravity settle so the player can see the
@@ -115,6 +126,7 @@ export class Board {
     const seqRate = this.specials.sequence || 0;
     const tetherRate = this.specials.tether || 0;
     const polarityRate = this.specials.polarity || 0;
+    const bloomRate = this.specials.bloom || 0;
     this.types = [];
     for (let c = 0; c < this.cols; c++) {
       this.types[c] = [];
@@ -224,7 +236,23 @@ export class Board {
             tetherRate;
           const frac = (roll - base) / polarityRate;
           this.types[c][r] = frac < 0.5 ? POLARITY_PLUS : POLARITY_MINUS;
-        } else this.types[c][r] = NORMAL;
+        } else if (
+          roll <
+          rainbowRate +
+            iceRate +
+            lightningRate +
+            stoneRate +
+            bombRate +
+            multRate +
+            coinRate +
+            vineRate +
+            seqRate +
+            tetherRate +
+            polarityRate +
+            bloomRate
+        )
+          this.types[c][r] = BLOOM_SEED;
+        else this.types[c][r] = NORMAL;
       }
     }
     // TETHER cells only mean something in PAIRS — link every one just placed
@@ -558,6 +586,19 @@ export class Board {
     return this.polarityCharge(c, r) !== 0;
   }
 
+  isBloomSeed(c, r) {
+    return this.types[c] && this.types[c][r] === BLOOM_SEED;
+  }
+
+  isBloomBud(c, r) {
+    return this.types[c] && this.types[c][r] === BLOOM_BUD;
+  }
+
+  // True for either growth stage (seed or bud).
+  isBloom(c, r) {
+    return this.isBloomSeed(c, r) || this.isBloomBud(c, r);
+  }
+
   _isColoredPopTarget(c, r) {
     return this.grid[c]?.[r] !== -1 && COLORED_POP_TYPES.has(this.types[c]?.[r]);
   }
@@ -663,6 +704,110 @@ export class Board {
       spriteB.state = "idle";
     }
     return { from: { c, r }, to: { c: tc, r: tr } };
+  }
+
+  // True if (c,r) has at least one orthogonal, filled, plain (NORMAL)
+  // neighbour — the "growth opportunity" a Bloom seed/bud needs to advance.
+  _hasNormalNeighbor(c, r) {
+    const neigh = [
+      [c + 1, r],
+      [c - 1, r],
+      [c, r + 1],
+      [c, r - 1],
+    ];
+    for (const [cc, rr] of neigh) {
+      if (cc < 0 || rr < 0 || cc >= this.cols || rr >= this.rows) continue;
+      if (this.grid[cc][rr] === -1) continue;
+      if (this.types[cc][rr] !== NORMAL) continue;
+      return true;
+    }
+    return false;
+  }
+
+  // Pick the best colour for a blooming cell at (c,r) to adopt: try every
+  // NEIGHBOURING plain bubble's colour (not every board colour, unlike
+  // _bestDownpourColor — Bloom is about matching what's already next to it)
+  // and choose whichever would create the largest immediate connected group.
+  // Ties are broken with board RNG so behaviour stays deterministic per seed.
+  _bestBloomColor(c, r) {
+    const neigh = [
+      [c + 1, r],
+      [c - 1, r],
+      [c, r + 1],
+      [c, r - 1],
+    ];
+    const originalColor = this.grid[c][r];
+    const originalType = this.types[c][r];
+    const tried = new Set();
+    let bestScore = -1;
+    const best = [];
+    for (const [cc, rr] of neigh) {
+      if (cc < 0 || rr < 0 || cc >= this.cols || rr >= this.rows) continue;
+      if (this.grid[cc][rr] === -1 || this.types[cc][rr] !== NORMAL) continue;
+      const color = this.grid[cc][rr];
+      if (tried.has(color)) continue;
+      tried.add(color);
+      this.grid[c][r] = color;
+      this.types[c][r] = NORMAL;
+      const score = this.getGroupAt(c, r).length;
+      if (score > bestScore) {
+        bestScore = score;
+        best.length = 0;
+        best.push(color);
+      } else if (score === bestScore) {
+        best.push(color);
+      }
+    }
+    // Restore the probed cell; the caller writes the final choice next.
+    this.grid[c][r] = originalColor;
+    this.types[c][r] = originalType;
+    if (best.length === 0) return originalColor;
+    return best[Math.floor(this.rng() * best.length)];
+  }
+
+  // Bloom seeds: a patient, friendly counterpart to Vine. Every resolved move,
+  // ONE growing Bloom cell (seed or bud) that currently has a plain neighbour
+  // advances a stage: a SEED becomes a BUD, and a BUD becomes a full NORMAL
+  // bubble adopting the best-matching neighbour colour (via _bestBloomColor),
+  // fully joining that colour's group. Left with no qualifying neighbour for a
+  // move, growth simply pauses (never resets or punishes the player).
+  // Deterministic via the board rng; capped at one advance per call, mirroring
+  // spreadVines/spreadPolarity's single-step-per-move contract. Returns
+  // { c, r, stage: "bud" } or { c, r, stage: "bloomed", color } or null when
+  // nothing can grow (no bloom cells, or every one is boxed in).
+  growBloom() {
+    const candidates = [];
+    for (let c = 0; c < this.cols; c++) {
+      for (let r = 0; r < this.rows; r++) {
+        const stage = this.isBloomSeed(c, r) ? "bud" : this.isBloomBud(c, r) ? "bloom" : null;
+        if (!stage) continue;
+        if (!this._hasNormalNeighbor(c, r)) continue;
+        candidates.push({ c, r, action: stage });
+      }
+    }
+    if (candidates.length === 0) return null;
+    const pick = candidates[Math.floor(this.rng() * candidates.length)];
+    if (pick.action === "bud") {
+      this.types[pick.c][pick.r] = BLOOM_BUD;
+      const sp = this.spriteGrid[pick.c][pick.r];
+      if (sp) {
+        sp.type = BLOOM_BUD;
+        sp.scale = 0.75;
+        sp.state = "idle";
+      }
+      return { c: pick.c, r: pick.r, stage: "bud" };
+    }
+    const color = this._bestBloomColor(pick.c, pick.r);
+    this.grid[pick.c][pick.r] = color;
+    this.types[pick.c][pick.r] = NORMAL;
+    const sp = this.spriteGrid[pick.c][pick.r];
+    if (sp) {
+      sp.color = color;
+      sp.type = NORMAL;
+      sp.scale = 0.7;
+      sp.state = "idle";
+    }
+    return { c: pick.c, r: pick.r, stage: "bloomed", color };
   }
 
   // ---- Downpour (advanced levels) --------------------------------------

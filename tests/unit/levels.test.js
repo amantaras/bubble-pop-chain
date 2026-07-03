@@ -165,11 +165,14 @@ describe("levels", () => {
   it("tether bubbles ramp in from level 28 and not before", () => {
     expect(getLevel(27).specials.tether || 0).toBe(0);
     expect(getLevel(28).specials.tether).toBeGreaterThan(0);
-    // Rate climbs with level but stays capped (level 50 is a non-boss level).
-    expect(getLevel(50).specials.tether).toBeGreaterThanOrEqual(
+    // Rate climbs with level but stays capped. Checked at level 35 (before
+    // Bloom unlocks at 36) so the mechanic rotation budget — which only
+    // engages once the tether/polarity/bloom pool exceeds its cap — can't
+    // incidentally exclude tether from this particular comparison level.
+    expect(getLevel(35).specials.tether).toBeGreaterThanOrEqual(
       getLevel(28).specials.tether
     );
-    expect(getLevel(50).specials.tether).toBeLessThanOrEqual(0.03);
+    expect(getLevel(35).specials.tether).toBeLessThanOrEqual(0.03);
   });
 
   it("bosses do NOT suppress tether bubbles (a reward, not a hazard)", () => {
@@ -183,11 +186,13 @@ describe("levels", () => {
   it("polarity bubbles ramp in from level 32 and not before", () => {
     expect(getLevel(31).specials.polarity || 0).toBe(0);
     expect(getLevel(32).specials.polarity).toBeGreaterThan(0);
-    // Rate climbs with level but stays capped (level 55 is a non-boss level).
-    expect(getLevel(55).specials.polarity).toBeGreaterThanOrEqual(
+    // Rate climbs with level but stays capped. Checked at level 35 (before
+    // Bloom unlocks at 36) so the mechanic rotation budget can't incidentally
+    // exclude polarity from this particular comparison level.
+    expect(getLevel(35).specials.polarity).toBeGreaterThanOrEqual(
       getLevel(32).specials.polarity
     );
-    expect(getLevel(55).specials.polarity).toBeLessThanOrEqual(0.03);
+    expect(getLevel(35).specials.polarity).toBeLessThanOrEqual(0.03);
   });
 
   it("bosses do NOT suppress polarity bubbles (a reward, not a hazard)", () => {
@@ -196,13 +201,52 @@ describe("levels", () => {
     expect(boss.specials.polarity).toBeGreaterThan(0);
   });
 
-  it("tether and polarity are both featured together (pool == cap, no suppression yet)", () => {
-    // Once both unlock (level 32+), NEW_MECHANIC_IDS pool size is exactly 2,
-    // matching MAX_NEW_MECHANICS_PER_BOARD — so the budget doesn't need to
-    // trim anything yet; both stay live on the same board.
+  it("bloom bubbles ramp in from level 36 and not before", () => {
+    expect(getLevel(35).specials.bloom || 0).toBe(0);
+    expect(getLevel(36).specials.bloom).toBeGreaterThan(0);
+  });
+
+  it("bosses do NOT suppress bloom bubbles (a reward, not a hazard)", () => {
+    // Level 50 is a boss beyond level 36 where the rotation budget happens to
+    // feature bloom — proving bosses don't force it to 0 like ice/stone/vine.
+    const boss = getLevel(50);
+    expect(boss.boss).toBeTruthy();
+    expect(boss.specials.bloom).toBeGreaterThan(0);
+  });
+
+  it("tether, polarity and bloom are NOT all three featured on every board once bloom unlocks", () => {
+    // The pool (3) now exceeds MAX_NEW_MECHANICS_PER_BOARD (2), so the budget
+    // must actually trim at least one of them on SOME level beyond 36 — this
+    // is the concrete proof the rotation engages for real, not just infra.
+    let sawSuppression = false;
+    for (let n = 36; n <= 200; n++) {
+      const sp = getLevel(n).specials;
+      const activeCount = ["tether", "polarity", "bloom"].filter((id) => sp[id] > 0).length;
+      if (activeCount < 3) {
+        sawSuppression = true;
+        break;
+      }
+    }
+    expect(sawSuppression).toBe(true);
+  });
+
+  it("never features MORE than MAX_NEW_MECHANICS_PER_BOARD of tether/polarity/bloom on one board", () => {
+    for (const n of [36, 40, 55, 61, 100, 250, 1000]) {
+      const sp = getLevel(n).specials;
+      const activeCount = ["tether", "polarity", "bloom"].filter((id) => sp[id] > 0).length;
+      expect(activeCount).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it("tether and polarity happen to both be featured at level 60 (bloom is the one rotated out there)", () => {
+    // Level 60's rotation deterministically spares tether+polarity and
+    // excludes bloom (see the "never features MORE than..." test above for
+    // the general guarantee) — this documents that concrete, reproducible
+    // outcome for this specific level.
     const lvl = getLevel(60);
     expect(lvl.specials.tether).toBeGreaterThan(0);
     expect(lvl.specials.polarity).toBeGreaterThan(0);
+    expect(lvl.specials.bloom || 0).toBe(0);
   });
 
   describe("featuredMechanicIds (board mechanic budget)", () => {
@@ -232,11 +276,14 @@ describe("levels", () => {
       expect(seen.size).toBeGreaterThan(1); // varies rather than a fixed pick
     });
 
-    it("today's real pool (Tether + Polarity) is at/under the cap, so nothing is suppressed yet", () => {
-      // Documents the current state of the rotation: it's live infrastructure
-      // ready for Bloom, but with only two real ids today it never actually
-      // trims anything (2 <= MAX_NEW_MECHANICS_PER_BOARD).
-      expect(NEW_MECHANIC_IDS.length).toBeLessThanOrEqual(MAX_NEW_MECHANICS_PER_BOARD);
+    it("today's real pool (Tether + Polarity + Bloom) now exceeds the cap, so the rotation genuinely trims one per board", () => {
+      // Documents the current state of the rotation: with three real ids now
+      // registered, the pool exceeds MAX_NEW_MECHANICS_PER_BOARD, so this is
+      // no longer just dormant infrastructure — it actively rotates which two
+      // of the three are featured on any given board (see the dedicated
+      // "never features MORE than..." / "NOT all three featured" tests above
+      // for the concrete proof).
+      expect(NEW_MECHANIC_IDS.length).toBeGreaterThan(MAX_NEW_MECHANICS_PER_BOARD);
     });
   });
 

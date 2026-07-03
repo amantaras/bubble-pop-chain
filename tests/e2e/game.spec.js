@@ -1516,6 +1516,75 @@ test.describe("polarity bubbles (magnetic pairs)", () => {
   });
 });
 
+test.describe("bloom seeds (patient growth)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("a seed matures to a bud, then blooms into the best-matching neighbour colour", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await page.waitForTimeout(400);
+    const result = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          b.grid[c][r] = 1;
+          b.types[c][r] = 0; // NORMAL
+        }
+      b.grid[0][0] = 0;
+      b.types[0][0] = 16; // BLOOM_SEED
+      b.grid[1][0] = 2;
+      b.grid[2][0] = 2; // a colour-2 pair to bloom toward
+      // Wall off the seed's other neighbour (below) with a locked STONE so
+      // the huge same-colour background board can't leak in as a candidate.
+      b.types[0][1] = 5; // STONE
+      const r1 = b.growBloom();
+      const isBudNow = b.isBloomBud(0, 0);
+      const r2 = b.growBloom();
+      return {
+        r1,
+        isBudNow,
+        r2,
+        finalType: b.types[0][0],
+        finalColor: b.grid[0][0],
+        groupSize: b.getGroupAt(0, 0).length,
+      };
+    });
+    expect(result.r1).toEqual({ c: 0, r: 0, stage: "bud" });
+    expect(result.isBudNow).toBe(true);
+    expect(result.r2).toEqual({ c: 0, r: 0, stage: "bloomed", color: 2 });
+    expect(result.finalType).toBe(0); // NORMAL
+    expect(result.finalColor).toBe(2);
+    expect(result.groupSize).toBe(3); // fully joined the colour-2 group
+  });
+
+  test("popping a bloom seed early just pops normally — no bonus", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await page.waitForTimeout(400);
+    const result = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          b.grid[c][r] = 1;
+          b.types[c][r] = 0;
+        }
+      b.grid[0][0] = 0;
+      b.grid[1][0] = 0;
+      b.types[0][0] = 16; // BLOOM_SEED
+      b.types[1][0] = 0;
+      const before = b.countRemaining();
+      g.popAt(0, 0);
+      const after = b.countRemaining();
+      return { cleared: before - after };
+    });
+    expect(result.cleared).toBe(2); // just the tapped 2-cell group
+  });
+});
+
 test.describe("daily retention engine", () => {
   test.beforeEach(({ page }) => openGame(page));
 
@@ -5712,9 +5781,23 @@ test.describe("interactive tutorial (gated, step-by-step)", () => {
             return;
           }
     });
+    await expect.poll(() => stepId(page)).toBe("bloom");
+
+    // 8j) bloom — popping a cluster that contains a bloom seed advances the
+    // step.
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++)
+          if (b.isBloom(c, r) && b.getGroupAt(c, r).length >= 2) {
+            g.popAt(c, r);
+            return;
+          }
+    });
     await expect.poll(() => stepId(page)).toBe("pets");
 
-    // 8j) pets (informational) — introduces the companion system.
+    // 8k) pets (informational) — introduces the companion system.
     await page.locator("#coach-next").click();
     expect(await stepId(page)).toBe("done");
 
