@@ -4760,7 +4760,12 @@ class UIManager {
     this._renderWinChoices(true);
     this._renderWinCeremony((this._winRewardChoices || []).length ? "bonus" : this._winHasPendingUnlock ? "unlock" : "done");
     if (!this._winRewardChoices.length && this.cb.winRewardsSettled) {
-      setTimeout(() => this.cb.winRewardsSettled(), 420);
+      // Don't advance to the next ceremony step (e.g. a tool-unlock modal,
+      // which hides this whole win screen) until the coin count-up above has
+      // actually finished playing (180ms lid delay + 900ms tally) — firing
+      // earlier cut the reveal off mid-count, making stacked rewards feel
+      // rushed instead of like one coherent ceremony.
+      setTimeout(() => this.cb.winRewardsSettled(), 1100);
     }
   }
 

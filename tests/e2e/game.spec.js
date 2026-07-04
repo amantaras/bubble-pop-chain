@@ -1895,6 +1895,46 @@ test.describe("campaign progression", () => {
     await page.waitForTimeout(300);
     expect(await page.locator("#win-coins-num").textContent()).toBe(coins);
   });
+
+  test("a pending tool unlock waits for the coin count-up to finish before taking over the win screen", async ({
+    page,
+  }) => {
+    // Regression guard for a real reward-ceremony pacing bug: the automatic
+    // ceremony advance (which hides the win screen behind #tool-unlock) used
+    // to fire at 420ms, well before the 180ms-delayed + 900ms coin count-up
+    // animation actually finished — cutting the reveal off mid-count.
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const UI = window.__bpc.UI;
+      g._pendingToolUnlock = { type: "undo", level: 6, lesson: "test lesson" };
+      UI.showWin({
+        stars: 2,
+        score: 500,
+        coins: 250,
+        rewardText: "",
+        stats: [],
+        showNext: true,
+        showDouble: false,
+        rewardChoices: [],
+        hasPendingUnlock: true,
+      });
+    });
+    await expect(page.locator("#win")).toBeVisible();
+    await page.locator("#win-chest").click();
+
+    // Shortly after opening, the count-up is still in progress and the win
+    // screen must still be the one showing (not yet whisked away).
+    await page.waitForTimeout(400);
+    const midCount = Number(await page.locator("#win-coins-num").textContent());
+    expect(midCount).toBeGreaterThanOrEqual(0);
+    expect(midCount).toBeLessThan(250);
+    await expect(page.locator("#tool-unlock")).toBeHidden();
+
+    // Once fully settled, the coins have finished counting up to the true
+    // total AND the automatic ceremony advance has taken over.
+    await expect(page.locator("#tool-unlock")).toBeVisible({ timeout: 3000 });
+    expect(await page.locator("#win-coins-num").textContent()).toBe("250");
+  });
 });
 
 test.describe("shareable win card (viral share/download)", () => {
