@@ -3563,9 +3563,15 @@ class UIManager {
   _petAbilityText(pet, level) {
     if (pet.active) {
       const a = petActive(pet.id, level);
+      const locked = !this._petFeatureUnlocked("abilities");
+      // Active pets do nothing on the board until the "abilities" progression
+      // feature unlocks (Level 16) — showing the live cooldown/behaviour text
+      // unconditionally made an equipped active pet look inert/broken to a
+      // player who hasn't reached that level yet. Make the gate explicit.
+      const lockedNote = locked ? ` — unlocks at Level ${petFeatureUnlockLevel("abilities")}` : "";
       if (pet.active.type === "cleanse")
-        return `🐾 ${a.label} (clears ${a.count} every ${a.cooldown} moves)`;
-      return `🐾 ${a.label} (every ${a.cooldown} moves)`;
+        return `🐾 ${a.label} (clears ${a.count} every ${a.cooldown} moves)${lockedNote}`;
+      return `🐾 ${a.label} (every ${a.cooldown} moves)${lockedNote}`;
     }
     const b = petBuffs(pet.id, level);
     const key = pet.ability.key;

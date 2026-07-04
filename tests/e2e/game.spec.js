@@ -6170,6 +6170,33 @@ test.describe("pet companions (collection & buffs)", () => {
     await expect(page.locator("#menu")).toBeVisible();
   });
 
+  test("an active pet's detail explains it's dormant until abilities unlock, then clears once they do", async ({
+    page,
+  }) => {
+    // Real bug guard: a player who owns/equips an active pet (e.g. Tidal)
+    // before reaching the Level 16 "abilities" unlock used to see the exact
+    // same live cooldown/behaviour text as an unlocked player — nothing told
+    // them the ability was currently inert, which reads as "this pet is
+    // broken" rather than "not unlocked yet".
+    await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      S.grantPet("tidal");
+      S.set("maxUnlockedLevel", 15); // pets(12)/crates(14) unlocked, abilities(16) not yet
+      window.__bpc.UI.refreshPetAccess();
+    });
+    await page.locator("#btn-pets").click();
+    await page.locator('.pet-card[data-pet="tidal"]').click();
+    await expect(page.locator("#pet-detail .pd-ability")).toContainText("Floods away");
+    await expect(page.locator("#pet-detail .pd-ability")).toContainText("unlocks at Level 16");
+
+    // Once abilities unlock, the same detail view drops the locked note.
+    await page.evaluate(() => window.__bpc.Storage.set("maxUnlockedLevel", 16));
+    await page.evaluate(() => window.__bpc.UI.buildPets());
+    await page.locator('.pet-card[data-pet="tidal"]').click();
+    await expect(page.locator("#pet-detail .pd-ability")).toContainText("Floods away");
+    await expect(page.locator("#pet-detail .pd-ability")).not.toContainText("unlocks at Level");
+  });
+
   test("buying then opening a crate grants a pet", async ({ page }) => {
     await page.evaluate(() => window.__bpc.Economy.addCoins(1000));
     await page.locator("#btn-pets").click();
