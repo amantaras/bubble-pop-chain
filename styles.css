@@ -2975,21 +2975,27 @@ body {
   color: var(--text-dim);
   font: inherit;
   cursor: pointer;
+}
+.pt-icon-wrap {
   position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .pt-badge {
   position: absolute;
-  top: 2px;
-  right: 4px;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
+  top: -6px;
+  right: -3px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
   border-radius: 999px;
   background: linear-gradient(180deg, #ffd35b, #ff9f43);
   color: #241a05;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 900;
-  line-height: 16px;
+  line-height: 15px;
   text-align: center;
   box-shadow: 0 0 0 2px var(--ui-surface, rgba(12, 16, 34, 0.86)), 0 0 6px rgba(255, 179, 71, 0.7);
 }
@@ -3012,6 +3018,10 @@ body {
   text-align: left;
 }
 .pt-copy span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 12px;
   font-weight: 900;
   line-height: 1.1;

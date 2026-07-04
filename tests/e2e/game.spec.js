@@ -8176,6 +8176,35 @@ test.describe("pet technology tree (RPG batch 5)", () => {
     await expect(page.locator('.pet-tab[data-pet-tab="companions"] .pt-badge')).toHaveCount(0);
     await expect(page.locator("#pet-notice")).toBeHidden();
   });
+
+  test("the Companions tab badge never overlaps its own label text, even with a 2-digit count", async ({
+    page,
+  }) => {
+    // Real bug guard: on a real phone, an 11+ pending count on the narrow
+    // Companions tab rendered the badge ON TOP of the "Companions" label
+    // (garbled, e.g. reading like "Compani⑪sParty"). The badge must sit
+    // clear of the label's bounding box regardless of count.
+    await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      const ids = ["draco", "sparky", "clover", "mochi", "sprout", "rover", "whiskers", "luma", "quake", "comet", "talon"];
+      for (const id of ids) {
+        S.grantPet(id);
+        S.addPetXp(id, 60); // Lv.2 → pending tier 1
+      }
+      window.__bpc.UI.refreshPetsBadge();
+    });
+    await page.locator("#btn-pets").click();
+    const badge = page.locator('.pet-tab[data-pet-tab="companions"] .pt-badge');
+    await expect(badge).toHaveText("11");
+    const label = page.locator('.pet-tab[data-pet-tab="companions"] .pt-copy span').first();
+    const [badgeBox, labelBox] = await Promise.all([badge.boundingBox(), label.boundingBox()]);
+    const overlaps =
+      badgeBox.x < labelBox.x + labelBox.width &&
+      badgeBox.x + badgeBox.width > labelBox.x &&
+      badgeBox.y < labelBox.y + labelBox.height &&
+      badgeBox.y + badgeBox.height > labelBox.y;
+    expect(overlaps).toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------

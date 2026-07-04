@@ -3142,11 +3142,15 @@ class UIManager {
       // The Companions tab is the only place a tech-tree pick can be acted
       // on, so it carries the same count the menu's Pets tile badge shows —
       // otherwise a player who navigates to another tab (or scrolls past the
-      // small per-card 🧬 badges) has no way to tell anything needs attention.
+      // small per-card 🧬 badges) has no way to tell anything needs
+      // attention. The badge sits as a small corner accent on the ICON, not
+      // inline with the label — sharing flex space with the label text
+      // caused real overlap/over-truncation on narrow phone screens (2-digit
+      // counts squeezed "Companions" down to a single letter).
       const badge = tab.id === "companions" && pendingCount > 0
         ? `<span class="pt-badge">${pendingCount}</span>`
         : "";
-      btn.innerHTML = `<span class="pt-icon">${tab.icon}</span><span class="pt-copy"><span>${tab.label}</span><small>${tab.sub}</small></span>${badge}`;
+      btn.innerHTML = `<span class="pt-icon-wrap"><span class="pt-icon">${tab.icon}</span>${badge}</span><span class="pt-copy"><span>${tab.label}</span><small>${tab.sub}</small></span>`;
       btn.addEventListener("click", () => {
         Audio.click();
         this._petTab = tab.id;
