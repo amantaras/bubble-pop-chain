@@ -1935,6 +1935,47 @@ test.describe("campaign progression", () => {
     await expect(page.locator("#tool-unlock")).toBeVisible({ timeout: 3000 });
     expect(await page.locator("#win-coins-num").textContent()).toBe("250");
   });
+
+  test("claiming a bonus choice quickly still waits for the coin count-up before advancing", async ({
+    page,
+  }) => {
+    // Same pacing bug, different trigger: the bonus-choice buttons appear the
+    // instant the chest opens (the same moment the coin count-up is queued),
+    // so a fast tap used to race ahead of the 1080ms tally and yank the win
+    // screen away behind #tool-unlock before the coins finished counting.
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const UI = window.__bpc.UI;
+      g._pendingToolUnlock = { type: "undo", level: 6, lesson: "test lesson" };
+      g._pendingWinChoices = [
+        { id: "test", reward: { type: "coins", amount: 10 } },
+      ];
+      UI.showWin({
+        stars: 2,
+        score: 500,
+        coins: 250,
+        rewardText: "",
+        stats: [],
+        showNext: true,
+        showDouble: false,
+        rewardChoices: [{ id: "test", icon: "🎁", title: "Test", desc: "desc" }],
+        hasPendingUnlock: true,
+      });
+    });
+    await expect(page.locator("#win")).toBeVisible();
+    await page.locator("#win-chest").click();
+    // Claim the bonus as fast as the test runner allows, well before the
+    // 1080ms coin tally would naturally finish.
+    await page.locator('#win-choice-list .win-choice-btn[data-choice="test"]').click();
+
+    // The core invariant: by the moment #tool-unlock takes over, the coin
+    // count-up must already show its true final value, not a value it was
+    // cut off at mid-tally (the old bug fired the advance at a flat 120ms
+    // after the claim, regardless of how little of the 1080ms tally had
+    // actually elapsed).
+    await expect(page.locator("#tool-unlock")).toBeVisible({ timeout: 3000 });
+    expect(await page.locator("#win-coins-num").textContent()).toBe("250");
+  });
 });
 
 test.describe("shareable win card (viral share/download)", () => {

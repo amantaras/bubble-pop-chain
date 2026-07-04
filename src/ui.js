@@ -144,6 +144,16 @@ const $ = (id) => document.getElementById(id);
 const COIN_ICON = "./assets/icons/currency/coin.svg";
 const COINS_STACK_ICON = "./assets/icons/currency/coins-stack.svg";
 
+// Win-chest coin count-up timing: the lid pops, then (after a short beat)
+// the coin total tallies up. Any ceremony step that hides the win screen
+// (the automatic advance in openWinChest, or claiming a bonus choice in
+// claimWinChoice) must wait for the WHOLE count-up to actually finish, or
+// the counter gets cut off mid-tally. Kept as shared constants so both call
+// sites can never drift out of sync with each other or with _animateCoins.
+const WIN_COUNT_UP_DELAY = 180;
+const WIN_COUNT_UP_DURATION = 900;
+const WIN_COUNT_UP_TOTAL = WIN_COUNT_UP_DELAY + WIN_COUNT_UP_DURATION + 20;
+
 function coinIconHtml(kind = "single", className = "coin-dot") {
   const src = kind === "stack" ? COINS_STACK_ICON : COIN_ICON;
   return `<span class="${className} coin-icon" aria-hidden="true">` +
@@ -4740,6 +4750,7 @@ class UIManager {
   openWinChest() {
     if (this._winChestOpened) return;
     this._winChestOpened = true;
+    this._winChestOpenedAt = Date.now();
     Audio.coin();
     const art = this.el["win-chest-art"];
     if (art) {
@@ -4756,16 +4767,16 @@ class UIManager {
     }
     if (this._winShowDouble) this.el["win-double"].style.display = "";
     // Let the lid pop before the coins start tallying.
-    setTimeout(() => this._animateCoins(this._winCoinsPending || 0), 180);
+    setTimeout(() => this._animateCoins(this._winCoinsPending || 0), WIN_COUNT_UP_DELAY);
     this._renderWinChoices(true);
     this._renderWinCeremony((this._winRewardChoices || []).length ? "bonus" : this._winHasPendingUnlock ? "unlock" : "done");
     if (!this._winRewardChoices.length && this.cb.winRewardsSettled) {
       // Don't advance to the next ceremony step (e.g. a tool-unlock modal,
       // which hides this whole win screen) until the coin count-up above has
-      // actually finished playing (180ms lid delay + 900ms tally) — firing
-      // earlier cut the reveal off mid-count, making stacked rewards feel
-      // rushed instead of like one coherent ceremony.
-      setTimeout(() => this.cb.winRewardsSettled(), 1100);
+      // actually finished playing — firing earlier cut the reveal off
+      // mid-count, making stacked rewards feel rushed instead of like one
+      // coherent ceremony.
+      setTimeout(() => this.cb.winRewardsSettled(), WIN_COUNT_UP_TOTAL);
     }
   }
 
@@ -4821,7 +4832,17 @@ class UIManager {
     this._renderWinChoices(false);
     this._renderWinCeremony(this._winHasPendingUnlock ? "unlock" : "done");
     this.toast(`${choice.icon} ${choice.title} claimed`);
-    if (this.cb.winRewardsSettled) setTimeout(() => this.cb.winRewardsSettled(), 120);
+    if (this.cb.winRewardsSettled) {
+      // A fast player can claim a bonus choice well before the coin count-up
+      // (anchored to when the chest opened, not to this claim) has finished —
+      // the choice buttons appear the moment the chest opens, at the same
+      // time the count-up is queued. Wait out whatever's left of the count-up
+      // (with a small floor so the "claimed" toast still gets a visible beat)
+      // instead of a flat delay that can race ahead of it.
+      const elapsed = Date.now() - (this._winChestOpenedAt || 0);
+      const remaining = Math.max(120, WIN_COUNT_UP_TOTAL - elapsed);
+      setTimeout(() => this.cb.winRewardsSettled(), remaining);
+    }
     return true;
   }
 
@@ -4864,7 +4885,7 @@ class UIManager {
       void wrap.offsetWidth;
       wrap.classList.add("pulse");
     }
-    this._animateNumber(el, to, 900);
+    this._animateNumber(el, to, WIN_COUNT_UP_DURATION);
   }
 
   // Tween an element's text content from its current value to `to`.
