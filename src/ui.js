@@ -218,7 +218,7 @@ class UIManager {
       "buy-batch-pref", "buy-speed-pref",
       "btn-diagnostics", "diagnostics", "diag-grid", "diag-errors", "diag-copy", "diag-share", "diag-close",
       "pets", "pets-coins", "pet-tabs", "pet-panel-companions", "pet-panel-party", "pet-panel-gems", "pet-panel-store",
-      "pets-crate", "pet-party", "pet-gems", "pet-gem-tip", "pet-store", "pet-list", "pet-detail",
+      "pets-crate", "pet-party", "pet-gems", "pet-gem-tip", "pet-store", "pet-list", "pet-detail", "pet-notice",
       "gem-forge", "gemforge-body", "gemforge-dust", "gemforge-back",
       "pause", "pause-sub", "pause-summary", "pause-resume", "pause-shop", "pause-themes", "pause-retry", "pause-menu",
       "pet-confirm", "pet-confirm-sub", "pet-confirm-ok", "pet-confirm-cancel",
@@ -2674,6 +2674,40 @@ class UIManager {
     }
   }
 
+  // A visible, actionable banner atop the Companions collection when one or
+  // more owned pets have a tech pick ready. The menu tile's badge count (and
+  // the small per-card 🧬 corner badge) told the player SOMETHING is ready,
+  // but neither told them WHERE to go once inside Pets — this closes that
+  // gap by naming the pet(s) and jumping straight to the first one on tap.
+  _buildPetNotice() {
+    const el = this.el["pet-notice"];
+    if (!el) return;
+    const pending = this._petFeatureUnlocked("tech") ? this._pendingTechPetIds() : [];
+    if (!pending.length) {
+      el.classList.add("hidden");
+      el.innerHTML = "";
+      el.onclick = null;
+      return;
+    }
+    const first = getPet(pending[0]);
+    const name = first ? first.name : "A companion";
+    const text = pending.length === 1
+      ? `${name} has a tech upgrade ready`
+      : `${name} and ${pending.length - 1} other${pending.length > 2 ? "s" : ""} have a tech upgrade ready`;
+    el.innerHTML = `<span class="pn-icon">🧬</span><span class="pn-text">${text}</span><span class="pn-cta">Review ›</span>`;
+    el.classList.remove("hidden");
+    el.onclick = () => {
+      Audio.click();
+      this._selectedPet = pending[0];
+      this._petFocusMode = false;
+      this._petTab = "companions";
+      this.buildPets();
+      this._syncPetTabs();
+      const card = document.querySelector(`.pet-card[data-pet="${pending[0]}"]`);
+      if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+    };
+  }
+
   // ---- Stats / Profile dashboard ----------------------------------------
   // Render the read-only profile + lifetime totals. All data is sourced from
   // the save via the pure `stats.js` aggregator, so this is purely a view.
@@ -3075,6 +3109,7 @@ class UIManager {
     else if (this.el["pet-store"]) this.el["pet-store"].innerHTML = "";
     this._buildPetList(owned);
     this._buildPetDetail(owned);
+    this._buildPetNotice();
     this._syncPetTabs();
   }
 
@@ -3097,13 +3132,21 @@ class UIManager {
     const wrap = this.el["pet-tabs"];
     if (!wrap) return;
     wrap.innerHTML = "";
+    const pendingCount = this._petFeatureUnlocked("tech") ? this._pendingTechPetIds().length : 0;
     for (const tab of this._petTabInfo()) {
       const btn = document.createElement("button");
       btn.className = "pet-tab";
       btn.type = "button";
       btn.dataset.petTab = tab.id;
       btn.setAttribute("role", "tab");
-      btn.innerHTML = `<span class="pt-icon">${tab.icon}</span><span class="pt-copy"><span>${tab.label}</span><small>${tab.sub}</small></span>`;
+      // The Companions tab is the only place a tech-tree pick can be acted
+      // on, so it carries the same count the menu's Pets tile badge shows —
+      // otherwise a player who navigates to another tab (or scrolls past the
+      // small per-card 🧬 badges) has no way to tell anything needs attention.
+      const badge = tab.id === "companions" && pendingCount > 0
+        ? `<span class="pt-badge">${pendingCount}</span>`
+        : "";
+      btn.innerHTML = `<span class="pt-icon">${tab.icon}</span><span class="pt-copy"><span>${tab.label}</span><small>${tab.sub}</small></span>${badge}`;
       btn.addEventListener("click", () => {
         Audio.click();
         this._petTab = tab.id;

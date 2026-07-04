@@ -1558,6 +1558,12 @@ never re‑discovered the hard way.
   its tech tier is immediately visible in the detail panel — deliberately
   **not** a forced focus mode (that would hide `.pet-list` and strand every
   other flow that expects the full grid to stay clickable after opening Pets).
+  The Companions **tab itself** also carries the same count (`.pt-badge`), and
+  an actionable banner above the pet grid (`#pet-notice`, `_buildPetNotice`)
+  names the pet(s) and jumps to the first one on tap — fixing a real gap
+  where the menu badge said "N notifications" but nothing inside the Pets
+  screen told the player where to go once they'd arrived (the per-card `🧬`
+  badge alone was too small/easy to miss across a large collection).
   Meta/RPG progression — **no tutorial step** (consistent with traits, party,
   synergies & gems). (Exposed for tests via `__bpc.tech`.)
 - **Interactive tutorial** (`tutorial.js`): a gated, step‑by‑step onboarding that
@@ -1696,7 +1702,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 751 unit tests + 602 E2E
+- **Current baseline (keep growing, never shrink)**: 751 unit tests + 604 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

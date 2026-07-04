@@ -8137,6 +8137,45 @@ test.describe("pet technology tree (RPG batch 5)", () => {
     await page.locator("#btn-pets").click();
     await expect(page.locator("#pet-detail .pd-tech-tier.pending")).toHaveCount(0);
   });
+
+  test("the Companions tab and an actionable banner surface pending tech picks inside Pets", async ({
+    page,
+  }) => {
+    // Regression guard for a real gap: the menu Pets tile badge told the
+    // player something needed attention, but once inside Pets there was no
+    // aggregate indicator at all — only a tiny per-card 🧬 icon buried in the
+    // grid, easy to miss entirely (a "13 notifications but nothing to act on"
+    // experience). Both the Companions tab badge and the notice banner must
+    // reflect the same pending count and jump to the same pet.
+    await page.evaluate(() => {
+      const S = window.__bpc.Storage;
+      S.grantPet("draco");
+      S.addPetXp("draco", 60); // Lv.2 → pending tier
+      S.grantPet("sparky");
+      S.addPetXp("sparky", 60); // Lv.2 → pending tier
+      window.__bpc.UI.refreshPetsBadge();
+    });
+
+    await page.locator("#btn-pets").click();
+    await expect(page.locator('.pet-tab[data-pet-tab="companions"] .pt-badge')).toHaveText("2");
+    await expect(page.locator("#pet-notice")).toBeVisible();
+    await expect(page.locator("#pet-notice")).toContainText("tech upgrade ready");
+
+    // Tapping the banner jumps to (and selects) the first pending pet.
+    await page.locator("#pet-notice").click();
+    await expect(page.locator(".pet-card.selected")).toHaveAttribute("data-pet", /draco|sparky/);
+    await expect(page.locator("#pet-detail .pd-tech-tier.pending")).toBeVisible();
+
+    // Resolving every pending pick clears both the tab badge and the banner.
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      g.pickPetTech("draco", "t1_power");
+      g.pickPetTech("sparky", "t1_power");
+      window.__bpc.UI.buildPets();
+    });
+    await expect(page.locator('.pet-tab[data-pet-tab="companions"] .pt-badge')).toHaveCount(0);
+    await expect(page.locator("#pet-notice")).toBeHidden();
+  });
 });
 
 // ---------------------------------------------------------------------------
