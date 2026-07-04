@@ -3577,6 +3577,15 @@ body {
   justify-content: center;
   min-height: 40px;
   padding-inline: 10px;
+  /* .pet-equip-btn/.pet-premium-btn/.pet-support-btn carry their own
+     width:100%/margin-top for when they render standalone (stacked above
+     other content). Inside this grid row every button is a sibling, so
+     those per-class margins made align-items:stretch give each button a
+     DIFFERENT rendered height (the taller a button's own margin-top, the
+     shorter its stretched box) -- exactly the "buttons are different
+     sizes" bug. Reset both so every button in the row sizes identically. */
+  width: auto;
+  margin-top: 0;
 }
 .pd-xp {
   margin-top: 12px;

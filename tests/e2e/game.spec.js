@@ -6170,6 +6170,37 @@ test.describe("pet companions (collection & buffs)", () => {
     await expect(page.locator("#menu")).toBeVisible();
   });
 
+  test("the pet detail action row renders Equip/Add to Party/Gem Forge at identical size", async ({
+    page,
+  }) => {
+    // Real bug guard: .pet-equip-btn/.pet-support-btn carry their own
+    // margin-top for when they render standalone elsewhere, but inside this
+    // shared grid row that per-button margin combined with the grid's
+    // default align-items:stretch made each button a DIFFERENT rendered
+    // height (Equip shortest, Gem Forge tallest) -- exactly what a player
+    // sees as "these buttons all look like different sizes".
+    await page.evaluate(() => window.__bpc.Storage.grantPet("clover"));
+    await page.locator("#btn-pets").click();
+    await page.locator('.pet-card[data-pet="clover"]').click();
+    const equip = page.locator("#pet-equip");
+    const support = page.locator("#pet-support");
+    const forge = page.locator("#pet-detail .pd-forge-btn");
+    await expect(equip).toBeVisible();
+    await expect(support).toBeVisible();
+    await expect(forge).toBeVisible();
+    const [equipBox, supportBox, forgeBox] = await Promise.all([
+      equip.boundingBox(),
+      support.boundingBox(),
+      forge.boundingBox(),
+    ]);
+    expect(equipBox.height).toBe(supportBox.height);
+    expect(equipBox.height).toBe(forgeBox.height);
+    // Sub-pixel float rounding across CSS grid fractional columns is fine;
+    // what matters is they're not visibly different sizes.
+    expect(Math.abs(equipBox.width - supportBox.width)).toBeLessThan(1);
+    expect(Math.abs(equipBox.width - forgeBox.width)).toBeLessThan(1);
+  });
+
   test("an active pet's detail explains it's dormant until abilities unlock, then clears once they do", async ({
     page,
   }) => {
