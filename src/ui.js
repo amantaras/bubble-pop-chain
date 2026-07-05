@@ -3121,7 +3121,7 @@ class UIManager {
 
   _petTabInfo() {
     return [
-      { id: "companions", label: "Companions", icon: "🐾", sub: "Collection" },
+      { id: "companions", label: "Pets", icon: "🐾", sub: "Collection" },
       { id: "party", label: "Party", icon: "🎉", sub: "Lead & supports" },
       { id: "gems", label: "Gems", icon: "💎", sub: "Sockets & forge" },
       { id: "store", label: "Store", icon: "🎁", sub: "Crates & premium" },

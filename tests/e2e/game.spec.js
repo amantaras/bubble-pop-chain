@@ -8236,6 +8236,25 @@ test.describe("pet technology tree (RPG batch 5)", () => {
       badgeBox.y + badgeBox.height > labelBox.y;
     expect(overlaps).toBe(false);
   });
+
+  test("every pet-manager tab label fits without ellipsis truncation on a real phone width", async ({
+    page,
+  }) => {
+    // Real bug guard: the Companions tab's label used to read "Companions",
+    // which is far wider than the ~36px a 4-column tab bar can spare at a
+    // 390px phone width, so it silently clipped to "Co…" once the label got
+    // proper overflow:hidden (a genuine, unreadable truncation, not just a
+    // cosmetic nuance). Every tab label must fit its own box without clipping.
+    await page.locator("#btn-pets").click();
+    for (const id of ["companions", "party", "gems", "store"]) {
+      const label = page.locator(`.pet-tab[data-pet-tab="${id}"] .pt-copy span`).first();
+      const { clientWidth, scrollWidth } = await label.evaluate((el) => ({
+        clientWidth: el.clientWidth,
+        scrollWidth: el.scrollWidth,
+      }));
+      expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 1);
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
