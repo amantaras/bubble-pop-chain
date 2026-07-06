@@ -47,6 +47,55 @@ export class ScreenShake {
   }
 }
 
+// Camera zoom "punch": a brief scale pulse on the game's biggest moments (a
+// top-tier combo, a supernova-sized pop) so they read as visually bigger
+// without adding any new game state — pure camera juice layered on top of the
+// existing combo escalator / pop-style system. `punch()` starts (or extends,
+// if a bigger punch is already mid-flight) a short ease-in/ease-out scale
+// bump centred on `scale` (read by the renderer each frame); `update(dt)`
+// advances it back to 1 once the punch's duration elapses.
+export class CameraZoom {
+  constructor() {
+    this.t = 0; // 0 = idle; counts up through the active punch's duration
+    this.dur = 0;
+    this.peak = 0; // how far above 1.0 the scale punches to
+    this.scale = 1;
+    // Reduced-motion accessibility setting sets this to 0 so the camera never
+    // zooms; default 1 leaves the punch unchanged. Mirrors ScreenShake.
+    this.motionScale = 1;
+  }
+  // `peak` is the extra scale at the top of the punch (e.g. 0.06 = 106%).
+  punch(peak = 0.05, dur = 0.4) {
+    if (this.motionScale <= 0) return;
+    const p = peak * this.motionScale;
+    // A punch is already in flight — only replace it with a STRONGER one, so
+    // a big Unstoppable combo can't be cut short by a smaller pop right after.
+    if (this.t > 0 && this.peak >= p) return;
+    this.peak = p;
+    this.dur = dur;
+    this.t = 0.0001;
+  }
+  update(dt) {
+    if (this.t <= 0) {
+      this.scale = 1;
+      return;
+    }
+    this.t += dt;
+    if (this.t >= this.dur) {
+      this.t = 0;
+      this.scale = 1;
+      return;
+    }
+    const p = this.t / this.dur;
+    const inPhase = 0.3; // fraction of the duration spent punching IN
+    const k =
+      p < inPhase
+        ? Easing.outQuad(p / inPhase)
+        : 1 - Easing.inQuad((p - inPhase) / (1 - inPhase));
+    this.scale = 1 + this.peak * Math.max(0, k);
+  }
+}
+
 // Floating "+score" text that rises and fades.
 export class FloatingText {
   constructor() {

@@ -914,6 +914,20 @@ never re‑discovered the hard way.
   session reset. `main.js` records `game._lastPopStyle` and exposes
   `__bpc.popStyle = popStyleForGroup` for inspection/tests. Purely cosmetic
   auto-mechanic → **no tutorial step** (consistent with the last-bubble finale).
+- **Combo Cam** (`animations.js` `CameraZoom`, `main.js` `_popCells`/`render`):
+  the game's biggest combo/pop moments get a brief camera **zoom-punch** —
+  a supernova-sized pop (`popStyleForGroup` style 4) or reaching the top two
+  combo escalator tiers (`ct-4` Amazing / `ct-5` Unstoppable) triggers
+  `CameraZoom.punch(peak, dur)`, a short ease-in/ease-out scale bump (peak
+  ~1.045–1.075×) centred on the board. `CameraZoom` mirrors `ScreenShake`'s
+  shape (`update(dt)`, `motionScale`): a stronger in-flight punch is never cut
+  short by a smaller one right after, and `motionScale` is zeroed by the
+  reduced-motion accessibility setting (`_applyReducedMotion`) so the camera
+  never zooms for players who've turned that off. `render()` applies the
+  punch as a `translate/scale/translate` pivoted on the board's centre
+  (`board.originX/Y + boardW/H / 2`), composed with the existing screen-shake
+  translate inside the same save/restore. Purely cosmetic camera juice on top
+  of existing state (no new save fields) → **no tutorial step**.
 - **Per-level best score** (`storage.js` `levelScores`/`getLevelScore`/
   `recordLevelScore`, `main.js` `_finish`, `ui.js` `buildLevelMap`): each
   campaign level tracks a **personal best**. On a campaign win `_finish` calls
@@ -1702,7 +1716,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 751 unit tests + 614 E2E
+- **Current baseline (keep growing, never shrink)**: 757 unit tests + 618 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

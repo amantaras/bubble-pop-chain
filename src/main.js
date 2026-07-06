@@ -4,6 +4,7 @@ import { Renderer, themeMotif } from "./renderer.js";
 import { ParticleSystem, popStyleForGroup } from "./particles.js";
 import {
   ScreenShake,
+  CameraZoom,
   FloatingText,
   PetAnim,
   AlienShip,
@@ -284,6 +285,7 @@ class Game {
     this.particles = new ParticleSystem();
     this.floating = new FloatingText();
     this.shake = new ScreenShake();
+    this.cameraZoom = new CameraZoom();
     this.petAnim = new PetAnim();
     this.alienShip = new AlienShip();
     this.finale = new BubbleFinale();
@@ -452,11 +454,13 @@ class Game {
 
   // Apply the reduced-motion accessibility setting. When on: screen shake is
   // disabled, particle bursts emit far fewer particles (and skip shockwave
-  // rings), and a body class neutralises large CSS animations. Honoured live
-  // from the Themes-screen toggle and at startup from the saved setting.
+  // rings), the combo/pop camera zoom never punches in, and a body class
+  // neutralises large CSS animations. Honoured live from the Themes-screen
+  // toggle and at startup from the saved setting.
   _applyReducedMotion(on) {
     this.reducedMotion = !!on;
     this.shake.motionScale = this.reducedMotion ? 0 : 1;
+    this.cameraZoom.motionScale = this.reducedMotion ? 0 : 1;
     this.particles.motionScale = this.reducedMotion ? 0.45 : 1;
     this.renderer.reducedMotion = this.reducedMotion;
     if (typeof document !== "undefined" && document.body)
@@ -4158,10 +4162,17 @@ class Game {
     Audio.pop(combo, groupSize);
     vibrate(groupSize >= 8 ? 30 : groupSize >= 5 ? 24 : 12);
     this.shake.add(Math.min(0.6, 0.08 + groupSize * 0.02) * shakePower * (style.flash ? 1.3 : 1));
+    // Combo Cam: punch the camera in on a supernova-sized pop, escalating
+    // further if the combo has also reached a top escalator tier.
+    if (style.style === 4) this.cameraZoom.punch(0.05, 0.4);
 
     if (combo >= 2) {
       const t = comboTier(combo);
-      if (t) UI.showCombo(`${t.label}! ×${combo}`, t.className);
+      if (t) {
+        UI.showCombo(`${t.label}! ×${combo}`, t.className);
+        if (t.className === "ct-4") this.cameraZoom.punch(0.045, 0.4);
+        else if (t.className === "ct-5") this.cameraZoom.punch(0.075, 0.5);
+      }
     }
   }
 
@@ -5484,6 +5495,7 @@ class Game {
   // ---- Main loop --------------------------------------------------------
   update(dt) {
     this.shake.update(dt);
+    this.cameraZoom.update(dt);
     this.particles.update(dt);
     this.floating.update(dt);
     this.petAnim.update(dt);
@@ -5836,6 +5848,17 @@ class Game {
     ctx.save();
     ctx.translate(this.shake.x, this.shake.y);
     if (this.session) {
+      // Combo Cam: a brief zoom-punch on the game's biggest combo/pop
+      // moments, centred on the board so it reads as the whole scene getting
+      // bigger rather than shifting off-centre.
+      const z = this.cameraZoom.scale;
+      if (z !== 1) {
+        const cx = this.session.board.originX + this.session.board.boardW / 2;
+        const cy = this.session.board.originY + this.session.board.boardH / 2;
+        ctx.translate(cx, cy);
+        ctx.scale(z, z);
+        ctx.translate(-cx, -cy);
+      }
       this.renderer.drawBoardFrame(this.session.board);
       // Echo Pops: a soft fading ring over any cell with an active echo,
       // cueing "land a matching bubble here for a bonus" while it lasts.

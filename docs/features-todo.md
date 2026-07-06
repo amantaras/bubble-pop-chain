@@ -13,7 +13,7 @@ fully-deployed slices).
 
 ---
 
-## 1. Combo Cam — dynamic zoom on huge combos
+## 1. Combo Cam — dynamic zoom on huge combos ✅ SHIPPED
 
 **Goal**: make the biggest combo/pop moments read as visually bigger, without
 adding any new game state — pure camera "juice" layered on the existing combo
@@ -34,19 +34,20 @@ escalator (`scoring.js` `comboTier`/`COMBO_TIERS`) and pop-style system
   explosion styles and the last-bubble finale.
 
 **Tasks**:
-- [ ] Add `CameraZoom` class to `animations.js` (pure `update(dt)`/`draw`-style
+- [x] Add `CameraZoom` class to `animations.js` (pure `update(dt)`/`draw`-style
       API mirroring `ScreenShake`).
-- [ ] Wire trigger points in `main.js` (`popAt`/wherever combo tier and pop
-      style are resolved).
-- [ ] Apply the transform in the render path (`main.js` `render()` or
-      `renderer.js`), respecting `reducedMotion`.
-- [ ] Unit tests: pure zoom-curve math (`tests/unit/animations.test.js`),
-      reduced-motion scaling.
-- [ ] E2E test: reaching a top combo tier / supernova pop measurably changes
-      the canvas transform (or exposes a testable hook via `__bpc`), and stays
-      neutral under reduced motion.
-- [ ] Update `AGENTS.md` feature list (§1) with a short entry.
-- [ ] `npm test` green, commit, push, verify CI + deploy + live site.
+- [x] Wire trigger points in `main.js` (`_popCells` — supernova pop style, or
+      reaching combo tier `ct-4`/`ct-5`).
+- [x] Apply the transform in the render path (`main.js` `render()`), pivoted
+      on the board centre, respecting `reducedMotion`.
+- [x] Unit tests: pure zoom-curve math + reduced-motion scaling + punch
+      override behaviour (`tests/unit/animations.test.js`, 6 new tests).
+- [x] E2E test: reaching the top combo tier punches the zoom above 1 then
+      decays back to 1; reduced motion suppresses it entirely
+      (`tests/e2e/game.spec.js`, 2 new tests × 2 projects = 4).
+- [x] Update `AGENTS.md` feature list (§1) with a short entry, and bump the
+      test baseline (751→757 unit, 614→618 e2e).
+- [x] `npm test` green, commit, push, verify CI + deploy + live site.
 
 ---
 

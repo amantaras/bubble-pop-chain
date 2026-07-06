@@ -3758,6 +3758,77 @@ test.describe("combo escalator (#5)", () => {
   });
 });
 
+test.describe("Combo Cam (dynamic zoom on huge combos)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("reaching the top combo tier punches the camera zoom above 1, then it decays back to 1", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(400);
+
+    const popped = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const s = g.session;
+      s.combo = 12; // resolving pop lands at ×13 -> top "Unstoppable" tier
+      s.comboTimer = 99;
+      const b = s.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          if (b.grid[c][r] === -1 || b.types[c][r] !== 0) continue;
+          if (b.getGroupAt(c, r).length >= 2) {
+            g.popAt(c, r);
+            return true;
+          }
+        }
+      return false;
+    });
+    expect(popped).toBe(true);
+
+    // The punch is active immediately after the pop (peak recorded, timer running).
+    const peak = await page.evaluate(() => window.__bpc.game.cameraZoom.peak);
+    expect(peak).toBeGreaterThan(0);
+
+    // Advance the update loop past the punch's duration and confirm it decays
+    // all the way back to a neutral scale (no permanent zoom).
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      for (let i = 0; i < 60; i++) g.cameraZoom.update(0.05);
+    });
+    const scaleAfter = await page.evaluate(() => window.__bpc.game.cameraZoom.scale);
+    expect(scaleAfter).toBe(1);
+  });
+
+  test("reduced motion suppresses the camera punch entirely", async ({ page }) => {
+    await page.evaluate(() => {
+      window.__bpc.game._applyReducedMotion(true);
+    });
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(400);
+
+    const popped = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const s = g.session;
+      s.combo = 12;
+      s.comboTimer = 99;
+      const b = s.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          if (b.grid[c][r] === -1 || b.types[c][r] !== 0) continue;
+          if (b.getGroupAt(c, r).length >= 2) {
+            g.popAt(c, r);
+            return true;
+          }
+        }
+      return false;
+    });
+    expect(popped).toBe(true);
+
+    const scale = await page.evaluate(() => window.__bpc.game.cameraZoom.scale);
+    expect(scale).toBe(1);
+  });
+});
+
 test.describe("cascade chain bonus (#8)", () => {
   test.beforeEach(({ page }) => openGame(page));
 

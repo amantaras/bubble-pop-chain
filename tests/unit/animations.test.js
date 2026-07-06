@@ -3,6 +3,7 @@ import {
   PetAnim,
   FloatingText,
   ScreenShake,
+  CameraZoom,
   AlienShip,
   BubbleFinale,
   BUBBLE_FINALE_VARIANTS,
@@ -303,6 +304,58 @@ describe("existing animators still parse/behave", () => {
     s.motionScale = 0.5;
     s.add(0.4);
     expect(s.trauma).toBeCloseTo(0.2, 5);
+  });
+});
+
+describe("CameraZoom — combo/pop camera punch", () => {
+  it("defaults to scale 1 (idle) and full motionScale", () => {
+    const z = new CameraZoom();
+    expect(z.scale).toBe(1);
+    expect(z.motionScale).toBe(1);
+  });
+
+  it("punch() then update() moves scale above 1, then back to 1 once the duration elapses", () => {
+    const z = new CameraZoom();
+    z.punch(0.1, 0.4);
+    z.update(0.06); // 15% through — still in the punch-in phase
+    expect(z.scale).toBeGreaterThan(1);
+    expect(z.scale).toBeLessThan(1.1);
+    z.update(0.5); // well past the duration
+    expect(z.scale).toBe(1);
+  });
+
+  it("reaches (approximately) the full peak at the end of the punch-in phase", () => {
+    const z = new CameraZoom();
+    z.punch(0.08, 0.4);
+    z.update(0.4 * 0.3); // exactly the punch-in fraction of the duration
+    expect(z.scale).toBeCloseTo(1.08, 2);
+  });
+
+  it("motionScale 0 (reduced motion) suppresses the punch entirely", () => {
+    const z = new CameraZoom();
+    z.motionScale = 0;
+    z.punch(0.1, 0.4);
+    z.update(0.06);
+    expect(z.scale).toBe(1);
+  });
+
+  it("a stronger punch overrides a weaker one already in flight", () => {
+    const z = new CameraZoom();
+    z.punch(0.03, 0.4);
+    z.update(0.05);
+    const midWeak = z.scale;
+    z.punch(0.09, 0.5); // stronger — should take over
+    z.update(0.01);
+    expect(z.peak).toBeCloseTo(0.09, 5);
+    expect(z.scale).toBeGreaterThanOrEqual(midWeak - 0.01);
+  });
+
+  it("a weaker punch does NOT interrupt a stronger one already in flight", () => {
+    const z = new CameraZoom();
+    z.punch(0.09, 0.5);
+    z.update(0.05);
+    z.punch(0.02, 0.3); // weaker — must be ignored
+    expect(z.peak).toBeCloseTo(0.09, 5);
   });
 });
 
