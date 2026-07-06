@@ -717,6 +717,27 @@ export class Board {
     return { from: { c, r }, to: { c: tc, r: tr } };
   }
 
+  // Board Storm (positive event): charge ONE random plain (NORMAL) bubble
+  // into a LIGHTNING bubble. Mirrors spreadVines'/spreadPolarity's
+  // single-step-per-call contract, so a fired storm plays out gradually over
+  // a few resolved moves rather than all at once. Deterministic via the
+  // board rng. Returns the {c, r} of the newly-charged cell, or null if
+  // there's no eligible plain bubble left on the board.
+  chargeStormBubble() {
+    const candidates = [];
+    for (let c = 0; c < this.cols; c++) {
+      for (let r = 0; r < this.rows; r++) {
+        if (this.grid[c][r] === -1) continue;
+        if (this.types[c][r] !== NORMAL) continue;
+        candidates.push([c, r]);
+      }
+    }
+    if (candidates.length === 0) return null;
+    const pick = candidates[Math.floor(this.rng() * candidates.length)];
+    this.types[pick[0]][pick[1]] = LIGHTNING;
+    return { c: pick[0], r: pick[1] };
+  }
+
   // True if (c,r) has at least one orthogonal, filled, plain (NORMAL)
   // neighbour — the "growth opportunity" a Bloom seed/bud needs to advance.
   _hasNormalNeighbor(c, r) {

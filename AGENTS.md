@@ -609,6 +609,32 @@ never re‑discovered the hard way.
   into that zone, brightening/quickening with proximity; `main` only draws it
   when `session.downpour` is set and `topFilledRow() <= dangerRows`. No tutorial
   step (it's an advanced meta-threat, like gems).
+- **Board Storm** (`levels.js` `boardStormForLevel`/`BOARD_STORM_MIN_LEVEL`,
+  `grid.js` `chargeStormBubble`, `main.js` `_boardStorm`): the friendly,
+  purely-beneficial counterpart to Downpour — instead of a hazard, a rare
+  mid-level burst charges a few plain bubbles into **Lightning** bubbles over
+  the next few resolved moves. Because it's a pure boon (never blocks a win,
+  never ends the level), it arms **much earlier** than Downpour —
+  `boardStormForLevel(n)` is eligible from `BOARD_STORM_MIN_LEVEL` (5) and,
+  like Downpour/Echo, returns `null` on milestone (treasure/boss) levels
+  (`milestoneType` suppresses it). Unlike Downpour's ramping cadence, the
+  config (`{ chance, charges }`) is **flat across all eligible levels** — a
+  small per-move probability of firing (`chance`), and how many bubbles it
+  charges once it fires (`charges`), one per resolved move. `getLevel` carries
+  it as `level.boardStorm`. `main._boardStorm()` is called once per move from
+  `afterMove` (grouped with the other auto-mechanics — vine/polarity/bloom —
+  campaign-only, skipped during a finale): while `session.boardStormRemaining`
+  is nonzero it calls `grid.chargeStormBubble()` (mirrors `spreadVines`'/
+  `spreadPolarity`'s single-step-per-call contract — picks one random plain
+  bubble and promotes it to `LIGHTNING`) and decrements the budget; once spent,
+  the storm is done for that level. Otherwise, if the storm hasn't already
+  fired this level (`session.boardStormFired`), each move rolls `chance`
+  against `Math.random()` — a hit sets `boardStormFired` and loads
+  `boardStormRemaining`, playing a `⚡ Board Storm!` banner (no charge lands on
+  the firing move itself, only on subsequent moves). It only ever fires
+  **once per level**. `boardStormFired`/`boardStormRemaining` are part of the
+  save/resume snapshot. Purely cosmetic/reward auto-mechanic → **no tutorial
+  step** (same precedent as Downpour/Echo/vine/polarity/bloom).
 - **Ads gating** (`monetization.js`): forced interstitials only from
   `adsStartLevel` (7) onward; rewarded surfaces are shown only when
   `Monetization.canShowRewardedAd()` is true. The manager owns
@@ -1716,7 +1742,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 757 unit tests + 618 E2E
+- **Current baseline (keep growing, never shrink)**: 763 unit tests + 624 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

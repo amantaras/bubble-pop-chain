@@ -242,6 +242,27 @@ export function echoForLevel(n) {
   return n >= ECHO_MIN_LEVEL;
 }
 
+// Board Storm (positive mid-level burst) ------------------------------------
+// The friendly counterpart to Downpour: instead of a hazard, a rare mid-level
+// burst charges a few random plain bubbles into Lightning bubbles over the
+// next few resolved moves -- a pure boon, so (unlike Downpour) it can safely
+// start much earlier in the campaign. Returns null (not eligible) or
+// `{ chance, charges }` -- `chance` is the independent per-move probability
+// of the storm firing once while armed (it only ever fires once per level);
+// `charges` is how many plain bubbles it charges into Lightning once it
+// fires, one per resolved move (mirrors spreadVines'/spreadPolarity's
+// single-step-per-move contract). Suppressed on milestone (treasure/boss)
+// beats, which carry their own distinct identity -- same precedent as
+// Downpour/Echo.
+export const BOARD_STORM_MIN_LEVEL = 5;
+const BOARD_STORM_CHANCE = 0.035;
+const BOARD_STORM_CHARGES = 3;
+
+export function boardStormForLevel(n) {
+  if (n < BOARD_STORM_MIN_LEVEL || milestoneType(n)) return null;
+  return { chance: BOARD_STORM_CHANCE, charges: BOARD_STORM_CHARGES };
+}
+
 // Bonus objectives ----------------------------------------------------------
 // Each ordinary campaign level carries an optional bonus objective: an extra
 // challenge layered on top of the score target. Meeting it pays bonus coins on
@@ -328,6 +349,7 @@ export function getLevel(id) {
     objective: objectiveForLevel(n),
     downpour: downpourForLevel(n),
     echo: echoForLevel(n),
+    boardStorm: boardStormForLevel(n),
   };
 }
 

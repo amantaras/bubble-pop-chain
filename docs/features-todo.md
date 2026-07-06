@@ -132,7 +132,7 @@ with a short "incubating" beat before the pet is revealed.
 
 ---
 
-## 4. Board Storm — positive mid-level burst event
+## 4. Board Storm — positive mid-level burst event ✅ SHIPPED
 
 **Goal**: a rare, purely beneficial mid-level burst — the positive counterpart
 to Downpour's hazard, giving occasional "something exciting just happened"
@@ -153,18 +153,23 @@ moments without any downside.
   precedent as Downpour).
 
 **Tasks**:
-- [ ] `levels.js`: `boardStormForLevel(n)` (pure, deterministic arm/trigger
+- [x] `levels.js`: `boardStormForLevel(n)` (pure, deterministic arm/trigger
       chance, mirrors `downpourForLevel`).
-- [ ] `grid.js`: a pure helper to upgrade N random plain cells to `LIGHTNING`
-      over successive calls (one per move, like `spreadVines`).
-- [ ] `main.js`: wire into `afterMove` (campaign-only, skip in tutorial/finale,
-      similar guard structure to `_downpour()`).
-- [ ] `renderer.js`: brief glow/sweep visual cue.
-- [ ] Unit tests: arm/trigger probability determinism, cell-upgrade helper.
-- [ ] E2E test: a storm-eligible level's storm fires and visibly upgrades
-      bubbles to Lightning over subsequent moves.
-- [ ] `AGENTS.md` feature entry (near the Downpour section, contrasting it).
-- [ ] `npm test` green, commit, push, verify CI + deploy + live site.
+- [x] `grid.js`: `chargeStormBubble()` upgrades one random plain cell to
+      `LIGHTNING` per call (mirrors `spreadVines`/`spreadPolarity`).
+- [x] `main.js`: wired into `afterMove` via `_boardStorm()` (campaign-only,
+      skipped during finale, grouped with the other auto-mechanics).
+- [x] Visual cue: sparkle burst + floating `⚡`/`⚡ Board Storm!` banner (kept
+      to the existing particle/floating-text systems rather than a new
+      renderer sweep — simpler and consistent with vine/polarity's cues).
+- [x] Unit tests: arm/trigger gating (`tests/unit/levels.test.js`, 3 new),
+      `chargeStormBubble` cell-upgrade helper (`tests/unit/grid.test.js`, 3 new).
+- [x] E2E tests: storm arms on eligible levels only; a fired storm charges one
+      Lightning bubble per move until its budget is spent; fires at most once
+      per level (`tests/e2e/game.spec.js`, 3 new tests × 2 projects = 6).
+- [x] `AGENTS.md` feature entry (right after the Downpour section, contrasting
+      it), test baseline bumped to 763 unit + 624 e2e.
+- [x] `npm test` green, commit, push, verify CI + deploy + live site.
 
 ---
 

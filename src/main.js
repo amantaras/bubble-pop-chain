@@ -715,6 +715,12 @@ class Game {
       // every `interval` resolved moves; `movesSinceDrop` paces that cadence.
       downpour: (mode === "campaign" && level.downpour) || null,
       movesSinceDrop: 0,
+      // Board Storm (positive mid-level burst, the friendly counterpart to
+      // Downpour): once armed, fires at most once per level, then charges a
+      // few plain bubbles into Lightning over the next few resolved moves.
+      boardStorm: (mode === "campaign" && level.boardStorm) || null,
+      boardStormFired: false,
+      boardStormRemaining: 0,
       // Time Attack countdown (seconds). Unused by other modes.
       timeLeft: mode === "timeattack" ? TIME_ATTACK_SECONDS : 0,
       screenTimeLeft: this._screenTimeLimit(mode, level),
@@ -876,6 +882,9 @@ class Game {
       undosLeft: 0,
       downpour: level.downpour || null,
       movesSinceDrop: snap.movesSinceDrop || 0,
+      boardStorm: level.boardStorm || null,
+      boardStormFired: !!snap.boardStormFired,
+      boardStormRemaining: snap.boardStormRemaining || 0,
       screenTimeLeft:
         snap.screenTimeLeft == null
           ? this._screenTimeLimit("campaign", level)
@@ -916,6 +925,8 @@ class Game {
       objectiveMet: !!s.objectiveMet,
       usedPowerup: !!s.usedPowerup,
       movesSinceDrop: s.movesSinceDrop || 0,
+      boardStormFired: !!s.boardStormFired,
+      boardStormRemaining: s.boardStormRemaining || 0,
       screenTimeLeft: s.screenTimeLeft || 0,
       screenTimeShown: s.screenTimeShown || Math.ceil(s.screenTimeLeft || 0),
       boardInteracted: !!s.boardInteracted,
@@ -4328,6 +4339,11 @@ class Game {
     // alone instead of popping it early.
     this._growBloom();
 
+    // Board Storm: the positive counterpart to Downpour — a rare mid-level
+    // burst that charges a few plain bubbles into Lightning over the next
+    // few resolved moves. Never blocks a win, never ends the level.
+    this._boardStorm();
+
     // Echo Pops: a small automatic bonus when a same-coloured bubble settles
     // into a recently-popped cell before its echo fades.
     this._resolveEchoes();
@@ -4493,6 +4509,36 @@ class Game {
     } else {
       this.floating.spawn(p.x, p.y - 24, "🌱", "#8effb0", 16);
     }
+  }
+
+  // Board Storm (positive mid-level burst — the friendly counterpart to
+  // Downpour): once a level is storm-eligible (levels.js boardStormForLevel),
+  // every resolved move has a small independent chance to fire ONCE per
+  // level. Once fired, it charges one random plain bubble into a Lightning
+  // bubble per resolved move (Board.chargeStormBubble, mirrors spreadVines'/
+  // spreadPolarity's single-step contract) until its charge budget is spent.
+  // Never blocks a win and never ends the level — a pure boon.
+  _boardStorm() {
+    const s = this.session;
+    if (!s || s.ended || s.mode !== "campaign" || !s.boardStorm) return;
+    if (this.finale.active) return;
+    if (s.boardStormRemaining > 0) {
+      const charged = s.board.chargeStormBubble();
+      s.boardStormRemaining -= 1;
+      if (charged) {
+        const p = s.board.targetPixel(charged.c, charged.r);
+        this.particles.sparkle(p.x, p.y, "#ffe98a", 8);
+        this.floating.spawn(p.x, p.y - 24, "⚡", "#ffe98a", 18);
+      }
+      return;
+    }
+    if (s.boardStormFired) return; // already happened once this level
+    if (Math.random() >= s.boardStorm.chance) return;
+    s.boardStormFired = true;
+    s.boardStormRemaining = s.boardStorm.charges;
+    Audio.powerup();
+    vibrate(16);
+    this.floating.spawn(this.W / 2, TOP_INSET + 18, "⚡ Board Storm!", "#ffe98a", 26);
   }
 
   // Echo Pops only run in campaign levels that have unlocked them (see

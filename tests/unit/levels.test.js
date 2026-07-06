@@ -12,7 +12,7 @@ import {
   MAX_NEW_MECHANICS_PER_BOARD,
 } from "../../src/levels.js";
 
-import { downpourForLevel, DOWNPOUR_MIN_LEVEL } from "../../src/levels.js";
+import { downpourForLevel, DOWNPOUR_MIN_LEVEL, boardStormForLevel, BOARD_STORM_MIN_LEVEL } from "../../src/levels.js";
 import { echoForLevel, ECHO_MIN_LEVEL } from "../../src/levels.js";
 
 describe("levels", () => {
@@ -396,6 +396,30 @@ describe("levels", () => {
   it("getLevel carries its downpour config", () => {
     expect(getLevel(31).downpour).toEqual(downpourForLevel(31));
     expect(getLevel(10).downpour).toBeNull();
+  });
+
+  it("board storm arms only on eligible, non-milestone campaign levels", () => {
+    // Below the threshold: no storm anywhere in the earliest levels.
+    expect(boardStormForLevel(1)).toBeNull();
+    expect(boardStormForLevel(BOARD_STORM_MIN_LEVEL - 1)).toBeNull();
+    // The threshold level itself (5) is a treasure milestone, so it's
+    // suppressed there too -- same precedent as Downpour/Echo.
+    expect(boardStormForLevel(BOARD_STORM_MIN_LEVEL)).toBeNull();
+    expect(boardStormForLevel(10)).toBeNull(); // boss milestone
+    const armed = boardStormForLevel(BOARD_STORM_MIN_LEVEL + 1);
+    expect(armed).toBeTruthy();
+    expect(armed.chance).toBeGreaterThan(0);
+    expect(armed.chance).toBeLessThan(1);
+    expect(armed.charges).toBeGreaterThan(0);
+  });
+
+  it("board storm config is stable across levels (unlike downpour it doesn't ramp)", () => {
+    expect(boardStormForLevel(6)).toEqual(boardStormForLevel(9999));
+  });
+
+  it("getLevel carries its board storm config", () => {
+    expect(getLevel(6).boardStorm).toEqual(boardStormForLevel(6));
+    expect(getLevel(1).boardStorm).toBeNull();
   });
 
   it("echo pops unlock from level 40 and not before", () => {

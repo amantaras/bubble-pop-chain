@@ -706,6 +706,42 @@ describe("grid / Board", () => {
     expect(b.types[1][0]).toBe(STONE); // untouched
   });
 
+  // ---- Board Storm (positive event: charges plain bubbles into Lightning) --
+  it("chargeStormBubble upgrades one random plain bubble into Lightning", () => {
+    const b = new Board(4, 1, 2, 1);
+    for (let c = 0; c < b.cols; c++) b.grid[c][0] = 0;
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    const charged = b.chargeStormBubble();
+    expect(charged).toBeTruthy();
+    expect(b.types[charged.c][charged.r]).toBe(LIGHTNING);
+    // Exactly one cell was upgraded — the rest stay plain.
+    let lightningCount = 0;
+    for (let c = 0; c < b.cols; c++) if (b.types[c][0] === LIGHTNING) lightningCount++;
+    expect(lightningCount).toBe(1);
+  });
+
+  it("chargeStormBubble returns null when there is no plain bubble left to charge", () => {
+    const b = new Board(2, 1, 2, 1);
+    b.grid[0][0] = -1; // empty
+    b.grid[1][0] = 0;
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[1][0] = STONE; // the only filled cell isn't plain
+    expect(b.chargeStormBubble()).toBeNull();
+  });
+
+  it("chargeStormBubble never touches an already-special bubble", () => {
+    const b = new Board(3, 1, 2, 1);
+    for (let c = 0; c < b.cols; c++) b.grid[c][0] = 0;
+    b.types = b.grid.map((col) => col.map(() => NORMAL));
+    b.types[0][0] = BOMB;
+    b.types[1][0] = STONE;
+    // Only column 2 is plain, so the charge must land there deterministically.
+    const charged = b.chargeStormBubble();
+    expect(charged).toEqual({ c: 2, r: 0 });
+    expect(b.types[0][0]).toBe(BOMB);
+    expect(b.types[1][0]).toBe(STONE);
+  });
+
   // ---- Bloom seeds (BLOOM_SEED/BLOOM_BUD) ---------------------------------
   it("a bloom spawn rate sprinkles seeds deterministically", () => {
     const b = new Board(10, 10, 4, 17, { rainbow: 0, ice: 0, bloom: 0.5 });

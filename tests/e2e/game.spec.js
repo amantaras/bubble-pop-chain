@@ -9256,4 +9256,94 @@ test.describe("downpour (advanced levels)", () => {
   });
 });
 
+test.describe("Board Storm (positive mid-level burst)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("advanced levels arm the storm, early levels don't", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(6));
+    const armed = await page.evaluate(() => window.__bpc.game.session.boardStorm);
+    expect(armed).toBeTruthy();
+    expect(armed.charges).toBeGreaterThan(0);
+
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    expect(
+      await page.evaluate(() => window.__bpc.game.session.boardStorm)
+    ).toBeNull();
+  });
+
+  test("a fired storm charges a plain bubble into Lightning on each of the next few moves", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(6));
+    await page.waitForTimeout(300);
+
+    // Force the storm to fire on the very next resolved move (bypassing the
+    // random per-move chance), then check the charge budget applies one
+    // upgrade per move until it's spent.
+    const result = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const s = g.session;
+      s.boardStorm.chance = 1;
+      const before = {
+        lightning: countLightning(),
+        fired: s.boardStormFired,
+      };
+      g._boardStorm(); // fires: sets boardStormRemaining, no charge yet
+      const afterFire = {
+        fired: s.boardStormFired,
+        remaining: s.boardStormRemaining,
+        lightning: countLightning(),
+      };
+      g._boardStorm(); // first charge
+      const afterFirstCharge = {
+        remaining: s.boardStormRemaining,
+        lightning: countLightning(),
+      };
+      // Drain the rest of the charge budget.
+      while (s.boardStormRemaining > 0) g._boardStorm();
+      const afterAll = { remaining: s.boardStormRemaining, lightning: countLightning() };
+
+      function countLightning() {
+        const b = s.board;
+        let n = 0;
+        for (let c = 0; c < b.cols; c++)
+          for (let r = 0; r < b.rows; r++) if (b.isLightning(c, r)) n++;
+        return n;
+      }
+      return { before, afterFire, afterFirstCharge, afterAll };
+    });
+
+    expect(result.before.fired).toBe(false);
+    expect(result.afterFire.fired).toBe(true);
+    expect(result.afterFire.remaining).toBeGreaterThan(0);
+    // Firing itself doesn't charge a bubble yet — only subsequent moves do.
+    expect(result.afterFire.lightning).toBe(result.before.lightning);
+    expect(result.afterFirstCharge.lightning).toBeGreaterThan(result.before.lightning);
+    expect(result.afterFirstCharge.remaining).toBe(result.afterFire.remaining - 1);
+    // Once the charge budget is spent, no more Lightning bubbles get added.
+    expect(result.afterAll.remaining).toBe(0);
+    expect(result.afterAll.lightning).toBeGreaterThan(result.afterFirstCharge.lightning - 1);
+  });
+
+  test("the storm only ever fires once per level", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(6));
+    await page.waitForTimeout(300);
+
+    const firedTwice = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const s = g.session;
+      s.boardStorm.chance = 1;
+      g._boardStorm(); // fires and starts charging
+      while (s.boardStormRemaining > 0) g._boardStorm(); // spend the budget
+      const remainingAfterSpend = s.boardStormRemaining;
+      // Even with chance still 1, it must not arm/fire again this level.
+      g._boardStorm();
+      return { remainingAfterSpend, remainingNow: s.boardStormRemaining, fired: s.boardStormFired };
+    });
+    expect(firedTwice.remainingAfterSpend).toBe(0);
+    expect(firedTwice.remainingNow).toBe(0);
+    expect(firedTwice.fired).toBe(true);
+  });
+});
+
 
