@@ -8255,6 +8255,27 @@ test.describe("pet technology tree (RPG batch 5)", () => {
       expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 1);
     }
   });
+
+  test("the pet-manager overlay reserves scrollbar space so its tab bar never reflows between tabs", async ({
+    page,
+  }) => {
+    // Real bug guard: #pets scrolls internally (overflow-y:auto). Some tabs
+    // (e.g. Store, with the crate panel + premium list) are tall enough to
+    // trigger a classic, space-consuming scrollbar while others (e.g. Party)
+    // are not — that shrank the shared sticky tab bar by the scrollbar's
+    // width only on the taller tabs, so labels that fit on Party clipped the
+    // moment the player switched to Store. Headless Chromium always renders
+    // overlay (non-space-consuming) scrollbars, so a real device's classic
+    // scrollbar reflow can't be reproduced pixel-for-pixel here — assert the
+    // actual CSS contract instead (`scrollbar-gutter: stable`), which is what
+    // keeps the reserved width constant on every real browser/OS that does
+    // use classic scrollbars (e.g. desktop Chrome/Firefox on Windows).
+    await page.locator("#btn-pets").click();
+    const gutter = await page
+      .locator("#pets")
+      .evaluate((el) => getComputedStyle(el).scrollbarGutter);
+    expect(gutter).toBe("stable");
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -2946,6 +2946,14 @@ body {
 #pets {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  /* Keep the sticky tab bar's available width constant across tabs: some
+     tabs (e.g. Store) have taller content than others (e.g. Party), and a
+     classic (space-consuming) scrollbar only appearing on the taller tabs
+     shrank the 4-column tab bar just enough to push short labels like
+     "Party"/"Gems"/"Store" into ellipsis clipping — an inconsistent, jarring
+     reflow when switching tabs. Reserving the gutter unconditionally keeps
+     the tab bar's width (and label truncation) identical on every tab. */
+  scrollbar-gutter: stable;
 }
 .pet-tabs {
   position: sticky;
@@ -2953,7 +2961,7 @@ body {
   z-index: 3;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 7px;
+  gap: 5px;
   margin: -2px 0 12px;
   padding: 6px;
   border-radius: 16px;
@@ -2967,8 +2975,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  padding: 7px 8px;
+  gap: 5px;
+  padding: 7px 4px;
   border: 1px solid transparent;
   border-radius: 12px;
   background: transparent;
