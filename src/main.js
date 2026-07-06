@@ -3472,7 +3472,7 @@ class Game {
       sweet: 0.22 + Math.random() * 0.56,
     };
     Audio.click();
-    UI.showMagnetGauge(s.magnet.sweet);
+    UI.showMagnetGauge(s.magnet.sweet, MAGNET_HALF);
     UI.updateMagnetGauge(0);
     UI.toast("🧲 Tap to set strength — aim for green!");
   }

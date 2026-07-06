@@ -2931,6 +2931,40 @@ test.describe("power-ups (UI arm + apply)", () => {
     await expect(page.locator('[data-pu="magnet"] .pu-count')).toHaveText("0");
   });
 
+  test("the magnet gauge's colour ramp matches where strength actually hits zero", async ({
+    page,
+  }) => {
+    // Real bug guard: the ring's colour stops used to be hand-tuned
+    // separately from MAGNET_HALF (the real strength falloff), so the dial
+    // still read yellow/orange well past the point where the mechanical pull
+    // strength had already floored at zero — misleading the player about how
+    // close their lock actually was. The ring background is now computed
+    // directly from MAGNET_HALF, so the "dead" red stop must land exactly at
+    // MAGNET_HALF * 270 degrees from the green centre.
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(700);
+    const target = await page.evaluate(() => {
+      const b = window.__bpc.game.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++)
+          if (b.grid[c][r] !== -1 && b.types[c][r] === 0 && b.colorCells(b.grid[c][r]).length >= 2)
+            return { c, r };
+      return null;
+    });
+    await page.evaluate((t) => {
+      window.__bpc.Economy.addPowerup("magnet", 5);
+      window.__bpc.game.armPowerup("magnet");
+      window.__bpc.game.beginMagnet(t.c, t.r);
+    }, target);
+    const bg = await page.locator(".mg-ring").evaluate((el) => el.style.background);
+    // MAGNET_HALF is 0.3 (see AGENTS.md), so the dead zone is at 0.3*270=81deg.
+    expect(bg).toContain("81deg");
+    expect(bg).toContain("279deg"); // mirrored dead-zone stop on the other side
+    // The colour AT that exact boundary must already be a "dead" red, not a
+    // still-hopeful yellow/orange.
+    expect(bg).toMatch(/rgb\(255, 77, 99\) 81deg/);
+  });
+
   test("magnet aim uses the visible plain bubble even during sprite offset", async ({
     page,
   }) => {

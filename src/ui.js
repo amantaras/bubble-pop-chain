@@ -4598,7 +4598,7 @@ class UIManager {
   // needle sweeps a 270° arc, the player taps to lock it, and proximity to the
   // green sweet spot decides the pull strength. The sweet spot is randomised
   // per use, so the green band is rotated to wherever `sweet` (0..1) lands.
-  showMagnetGauge(sweet = 0.5) {
+  showMagnetGauge(sweet = 0.5, half = 0.3) {
     const g = this.el["magnet-gauge"];
     if (!g) return;
     g.classList.remove("hidden");
@@ -4608,6 +4608,25 @@ class UIManager {
       // band lines up with the needle angle at `sweet`.
       const deg = (sweet - 0.5) * 270;
       ring.style.transform = `rotate(${deg}deg)`;
+      // Colour the ring's ramp directly from the real strength falloff
+      // (`half` = MAGNET_HALF, the value-space distance from the sweet spot
+      // where strength hits zero) instead of a separately hand-tuned CSS
+      // gradient — those two used to drift apart, so the dial still looked
+      // yellow/orange ("still trying") for a wide stretch of travel where the
+      // actual mechanical strength had already floored at zero, misleading
+      // the player about how close their lock really was. Once mapped
+      // through the same 270°-per-1.0 scale the needle itself uses, the ramp
+      // always reaches "dead" red exactly where the bonus truly disappears.
+      const dead = Math.min(175, Math.max(10, half * 270));
+      const g1 = dead * 0.2;
+      const g2 = dead * 0.5;
+      const g3 = dead * 0.75;
+      const g4 = dead * 0.93;
+      ring.style.background = `conic-gradient(from 0deg,
+        #5bff9b 0deg, #5bff9b ${g1}deg, #c8f55b ${g2}deg, #ffd35b ${g3}deg,
+        #ff8b5b ${g4}deg, #ff4d63 ${dead}deg, #ff3b54 180deg,
+        #ff4d63 ${360 - dead}deg, #ff8b5b ${360 - g4}deg, #ffd35b ${360 - g3}deg,
+        #c8f55b ${360 - g2}deg, #5bff9b ${360 - g1}deg, #5bff9b 360deg)`;
     }
   }
 

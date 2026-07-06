@@ -1356,23 +1356,25 @@ body {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  /* Full ring (green sweet spot at top, red opposite). It is rotated via JS so
-     the green band lines up with the randomised sweet spot. The green zone is
-     widened to match the more forgiving MAGNET_HALF tolerance. */
+  /* Full ring (green sweet spot at top, red opposite). Rotation AND the exact
+     colour-stop degrees are set via JS (UI.showMagnetGauge) so the ramp is
+     always derived from the real MAGNET_HALF strength falloff instead of a
+     separately hand-tuned gradient that can drift out of sync with it. This
+     static gradient is only a fallback for the brief moment before JS runs. */
   background: conic-gradient(
     from 0deg,
     #5bff9b 0deg,
-    #5bff9b 22deg,
-    #c8f55b 52deg,
-    #ffd35b 92deg,
-    #ff8b5b 130deg,
-    #ff4d63 165deg,
+    #5bff9b 16deg,
+    #c8f55b 40deg,
+    #ffd35b 60deg,
+    #ff8b5b 75deg,
+    #ff4d63 81deg,
     #ff3b54 180deg,
-    #ff4d63 195deg,
-    #ff8b5b 230deg,
-    #ffd35b 268deg,
-    #c8f55b 308deg,
-    #5bff9b 338deg,
+    #ff4d63 279deg,
+    #ff8b5b 285deg,
+    #ffd35b 300deg,
+    #c8f55b 320deg,
+    #5bff9b 345deg,
     #5bff9b 360deg
   );
   -webkit-mask: radial-gradient(transparent 56%, #000 58%);
