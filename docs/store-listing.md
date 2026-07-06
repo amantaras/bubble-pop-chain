@@ -45,14 +45,14 @@ Google Play long description:
 ```text
 Bubblit! is a bright chain-pop puzzle game built for quick mobile sessions. Tap connected bubbles, plan bigger clears, trigger charged blasts, and chase high scores across campaign levels, daily challenges, time attack, tournaments, and hand-built puzzles.
 
-Every board gives you tactical choices. Swipe rows to set up matches, use tools like Bomb, Paint, Pick, Magnet, and Chain Bolt, and watch special bubbles reshape the board with lightning, treasure, vines, ice, stones, and score multipliers.
+Every board gives you tactical choices. Swipe rows to set up matches, use tools like Bomb, Paint, Pick, Magnet, and Chain Bolt, and watch special bubbles reshape the board with lightning strikes, bomb blasts, coin payouts, spreading vines, ice blockers, locked stones, and score multipliers.
 
 Companion pets add long-term strategy without slowing the action. Collect pets from crates, equip a lead companion, build a support party, socket gems, pick tech upgrades, and tune your team around score, coins, Fever, charge, or active board-clearing powers. Skybolt can even fly across the board and drop bombs along the strongest route.
 
 Play your way:
 - Campaign levels with evolving objectives and boss challenges
 - Daily gifts, quests, achievements, and season rewards
-- Puzzle Mode for fixed clear-the-board challenges
+- Puzzle Mode with fixed, move-limited boards and evolving objectives
 - Time Attack for a 60-second score rush
 - Weekly tournament boards with local rank goals
 - Optional colorblind symbols, hints, reduced motion, and mute controls
