@@ -47,6 +47,7 @@ import {
   CALENDAR_CYCLE,
   calendarStatus,
 } from "./calendar.js";
+import { WHEEL_REWARDS, WHEEL_WEIGHT_TOTAL, wheelStatus } from "./wheel.js";
 import {
   SEASON_TIERS,
   SEASON_TIER_COUNT,
@@ -205,6 +206,8 @@ class UIManager {
       "achv-badge", "achv-collect-all",
       "calendar", "cal-grid", "cal-status", "cal-claim", "cal-back",
       "btn-calendar", "cal-badge",
+      "wheel-launch", "wheel-launch-sub", "wheel", "wheel-dial", "wheel-spin",
+      "wheel-close", "wheel-result",
       "quests", "quests-list", "quests-back", "btn-quests", "quests-badge",
       "quests-count", "quests-collect-all",
       "stats", "stats-profile", "stats-lifetime", "stats-back", "btn-stats",
@@ -405,6 +408,9 @@ class UIManager {
     click("stats-back", () => this.showScreen("menu"));
     click("puzzle-back", () => this.showScreen("menu"));
     click("cal-claim", () => this._claimCalendar());
+    click("wheel-launch", () => this.openWheel());
+    click("wheel-spin", () => this._spinWheel());
+    click("wheel-close", () => this.closeWheel());
     click("season-back", () => this.showScreen("menu"));
     click("season-buy", () => this._buySeasonPremium());
     click("pets-back", () => this.closePetOverlay());
@@ -2410,6 +2416,11 @@ class UIManager {
       btn.disabled = !st.claimable;
       btn.textContent = st.claimable ? "Claim today's gift" : "Come back tomorrow";
     }
+    const wheelSub = this.el["wheel-launch-sub"];
+    if (wheelSub) {
+      const wst = wheelStatus(Storage.get("wheel"), todayKey());
+      wheelSub.textContent = wst.claimable ? "One free spin today!" : "Come back tomorrow";
+    }
     this.refreshCalendarBadge();
   }
 
@@ -2429,17 +2440,131 @@ class UIManager {
     this.buildCalendar();
   }
 
-  // Show a badge on the menu's Gifts tile whenever today's reward is unclaimed.
+  // Show a badge on the menu's Gifts tile whenever today's calendar reward OR
+  // Lucky Wheel spin is unclaimed (the Gifts tile now hosts both).
   refreshCalendarBadge() {
     const badge = this.el["cal-badge"];
     if (!badge) return;
     const st = calendarStatus(Storage.get("loginCalendar"), todayKey());
-    if (st.claimable) {
+    const wst = wheelStatus(Storage.get("wheel"), todayKey());
+    if (st.claimable || wst.claimable) {
       badge.textContent = "!";
       badge.classList.remove("hidden");
     } else {
       badge.classList.add("hidden");
     }
+  }
+
+  // ---- Lucky Wheel -------------------------------------------------------
+  // A once-per-day genuinely-random spin, reached as a second action from
+  // the Gifts screen. Distinct from the calendar's fixed reward cycle above.
+
+  // Build the dial's conic-gradient segments + radial icon labels, sized
+  // proportionally to each reward's weight. Resets any in-flight rotation so
+  // re-opening the modal always starts from a clean, un-spun dial.
+  buildWheelDial() {
+    const dial = this.el["wheel-dial"];
+    if (!dial) return;
+    dial.style.transition = "none";
+    dial.style.transform = "rotate(0deg)";
+    void dial.offsetWidth; // force reflow before re-enabling the transition
+    dial.style.transition = "";
+
+    const palette = [
+      "#5be3ff", "#b06bff", "#ffd35b", "#5bff9b",
+      "#ff6b8b", "#ff9d4d", "#7fe9ff", "#ffe066",
+    ];
+    let angle = 0;
+    const stops = [];
+    const labels = [];
+    WHEEL_REWARDS.forEach((r, i) => {
+      const span = (r.weight / WHEEL_WEIGHT_TOTAL) * 360;
+      const start = angle;
+      const end = angle + span;
+      stops.push(`${palette[i % palette.length]} ${start}deg ${end}deg`);
+      labels.push({ mid: start + span / 2, icon: r.icon });
+      angle = end;
+    });
+    dial.style.background = `conic-gradient(${stops.join(", ")})`;
+    dial.innerHTML = "";
+    labels.forEach((l) => {
+      const el = document.createElement("div");
+      el.className = "wheel-seg-label";
+      el.style.transform = `rotate(${l.mid}deg) translateY(-88px)`;
+      el.innerHTML = `<span class="wsl-icon">${l.icon}</span>`;
+      dial.appendChild(el);
+    });
+  }
+
+  openWheel() {
+    this.buildWheelDial();
+    const result = this.el["wheel-result"];
+    if (result) {
+      result.classList.add("hidden");
+      result.textContent = "";
+    }
+    this._refreshWheelSpinButton();
+    if (this.el["wheel"]) this.el["wheel"].classList.remove("hidden");
+  }
+
+  closeWheel() {
+    if (this.el["wheel"]) this.el["wheel"].classList.add("hidden");
+  }
+
+  _refreshWheelSpinButton() {
+    const btn = this.el["wheel-spin"];
+    if (!btn) return;
+    const st = wheelStatus(Storage.get("wheel"), todayKey());
+    btn.disabled = !st.claimable;
+    btn.textContent = st.claimable ? "Spin!" : "Come back tomorrow";
+  }
+
+  _spinWheel() {
+    if (!this.cb.spinLuckyWheel) return;
+    const btn = this.el["wheel-spin"];
+    if (btn && btn.disabled) return;
+    const res = this.cb.spinLuckyWheel();
+    if (!res) {
+      this._refreshWheelSpinButton();
+      return;
+    }
+    if (btn) btn.disabled = true;
+
+    const dial = this.el["wheel-dial"];
+    if (dial) {
+      let start = 0;
+      for (let i = 0; i < res.index; i++) {
+        start += (WHEEL_REWARDS[i].weight / WHEEL_WEIGHT_TOTAL) * 360;
+      }
+      const span = (WHEEL_REWARDS[res.index].weight / WHEEL_WEIGHT_TOTAL) * 360;
+      const mid = start + span / 2;
+      const spins = 5;
+      const target = spins * 360 + (360 - mid);
+      dial.style.transform = `rotate(${target}deg)`;
+    }
+
+    // Matches the .wheel-dial CSS transition duration (2.2s) plus a buffer so
+    // the reward reveal lands right as the dial visually settles.
+    setTimeout(() => this._settleWheelSpin(res), 2300);
+  }
+
+  _settleWheelSpin(res) {
+    const bits = [];
+    if (res.coins) bits.push(`+${res.coins} coins`);
+    if (res.powerup) bits.push(`${res.powerup.icon} ${res.powerup.name}`);
+    if (res.crate) bits.push(`📦 crate`);
+    if (res.dust) bits.push(`✨ +${res.dust} Dust`);
+    const summary = bits.length ? bits.join(" + ") : res.label;
+    const result = this.el["wheel-result"];
+    if (result) {
+      result.textContent = `${res.icon || "🎉"} ${res.label} — ${summary}`;
+      result.classList.remove("hidden");
+    }
+    Audio.coin();
+    this.toast(`🎡 ${summary}`);
+    this._refreshWheelSpinButton();
+    this.refreshCoins();
+    this.refreshCalendarBadge();
   }
 
   // ---- Daily & Weekly Quests --------------------------------------------

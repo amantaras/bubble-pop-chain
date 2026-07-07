@@ -758,6 +758,37 @@ never re‑discovered the hard way.
   with the grand prize spanning the last row) and a Claim button; a menu tile
   badge (`refreshCalendarBadge`, `#cal-badge`) shows when today's gift is
   unclaimed. Like other meta/reward displays this gets **no tutorial step**.
+- **Lucky Wheel** (`wheel.js`, pure; `storage.js` `wheel`): a once-per-day
+  **genuinely-random** spin, reached as a second action from the Gifts screen
+  — distinct from the calendar's fixed 7-day cycle above, whose reward on any
+  given day is already known ahead of time. `WHEEL_REWARDS` is a weighted
+  8-segment table (escalating coin tiers, two Pet Dust tiers, a locked-tool
+  slot, a Pet Crate, and a rare 2%-weight **jackpot** of big coins + a crate).
+  The module is pure/deterministic: `wheelStatus(state, key)` returns
+  `{ claimable, lastSpin }` (once per `todayKey()`, same gate shape as the
+  calendar/daily), `spinWheel(rng)` resolves one weighted pick + its dial
+  index from an rng function returning `[0,1)` (seedable/testable, mirroring
+  `pets.js` `rollCrate`), and `advanceWheel(key)` produces the post-spin state
+  (`{ lastSpin: key }`). State lives in `storage.js` `wheel: { lastSpin }`
+  (deep-merges into old saves). `Game.spinLuckyWheel()` (idempotent per
+  `todayKey()`) seeds a fresh PRNG the same evolving-seed way as `openCrate`/
+  `_grantRolledGem` (unpredictable in play, pure/seedable under the hood),
+  resolves the pick through `resolveRewardForUnlocks` (a rolled tool the
+  player hasn't unlocked yet converts to coins, same fallback as calendar/
+  quest/achievement rewards), grants it via `Economy`/`Storage`, advances the
+  state, and refreshes the UI. The **Gifts screen** shows a compact launcher
+  card (`ui.js` `_buildCalendar`... `#wheel-launch`, "One free spin today!" /
+  "Come back tomorrow") that opens the **`#wheel` modal**: a CSS
+  conic-gradient dial (`buildWheelDial`, segments sized proportionally to
+  weight, radial icon labels) with a fixed pointer at 12 o'clock. Tapping
+  **Spin!** calls `spinLuckyWheel()`, then rotates `.wheel-dial` via a `rotate()`
+  transform — several full spins plus the exact offset needed to land the
+  rolled segment under the pointer — over a **2.2s eased CSS transition**;
+  once it settles the result panel reveals the reward and the button locks to
+  "Come back tomorrow" until the next day. The shared Gifts tile badge
+  (`refreshCalendarBadge`, `#cal-badge`) lights up whenever **either** the
+  calendar reward **or** the wheel spin is unclaimed. Meta/reward feature —
+  **no tutorial step**. (Exposed for tests via `__bpc.wheel`.)
 - **Falling events** (`events.js`, `main.js` `_updateEvents`/`_spawnEvent`,
   `ui.js` `spawnFallingEvent`): every ~12–20s **during recent board play** a 🎁 **gift** or ⚠️ **problem**
   token drifts down the screen (`#events-layer`, `pointer-events:none` so it
@@ -1658,6 +1689,7 @@ src/
   daily.js          # Daily challenge + streak logic
   spotlight.js      # Spotlight Challenge (pure: rotating limited-time board + tiered coin rewards)
   calendar.js       # Login calendar / daily gifts (pure: 7-day reward cycle)
+  wheel.js          # Lucky Wheel (pure: once-a-day weighted-random spin, distinct from the fixed calendar cycle)
   season.js         # Season Pass / Battle Pass (pure: 10-tier free+premium track)
   quests.js         # Daily & weekly quests (pure: rotating goals + claimable rewards)
   stats.js          # Stats / Profile dashboard (pure: read-only progress aggregation)
@@ -1742,7 +1774,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 763 unit tests + 632 E2E
+- **Current baseline (keep growing, never shrink)**: 779 unit tests + 642 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

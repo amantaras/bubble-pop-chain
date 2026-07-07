@@ -84,6 +84,7 @@ const ASSETS = [
   "./src/gems.js",
   "./src/tech.js",
   "./src/calendar.js",
+  "./src/wheel.js",
   "./src/season.js",
   "./src/quests.js",
   "./src/stats.js",

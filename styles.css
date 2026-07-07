@@ -2234,6 +2234,112 @@ body {
   filter: grayscale(0.6);
 }
 
+/* ---------- Lucky Wheel ---------- */
+/* Compact launcher card on the Gifts screen → opens the Lucky Wheel modal.
+   Shares the .gl-* sub-parts with the Pets screen's Gem Forge launcher. */
+.wheel-launch {
+  appearance: none;
+  width: calc(100% - 32px);
+  margin: 0 16px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--glass-brd);
+  border-radius: 14px;
+  background: linear-gradient(100deg, rgba(255, 140, 90, 0.18), rgba(255, 211, 91, 0.1));
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.08s ease, box-shadow 0.2s ease;
+}
+.wheel-launch:active {
+  transform: scale(0.98);
+}
+.wheel-launch .gl-icon {
+  font-size: 26px;
+  filter: drop-shadow(0 0 8px rgba(255, 180, 90, 0.7));
+}
+.wheel-launch .gl-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.wheel-launch .gl-title {
+  font-size: 15px;
+  font-weight: 800;
+}
+.wheel-launch .gl-sub {
+  font-size: 11.5px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.wheel-launch .gl-go {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-dim);
+}
+
+.wheel-card {
+  max-width: 360px;
+  text-align: center;
+}
+.wheel-sub {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin: 4px 0 18px;
+}
+.wheel-stage {
+  position: relative;
+  width: min(240px, 66vw);
+  aspect-ratio: 1;
+  margin: 0 auto 18px;
+}
+.wheel-pointer {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 22px;
+  color: var(--gold);
+  z-index: 2;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
+}
+.wheel-dial {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 4px solid var(--glass-brd);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.35), inset 0 0 0 2px rgba(255, 255, 255, 0.08);
+  transition: transform 2.2s cubic-bezier(0.12, 0.72, 0.15, 1);
+  will-change: transform;
+}
+.wheel-seg-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  display: flex;
+  justify-content: center;
+  font-size: 18px;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
+}
+.wheel-result {
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(255, 211, 91, 0.14);
+  border: 1px solid rgba(255, 211, 91, 0.4);
+  font-weight: 800;
+  font-size: 14px;
+}
+#wheel-spin:disabled {
+  opacity: 0.5;
+  filter: grayscale(0.6);
+}
+
 /* ---------- Daily & Weekly Quests ---------- */
 .quests-intro {
   color: var(--text-dim);

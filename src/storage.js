@@ -62,6 +62,10 @@ const DEFAULT_SAVE = {
   activeSession: null, // snapshot of an in-progress campaign level (resume)
   // Rolling 7-day login reward cycle: { lastClaim: "YYYY-MM-DD"|null, day }.
   loginCalendar: { lastClaim: null, day: 0 },
+  // Lucky Wheel: a once-per-day genuinely-random spin, distinct from the
+  // fixed login calendar cycle above. `lastSpin` is the day key it was last
+  // spun on (see wheel.js wheelStatus/advanceWheel).
+  wheel: { lastSpin: null },
   // Season Pass progression: earned XP, claimed tier indices per track, and
   // whether the premium pass has been purchased.
   season: { xp: 0, claimedFree: [], claimedPrem: [], premium: false },

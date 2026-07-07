@@ -465,6 +465,30 @@
       <p class="cal-intro">Come back every day for a reward. Day 7 holds the grand prize!</p>
       <div class="cal-grid" id="cal-grid"></div>
       <button class="btn btn-primary cal-claim" id="cal-claim">Claim today's gift</button>
+      <button class="wheel-launch" id="wheel-launch">
+        <span class="gl-icon" aria-hidden="true">🎡</span>
+        <span class="gl-text">
+          <span class="gl-title">Lucky Wheel</span>
+          <span class="gl-sub" id="wheel-launch-sub">One free spin today!</span>
+        </span>
+        <span class="gl-go" aria-hidden="true">›</span>
+      </button>
+    </div>
+
+    <!-- Lucky Wheel: a once-per-day genuinely-random spin, distinct from the
+         Daily Gifts calendar's fixed reward cycle above. -->
+    <div id="wheel" class="overlay modal hidden" role="dialog" aria-modal="true" aria-label="Lucky Wheel">
+      <div class="modal-card wheel-card">
+        <h2 class="modal-title">Lucky Wheel</h2>
+        <p class="wheel-sub">Spin once a day for a random prize!</p>
+        <div class="wheel-stage">
+          <div class="wheel-pointer" aria-hidden="true">▼</div>
+          <div class="wheel-dial" id="wheel-dial"></div>
+        </div>
+        <div class="wheel-result hidden" id="wheel-result"></div>
+        <button class="btn btn-primary" id="wheel-spin">Spin!</button>
+        <button class="btn btn-ghost" id="wheel-close">Close</button>
+      </div>
     </div>
 
     <!-- Daily & Weekly Quests -->

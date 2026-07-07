@@ -169,6 +169,7 @@ import {
   techTiersUnlocked,
 } from "./tech.js";
 import { calendarStatus, advanceCalendar } from "./calendar.js";
+import { wheelStatus, spinWheel, advanceWheel, WHEEL_REWARDS, WHEEL_WEIGHT_TOTAL } from "./wheel.js";
 import {
   ensureQuests,
   applyQuestProgress,
@@ -375,6 +376,7 @@ class Game {
       claimAchievement: (id) => this.claimAchievement(id),
       claimAllAchievements: () => this.claimAllAchievements(),
       claimCalendar: () => this.claimCalendar(),
+      spinLuckyWheel: () => this.spinLuckyWheel(),
       claimQuest: (scope, index) => this.claimQuestReward(scope, index),
       claimAllQuests: () => this.claimAllQuests(),
       claimSeasonTier: (index, track) => this.claimSeasonTier(index, track),
@@ -3085,6 +3087,51 @@ class Game {
     UI.refreshCalendarBadge();
 
     return { index: st.index, coins, powerup, crate, day: st.day + 1 };
+  }
+
+  // Spin the Lucky Wheel (idempotent per day). Unlike the login calendar's
+  // fixed 7-day cycle, the reward is genuinely random each spin (weighted,
+  // see wheel.js). Returns a reward recap for the spin animation + grant
+  // summary, or null when today's spin has already been used.
+  spinLuckyWheel() {
+    const key = todayKey();
+    const state = Storage.get("wheel");
+    const st = wheelStatus(state, key);
+    if (!st.claimable) return null;
+
+    // Same evolving-seed idiom as openCrate/_grantRolledGem: deterministic
+    // PRNG seeded fresh each call so results are unpredictable in play but
+    // the underlying roll stays pure/seedable for tests.
+    this._crateSeed = ((this._crateSeed || 1) * 1664525 + 1013904223) >>> 0;
+    const seed = (this._crateSeed ^ ((Date.now() >>> 0) || 1)) >>> 0;
+    const { reward, index } = spinWheel(makeRng(seed));
+
+    const resolved = resolveRewardForUnlocks(reward);
+    const coins = resolved.coins || 0;
+    if (coins > 0) Economy.addCoins(coins);
+    let powerup = null;
+    if (resolved.powerup) {
+      Economy.addPowerup(resolved.powerup, 1);
+      const info = POWERUP_INFO[resolved.powerup] || {};
+      powerup = { id: resolved.powerup, name: info.name || resolved.powerup, icon: info.icon || "✨" };
+    }
+    let crate = 0;
+    if (resolved.crate) {
+      Storage.addCrates(resolved.crate);
+      crate = resolved.crate;
+    }
+    let dust = 0;
+    if (resolved.dust) {
+      Storage.addDust(resolved.dust);
+      dust = resolved.dust;
+    }
+
+    Storage.set("wheel", advanceWheel(key));
+
+    UI.refreshCoins();
+    UI.refreshCalendarBadge();
+
+    return { index, label: reward.label, icon: reward.icon, coins, powerup, crate, dust };
   }
 
   // ---- Season Pass ------------------------------------------------------
@@ -6061,6 +6108,7 @@ if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) 
     gems: { GEM_CATALOG, GEM_TIERS, socketsForLevel, socketBuffs, socketActiveMods, rollGem, gemKey, parseGemKey, gemDustCost, getGemDef, getGemTier, gemLabel, canSocketGemAtLevel, maxGemTierForLevel, levelForGemTier, socketDustCost, unsocketDustRefund, MAX_SOCKETS, FUSE_COUNT, nextGemTier, prevGemTier, canFuseTier, fusedGemKey, autoFuseInventory },
     tech: { TECH_TREE, techNode, techTierOf, pendingTechTier, hasPendingTech, canPickTech, techTiersUnlocked },
     calendar: { calendarStatus, advanceCalendar, todayKey },
+    wheel: { WHEEL_REWARDS, WHEEL_WEIGHT_TOTAL, wheelStatus, spinWheel, advanceWheel },
     season: { seasonStatus, addSeasonXp, claimTier, tierReward },
     quests: { ensureQuests, applyQuestProgress, claimQuest, questsClaimable, isQuestClaimable, aggregateQuestRewards, todayKey, weekKey },
     piggy: { piggyDeposit, canCrackPiggy },

@@ -51,7 +51,7 @@ escalator (`scoring.js` `comboTier`/`COMBO_TIERS`) and pop-style system
 
 ---
 
-## 2. Lucky Wheel — daily spin-to-win
+## 2. Lucky Wheel — daily spin-to-win ✅ SHIPPED
 
 **Goal**: a once-per-day suspense/reward moment distinct from the calendar
 gifts (`calendar.js`), whose rewards are fixed and known ahead of time — the
@@ -78,19 +78,19 @@ wheel's reward is genuinely random each spin.
   quests precedent.
 
 **Tasks**:
-- [ ] `src/wheel.js`: `WHEEL_REWARDS`, `wheelStatus`, `spinWheel` (pure).
-- [ ] `storage.js`: add `wheel` default field + getters/setters.
-- [ ] `ui.js`: wheel modal, spin animation, claim/lock states.
-- [ ] `main.js`: `spinWheel()` action wired to Economy/Storage grants (reuse
+- [x] `src/wheel.js`: `WHEEL_REWARDS`, `wheelStatus`, `spinWheel` (pure).
+- [x] `storage.js`: add `wheel` default field + getters/setters.
+- [x] `ui.js`: wheel modal, spin animation, claim/lock states.
+- [x] `main.js`: `spinWheel()` action wired to Economy/Storage grants (reuse
       `_grantPowerupReward`-style locked-tool-to-coins fallback if a tool
       reward rolls before it's unlocked).
-- [ ] `sw.js`: add `wheel.js` to `ASSETS` (covered by `sw-assets.test.js`).
-- [ ] Unit tests: `tests/unit/wheel.test.js` (reward odds/table shape, daily
+- [x] `sw.js`: add `wheel.js` to `ASSETS` (covered by `sw-assets.test.js`).
+- [x] Unit tests: `tests/unit/wheel.test.js` (reward odds/table shape, daily
       gate, seeded determinism).
-- [ ] E2E tests: spin claims a reward and locks for the day; persists across
+- [x] E2E tests: spin claims a reward and locks for the day; persists across
       reload; menu badge/entry appears correctly.
-- [ ] `AGENTS.md` feature entry + project-structure table row.
-- [ ] `npm test` green, commit, push, verify CI + deploy + live site.
+- [x] `AGENTS.md` feature entry + project-structure table row.
+- [x] `npm test` green, commit, push, verify CI + deploy + live site.
 
 ---
 

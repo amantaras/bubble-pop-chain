@@ -4470,8 +4470,11 @@ test.describe("login calendar (daily gifts)", () => {
     expect(res.coins).toBe(before + 50);
     expect(res.day).toBe(1);
     expect(res.claimable).toBe(false);
-    // The claim button is now disabled and the badge clears.
+    // The claim button is now disabled and the badge clears — but the Gifts
+    // tile badge also tracks the (still-unspun) Lucky Wheel, so spin it too
+    // before expecting the shared badge to fully clear.
     await expect(page.locator("#cal-claim")).toBeDisabled();
+    await page.evaluate(() => window.__bpc.game.spinLuckyWheel());
     await page.locator("#cal-back").click();
     await expect(page.locator("#cal-badge")).toBeHidden();
   });
@@ -4506,6 +4509,96 @@ test.describe("login calendar (daily gifts)", () => {
     }));
     expect(state.coins).toBe(90);
     expect(state.bombs).toBe(0);
+  });
+});
+
+test.describe("lucky wheel (daily spin-to-win)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("launches from the Gifts screen and lists every dial segment", async ({
+    page,
+  }) => {
+    await page.locator("#btn-calendar").click();
+    await expect(page.locator("#calendar")).toBeVisible();
+    await expect(page.locator("#wheel-launch")).toBeVisible();
+    await page.locator("#wheel-launch").click();
+    await expect(page.locator("#wheel")).toBeVisible();
+    const count = await page.evaluate(() => window.__bpc.wheel.WHEEL_REWARDS.length);
+    await expect(page.locator("#wheel-dial .wheel-seg-label")).toHaveCount(count);
+    await expect(page.locator("#wheel-spin")).toBeEnabled();
+    await expect(page.locator("#wheel-spin")).toHaveText("Spin!");
+  });
+
+  test("spinning grants a reward, rotates the dial, and locks until tomorrow", async ({
+    page,
+  }) => {
+    await page.locator("#btn-calendar").click();
+    await page.locator("#wheel-launch").click();
+    await expect(page.locator("#wheel")).toBeVisible();
+
+    const before = await page.evaluate(() => window.__bpc.Economy.coins);
+    await page.locator("#wheel-spin").click();
+    // The dial rotates immediately (a large multi-spin CSS transform), well
+    // before the 2.2s transition finishes.
+    await expect
+      .poll(() => page.evaluate(() => document.getElementById("wheel-dial").style.transform))
+      .toMatch(/rotate\(\d+/);
+    await expect(page.locator("#wheel-spin")).toBeDisabled();
+
+    // After the spin settles, the result panel shows and the reward is
+    // actually granted (fresh level-1 save: every tool is still locked, so a
+    // rolled "powerup" segment always converts to coins — never a real tool).
+    await expect(page.locator("#wheel-result")).toBeVisible({ timeout: 4000 });
+    const after = await page.evaluate(() => ({
+      coins: window.__bpc.Economy.coins,
+      bombs: window.__bpc.Economy.getPowerup("bomb"),
+      wheel: window.__bpc.Storage.get("wheel"),
+    }));
+    expect(after.coins).toBeGreaterThanOrEqual(before);
+    expect(after.bombs).toBe(0);
+    expect(after.wheel.lastSpin).toBe(await page.evaluate(() => window.__bpc.calendar.todayKey()));
+    await expect(page.locator("#wheel-spin")).toHaveText("Come back tomorrow");
+
+    // Locked for the rest of the day, even after closing and reopening.
+    await page.locator("#wheel-close").click();
+    await page.locator("#wheel-launch").click();
+    await expect(page.locator("#wheel-spin")).toBeDisabled();
+  });
+
+  test("spinning twice in one day does not double-pay", async ({ page }) => {
+    const res = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const first = g.spinLuckyWheel();
+      const second = g.spinLuckyWheel();
+      return { first, second };
+    });
+    expect(res.first).not.toBeNull();
+    expect(res.second).toBeNull();
+  });
+
+  test("the Gifts tile badge reflects an unclaimed wheel spin independently of the calendar", async ({
+    page,
+  }) => {
+    // Claim the calendar but leave the wheel unspun: badge must stay lit.
+    await page.evaluate(() => window.__bpc.game.claimCalendar());
+    await expect(page.locator("#cal-badge")).toBeVisible();
+
+    await page.evaluate(() => window.__bpc.game.spinLuckyWheel());
+    await page.locator("#btn-calendar").click();
+    await expect(page.locator("#cal-badge")).toBeHidden();
+  });
+
+  test("persists the daily lock across a reload", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.game.spinLuckyWheel());
+    await page.reload();
+    await page.waitForFunction(() => window.__bpc && window.__bpc.game);
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      if (g.tutorial && g.tutorial.active) g.tutorial.skip();
+    });
+    await page.locator("#btn-calendar").click();
+    await page.locator("#wheel-launch").click();
+    await expect(page.locator("#wheel-spin")).toBeDisabled();
   });
 });
 
