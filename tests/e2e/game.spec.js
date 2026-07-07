@@ -8854,6 +8854,44 @@ test.describe("puzzle mode (Tier 2)", () => {
     );
   });
 
+  test("the Puzzles list scrolls so every unlocked puzzle can be reached", async ({
+    page,
+  }) => {
+    // Regression: `.puzzle-grid` had no `overflow-y`, so once enough puzzles
+    // unlock to exceed one screen (18 puzzles, 3 per row = 6 rows), the tail
+    // of the ladder was clipped with no way to scroll down to it.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.evaluate(() => {
+      const stars = {};
+      const count = window.__bpc.puzzle.PUZZLE_COUNT;
+      for (let i = 0; i < count; i++) stars[i] = 3;
+      window.__bpc.Storage.set("puzzle", { stars });
+    });
+    await page.locator("#btn-puzzle").click();
+    await expect(page.locator("#puzzle")).toBeVisible();
+    const count = await page.evaluate(() => window.__bpc.puzzle.PUZZLE_COUNT);
+    await expect(page.locator("#puzzle-list .puzzle-cell")).toHaveCount(count);
+
+    const metrics = await page.evaluate(() => {
+      const grid = document.getElementById("puzzle-list");
+      const cs = getComputedStyle(grid);
+      return {
+        overflowY: cs.overflowY,
+        scrollHeight: grid.scrollHeight,
+        clientHeight: grid.clientHeight,
+      };
+    });
+    expect(metrics.overflowY).toBe("auto");
+    // The content is genuinely taller than the visible area in this scenario.
+    expect(metrics.scrollHeight).toBeGreaterThan(metrics.clientHeight);
+
+    // Scrolling the list all the way down must bring the very last puzzle
+    // cell into view (it was previously unreachable, clipped off-screen).
+    const lastCell = page.locator("#puzzle-list .puzzle-cell").last();
+    await lastCell.scrollIntoViewIfNeeded();
+    await expect(lastCell).toBeInViewport();
+  });
+
   test("solving a puzzle records stars and unlocks the next one", async ({
     page,
   }) => {

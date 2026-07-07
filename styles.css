@@ -2452,6 +2452,9 @@ body {
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
   padding: 0 16px 24px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;
 }
 .puzzle-cell {
   display: flex;
