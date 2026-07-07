@@ -528,6 +528,7 @@ body {
   border-radius: 14px;
   border: 1px solid color-mix(in srgb, var(--ui-success, #8affc1) 42%, transparent);
   background: linear-gradient(135deg, color-mix(in srgb, var(--ui-success, #8affc1) 16%, transparent), var(--ui-surface-tint, rgba(91, 208, 255, 0.1)));
+  cursor: pointer;
 }
 .cfc-icon {
   width: 34px;

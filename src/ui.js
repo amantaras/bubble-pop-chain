@@ -1495,6 +1495,23 @@ class UIManager {
     card.innerHTML =
       `<span class="cfc-icon">▶</span>` +
       `<span class="cfc-copy"><b>Current focus: Clear Level ${levelId}</b><span>${body}</span></span>`;
+    // Real bug guard: this card used to be purely decorative (no click
+    // handler at all), so tapping it — despite the play-style ▶ icon and
+    // "Current focus" copy strongly implying it's actionable — silently did
+    // nothing. Wire it exactly like a level cell: open that level's briefing.
+    card.tabIndex = 0;
+    card.setAttribute("role", "button");
+    card.setAttribute("aria-label", `Current focus: Level ${levelId}`);
+    card.addEventListener("click", () => {
+      Audio.click();
+      this.openLevelBrief(levelId);
+    });
+    card.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      Audio.click();
+      this.openLevelBrief(levelId);
+    });
     return card;
   }
 

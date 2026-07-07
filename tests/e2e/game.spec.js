@@ -368,6 +368,27 @@ test.describe("menu & navigation (UI)", () => {
     await expect(page.locator(".next-unlock-teaser")).toContainText("Level 6");
   });
 
+  test("tapping the Current focus card opens that level's briefing and can start it", async ({
+    page,
+  }) => {
+    // Real bug guard: the "Current focus" card had a play-style ▶ icon and
+    // copy strongly implying it was actionable, but had no click handler at
+    // all -- tapping it silently did nothing. It must open the briefing for
+    // the exact level it names, at any progression depth (including deep
+    // generative levels well past the authored campaign).
+    await page.evaluate(() => window.__bpc.Storage.set("maxUnlockedLevel", 171));
+    await page.locator("#btn-play").click();
+    const focus = page.locator(".current-focus-card");
+    await expect(focus).toContainText("Current focus: Clear Level 171");
+    await focus.click();
+    await expect(page.locator("#level-brief")).toBeVisible();
+    await expect(page.locator("#brief-title")).toHaveText("Level 171");
+
+    await page.locator("#brief-start").click();
+    await expect(page.locator("#level-brief")).toBeHidden();
+    await expect(page.locator("#hud-mode-label")).toContainText("Level 171");
+  });
+
   test("level map opens a briefing before starting a level", async ({ page }) => {
     await page.locator("#btn-play").click();
     await page.locator(".level-cell").first().click();
