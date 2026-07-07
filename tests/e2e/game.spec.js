@@ -9346,4 +9346,78 @@ test.describe("Board Storm (positive mid-level burst)", () => {
   });
 });
 
+test.describe("Boss Finisher Cinematic", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("meeting a boss objective plays the enhanced finisher before the win screen shows", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(10));
+    await page.waitForTimeout(600);
+
+    // Shatter the entire frozen core to satisfy the boss objective (same
+    // setup as the existing boss-win test).
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          if (b.types[c][r] === 1 || b.types[c][r] === 3) {
+            b.grid[c][r] = -1;
+            b.types[c][r] = 0;
+            b.spriteGrid[c][r] = null;
+          }
+        }
+      g.afterMove();
+    });
+
+    // The finisher is playing: input is suspended and the win screen hasn't
+    // shown yet.
+    const mid = await page.evaluate(() => ({
+      finishing: window.__bpc.game.session.finishing,
+      ended: window.__bpc.game.session.ended,
+    }));
+    expect(mid.finishing).toBe(true);
+    expect(mid.ended).toBe(false);
+    await expect(page.locator("#win")).toBeHidden();
+
+    // Past the glow phase (~0.7s) the blast fires: the Combo Cam camera zoom
+    // has been punched in as part of the bigger finisher explosion.
+    await page.waitForTimeout(800);
+    const zoomPeak = await page.evaluate(() => window.__bpc.game.cameraZoom.peak);
+    expect(zoomPeak).toBeGreaterThan(0);
+
+    // Once the cinematic resolves, the win screen shows and the level is won.
+    await expect(page.locator("#win")).toBeVisible({ timeout: 4000 });
+    expect(await page.evaluate(() => window.__bpc.game.session.ended)).toBe(true);
+  });
+
+  test("the finisher never fires for an ordinary (non-boss) level win", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.game.startCampaign(2));
+    await page.waitForTimeout(400);
+
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const s = g.session;
+      s.score = s.level.target; // clear the score requirement
+      const b = s.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          b.grid[c][r] = -1;
+          b.spriteGrid[c][r] = null;
+        }
+      g.afterMove();
+    });
+
+    // Board cleared and no boss milestone involved: the ordinary win path
+    // resolves immediately, without the finisher's finishing flag.
+    const finishing = await page.evaluate(() =>
+      !!(window.__bpc.game.session && window.__bpc.game.session.finishing)
+    );
+    expect(finishing).toBe(false);
+  });
+});
+
 

@@ -4406,8 +4406,7 @@ class Game {
       if (s.level.milestone === "boss") {
         // Boss objective: meet the archetype goal before moves run out.
         if (this._bossObjectiveRemaining() === 0) {
-          s.score += clearBonus(Math.max(0, s.movesLeft));
-          this._scheduleEnd(true, "boss");
+          this._startBossFinisher();
           return;
         }
         if (s.movesLeft <= 0 || deadlock) {
@@ -4829,6 +4828,67 @@ class Game {
     s.finishing = false;
     this.input.setEnabled(true);
     this.afterMove();
+  }
+
+  // Boss Finisher Cinematic: defeating a boss milestone gets a bigger,
+  // dedicated moment than an ordinary level clear — reuses the same
+  // glow-then-explode BubbleFinale system as the last-bubble finale (5
+  // variants), just centred on the boss's objective bounds (or the board
+  // centre for the colour boss, which has none) with a larger radius, a
+  // stronger Combo Cam camera punch, a bigger particle burst, and a
+  // dedicated fanfare. Defers the actual win resolution to onDone, exactly
+  // like the last-bubble finale defers to _lastBubbleResolve.
+  _startBossFinisher() {
+    const s = this.session;
+    if (!s || this.finale.active) return;
+    const board = s.board;
+    const bounds = s.bossBounds;
+    const cx = bounds
+      ? board.originX + (bounds.c0 + bounds.w / 2) * board.cell
+      : board.originX + board.boardW / 2;
+    const cy = bounds
+      ? board.originY + (bounds.r0 + bounds.h / 2) * board.cell
+      : board.originY + board.boardH / 2;
+    const radius = board.cell * 1.8;
+    const variant = (Math.random() * BUBBLE_FINALE_VARIANTS) | 0;
+    s.finishing = true;
+    this.input.setEnabled(false);
+    this.alienShip.stop();
+    Audio.bossFanfare();
+    this.finale.play({
+      x: cx,
+      y: cy,
+      radius,
+      color: "#ffd35b",
+      variant,
+      onExplode: () => this._bossFinisherExplode(cx, cy),
+      onDone: () => this._bossFinisherResolve(),
+    });
+  }
+
+  // The blast moment: a bigger particle burst + a strong Combo Cam camera
+  // punch (longer/stronger than a combo pop's) + heavier shake, so defeating
+  // a boss visibly reads as the campaign's biggest moment so far.
+  _bossFinisherExplode(x, y) {
+    this.particles.burst(x, y, "#ffffff", 30, 1.7);
+    this.particles.burst(x, y, "#ffd35b", 26, 1.3);
+    this.particles.sparkle(x, y, "#ffffff", 24);
+    this.particles.ring(x, y, "#ffd35b", { maxRadius: 140, width: 6, life: 0.55 });
+    this.particles.ring(x, y, "#ffffff", { maxRadius: 90, life: 0.32, fill: true });
+    this.cameraZoom.punch(0.1, 0.8);
+    this.shake.add(0.55);
+    vibrate(40);
+  }
+
+  // The finisher finished: pay the boss's clear bonus and resolve the win,
+  // exactly what the boss-objective branch used to do immediately.
+  _bossFinisherResolve() {
+    const s = this.session;
+    if (!s) return;
+    s.finishing = false;
+    this.input.setEnabled(true);
+    s.score += clearBonus(Math.max(0, s.movesLeft));
+    this._scheduleEnd(true, "boss");
   }
 
   _scheduleEnd(won, reason) {

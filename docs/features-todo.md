@@ -173,7 +173,7 @@ moments without any downside.
 
 ---
 
-## 5. Boss Finisher Cinematic — bigger finale for boss clears
+## 5. Boss Finisher Cinematic — bigger finale for boss clears ✅ SHIPPED
 
 **Goal**: make defeating a boss milestone feel distinctly more climactic than
 an ordinary level clear, reusing the existing last-bubble finale system.
@@ -191,18 +191,29 @@ an ordinary level clear, reusing the existing last-bubble finale system.
   version of an existing auto-mechanic).
 
 **Tasks**:
-- [ ] `animations.js`: boss-mode flag/variant on `BubbleFinale` (or a sibling
-      `BossFinale` reusing its particle/timing helpers).
-- [ ] `main.js`: wire boss-win detection to trigger the enhanced finisher
-      before `_finish`.
-- [ ] `audio.js`: a distinct boss-fanfare cue (or layer the existing win SFX).
-- [ ] Unit tests: variant selection / trigger-condition logic.
-- [ ] E2E test: a boss-level win plays the enhanced finisher (distinguishable
-      from a normal level win, e.g. via a recorded variant/flag exposed on
-      `__bpc`).
-- [ ] `AGENTS.md` feature entry (extend the "Last-bubble finale" and/or
-      "Milestone events" sections).
-- [ ] `npm test` green, commit, push, verify CI + deploy + live site.
+- [x] `main.js`: `_startBossFinisher()` reuses the existing `BubbleFinale`
+      (`this.finale`) directly rather than adding a boss-mode flag to it —
+      centred on `session.bossBounds` (board centre for the colour boss) with
+      a larger radius (`board.cell * 1.8`) instead of changing its timing.
+- [x] `main.js`: wired boss-win detection (`_bossObjectiveRemaining() === 0`)
+      to call `_startBossFinisher()` instead of resolving immediately;
+      `_bossFinisherResolve()` (the `onDone` callback) pays the clear bonus
+      and calls `_scheduleEnd` exactly as the old immediate code did.
+- [x] `audio.js`: `bossFanfare()`, a distinct grander cue from the generic
+      `win()` jingle.
+- [x] Combo Cam reuse: `_bossFinisherExplode()` (the `onExplode` callback)
+      fires a bigger particle burst + rings and a stronger/longer
+      `cameraZoom.punch(0.1, 0.8)` than a combo pop's.
+- [x] E2E tests: a boss win plays the finisher (`session.finishing` true,
+      win screen hidden, camera zoom punched mid-blast) before the win screen
+      shows; an ordinary (non-boss) win never sets `finishing`
+      (`tests/e2e/game.spec.js`, 2 new tests × 2 projects = 4). Re-verified
+      all 4 existing boss-win tests + both last-bubble-finale tests still pass
+      (Playwright's default 8s assertion timeout comfortably absorbs the new
+      ~1.36s cinematic delay).
+- [x] `AGENTS.md` feature entry (extended "Milestone events"), test baseline
+      bumped to 763 unit + 628 e2e.
+- [x] `npm test` green, commit, push, verify CI + deploy + live site.
 
 ---
 

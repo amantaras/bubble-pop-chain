@@ -1742,7 +1742,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 763 unit tests + 624 E2E
+- **Current baseline (keep growing, never shrink)**: 763 unit tests + 628 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests
@@ -1900,6 +1900,24 @@ defines the campaign's reward/challenge rhythm. It must stay in sync with
   level map (`ui.js buildLevelMap`) and the boss HUD (`hudLabel`:
   `Core`/`Stone`/`Left`/`Vines`) surface the beats; the recap window shows the
   reward lines via `win-reward`.
+- **Boss Finisher Cinematic** (`main.js` `_startBossFinisher`/
+  `_bossFinisherExplode`/`_bossFinisherResolve`, `animations.js`
+  `BubbleFinale`): meeting a boss's objective doesn't resolve the win
+  immediately — it defers to a bigger, dedicated version of the last-bubble
+  finale first, so defeating a boss reads as a bigger event than an ordinary
+  level clear. Reuses the same glow-then-explode `BubbleFinale` system (still
+  picking one of its 5 random variants) but centred on `session.bossBounds`
+  (or the board centre for the colour boss, which has no bounds) with a
+  larger radius, a bigger particle burst + expanding rings, a stronger **Combo
+  Cam** camera punch (`cameraZoom.punch(0.1, 0.8)` — bigger/longer than a
+  combo pop's) and a dedicated `Audio.bossFanfare()` cue instead of the
+  generic pop/win sounds. Sets `session.finishing = true` and disables input
+  for the ~1.36s glow+blast duration (the same guard the last-bubble finale
+  uses), then `onDone` pays the boss's clear bonus and calls `_scheduleEnd`
+  exactly as the boss-win branch used to do immediately. Only wired into the
+  **campaign boss** branch — puzzle mode's boss-style objectives (frozen/
+  stone/colour) and every other win path are untouched. No tutorial step
+  (bosses already have none).
 
 ## 9. Git / workflow conventions
 

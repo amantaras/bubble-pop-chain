@@ -176,6 +176,19 @@ class AudioEngine {
     notes.forEach((n, i) => setTimeout(() => this._tone(n, 0.25, "triangle", 0.3), i * 110));
   }
 
+  // Boss Finisher: a grander, longer fanfare than the generic win jingle,
+  // played the instant a boss milestone's objective is met (before the win
+  // recap even shows) so defeating a boss reads as a bigger event than an
+  // ordinary level clear.
+  bossFanfare() {
+    this._ensure();
+    const notes = [392, 494, 587, 784];
+    notes.forEach((n, i) =>
+      setTimeout(() => this._tone(n, 0.3, "sawtooth", 0.3, n * 1.4), i * 90)
+    );
+    this._tone(98, 0.6, "square", 0.28, 60);
+  }
+
   lose() {
     this._ensure();
     const notes = [392, 311, 262];
