@@ -2517,6 +2517,19 @@ class UIManager {
   // A once-per-day genuinely-random spin, reached as a second action from
   // the Gifts screen. Distinct from the calendar's fixed reward cycle above.
 
+  // Map a wheel segment's reward shape to the SAME icon language used
+  // everywhere else in the app (coinIconHtml's local SVG for coins, the
+  // tool's own local SVG for a power-up, the established "📦" crate /
+  // "✨" dust glyphs — mirrors _calRewardIcon) instead of a raw emoji, so
+  // the dial and win result read consistently with calendar/season/quests.
+  _wheelSegIcon(reward) {
+    if (reward.id === "jackpot") return "🎉";
+    if (reward.crate) return "📦";
+    if (reward.powerup) return toolIconHtml(reward.powerup, "wsl-tool-icon");
+    if (reward.dust) return "✨";
+    return coinIconHtml("single", "wsl-coin-icon");
+  }
+
   // Build the dial's conic-gradient segments + radial icon labels, sized
   // proportionally to each reward's weight. Resets any in-flight rotation so
   // re-opening the modal always starts from a clean, un-spun dial.
@@ -2540,7 +2553,7 @@ class UIManager {
       const start = angle;
       const end = angle + span;
       stops.push(`${palette[i % palette.length]} ${start}deg ${end}deg`);
-      labels.push({ mid: start + span / 2, icon: r.icon });
+      labels.push({ mid: start + span / 2, reward: r });
       angle = end;
     });
     dial.style.background = `conic-gradient(${stops.join(", ")})`;
@@ -2549,7 +2562,7 @@ class UIManager {
       const el = document.createElement("div");
       el.className = "wheel-seg-label";
       el.style.transform = `rotate(${l.mid}deg) translateY(-88px)`;
-      el.innerHTML = `<span class="wsl-icon">${l.icon}</span>`;
+      el.innerHTML = `<span class="wsl-icon">${this._wheelSegIcon(l.reward)}</span>`;
       dial.appendChild(el);
     });
   }
@@ -2615,7 +2628,8 @@ class UIManager {
     const summary = bits.length ? bits.join(" + ") : res.label;
     const result = this.el["wheel-result"];
     if (result) {
-      result.textContent = `${res.icon || "🎉"} ${res.label} — ${summary}`;
+      const icon = this._wheelSegIcon(WHEEL_REWARDS[res.index] || {});
+      result.innerHTML = `<span class="wsl-icon">${icon}</span> ${res.label} — ${summary}`;
       result.classList.remove("hidden");
     }
     Audio.coin();

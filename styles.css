@@ -2298,13 +2298,28 @@ body {
 }
 .wheel-pointer {
   position: absolute;
-  top: -8px;
+  top: -16px;
   left: 50%;
+  width: 0;
+  height: 0;
   transform: translateX(-50%);
-  font-size: 22px;
-  color: var(--gold);
-  z-index: 2;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
+  border-top: 17px solid rgba(10, 14, 30, 0.95);
+  z-index: 3;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+.wheel-pointer::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 50%;
+  width: 0;
+  height: 0;
+  transform: translateX(-50%);
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 11px solid var(--gold);
 }
 .wheel-dial {
   position: absolute;
@@ -2314,6 +2329,23 @@ body {
   box-shadow: 0 8px 26px rgba(0, 0, 0, 0.35), inset 0 0 0 2px rgba(255, 255, 255, 0.08);
   transition: transform 2.2s cubic-bezier(0.12, 0.72, 0.15, 1);
   will-change: transform;
+}
+/* A small centre hub, standard on wheel-of-fortune UIs -- breaks the visual
+   continuity where every slice's point would otherwise converge right under
+   the pointer, so the pointer always reads as its own distinct marker. */
+.wheel-dial::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 22px;
+  height: 22px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff8dc, #ffd35b 55%, #b8860b 100%);
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  z-index: 1;
 }
 .wheel-seg-label {
   position: absolute;
@@ -2326,6 +2358,11 @@ body {
   font-size: 18px;
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
 }
+.wheel-seg-label .coin-icon,
+.wheel-seg-label .tool-icon-wrap {
+  width: 1em;
+  height: 1em;
+}
 .wheel-result {
   margin-bottom: 14px;
   padding: 10px 14px;
@@ -2334,6 +2371,15 @@ body {
   border: 1px solid rgba(255, 211, 91, 0.4);
   font-weight: 800;
   font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.wheel-result .coin-icon,
+.wheel-result .tool-icon-wrap {
+  width: 1.1em;
+  height: 1.1em;
 }
 #wheel-spin:disabled {
   opacity: 0.5;
