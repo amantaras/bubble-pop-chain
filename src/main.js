@@ -54,6 +54,11 @@ import {
   getDailyGoals,
   dailyStarsForScore,
   getFreezeTokens,
+  wagerPayout,
+  wagerTiers,
+  WAGER_TIERS,
+  WAGER_MULTIPLIER,
+  rewardForStreak,
 } from "./daily.js";
 import {
   getTournamentLevel,
@@ -316,7 +321,7 @@ class Game {
     UI.bind({
       startLevel: (id) => this.startCampaign(id),
       startEndless: () => this.startEndless(),
-      startDaily: () => this.startDaily(),
+      startDaily: (stake) => this.startDaily(stake),
       startTournament: () => this.startTournament(),
       startSpotlight: () => this.startSpotlight(),
       startTimeAttack: () => this.startTimeAttack(),
@@ -981,7 +986,12 @@ class Game {
     UI.toast(`Time Attack — ${TIME_ATTACK_SECONDS}s on the clock!`);
   }
 
-  startDaily() {
+  // `stake` is an optional Double-or-Nothing Wager (see daily.js) placed
+  // BEFORE this call (via the UI's wager prompt) — 0/undefined plays the
+  // Daily exactly as before. The stake is debited here, once, at session
+  // start; it is never re-debited on resume/undo since neither persists a
+  // Daily session, and the payout/forfeit resolves exactly once in _finish.
+  startDaily(stake = 0) {
     // The daily challenge can be completed only once per day. Once today's run
     // is in the books, refuse to start a fresh board and nudge the player to
     // come back tomorrow (the menu's Daily tile is locked to match).
@@ -990,10 +1000,19 @@ class Game {
       UI.toast(`Daily done! Back tomorrow • Streak ${getStreak()}🔥`);
       return;
     }
+    let wager = null;
+    if (stake > 0) {
+      if (!Economy.spendCoins(stake)) {
+        UI.toast("Not enough coins to wager");
+        return;
+      }
+      wager = { stake };
+    }
     const lvl = getDailyLevel();
     this._newSession("daily", lvl);
     this.session.movesLeft = 9999;
     this.session.goals = getDailyGoals(lvl);
+    this.session.wager = wager;
     const mod = lvl.modifier;
     if (mod) {
       UI.toast(`Today: ${mod.label} — ${mod.desc}`);
@@ -5165,10 +5184,22 @@ class Game {
       const goals = s.goals || getDailyGoals(s.level);
       const stars = dailyStarsForScore(goals, s.score);
       const info = recordDaily(s.score, stars);
-      // Score coins plus the streak-cycle reward (only on the first play/day).
+      // Resolve an optional Double-or-Nothing Wager placed before this run
+      // (the stake was already debited once, at startDaily() time) — this
+      // only ever CREDITS a payout, exactly once, here in the normal finish
+      // path; a miss simply forfeits the stake (no further debit needed).
+      let wagerPaid = 0;
+      let wagerWon = false;
+      if (s.wager && s.wager.stake > 0) {
+        wagerPaid = wagerPayout(s.wager.stake, s.score, goals);
+        wagerWon = wagerPaid > 0;
+      }
+      // Score coins plus the streak-cycle reward (only on the first play/day)
+      // plus any wager payout.
       const coins =
         Math.round(Math.floor(s.score / 150) * s.petBuffs.coinMult) +
-        (info.coins || 0);
+        (info.coins || 0) +
+        wagerPaid;
       s.coinsEarned = coins;
       Economy.addCoins(coins);
       this._awardSeasonXp(40);
@@ -5177,6 +5208,13 @@ class Game {
       const bits = [`Streak ${info.streak}🔥`];
       if (info.freezeAwarded) bits.push("❄️ Freeze earned!");
       else if (info.usedFreeze) bits.push("❄️ Freeze used");
+      if (s.wager && s.wager.stake > 0) {
+        bits.push(
+          wagerWon
+            ? `🎲 Wager won! +${wagerPaid} coins`
+            : `🎲 Wager lost (-${s.wager.stake} coins)`
+        );
+      }
       const petBit = this._awardPetXp();
       if (petBit) bits.push(petBit);
       const moves = s.stats
@@ -6155,6 +6193,7 @@ if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) 
     gems: { GEM_CATALOG, GEM_TIERS, socketsForLevel, socketBuffs, socketActiveMods, rollGem, gemKey, parseGemKey, gemDustCost, getGemDef, getGemTier, gemLabel, canSocketGemAtLevel, maxGemTierForLevel, levelForGemTier, socketDustCost, unsocketDustRefund, MAX_SOCKETS, FUSE_COUNT, nextGemTier, prevGemTier, canFuseTier, fusedGemKey, autoFuseInventory },
     tech: { TECH_TREE, techNode, techTierOf, pendingTechTier, hasPendingTech, canPickTech, techTiersUnlocked },
     calendar: { calendarStatus, advanceCalendar, todayKey },
+    daily: { getDailyGoals, dailyStarsForScore, wagerTiers, wagerPayout, WAGER_TIERS, WAGER_MULTIPLIER, alreadyPlayedToday, getStreak, rewardForStreak },
     wheel: { WHEEL_REWARDS, WHEEL_WEIGHT_TOTAL, wheelStatus, spinWheel, advanceWheel },
     season: { seasonStatus, addSeasonXp, claimTier, tierReward },
     quests: { ensureQuests, applyQuestProgress, claimQuest, questsClaimable, isQuestClaimable, aggregateQuestRewards, todayKey, weekKey },

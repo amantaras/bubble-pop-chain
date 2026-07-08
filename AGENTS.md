@@ -741,6 +741,31 @@ never re‑discovered the hard way.
   `recordDaily` stamps `lastDate`, `Game.startDaily` refuses to open a fresh
   board when `alreadyPlayedToday()` (toasts "back tomorrow" instead), and the
   menu's Daily tile is **locked** (`updateDailySummary` toggles `.locked`).
+  **Double-or-Nothing Wager** (`daily.js` `WAGER_TIERS`/`WAGER_MULTIPLIER`/
+  `wagerTiers`/`wagerPayout`, `main.js` `startDaily(stake)`): an optional,
+  fully skippable risk/reward step shown before the Daily starts. Tapping the
+  Daily tile (`ui.js` `openWagerPrompt`) opens the `#wager` modal listing
+  preset stakes (50/100/250) **filtered to what the player can currently
+  afford** (`wagerTiers(balance)`, pure) — each button shows its payout at
+  `WAGER_MULTIPLIER` (×2.5, e.g. "100 → 250"). **Skip Wager** (always
+  available) plays exactly as before with no stake. Choosing a stake debits
+  it **immediately, once** via `Economy.spendCoins` (fails closed — never lets
+  a stake exceed the balance) and stores `{ stake }` on `session.wager`; the
+  modal never appears at all when the daily is already played today or the
+  player has 0 coins (falls straight through to a normal free run in both
+  cases). The wager resolves **exactly once**, in the Daily's existing
+  `_finish` path: `wagerPayout(stake, score, goals)` (pure) pays
+  `stake * WAGER_MULTIPLIER` the run's score reaches the Daily's **top** (★★★)
+  goal tier, or `0` (forfeiting the stake, no further debit needed since it
+  was already spent) otherwise — folded into the same single `Economy.
+  addCoins(coins)` call as the score/streak coins (so it also compounds with
+  the win screen's "Double coins" rewarded-ad bonus, and is reflected in
+  `s.coinsEarned`), with a `🎲 Wager won! +N coins` / `🎲 Wager lost (-N
+  coins)` line in the win recap. **Implementation note**: no session/undo
+  double-charge risk exists by construction — the stake is debited once at
+  session **start** (not per-move), and the Daily mode has no resume/undo
+  snapshot to replay it from. Meta economy feature, optional and skippable by
+  design — **no tutorial step**.
 - **Login calendar / daily gifts** (`calendar.js`, pure; `storage.js`
   `loginCalendar`): a rolling **7-day login reward cycle** that advances **once
   per calendar day** the player claims. `CALENDAR_REWARDS` is the 7-day table
@@ -1799,7 +1824,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 792 unit tests + 652 E2E
+- **Current baseline (keep growing, never shrink)**: 799 unit tests + 670 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

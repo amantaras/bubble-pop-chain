@@ -2358,6 +2358,149 @@ test.describe("endless & daily modes", () => {
   });
 });
 
+test.describe("double-or-nothing wager (daily)", () => {
+  test.beforeEach(({ page }) => openGame(page));
+
+  test("the wager prompt opens from the Daily tile and lists affordable stake tiers", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.Economy.addCoins(150));
+    await page.locator("#btn-daily").click();
+    await expect(page.locator("#wager")).toBeVisible();
+    const tiers = await page.evaluate(() => window.__bpc.daily.wagerTiers(150));
+    expect(tiers).toEqual([50, 100]); // affordable subset of WAGER_TIERS
+    await expect(page.locator(".wager-tier-btn")).toHaveCount(tiers.length);
+    // No session has started yet -- the prompt is purely a pre-step.
+    expect(await page.evaluate(() => window.__bpc.game.session)).toBeNull();
+  });
+
+  test("cancelling the prompt starts no session and leaves coins untouched", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.Economy.addCoins(200));
+    await page.locator("#btn-daily").click();
+    await expect(page.locator("#wager")).toBeVisible();
+    await page.locator("#wager-cancel").click();
+    await expect(page.locator("#wager")).toBeHidden();
+    expect(await page.evaluate(() => window.__bpc.game.session)).toBeNull();
+    expect(await page.evaluate(() => window.__bpc.Economy.coins)).toBe(200);
+  });
+
+  test("skipping the wager plays the Daily exactly as before, with no stake", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.Economy.addCoins(200));
+    await page.locator("#btn-daily").click();
+    await page.locator("#wager-skip").click();
+    await page.waitForTimeout(300);
+    const state = await page.evaluate(() => ({
+      mode: window.__bpc.game.session.mode,
+      wager: window.__bpc.game.session.wager,
+      coins: window.__bpc.Economy.coins,
+    }));
+    expect(state.mode).toBe("daily");
+    expect(state.wager).toBeNull();
+    expect(state.coins).toBe(200); // untouched
+  });
+
+  test("placing a wager debits the stake immediately and stores it on the session", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.Economy.addCoins(200));
+    await page.locator("#btn-daily").click();
+    await page.locator('.wager-tier-btn[data-stake="100"]').click();
+    await page.waitForTimeout(300);
+    const state = await page.evaluate(() => ({
+      mode: window.__bpc.game.session.mode,
+      wager: window.__bpc.game.session.wager,
+      coins: window.__bpc.Economy.coins,
+    }));
+    expect(state.mode).toBe("daily");
+    expect(state.wager).toEqual({ stake: 100 });
+    expect(state.coins).toBe(100); // 200 - 100 staked
+  });
+
+  test("beating the Daily's top goal pays the wager multiplier", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.Economy.addCoins(200));
+    await page.evaluate(() => window.__bpc.game.startDaily(100));
+    await page.waitForTimeout(400);
+    const payout = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      g.session.score = g.session.goals.three + 500; // clear the top goal
+      return window.__bpc.daily.wagerPayout(100, g.session.score, g.session.goals);
+    });
+    await page.evaluate(() => window.__bpc.game._scheduleEnd(true, "daily"));
+    await expect(page.locator("#win")).toBeVisible({ timeout: 4000 });
+    await expect(page.locator("#win-reward")).toContainText("Wager won");
+    await expect(page.locator("#win-reward")).toContainText(`+${payout} coins`);
+    const coins = await page.evaluate(() => window.__bpc.Economy.coins);
+    // 100 (post-stake) + score coins + payout, at minimum more than the payout alone.
+    expect(coins).toBeGreaterThanOrEqual(100 + payout);
+  });
+
+  test("missing the Daily's top goal forfeits the stake (no refund)", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.Economy.addCoins(200));
+    await page.evaluate(() => window.__bpc.game.startDaily(100));
+    await page.waitForTimeout(400);
+    await page.evaluate(() => {
+      window.__bpc.game.session.score = 1; // far below every goal tier
+    });
+    await page.evaluate(() => window.__bpc.game._scheduleEnd(true, "daily"));
+    await expect(page.locator("#win")).toBeVisible({ timeout: 4000 });
+    await expect(page.locator("#win-reward")).toContainText("Wager lost");
+    await expect(page.locator("#win-reward")).toContainText("-100 coins");
+    // Only the day's streak reward is added on top of the post-stake balance
+    // (score is too low for score-coins) -- the 100 stake never comes back.
+    const info = await page.evaluate(() => {
+      const streak = window.__bpc.Storage.get("daily").streak;
+      return { coins: window.__bpc.Economy.coins, streakCoins: window.__bpc.daily.rewardForStreak(streak).coins };
+    });
+    expect(info.coins).toBe(100 + info.streakCoins);
+  });
+
+  test("cannot wager more than the current coin balance", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.Economy.addCoins(80));
+    await page.locator("#btn-daily").click();
+    await expect(page.locator("#wager")).toBeVisible();
+    // Only the 50 tier fits an 80-coin balance -- 100/250 must not be offered.
+    await expect(page.locator(".wager-tier-btn")).toHaveCount(1);
+    await expect(page.locator('.wager-tier-btn[data-stake="50"]')).toBeVisible();
+    await expect(page.locator('.wager-tier-btn[data-stake="100"]')).toHaveCount(0);
+  });
+
+  test("no wager UI at all when the player has zero coins", async ({ page }) => {
+    expect(await page.evaluate(() => window.__bpc.Economy.coins)).toBe(0);
+    await page.locator("#btn-daily").click();
+    await expect(page.locator("#wager")).toBeHidden();
+    // Falls straight through to a normal, wager-free Daily run.
+    await page.waitForTimeout(300);
+    const state = await page.evaluate(() => ({
+      mode: window.__bpc.game.session.mode,
+      wager: window.__bpc.game.session.wager,
+    }));
+    expect(state.mode).toBe("daily");
+    expect(state.wager).toBeNull();
+  });
+
+  test("cannot wager on an already-played-today Daily", async ({ page }) => {
+    await page.evaluate(() => {
+      window.__bpc.Economy.addCoins(200);
+      window.__bpc.game.startDaily();
+    });
+    await page.waitForTimeout(400);
+    await autoPlay(page);
+    await expect(page.locator("#win")).toBeVisible();
+    await page.locator("#win-menu").click();
+    await expect(page.locator("#menu")).toBeVisible();
+
+    // Tapping Daily again must NOT open the wager prompt -- the existing
+    // "come back tomorrow" guard fires instead, exactly like before.
+    await page.locator("#btn-daily").dispatchEvent("click");
+    await expect(page.locator("#wager")).toBeHidden();
+    expect(await page.evaluate(() => window.__bpc.game.session)).toBeNull();
+  });
+});
+
 test.describe("swipe-aware completion (no premature deadlock)", () => {
   test.beforeEach(({ page }) => openGame(page));
 

@@ -491,6 +491,19 @@
       </div>
     </div>
 
+    <!-- Double-or-Nothing Wager: an optional risk/reward stake shown before
+         starting the Daily. Fully skippable -- "Skip Wager" plays exactly as
+         a normal Daily run. -->
+    <div id="wager" class="overlay modal hidden" role="dialog" aria-modal="true" aria-label="Daily Wager">
+      <div class="modal-card wager-card">
+        <h2 class="modal-title">🎲 Daily Wager</h2>
+        <p class="wager-sub">Stake coins on today's Daily. Beat the top goal (★★★) to win big — miss it and the stake is gone.</p>
+        <div class="wager-tiers" id="wager-tiers"></div>
+        <button class="btn btn-primary" id="wager-skip">Skip Wager — Play Free</button>
+        <button class="btn btn-ghost" id="wager-cancel">Cancel</button>
+      </div>
+    </div>
+
     <!-- Daily & Weekly Quests -->
     <div id="quests" class="overlay screen hidden">
       <div class="screen-head">

@@ -11,6 +11,10 @@ import {
   rewardForStreak,
   getFreezeTokens,
   DAILY_MODIFIERS,
+  WAGER_TIERS,
+  WAGER_MULTIPLIER,
+  wagerTiers,
+  wagerPayout,
 } from "../../src/daily.js";
 
 const DAY = 86400000;
@@ -145,5 +149,51 @@ describe("daily retention engine", () => {
     recordDaily(5000, 2, d1);
     recordDaily(9000, 3, d1); // same-day replay keeps the best
     expect(Storage.get("daily").bestStars).toBe(3);
+  });
+});
+
+describe("double-or-nothing wager", () => {
+  const goals = { one: 1000, two: 2000, three: 3000 };
+
+  it("wagerTiers filters presets to what the balance can afford", () => {
+    expect(wagerTiers(0)).toEqual([]);
+    expect(wagerTiers(49)).toEqual([]);
+    expect(wagerTiers(50)).toEqual([50]);
+    expect(wagerTiers(150)).toEqual([50, 100]);
+    expect(wagerTiers(9999)).toEqual(WAGER_TIERS);
+  });
+
+  it("wagerTiers tolerates a negative/garbage balance", () => {
+    expect(wagerTiers(-50)).toEqual([]);
+    expect(wagerTiers(undefined)).toEqual([]);
+    expect(wagerTiers(NaN)).toEqual([]);
+  });
+
+  it("wagerPayout pays the stake times the multiplier when the top goal is met", () => {
+    expect(wagerPayout(100, goals.three, goals)).toBe(Math.round(100 * WAGER_MULTIPLIER));
+    expect(wagerPayout(100, goals.three + 5000, goals)).toBe(Math.round(100 * WAGER_MULTIPLIER));
+  });
+
+  it("wagerPayout forfeits (pays 0) when the score falls short of the top goal", () => {
+    expect(wagerPayout(100, goals.three - 1, goals)).toBe(0);
+    expect(wagerPayout(100, goals.two, goals)).toBe(0);
+    expect(wagerPayout(100, 0, goals)).toBe(0);
+  });
+
+  it("wagerPayout is 0 for a zero/missing stake regardless of score", () => {
+    expect(wagerPayout(0, goals.three + 1, goals)).toBe(0);
+    expect(wagerPayout(undefined, goals.three + 1, goals)).toBe(0);
+  });
+
+  it("wagerPayout tolerates missing goals (never throws, pays nothing)", () => {
+    expect(wagerPayout(100, 5000, null)).toBe(0);
+    expect(wagerPayout(100, 5000, undefined)).toBe(0);
+  });
+
+  it("every preset tier pays out a strictly larger amount than the stake", () => {
+    for (const stake of WAGER_TIERS) {
+      const payout = wagerPayout(stake, goals.three, goals);
+      expect(payout).toBeGreaterThan(stake);
+    }
   });
 });

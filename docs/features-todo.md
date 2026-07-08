@@ -1,5 +1,7 @@
 # Bubblit! New Feature Plan — Excitement Pass
 
+**Status: all 6 features shipped.** ✅
+
 Implementation plan for 6 new player-facing features. Each feature follows the
 project's Golden Rule (see `AGENTS.md` §3): implement → unit tests → E2E tests
 → CI/CD asset updates → tutorial sync (if the feature needs one) → docs. No
@@ -229,7 +231,7 @@ an ordinary level clear, reusing the existing last-bubble finale system.
 
 ---
 
-## 6. Double-or-Nothing Wager — risk/reward stake on the Daily
+## 6. Double-or-Nothing Wager — risk/reward stake on the Daily ✅ SHIPPED
 
 **Goal**: add real stakes to the Daily challenge (currently "just clear it
 once") for players who want the tension, while staying fully optional so
@@ -254,20 +256,20 @@ risk-averse players are never forced into it.
 - No tutorial step — meta economy feature, optional and skippable by design.
 
 **Tasks**:
-- [ ] `daily.js`/`economy.js`: pure `wagerTiers(balance)` / `wagerPayout(...)`
+- [x] `daily.js`/`economy.js`: pure `wagerTiers(balance)` / `wagerPayout(...)`
       helpers + unit tests (edge cases: zero balance, exact-balance wager,
       losing forfeits the stake, winning pays the multiplier once).
-- [ ] `ui.js`: optional wager-selection step before `startDaily()` (skippable),
+- [x] `ui.js`: optional wager-selection step before `startDaily()` (skippable),
       clearly showing stake/payout/risk.
-- [ ] `main.js`: debit on confirm, resolve payout/forfeit in the Daily finish
+- [x] `main.js`: debit on confirm, resolve payout/forfeit in the Daily finish
       path exactly once.
-- [ ] Unit tests for the debit-once/no-double-charge guarantee (simulate
+- [x] Unit tests for the debit-once/no-double-charge guarantee (simulate
       resume/undo paths).
-- [ ] E2E tests: wager placed + goal beaten pays out; wager placed + goal
+- [x] E2E tests: wager placed + goal beaten pays out; wager placed + goal
       missed forfeits the stake; skipping the wager behaves identically to
       today's Daily; cannot wager more than the balance.
-- [ ] `AGENTS.md` feature entry (extend "Daily retention engine").
-- [ ] `npm test` green, commit, push, verify CI + deploy + live site.
+- [x] `AGENTS.md` feature entry (extend "Daily retention engine").
+- [x] `npm test` green, commit, push, verify CI + deploy + live site.
 
 ---
 

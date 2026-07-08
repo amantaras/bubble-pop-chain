@@ -94,6 +94,32 @@ export function dailyStarsForScore(goals, score) {
   return 0;
 }
 
+// ---- Double-or-Nothing Wager ------------------------------------------
+// An optional risk/reward stake on top of the Daily. Purely additive and
+// skippable: the player may stake a preset coin amount before starting
+// today's run; beating the Daily's TOP goal tier (three stars) pays out
+// `stake * WAGER_MULTIPLIER`, missing it forfeits the stake. The stake is
+// debited once, at session start (see main.js startDaily) — never here.
+export const WAGER_TIERS = [50, 100, 250];
+export const WAGER_MULTIPLIER = 2.5;
+
+// Preset stakes the player can actually afford right now (never suggests a
+// tier above the current coin balance).
+export function wagerTiers(balance) {
+  const bal = Math.max(0, Number(balance) || 0);
+  return WAGER_TIERS.filter((t) => t <= bal);
+}
+
+// The payout for a resolved wager: 0 if the run's score didn't reach the
+// top goal tier, otherwise the stake multiplied by WAGER_MULTIPLIER
+// (rounded to a whole coin). Pure — never touches storage/economy itself.
+export function wagerPayout(stake, score, goals) {
+  const s = Math.max(0, Number(stake) || 0);
+  if (!s || !goals) return 0;
+  if (score < goals.three) return 0;
+  return Math.round(s * WAGER_MULTIPLIER);
+}
+
 export function alreadyPlayedToday(date = new Date()) {
   const d = Storage.get("daily");
   return d.lastDate === todayKey(date);

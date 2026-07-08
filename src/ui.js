@@ -26,6 +26,8 @@ import {
   getStreak,
   getFreezeTokens,
   alreadyPlayedToday,
+  wagerTiers,
+  WAGER_MULTIPLIER,
 } from "./daily.js";
 import {
   getTournamentBest,
@@ -257,6 +259,7 @@ class UIManager {
       "lose-score", "lose-revive", "lose-retry", "lose-menu", "lose-tip",
       "isolated", "iso-msg", "iso-pick", "iso-giveup",
       "btn-daily",
+      "wager", "wager-tiers", "wager-skip", "wager-cancel",
       "btn-tournament", "tournament-summary",
       "btn-spotlight", "spotlight-summary",
       "btn-timeattack",
@@ -355,7 +358,12 @@ class UIManager {
     click("btn-continue", () => this.cb.resumeCampaign && this.cb.resumeCampaign());
     click("btn-play", () => this.showScreen("levelmap"));
     click("btn-endless", () => this.cb.startEndless && this.cb.startEndless());
-    click("btn-daily", () => this.cb.startDaily && this.cb.startDaily());
+    click("btn-daily", () => this.openWagerPrompt());
+    click("wager-skip", () => {
+      this.closeWager();
+      this.cb.startDaily && this.cb.startDaily(0);
+    });
+    click("wager-cancel", () => this.closeWager());
     click("btn-tournament", () => this.cb.startTournament && this.cb.startTournament());
     click("btn-spotlight", () => this.cb.startSpotlight && this.cb.startSpotlight());
     click("btn-timeattack", () => this.cb.startTimeAttack && this.cb.startTimeAttack());
@@ -1208,6 +1216,55 @@ class UIManager {
       tile.classList.toggle("locked", done);
       tile.setAttribute("aria-disabled", done ? "true" : "false");
     }
+  }
+
+  // ---- Double-or-Nothing Wager -------------------------------------------
+  // An optional risk/reward step shown before the Daily starts. Skippable by
+  // design: tapping the Daily tile opens this prompt only when there's a
+  // genuine choice to make (today's run isn't already played and the player
+  // owns at least the cheapest tier) — otherwise it falls straight through to
+  // startDaily() exactly as before.
+  openWagerPrompt() {
+    if (!this.cb.startDaily) return;
+    if (alreadyPlayedToday()) {
+      // Let the existing guard show its own "come back tomorrow" toast.
+      this.cb.startDaily(0);
+      return;
+    }
+    const tiers = wagerTiers(Economy.coins);
+    if (!tiers.length) {
+      // No wager UI at all when the player can't afford even the cheapest tier.
+      this.cb.startDaily(0);
+      return;
+    }
+    this._buildWagerTiers(tiers);
+    if (this.el["wager"]) this.el["wager"].classList.remove("hidden");
+  }
+
+  _buildWagerTiers(tiers) {
+    const wrap = this.el["wager-tiers"];
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    tiers.forEach((stake) => {
+      const win = Math.round(stake * WAGER_MULTIPLIER);
+      const btn = document.createElement("button");
+      btn.className = "wager-tier-btn";
+      btn.dataset.stake = String(stake);
+      btn.innerHTML =
+        `<span class="wt-stake">${coinIconHtml()}${stake}</span>` +
+        `<span class="wt-arrow">→</span>` +
+        `<span class="wt-win">${coinIconHtml()}${win}</span>`;
+      btn.addEventListener("click", () => {
+        Audio.click();
+        this.closeWager();
+        this.cb.startDaily && this.cb.startDaily(stake);
+      });
+      wrap.appendChild(btn);
+    });
+  }
+
+  closeWager() {
+    if (this.el["wager"]) this.el["wager"].classList.add("hidden");
   }
 
   updateTournamentSummary() {

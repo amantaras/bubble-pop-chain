@@ -2340,6 +2340,55 @@ body {
   filter: grayscale(0.6);
 }
 
+/* ---------- Double-or-Nothing Wager ---------- */
+.wager-card {
+  max-width: 360px;
+  text-align: center;
+}
+.wager-sub {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin: 4px 0 16px;
+  line-height: 1.4;
+}
+.wager-tiers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.wager-tier-btn {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 211, 91, 0.3);
+  border-radius: 14px;
+  background: rgba(255, 211, 91, 0.08);
+  color: var(--text);
+  font-weight: 800;
+  font-size: 15px;
+  cursor: pointer;
+  transition: transform 0.08s ease, background 0.15s ease;
+}
+.wager-tier-btn:active {
+  transform: scale(0.97);
+}
+.wager-tier-btn .wt-arrow {
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.wager-tier-btn .wt-win {
+  color: var(--gold);
+}
+.wager-none {
+  color: var(--text-dim);
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
 /* ---------- Daily & Weekly Quests ---------- */
 .quests-intro {
   color: var(--text-dim);
