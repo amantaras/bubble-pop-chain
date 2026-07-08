@@ -94,7 +94,7 @@ wheel's reward is genuinely random each spin.
 
 ---
 
-## 3. Mystery Egg Hatching — delayed crate reveal
+## 3. Mystery Egg Hatching — delayed crate reveal ✅ SHIPPED
 
 **Goal**: add anticipation to crate openings by replacing the instant reveal
 with a short "incubating" beat before the pet is revealed.
@@ -117,18 +117,30 @@ with a short "incubating" beat before the pet is revealed.
   crates/pity timer.
 
 **Tasks**:
-- [ ] `pets.js`/`storage.js`: incubating-egg state shape + advance-on-move
+- [x] `pets.js`/`storage.js`: incubating-egg state shape + advance-on-move
       helper (pure, testable like `nextPity`).
-- [ ] `main.js`: advance incubation from `afterMove` (skip in tutorial, mirror
+- [x] `main.js`: advance incubation from `afterMove` (skip in tutorial, mirror
       `_spreadVines`-style one-call-per-move wiring).
-- [ ] `ui.js`: incubating card + hatch transition into the existing
+- [x] `ui.js`: incubating card + hatch transition into the existing
       `showPetReveal` flow.
-- [ ] Unit tests: incubation countdown math, queueing/blocking behaviour,
+- [x] Unit tests: incubation countdown math, queueing/blocking behaviour,
       determinism of the pre-rolled outcome.
-- [ ] E2E tests: open a crate → egg incubates → advance moves → hatch reveals
+- [x] E2E tests: open a crate → egg incubates → advance moves → hatch reveals
       the pre-rolled pet via the existing reveal modal; state survives reload.
-- [ ] `AGENTS.md` feature entry (extend the existing "Pet companions" section).
-- [ ] `npm test` green, commit, push, verify CI + deploy + live site.
+- [x] `AGENTS.md` feature entry (extend the existing "Pet companions" section).
+- [x] `npm test` green, commit, push, verify CI + deploy + live site.
+
+**Implementation note (decision made during implementation)**: to avoid any
+regression risk to the large existing test surface that calls `Game.openCrate()`
+directly and expects an instant grant, `openCrate()` itself was left **fully
+unchanged** (same instant roll/grant/dust/pity/gem bookkeeping, same return
+shape). The incubation is layered on top via a new `startEggHatch()` (the
+UI-facing action — calls `openCrate()` internally, then stores the result as an
+incubating egg instead of revealing it) and `hatchEgg()` (reveals the pre-rolled
+result once ready). Opening a second crate while one is incubating is
+**rejected** (`{ blocked: true }`), not queued — the crate is never consumed.
+Scoped to the free/earned crate-open flow only; the real-money Legendary Crate
+and direct premium-pet purchases remain instant.
 
 ---
 

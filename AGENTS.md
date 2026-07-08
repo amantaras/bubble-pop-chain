@@ -1345,7 +1345,32 @@ never re‑discovered the hard way.
   Dust + pity deep-merge into old saves (`Storage.getDust`/`addDust`/`spendDust`/
   `getPity`/`setPity`); the Pets crate panel shows the live dust balance
   (`#dust-count`). Meta
-  acquisition economy — **no tutorial step**. Every pet also rolls a permanent
+  acquisition economy — **no tutorial step**. **Mystery Egg Hatching**
+  (`pets.js` `EGG_INCUBATE_MOVES`/`eggReady`/`advanceEgg`, `storage.js`
+  `pets.egg`, `main.js` `startEggHatch`/`hatchEgg`/`_advanceEggIncubation`):
+  opening an ordinary Pet Crate from the Store panel no longer reveals its pet
+  instantly — it starts a short **incubating egg** beat first. The roll (and
+  its dust/XP/pity/gem bookkeeping) still resolves the INSTANT the crate is
+  opened via the normal `openCrate()` primitive — only the celebratory reveal
+  is deferred, stored as `{ rolled, movesLeft }` (`EGG_INCUBATE_MOVES` = 5).
+  `_advanceEggIncubation()` ticks the egg down by one on every resolved move,
+  in **any** real mode (campaign/endless/puzzle/daily/etc., skipped only in
+  the tutorial) — called from `afterMove` alongside vine/polarity/bloom/board
+  storm. Only **one egg can incubate at a time**: `startEggHatch()` (the
+  UI-facing action, wrapping `openCrate()`) rejects a second start with
+  `{ blocked: true }` while one is still incubating rather than queuing it, so
+  the crate is never consumed and the Store panel never has to juggle more
+  than one pending reveal. The Store panel's crate card (`ui.js`
+  `_buildPetCrate`) swaps the **Open** button for a `🥚 Egg incubating… N
+  moves left` card while ticking, then a pulsing `🐣 Egg ready to hatch!` card
+  with an enabled **Hatch!** button once ready; tapping it calls `hatchEgg()`
+  (clears the egg, returns the pre-rolled result) and feeds the SAME
+  new-pet-reveal / duplicate-toast branch `openCrate()`'s old immediate flow
+  used, so the celebration itself is unchanged. Deliberately scoped to only
+  the free/earned crate-open flow — the real-money **Legendary Crate**
+  purchase and direct premium-pet purchases stay instant (a paid purchase
+  should reward immediately, not add a delay). No tutorial step (meta
+  acquisition-economy feature, same precedent as crates/pity).  Every pet also rolls a permanent
   **personality trait** the moment it joins the collection (`pets.js` `TRAITS`
   table — Balanced 🔘 / Swift ⚡ / Mighty 💪 / Lucky 🍀 / Keen 🎯 / Fiery 🔥;
   pure `rollTrait(rng)` / `getTrait(id)` with a Balanced fallback for old saves).
@@ -1774,7 +1799,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 779 unit tests + 642 E2E
+- **Current baseline (keep growing, never shrink)**: 792 unit tests + 652 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

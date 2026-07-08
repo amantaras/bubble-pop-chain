@@ -52,6 +52,9 @@ import {
   nextPetFeatureUnlock,
   petAvatarSrc,
   petSpriteSrc,
+  EGG_INCUBATE_MOVES,
+  eggReady,
+  advanceEgg,
 } from "../../src/pets.js";
 import { makeRng } from "../../src/rng.js";
 
@@ -546,6 +549,57 @@ describe("pity timer", () => {
     }
     expect(firstEpicAt).toBe(PITY_EPIC);
     expect(firstLegendAt).toBe(PITY_LEGENDARY);
+  });
+});
+
+describe("mystery egg hatching", () => {
+  it("a freshly-started egg is not ready", () => {
+    const egg = { rolled: { petId: "sparky", isNew: true }, movesLeft: EGG_INCUBATE_MOVES };
+    expect(eggReady(egg)).toBe(false);
+  });
+
+  it("an egg with 0 (or negative) moves left is ready", () => {
+    expect(eggReady({ rolled: {}, movesLeft: 0 })).toBe(true);
+    expect(eggReady({ rolled: {}, movesLeft: -3 })).toBe(true);
+  });
+
+  it("a falsy egg is never ready", () => {
+    expect(eggReady(null)).toBe(false);
+    expect(eggReady(undefined)).toBe(false);
+  });
+
+  it("advanceEgg decrements movesLeft by one and preserves the rolled result", () => {
+    const egg = { rolled: { petId: "sparky", isNew: true }, movesLeft: 3 };
+    const next = advanceEgg(egg);
+    expect(next.movesLeft).toBe(2);
+    expect(next.rolled).toBe(egg.rolled);
+  });
+
+  it("advanceEgg floors at 0, never goes negative", () => {
+    const egg = { rolled: {}, movesLeft: 0 };
+    expect(advanceEgg(egg).movesLeft).toBe(0);
+  });
+
+  it("advanceEgg is a no-op once the egg is already ready", () => {
+    const egg = { rolled: {}, movesLeft: 0 };
+    expect(advanceEgg(egg)).toBe(egg);
+  });
+
+  it("advanceEgg tolerates a falsy egg (returns it unchanged)", () => {
+    expect(advanceEgg(null)).toBe(null);
+    expect(advanceEgg(undefined)).toBe(undefined);
+  });
+
+  it("a full incubation walk-through reaches ready after exactly EGG_INCUBATE_MOVES steps", () => {
+    let egg = { rolled: { petId: "sparky", isNew: true }, movesLeft: EGG_INCUBATE_MOVES };
+    let steps = 0;
+    while (!eggReady(egg)) {
+      egg = advanceEgg(egg);
+      steps++;
+      expect(steps).toBeLessThanOrEqual(EGG_INCUBATE_MOVES); // safety net
+    }
+    expect(steps).toBe(EGG_INCUBATE_MOVES);
+    expect(egg.rolled.petId).toBe("sparky");
   });
 });
 

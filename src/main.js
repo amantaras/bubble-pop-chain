@@ -132,6 +132,9 @@ import {
   activeSynergies,
   SYNERGIES,
   SUPPORT_SLOTS,
+  EGG_INCUBATE_MOVES,
+  eggReady,
+  advanceEgg,
 } from "./pets.js";
 import {
   GEM_CATALOG,
@@ -383,6 +386,8 @@ class Game {
       buySeasonPremium: () => this.buySeasonPremium(),
       buyStarterPack: () => this.buyStarterPack(),
       crackPiggy: () => this.crackPiggy(),
+      startEggHatch: () => this.startEggHatch(),
+      hatchEgg: () => this.hatchEgg(),
     });
 
     this.input = new Input(this.canvas, {
@@ -1191,6 +1196,43 @@ class Game {
       gem = this._grantRolledGem(rarity === "legendary" ? 0.6 : rarity === "epic" ? 0.3 : 0);
     }
     return { petId, isNew, premium: !!premium, rarity, dust, gem, trait: isNew ? trait : null };
+  }
+
+  // ---- Mystery Egg Hatching (delayed crate reveal) -----------------------
+  // The UI-facing crate-open action for the Pets → Store panel. The roll
+  // (and its dust/XP/pity/gem bookkeeping) resolves INSTANTLY via the normal
+  // `openCrate()` primitive above — only the celebratory REVEAL is deferred,
+  // via a short "incubating egg" beat the player advances by playing moves.
+  // Only one egg can incubate at a time: starting a new one while another is
+  // still incubating is rejected (`{ blocked: true }`) rather than queued, so
+  // the Pets screen never has to juggle more than one pending reveal.
+  startEggHatch() {
+    const existing = Storage.getEgg();
+    if (existing && !eggReady(existing)) return { blocked: true };
+    const rolled = this.openCrate();
+    if (!rolled) return null;
+    const egg = { rolled, movesLeft: EGG_INCUBATE_MOVES };
+    Storage.setEgg(egg);
+    return { incubating: true, movesLeft: egg.movesLeft };
+  }
+
+  // Advance the incubating egg by one resolved move (any real mode). A no-op
+  // once the egg is ready (or there is none) — called once per move from
+  // `afterMove`, mirroring the vine/polarity "one step per move" contract.
+  _advanceEggIncubation() {
+    const egg = Storage.getEgg();
+    if (!egg || eggReady(egg)) return;
+    Storage.setEgg(advanceEgg(egg));
+  }
+
+  // Reveal a ready egg's pre-rolled result and clear the incubation slot.
+  // Returns the same `{ petId, isNew, premium, ... }` shape `openCrate()`
+  // returns, or null if there's no egg or it hasn't finished incubating yet.
+  hatchEgg() {
+    const egg = Storage.getEgg();
+    if (!egg || !eggReady(egg)) return null;
+    Storage.clearEgg();
+    return egg.rolled;
   }
 
   // Buy one crate with coins. Returns true on success.
@@ -4391,6 +4433,11 @@ class Game {
     // few resolved moves. Never blocks a win, never ends the level.
     this._boardStorm();
 
+    // Mystery Egg Hatching: any crate opened from the Pets → Store panel
+    // incubates for a few resolved moves (any mode) before it can be
+    // revealed — a small extra beat of anticipation, never blocks a win.
+    this._advanceEggIncubation();
+
     // Echo Pops: a small automatic bonus when a same-coloured bubble settles
     // into a recently-popped cell before its echo fades.
     this._resolveEchoes();
@@ -6104,7 +6151,7 @@ if (typeof location !== "undefined" && /(?:\?|&)e2e=1\b/.test(location.search)) 
     Monetization,
     UI,
     getLevel,
-    pets: { petBuffs, petActive, levelForXp, rollCrate, rollLegendaryCrate, getPet, PET_CATALOG, pityRarityFloor, nextPity, dustValue, PITY_EPIC, PITY_LEGENDARY, rollTrait, getTrait, TRAITS, partyBuffs, partyTotalBuffs, activeSynergies, SYNERGIES, SUPPORT_SLOTS },
+    pets: { petBuffs, petActive, levelForXp, rollCrate, rollLegendaryCrate, getPet, PET_CATALOG, pityRarityFloor, nextPity, dustValue, PITY_EPIC, PITY_LEGENDARY, rollTrait, getTrait, TRAITS, partyBuffs, partyTotalBuffs, activeSynergies, SYNERGIES, SUPPORT_SLOTS, EGG_INCUBATE_MOVES, eggReady, advanceEgg },
     gems: { GEM_CATALOG, GEM_TIERS, socketsForLevel, socketBuffs, socketActiveMods, rollGem, gemKey, parseGemKey, gemDustCost, getGemDef, getGemTier, gemLabel, canSocketGemAtLevel, maxGemTierForLevel, levelForGemTier, socketDustCost, unsocketDustRefund, MAX_SOCKETS, FUSE_COUNT, nextGemTier, prevGemTier, canFuseTier, fusedGemKey, autoFuseInventory },
     tech: { TECH_TREE, techNode, techTierOf, pendingTechTier, hasPendingTech, canPickTech, techTiersUnlocked },
     calendar: { calendarStatus, advanceCalendar, todayKey },

@@ -6501,6 +6501,113 @@ test.describe("pet companions (collection & buffs)", () => {
     await expect(page.locator("#dust-count")).toHaveText(String(dust.after));
   });
 
+  test("opening a crate from the Store panel starts an incubating egg instead of an instant reveal", async ({
+    page,
+  }) => {
+    await page.locator("#btn-pets").click();
+    await page.locator('.pet-tab[data-pet-tab="store"]').click();
+    await expect(page.locator("#crate-open")).toBeVisible();
+
+    await page.locator("#crate-open").click();
+    // The Open button is replaced by an incubating card; no reveal modal yet.
+    await expect(page.locator(".crate-egg")).toBeVisible();
+    await expect(page.locator(".crate-egg")).toContainText("incubating");
+    await expect(page.locator("#egg-hatch")).toBeDisabled();
+    await expect(page.locator("#pet-reveal")).toBeHidden();
+
+    const egg = await page.evaluate(() => window.__bpc.Storage.getEgg());
+    expect(egg).not.toBeNull();
+    expect(egg.movesLeft).toBe(await page.evaluate(() => window.__bpc.pets.EGG_INCUBATE_MOVES));
+  });
+
+  test("the egg becomes hatchable after enough resolved moves and reveals the pre-rolled pet", async ({
+    page,
+  }) => {
+    await page.locator("#btn-pets").click();
+    await page.locator('.pet-tab[data-pet-tab="store"]').click();
+    await page.locator("#crate-open").click();
+
+    const totalMoves = await page.evaluate(() => window.__bpc.pets.EGG_INCUBATE_MOVES);
+    await page.locator("#pets-back").click();
+
+    // Play the exact number of moves the egg needs, one real popAt per move.
+    await page.evaluate(() => window.__bpc.game.startCampaign(1));
+    await expect(page.locator("#hud-mode-label")).toContainText("Level 1");
+    for (let i = 0; i < totalMoves; i++) {
+      const popped = await page.evaluate(() => {
+        const g = window.__bpc.game;
+        const b = g.session.board;
+        for (let c = 0; c < b.cols; c++) {
+          for (let r = 0; r < b.rows; r++) {
+            if (b.grid[c][r] === -1) continue;
+            if (b.getGroupAt(c, r).length >= 2) {
+              g.popAt(c, r);
+              return true;
+            }
+          }
+        }
+        return false;
+      });
+      expect(popped).toBe(true);
+      await page.waitForTimeout(150);
+    }
+
+    const eggAfter = await page.evaluate(() => window.__bpc.Storage.getEgg());
+    expect(eggAfter.movesLeft).toBe(0);
+
+    await page.locator("#btn-back").click();
+    await page.locator("#pause-menu").click();
+    await page.locator("#btn-pets").click();
+    await page.locator('.pet-tab[data-pet-tab="store"]').click();
+    await expect(page.locator(".crate-egg")).toContainText("ready to hatch");
+    await expect(page.locator("#egg-hatch")).toBeEnabled();
+
+    const petId = await page.evaluate(() => window.__bpc.Storage.getEgg().rolled.petId);
+    await page.locator("#egg-hatch").click();
+
+    // The egg is gone, the pet is granted, and the crate panel reverts to "Open".
+    await expect(page.locator("#crate-open")).toBeVisible();
+    const state = await page.evaluate((id) => ({
+      egg: window.__bpc.Storage.getEgg(),
+      owns: window.__bpc.Storage.ownsPet(id),
+    }), petId);
+    expect(state.egg).toBeNull();
+    expect(state.owns).toBe(true);
+  });
+
+  test("only one egg can incubate at a time", async ({ page }) => {
+    await page.evaluate(() => window.__bpc.Storage.addCrates(2));
+    const res = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const first = g.startEggHatch();
+      const second = g.startEggHatch();
+      return { first, second };
+    });
+    expect(res.first.incubating).toBe(true);
+    expect(res.second.blocked).toBe(true);
+    // The second crate was never consumed.
+    expect(await page.evaluate(() => window.__bpc.Storage.getPetState().crates)).toBeGreaterThanOrEqual(1);
+  });
+
+  test("hatchEgg returns null when there is no egg or it isn't ready yet", async ({ page }) => {
+    const beforeAny = await page.evaluate(() => window.__bpc.game.hatchEgg());
+    expect(beforeAny).toBeNull();
+
+    await page.evaluate(() => window.__bpc.game.startEggHatch());
+    const stillIncubating = await page.evaluate(() => window.__bpc.game.hatchEgg());
+    expect(stillIncubating).toBeNull();
+  });
+
+  test("egg incubation persists across a reload", async ({ page }) => {
+    const started = await page.evaluate(() => window.__bpc.game.startEggHatch());
+    expect(started.incubating).toBe(true);
+    await page.reload();
+    await page.waitForFunction(() => window.__bpc && window.__bpc.game);
+    const egg = await page.evaluate(() => window.__bpc.Storage.getEgg());
+    expect(egg).not.toBeNull();
+    expect(egg.movesLeft).toBe(started.movesLeft);
+  });
+
   test("the pity timer guarantees rarer pets after dry opens", async ({ page }) => {
     await page.locator("#btn-pets").click();
     const result = await page.evaluate(() => {

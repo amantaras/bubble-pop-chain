@@ -100,6 +100,7 @@ import {
   getTrait,
   SUPPORT_SLOTS,
   activeSynergies,
+  eggReady,
 } from "./pets.js";
 import {
   GEM_CATALOG,
@@ -3369,6 +3370,7 @@ class UIManager {
       return;
     }
     const { crates, dust } = Storage.getPetState();
+    const egg = Storage.getEgg();
     wrap.innerHTML = "";
     const info = document.createElement("div");
     info.className = "crate-info";
@@ -3377,29 +3379,62 @@ class UIManager {
       : "Duplicate pets become XP now. Pet Dust becomes useful later.";
     info.innerHTML = `<span class="crate-icon crate-art crate-art-pet" aria-hidden="true"><span class="ca-glow"></span><span class="ca-lid"></span><span class="ca-body"></span><span class="ca-band"></span><span class="ca-lock"></span><span class="ca-gem ca-g1"></span><span class="ca-gem ca-g2"></span></span><div><div class="crate-title">Pet Crates</div><div class="crate-sub">You have <b id="crate-count">${crates}</b> — open one to win a pet!</div><div class="crate-dust">${dustText}</div></div>`;
 
-    const openBtn = document.createElement("button");
-    openBtn.className = "buy-btn pet-open-btn";
-    openBtn.id = "crate-open";
-    openBtn.textContent = "Open";
-    openBtn.disabled = crates <= 0;
-    openBtn.addEventListener("click", () => {
-      if (!this.cb.openCrate) return;
-      const res = this.cb.openCrate();
-      if (!res) {
-        this.toast("No crates to open");
-        return;
-      }
-      const pet = getPet(res.petId);
-      Audio.coin();
-      this._selectedPet = res.petId;
-      this.buildPets();
-      if (res.isNew) {
-        this.showPetReveal(res);
-      } else {
-        const dustTxt = res.dust ? ` (+${res.dust}✨ dust)` : "";
-        this.toast(`${pet.icon} ${pet.name} +XP${dustTxt} (duplicate)`);
-      }
-    });
+    // Mystery Egg Hatching: a crate opened from here incubates for a few
+    // moves before its pet can be revealed, instead of resolving instantly.
+    const eggReadyNow = egg && eggReady(egg);
+    let openBtn;
+    let eggCard = null;
+    if (egg) {
+      eggCard = document.createElement("div");
+      eggCard.className = "crate-egg" + (eggReadyNow ? " ready" : "");
+      eggCard.innerHTML =
+        `<span class="crate-egg-icon" aria-hidden="true">${eggReadyNow ? "🐣" : "🥚"}</span>` +
+        `<div class="crate-egg-text">` +
+        `<div class="crate-egg-title">${eggReadyNow ? "Egg ready to hatch!" : "Egg incubating…"}</div>` +
+        `<div class="crate-egg-sub" id="egg-status">${
+          eggReadyNow ? "Tap to see who hatched!" : `${egg.movesLeft} move${egg.movesLeft === 1 ? "" : "s"} left`
+        }</div></div>`;
+      openBtn = document.createElement("button");
+      openBtn.className = "buy-btn pet-open-btn";
+      openBtn.id = "egg-hatch";
+      openBtn.textContent = eggReadyNow ? "Hatch!" : "Incubating…";
+      openBtn.disabled = !eggReadyNow;
+      openBtn.addEventListener("click", () => {
+        if (!this.cb.hatchEgg) return;
+        const res = this.cb.hatchEgg();
+        if (!res) return;
+        const pet = getPet(res.petId);
+        Audio.coin();
+        this._selectedPet = res.petId;
+        this.buildPets();
+        if (res.isNew) {
+          this.showPetReveal(res);
+        } else {
+          const dustTxt = res.dust ? ` (+${res.dust}✨ dust)` : "";
+          this.toast(`${pet.icon} ${pet.name} +XP${dustTxt} (duplicate)`);
+        }
+      });
+    } else {
+      openBtn = document.createElement("button");
+      openBtn.className = "buy-btn pet-open-btn";
+      openBtn.id = "crate-open";
+      openBtn.textContent = "Open";
+      openBtn.disabled = crates <= 0;
+      openBtn.addEventListener("click", () => {
+        if (!this.cb.startEggHatch) return;
+        const res = this.cb.startEggHatch();
+        if (!res) {
+          this.toast("No crates to open");
+          return;
+        }
+        if (res.blocked) {
+          this.toast("An egg is already incubating!");
+          return;
+        }
+        Audio.click();
+        this.buildPets();
+      });
+    }
 
     const buyBtn = document.createElement("button");
     buyBtn.className = "buy-btn pet-buy-crate";
@@ -3423,7 +3458,7 @@ class UIManager {
         this.toast("Crate purchased!");
         const count = wrap.querySelector("#crate-count");
         if (count) count.textContent = Storage.getPetState().crates;
-        openBtn.disabled = false;
+        if (!egg) openBtn.disabled = false;
         this.refreshCoins();
         return true;
       } else {
@@ -3437,6 +3472,7 @@ class UIManager {
     btns.appendChild(openBtn);
     btns.appendChild(buyBtn);
     wrap.appendChild(info);
+    if (eggCard) wrap.appendChild(eggCard);
     wrap.appendChild(btns);
   }
 

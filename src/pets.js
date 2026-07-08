@@ -144,6 +144,30 @@ export function nextPity(pity, rarity) {
   return { sinceEpic, sinceLegendary };
 }
 
+// ---- Mystery Egg Hatching (delayed crate reveal) ---------------------------
+// Opening an ordinary Pet Crate no longer reveals its pet instantly — it
+// starts a short "incubating egg" beat first, adding a moment of suspense
+// before the existing celebration reveal. The roll itself (and any economy
+// bookkeeping — dust/XP/pity/gem drop) still resolves the INSTANT the crate
+// is opened, exactly as before; only the reveal is deferred, via a
+// `{ rolled, movesLeft }` record advanced once per resolved move (any mode,
+// mirroring the vine/polarity "one step per move" contract). Only one egg can
+// incubate at a time — starting a new one while another is still incubating
+// is rejected by the caller (see main.js `startEggHatch`).
+export const EGG_INCUBATE_MOVES = 5;
+
+// Is this egg record ready to hatch (has it finished incubating)?
+export function eggReady(egg) {
+  return !!egg && egg.movesLeft <= 0;
+}
+
+// The state after one resolved move ticks the incubation down (floored at 0).
+// A falsy/already-ready egg is returned unchanged — pure, no-op past ready.
+export function advanceEgg(egg) {
+  if (!egg || eggReady(egg)) return egg;
+  return { ...egg, movesLeft: Math.max(0, egg.movesLeft - 1) };
+}
+
 
 // A standard coin crate can VERY rarely surprise you with a premium pet — the
 // only free way to win one (otherwise they're bought in the Pet Store). Kept

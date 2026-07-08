@@ -105,6 +105,9 @@ const DEFAULT_SAVE = {
     // Pity counters: opens since the last epic / legendary, for the crate
     // guarantee (see pets.js pityRarityFloor / nextPity).
     pity: { sinceEpic: 0, sinceLegendary: 0 },
+    // Mystery Egg Hatching: the one crate currently incubating (or null), as
+    // { rolled, movesLeft } — see pets.js eggReady/advanceEgg.
+    egg: null,
   },
   // Loose gem inventory — earned from crates / events / Dust crafting, slotted
   // into a pet's sockets for extra buffs. Maps a gem key "type:tier" → count.
@@ -328,6 +331,7 @@ class StorageManager {
         sinceEpic: pity.sinceEpic || 0,
         sinceLegendary: pity.sinceLegendary || 0,
       },
+      egg: p.egg && typeof p.egg === "object" ? p.egg : null,
     };
   }
 
@@ -346,8 +350,25 @@ class StorageManager {
         sinceEpic: Math.max(0, (state.pity && state.pity.sinceEpic) || 0),
         sinceLegendary: Math.max(0, (state.pity && state.pity.sinceLegendary) || 0),
       },
+      egg: state.egg && typeof state.egg === "object" ? state.egg : null,
     };
     this.save();
+  }
+
+  // ---- Mystery Egg Hatching ----------------------------------------------
+  // The one incubating egg, or null. Shape: { rolled, movesLeft }.
+  getEgg() {
+    return this.getPetState().egg;
+  }
+
+  setEgg(egg) {
+    const p = this.getPetState();
+    p.egg = egg;
+    this._writePets(p);
+  }
+
+  clearEgg() {
+    this.setEgg(null);
   }
 
   ownsPet(id) {

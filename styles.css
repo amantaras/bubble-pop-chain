@@ -2857,6 +2857,35 @@ body {
   display: flex;
   gap: 8px;
 }
+/* Mystery Egg Hatching: incubating/ready card shown in place of the crate
+   count while a rolled crate is waiting to be revealed. */
+.crate-egg {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(255, 211, 91, 0.28);
+  background: rgba(255, 211, 91, 0.08);
+}
+.crate-egg.ready {
+  border-color: rgba(255, 211, 91, 0.55);
+  background: rgba(255, 211, 91, 0.16);
+  animation: cal-pulse 1.4s ease-in-out infinite;
+}
+.crate-egg-icon {
+  font-size: 30px;
+  line-height: 1;
+}
+.crate-egg-title {
+  font-weight: 800;
+  font-size: 13px;
+}
+.crate-egg-sub {
+  font-size: 12px;
+  color: var(--text-dim);
+}
 .crate-art {
   --crate-main: #b66b27;
   --crate-main-dark: #6f3a17;

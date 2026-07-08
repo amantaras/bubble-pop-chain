@@ -440,6 +440,39 @@ describe("storage", () => {
       expect(raw.pets.dust).toBe(75);
       expect(raw.pets.pity).toEqual({ sinceEpic: 3, sinceLegendary: 7 });
     });
+
+    it("defaults the incubating egg to null", () => {
+      expect(Storage.getEgg()).toBe(null);
+      expect(Storage.getPetState().egg).toBe(null);
+    });
+
+    it("reads and writes the incubating egg", () => {
+      const egg = { rolled: { petId: "sparky", isNew: true }, movesLeft: 5 };
+      Storage.setEgg(egg);
+      expect(Storage.getEgg()).toEqual(egg);
+      expect(Storage.getPetState().egg).toEqual(egg);
+    });
+
+    it("clearEgg resets the egg to null", () => {
+      Storage.setEgg({ rolled: { petId: "sparky" }, movesLeft: 2 });
+      Storage.clearEgg();
+      expect(Storage.getEgg()).toBe(null);
+    });
+
+    it("persists the egg across a fresh read", () => {
+      const egg = { rolled: { petId: "draco", isNew: false, dust: 30 }, movesLeft: 3 };
+      Storage.setEgg(egg);
+      const raw = JSON.parse(localStorage.getItem("bpc_save_v1"));
+      expect(raw.pets.egg).toEqual(egg);
+    });
+
+    it("egg does not interfere with other pet state fields", () => {
+      Storage.addCrates(2);
+      Storage.setEgg({ rolled: { petId: "sparky" }, movesLeft: 5 });
+      const p = Storage.getPetState();
+      expect(p.crates).toBe(2);
+      expect(p.egg.movesLeft).toBe(5);
+    });
   });
 
   describe("gems inventory", () => {
