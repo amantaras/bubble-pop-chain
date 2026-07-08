@@ -1,4 +1,13 @@
 :root {
+  /* Tells the browser this app is INTENTIONALLY dark-themed. Without this,
+     some mobile browsers/WebViews (notably Android Chrome's "Force Dark" /
+     auto dark-theme heuristic, on by default on many devices) apply
+     automatic colour-inversion to page content that doesn't declare its own
+     scheme -- which flips pure white-stroke monochrome icons (the tool
+     icons in assets/icons/tools/*.svg) to black, making them invisible
+     against the already-dark HUD background. This is a real regression
+     class distinct from an actual asset load failure. */
+  color-scheme: dark;
   --bg-0: #0b1020;
   --bg-1: #131a33;
   --bg-2: #1b2147;
@@ -1472,6 +1481,13 @@ body {
   place-items: center;
   line-height: 1;
   vertical-align: middle;
+}
+/* The fallback emoji and the SVG image are stacked in the SAME grid cell so
+   the fallback shows immediately and the image simply covers it once
+   loaded (see toolIconHtml in ui.js) -- there is never a frame where
+   neither is visible. */
+.tool-icon-wrap > * {
+  grid-area: 1 / 1;
 }
 .tool-icon-img {
   display: block;

@@ -161,7 +161,7 @@ const WIN_COUNT_UP_TOTAL = WIN_COUNT_UP_DELAY + WIN_COUNT_UP_DURATION + 20;
 function coinIconHtml(kind = "single", className = "coin-dot") {
   const src = kind === "stack" ? COINS_STACK_ICON : COIN_ICON;
   return `<span class="${className} coin-icon" aria-hidden="true">` +
-    `<img src="${src}" alt="" loading="lazy" decoding="async">` +
+    `<img src="${src}" alt="" decoding="async">` +
     `</span>`;
 }
 
@@ -169,9 +169,14 @@ function toolIconHtml(typeOrInfo, className = "tool-icon") {
   const info = typeof typeOrInfo === "string" ? POWERUP_INFO[typeOrInfo] : typeOrInfo;
   const fallback = info?.icon || "✨";
   if (!info?.iconAsset) return `<span class="${className} tool-icon-wrap emoji">${fallback}</span>`;
+  // Fallback-first: the emoji renders immediately and the SVG is layered on
+  // top (see .tool-icon-fallback/.tool-icon-img CSS, stacked in one grid
+  // cell). Only a successful `onload` hides the fallback; a failed OR
+  // never-attempted load (e.g. a lazy-load heuristic that never fires) just
+  // leaves the emoji visible -- the slot can never end up showing NOTHING.
   return `<span class="${className} tool-icon-wrap" aria-hidden="true">` +
-    `<img class="tool-icon-img" src="${info.iconAsset}" alt="" loading="lazy" decoding="async" onerror="this.hidden=true;this.nextElementSibling.hidden=false">` +
-    `<span class="tool-icon-fallback" hidden>${fallback}</span>` +
+    `<span class="tool-icon-fallback">${fallback}</span>` +
+    `<img class="tool-icon-img" src="${info.iconAsset}" alt="" decoding="async" onload="this.previousElementSibling.hidden=true" onerror="this.hidden=true">` +
     `</span>`;
 }
 
