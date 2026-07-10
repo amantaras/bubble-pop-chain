@@ -1,4 +1,4 @@
-const CACHE = "bubble-pop-chain-v93";
+const CACHE = "bubble-pop-chain-v94";
 const ASSETS = [
   "./",
   "./index.html",
@@ -42,6 +42,9 @@ const ASSETS = [
   "./assets/icons/tools/extra-moves.png",
   "./assets/icons/tools/magnet.png",
   "./assets/pets/avatars/README.txt",
+  "./assets/pets/avatars/anim/sparky-1.png",
+  "./assets/pets/avatars/anim/sparky-2.png",
+  "./assets/pets/avatars/anim/sparky-3.png",
   "./assets/pets/avatars/sparky.png",
   "./assets/pets/avatars/clover.png",
   "./assets/pets/avatars/mochi.png",

@@ -1443,7 +1443,15 @@ never re‑discovered the hard way.
   via Meshy AI's Text to Image API and post-processed locally — chroma-key
   transparency, trim, resize; see `scripts/meshy/`) rendered through
   `visual.avatar`, with Skybolt using its Kenney ship PNG so its card/reveal/HUD
-  image matches the in-board flyby. The store also sells a real-money
+  image matches the in-board flyby. **Optional idle-turn animation**
+  (`visual.frames`, `pets.js` `petAnimFrames`): a pet can declare 2-3 extra
+  angle frames (generated via Meshy's `generate_multi_view`) that crossfade in
+  a looping animation instead of the plain static avatar — but only in the
+  big one-pet showcase moments (reveal/level-up/gem-reminder,
+  `ui.js` `_petAvatarHtml`'s `size:"reveal"` branch), never in list/grid views.
+  Sparky is the only pilot so far (`assets/pets/avatars/anim/sparky-{1,2,3}.png`)
+  — most pets have no `frames` and simply render the single static image as
+  before. The store also sells a real-money
   **Legendary Crate** (`LEGENDARY_CRATE`, `crate_legendary` IAP, boosted odds
   via `rollLegendaryCrate` → always legendary, often premium;
   `game.buyLegendaryCrate`). Cosmetic tints (`COSMETICS`, hue-rotate) are
@@ -1827,7 +1835,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 799 unit tests + 670 E2E
+- **Current baseline (keep growing, never shrink)**: 800 unit tests + 672 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

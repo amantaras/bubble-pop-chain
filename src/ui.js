@@ -85,6 +85,7 @@ import {
   COSMETICS,
   getPet,
   petAvatarSrc,
+  petAnimFrames,
   getCosmetic,
   petBuffs,
   petActive,
@@ -922,6 +923,17 @@ class UIManager {
     const label = (pet && pet.name) || "Pet";
     const hue = Number.isFinite(opts.hue) ? opts.hue : 0;
     const style = hue ? ` style="filter:hue-rotate(${hue}deg)"` : "";
+    // The big one-pet showcase moments (reveal/level-up/gem-reminder) get an
+    // optional looping idle-turn crossfade when the pet has multi-view frames
+    // (see pets.js `petAnimFrames`) — every other size/pet keeps the plain
+    // static <img> below, unchanged.
+    const frames = opts.size === "reveal" && !locked ? petAnimFrames(pet) : null;
+    if (frames && frames.length > 1) {
+      const imgs = frames
+        .map((f, i) => `<img class="pet-avatar-img paf-frame paf-frame-${i + 1}" src="${f}" alt="">`)
+        .join("");
+      return `<span class="pet-avatar pet-avatar-imgwrap pet-avatar-anim${size}${extra}"${style} aria-label="${label}">${imgs}</span>`;
+    }
     if (src) {
       return `<span class="pet-avatar pet-avatar-imgwrap${size}${extra}"${style} aria-label="${label}"><img class="pet-avatar-img" src="${src}" alt=""></span>`;
     }

@@ -3430,6 +3430,33 @@ body {
   filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.24)) drop-shadow(0 0 8px rgba(255, 255, 255, 0.16));
   pointer-events: none;
 }
+/* Optional multi-frame "idle turn" loop for the big one-pet showcase moments
+   (reveal/level-up/gem-reminder) — see ui.js `_petAvatarHtml` and pets.js
+   `petAnimFrames`. Most pets only render the single plain .pet-avatar-img
+   above; when a pet has frames, `.pet-avatar-anim` stacks 2-3 `.paf-frame`
+   images in the same box and crossfades between them on a loop. Respects
+   the existing reduced-motion rules automatically (the global
+   `*, *::before, *::after { animation-duration: 0.001ms !important }`
+   override already covers any element, including these). */
+.pet-avatar-anim {
+  position: relative;
+}
+.paf-frame {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  animation: petFrameCycle 4.5s ease-in-out infinite;
+}
+.paf-frame-1 { animation-delay: 0s; }
+.paf-frame-2 { animation-delay: 1.5s; }
+.paf-frame-3 { animation-delay: 3s; }
+@keyframes petFrameCycle {
+  0% { opacity: 0; }
+  4% { opacity: 1; }
+  28% { opacity: 1; }
+  36% { opacity: 0; }
+  100% { opacity: 0; }
+}
 .pet-avatar-card {
   width: 46px;
   height: 40px;

@@ -52,6 +52,7 @@ import {
   nextPetFeatureUnlock,
   petAvatarSrc,
   petSpriteSrc,
+  petAnimFrames,
   EGG_INCUBATE_MOVES,
   eggReady,
   advanceEgg,
@@ -109,6 +110,17 @@ describe("pets catalog", () => {
     expect(petSpriteSrc("rover")).toBe("./assets/pets/avatars/rover.png");
     expect(petAvatarSrc("missing")).toBeNull();
     expect(petSpriteSrc(null)).toBeNull();
+  });
+
+  it("exposes optional multi-frame idle-turn art only for pets that declare it", () => {
+    const frames = petAnimFrames("sparky");
+    expect(frames).toHaveLength(3);
+    for (const f of frames) {
+      expect(f).toMatch(/^\.\/assets\/pets\/avatars\/anim\/sparky-[123]\.png$/);
+    }
+    // Most pets don't declare frames — that's fine, not required.
+    expect(petAnimFrames("rover")).toBeNull();
+    expect(petAnimFrames("missing")).toBeNull();
   });
 
   it("only premium pets carry a price/product", () => {

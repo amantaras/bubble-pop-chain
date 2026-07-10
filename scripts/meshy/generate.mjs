@@ -54,9 +54,15 @@ function parseArgs(argv) {
   return opts;
 }
 
-async function createTask(apiKey, { prompt, model = "nano-banana", aspect = "1:1" }) {
+async function createTask(apiKey, { prompt, model = "nano-banana", aspect = "1:1", multiView = false }) {
   if (!VALID_MODELS.includes(model)) {
     throw new Error(`Invalid model "${model}". Valid: ${VALID_MODELS.join(", ")}`);
+  }
+  const payload = { ai_model: model, prompt };
+  if (multiView) {
+    payload.generate_multi_view = true; // API forbids aspect_ratio alongside this
+  } else {
+    payload.aspect_ratio = aspect;
   }
   const res = await fetch(API_BASE, {
     method: "POST",
@@ -64,7 +70,7 @@ async function createTask(apiKey, { prompt, model = "nano-banana", aspect = "1:1
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ ai_model: model, prompt, aspect_ratio: aspect }),
+    body: JSON.stringify(payload),
   });
   const body = await res.json();
   if (!res.ok) {
@@ -98,26 +104,33 @@ async function downloadImage(url) {
 }
 
 async function generateOne(apiKey, job) {
-  const { id, prompt, model, aspect, out, chromaKey = "auto", chromaThreshold = 70, chromaFeather = 60 } = job;
+  const { id, prompt, model, aspect, out, chromaKey = "auto", chromaThreshold = 70, chromaFeather = 60, generate_multi_view } = job;
   if (!prompt) throw new Error(`Job ${id || "?"} missing "prompt"`);
   if (!out) throw new Error(`Job ${id || "?"} missing "out"`);
   console.log(`\n[${id || out}] creating task…`);
-  const taskId = await createTask(apiKey, { prompt, model, aspect });
+  const taskId = await createTask(apiKey, { prompt, model, aspect, multiView: !!generate_multi_view });
   console.log(`[${id || out}] task ${taskId} — polling…`);
   const task = await pollTask(apiKey, taskId);
-  const imageUrl = task.image_urls?.[0];
-  if (!imageUrl) throw new Error(`Task ${taskId} succeeded but returned no image_urls`);
-  let buf = await downloadImage(imageUrl);
-  if (chromaKey !== false && chromaKey !== "none") {
-    console.log(`[${id || out}] removing background (chromaKey=${chromaKey})…`);
-    const keyed = await chromaKeyOut(buf, { color: chromaKey, threshold: chromaThreshold, feather: chromaFeather });
-    buf = keyed.buffer;
-  }
+  const urls = task.image_urls || [];
+  if (!urls.length) throw new Error(`Task ${taskId} succeeded but returned no image_urls`);
+  const results = [];
   const outPath = path.isAbsolute(out) ? out : path.join(ROOT, out);
-  await mkdir(path.dirname(outPath), { recursive: true });
-  await writeFile(outPath, buf);
-  console.log(`[${id || out}] saved -> ${path.relative(ROOT, outPath)} (${task.consumed_credits ?? "?"} credits)`);
-  return { id, outPath, consumed_credits: task.consumed_credits };
+  const ext = path.extname(outPath);
+  const base = outPath.slice(0, -ext.length);
+  for (let i = 0; i < urls.length; i++) {
+    let buf = await downloadImage(urls[i]);
+    if (chromaKey !== false && chromaKey !== "none") {
+      const keyed = await chromaKeyOut(buf, { color: chromaKey, threshold: chromaThreshold, feather: chromaFeather });
+      buf = keyed.buffer;
+    }
+    const thisPath = urls.length > 1 ? `${base}-${i + 1}${ext}` : outPath;
+    await mkdir(path.dirname(thisPath), { recursive: true });
+    await writeFile(thisPath, buf);
+    console.log(`[${id || out}] saved -> ${path.relative(ROOT, thisPath)}`);
+    results.push(thisPath);
+  }
+  console.log(`[${id || out}] done (${task.consumed_credits ?? "?"} credits)`);
+  return { id, outPaths: results, consumed_credits: task.consumed_credits };
 }
 
 async function main() {

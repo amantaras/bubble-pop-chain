@@ -6922,6 +6922,29 @@ test.describe("pet companions (collection & buffs)", () => {
     await expect(page.locator("#pet-reveal")).toBeHidden();
   });
 
+  test("Sparky's reveal shows a looping 3-frame idle-turn animation", async ({ page }) => {
+    await page.locator("#btn-pets").click();
+    await page.evaluate(() => {
+      window.__bpc.UI.showPetReveal({ petId: "sparky", isNew: true });
+    });
+    await expect(page.locator("#pet-reveal")).toBeVisible();
+    const frames = page.locator("#pet-reveal-icon img.paf-frame");
+    await expect(frames).toHaveCount(3);
+    for (let i = 1; i <= 3; i++) {
+      await expect(page.locator(`#pet-reveal-icon img.paf-frame-${i}`)).toHaveAttribute(
+        "src",
+        new RegExp(`/assets/pets/avatars/anim/sparky-${i}\\.png$`)
+      );
+    }
+    // Every other pet keeps the plain single-image markup (no frames declared).
+    await page.evaluate(() => {
+      window.__bpc.Storage.grantPet("rover");
+      window.__bpc.UI.showPetReveal({ petId: "rover", isNew: true });
+    });
+    await expect(page.locator("#pet-reveal-icon img.paf-frame")).toHaveCount(0);
+    await expect(page.locator("#pet-reveal-icon img")).toHaveCount(1);
+  });
+
   test("buying a premium pet fires the new-companion celebration", async ({
     page,
   }) => {

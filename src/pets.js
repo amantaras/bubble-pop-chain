@@ -241,11 +241,15 @@ export const RARITY_WEIGHTS = {
 // (an autonomous shooter) reserved for players who buy it — powerful, but it
 // only speeds up clears the player could achieve anyway.
 const petAvatar = (id) => `./assets/pets/avatars/${id}.png`;
+const petAnimFramePaths = (id, count) => Array.from({ length: count }, (_, i) => `./assets/pets/avatars/anim/${id}-${i + 1}.png`);
 
 export const PET_CATALOG = [
   {
     id: "sparky", name: "Sparky", icon: "⚡", rarity: "common", premium: false,
-    visual: { avatar: petAvatar("sparky") },
+    // Pilot for the multi-frame idle-turn animation (see `petAnimFrames`):
+    // Sparky is the one every player gets first, so it's the highest-value
+    // place to try this before deciding whether to roll it out further.
+    visual: { avatar: petAvatar("sparky"), frames: petAnimFramePaths("sparky", 3) },
     desc: "An energetic spark that charges your blast meter faster.",
     ability: { key: "powerMult", per: 0.08, label: "Charge fills faster" },
   },
@@ -498,6 +502,17 @@ export function petSpriteSrc(petOrId) {
   const pet = typeof petOrId === "string" ? getPet(petOrId) : (petOrId && petOrId.visual ? petOrId : getPet(petOrId && petOrId.id));
   if (!pet || !pet.visual) return null;
   return pet.visual.sprite || pet.visual.avatar || null;
+}
+
+// Optional multi-frame "idle turn" art (front/side/back angles from Meshy's
+// multi-view generation) for a subtle looping crossfade in the big one-pet
+// showcase moments (reveal/level-up/gem-reminder modals — see ui.js
+// `_petAvatarHtml`'s `size:"reveal"` branch). Most pets only have a single
+// static avatar; this returns null unless the catalog entry declares
+// `visual.frames`, so it's purely additive and never required.
+export function petAnimFrames(petOrId) {
+  const pet = typeof petOrId === "string" ? getPet(petOrId) : (petOrId && petOrId.visual ? petOrId : getPet(petOrId && petOrId.id));
+  return pet && pet.visual && Array.isArray(pet.visual.frames) && pet.visual.frames.length ? pet.visual.frames : null;
 }
 
 export function getCosmetic(id) {

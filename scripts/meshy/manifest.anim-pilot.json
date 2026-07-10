@@ -1,0 +1,6 @@
+[
+  {
+    "id": "sparky-multiview", "prompt": "A cute chibi mascot creature made of electric energy, small round friendly body, glowing yellow spark/lightning bolt shape, big sparkling eyes, painterly 3D-rendered game icon style, glossy soft-shaded surfaces, dramatic rim light, full body visible, isolated on a solid flat pure magenta background #ff00ff, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "generate_multi_view": true, "out": "scripts/meshy/output/anim/sparky-view.png"
+  }
+]
