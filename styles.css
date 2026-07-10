@@ -261,6 +261,8 @@ body {
 /* ---------- Buttons ---------- */
 .btn {
   appearance: none;
+  position: relative;
+  overflow: hidden;
   border: 1px solid var(--glass-brd);
   background: var(--glass);
   color: var(--text);
@@ -276,30 +278,35 @@ body {
 }
 .btn:active {
   transform: scale(0.96);
+  filter: brightness(0.94);
 }
 .btn-primary {
-  position: relative;
-  overflow: hidden;
   background: var(--ui-gradient, linear-gradient(135deg, var(--accent), var(--accent-2)));
   color: var(--ui-on-accent, #08122a);
   border: none;
   box-shadow: 0 8px 26px var(--ui-glow, rgba(91, 227, 255, 0.35)), inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
-/* Glossy sheen — a soft diagonal highlight layered on top of primary CTA
-   buttons/tiles/icon-buttons for extra "premium" depth, purely decorative
-   (no DOM/JS changes, just an ::after overlay painted after the button's
-   own content so it reads as a light reflection, not a flat gradient).
-   Extended to every other prominent filled/selected button across the game
-   (Shop buy rows, wager tiers, win-screen choices, active tabs) so the
-   treatment reads consistently everywhere, not just the main menu. */
-.btn-primary::after,
+/* Glossy sheen — a soft diagonal highlight layered on top of every filled
+   action button/tile/tab across the whole game (main menu CTAs/tiles, Shop
+   buy rows, wager tiers, win-screen choices, active tabs, and now every
+   plain `.btn` — Pause menu, Test Lab, diagnostics, etc.) for a consistent
+   premium depth. `.btn-ghost` (Cancel/Later/Close/Menu-style transparent
+   buttons) is intentionally excluded — there's no filled surface for a
+   sheen to reflect off of. Purely decorative (no DOM/JS changes, just an
+   ::after overlay painted after the button's own content so it reads as a
+   light reflection, not a flat gradient). */
+.btn:not(.btn-ghost)::after,
 .tile::after,
 .icon-btn::after,
 .buy-btn::after,
 .wager-tier-btn::after,
 .win-choice-btn::after,
 .shop-filter.active::after,
-.pet-tab.active::after {
+.pet-tab.active::after,
+.wheel-launch::after,
+.pg-auto-forge-btn::after,
+.pg-craft-btn::after,
+.pg-fuse-btn::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -2287,6 +2294,8 @@ body {
 /* Compact launcher card on the Gifts screen → opens the Lucky Wheel modal.
    Shares the .gl-* sub-parts with the Pets screen's Gem Forge launcher. */
 .wheel-launch {
+  position: relative;
+  overflow: hidden;
   appearance: none;
   width: calc(100% - 32px);
   margin: 0 16px 16px;
@@ -2304,6 +2313,7 @@ body {
 }
 .wheel-launch:active {
   transform: scale(0.98);
+  filter: brightness(0.94);
 }
 .wheel-launch .gl-icon {
   font-size: 26px;
@@ -4316,6 +4326,8 @@ body {
   margin: -2px 0 10px;
 }
 .pg-auto-forge-btn {
+  position: relative;
+  overflow: hidden;
   width: 100%;
   display: flex;
   align-items: center;
@@ -4328,6 +4340,10 @@ body {
   background: linear-gradient(135deg, rgba(46, 194, 126, 0.32), rgba(77, 139, 255, 0.28));
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
   cursor: pointer;
+}
+.pg-auto-forge-btn:active {
+  transform: scale(0.97);
+  filter: brightness(0.94);
 }
 .pg-auto-forge-btn:disabled {
   opacity: 0.42;
@@ -4540,6 +4556,8 @@ body {
   margin-top: 10px;
 }
 .pg-fuse-btn {
+  position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -4550,6 +4568,10 @@ body {
   color: #fff;
   background: linear-gradient(135deg, #2ec27e, #4d8bff);
   cursor: pointer;
+}
+.pg-fuse-btn:active {
+  transform: scale(0.96);
+  filter: brightness(0.94);
 }
 .pg-fuse-main {
   font-size: 12px;
@@ -4652,6 +4674,8 @@ body {
   gap: 6px;
 }
 .pg-craft-btn {
+  position: relative;
+  overflow: hidden;
   flex: 1 1 0;
   min-width: 0;
   display: flex;
@@ -4707,6 +4731,7 @@ body {
 }
 .pg-craft-btn:active {
   transform: scale(0.96);
+  filter: brightness(0.94);
 }
 .pg-craft-btn:disabled {
   opacity: 0.4;
