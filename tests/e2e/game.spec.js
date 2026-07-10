@@ -771,7 +771,7 @@ test.describe("undo tool (real input)", () => {
     });
 
     await expect(page.locator('#pu-slot-0[data-pu="extraMoves"]')).toBeVisible();
-  await expect(page.locator('#pu-slot-0 .pu-icon img[src$="extra-moves.svg"]')).toBeVisible();
+  await expect(page.locator('#pu-slot-0 .pu-icon img[src$="extra-moves.png"]')).toBeVisible();
     const before = await page.evaluate(() => {
       const s = window.__bpc.game.session;
       return {
@@ -3196,7 +3196,7 @@ test.describe("power-ups (UI arm + apply)", () => {
 
     // The picker lists every power-up, including ones not in the loadout.
     await expect(page.locator('#loadout-list [data-pu="shuffle"]')).toBeVisible();
-    await expect(page.locator('#loadout-list [data-pu="shuffle"] .li-icon img[src$="shuffle.svg"]')).toBeVisible();
+    await expect(page.locator('#loadout-list [data-pu="shuffle"] .li-icon img[src$="shuffle.png"]')).toBeVisible();
     await expect(page.locator('#loadout-list [data-pu="paint"]')).toBeVisible();
 
     // Choosing Shuffle equips it in slot 0 and closes the picker.
@@ -3322,7 +3322,7 @@ test.describe("power-ups (UI arm + apply)", () => {
     await page.locator('.shop-filter[data-shop-filter="tools"]').click();
     const bomb = page.locator('#shop-list .shop-item[data-pu="bomb"]');
     await expect(bomb).toHaveClass(/cannot-afford/);
-    await expect(bomb.locator('.si-icon img[src$="bomb.svg"]')).toBeVisible();
+    await expect(bomb.locator('.si-icon img[src$="bomb.png"]')).toBeVisible();
     await expect(bomb.locator(".buy-btn")).toHaveClass(/need-coins/);
   });
 });
@@ -3395,7 +3395,7 @@ test.describe("progressive tool unlocks", () => {
     await page.locator("#win-next").click();
     await expect(page.locator("#tool-unlock")).toBeVisible();
     await expect(page.locator("#tool-unlock-name")).toHaveText("Undo");
-    await expect(page.locator('#tool-unlock-icon img[src$="undo.svg"]')).toBeVisible();
+    await expect(page.locator('#tool-unlock-icon img[src$="undo.png"]')).toBeVisible();
     await expect(page.locator("#tool-unlock-level")).toContainText("Level 6");
     await expect(page.locator("#tool-unlock-lesson")).toContainText("restores the board");
 
@@ -6908,7 +6908,7 @@ test.describe("pet companions (collection & buffs)", () => {
     await expect(page.locator("#pet-reveal-name")).toHaveText("Rover");
     await expect(page.locator("#pet-reveal-icon img")).toHaveAttribute(
       "src",
-      /\/assets\/pets\/avatars\/rover\.svg$/
+      /\/assets\/pets\/avatars\/rover\.png$/
     );
     await expect(page.locator("#pet-reveal-rarity")).toHaveText("rare");
     await expect(page.locator("#pet-reveal-ability")).toContainText("colour");
@@ -7596,7 +7596,7 @@ test.describe("pet companions (collection & buffs)", () => {
     await expect(page.locator("#hud-pet")).toBeVisible();
     await expect(page.locator("#hud-pet-icon img")).toHaveAttribute(
       "src",
-      /\/assets\/pets\/(avatars\/.+\.svg|kenney-space-shooter\/.+\.png)$/
+      /\/assets\/pets\/(avatars\/.+\.png|kenney-space-shooter\/.+\.png)$/
     );
   });
 

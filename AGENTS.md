@@ -676,7 +676,8 @@ never re‑discovered the hard way.
   IAP — **no tutorial step**.
 - **Tool icon language** (`economy.js` `POWERUP_INFO.iconAsset`, `ui.js`
   `toolIconHtml`): every power-up keeps its emoji `icon` as a text fallback, but
-  now also declares a local SVG under `assets/icons/tools/`. The HUD slots,
+  now also declares a local PNG under `assets/icons/tools/` (painterly
+  3D-rendered icons generated via Meshy AI, see `scripts/meshy/`). The HUD slots,
   Shop tool rows/empty states, Starter Pack tool list, level briefing suggested
   tools, level-map next-unlock teaser, loadout picker, and Tool Unlock modal all
   render through the same helper so tools look consistent while still falling

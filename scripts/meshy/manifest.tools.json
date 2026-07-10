@@ -1,0 +1,38 @@
+[
+  {
+    "id": "undo", "prompt": "A glossy 3D-rendered game icon of a curved rewind/undo arrow, looping counter-clockwise, cool blue-teal metallic gradient, small motion-trail sparkle, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/tools/undo.png"
+  },
+  {
+    "id": "bomb", "prompt": "A stylized round bomb power-up game icon, dark metallic sphere with rivets, glowing orange lit fuse spark on top, painterly 3D-rendered look, glossy soft-shaded surfaces, dramatic rim light, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/tools/bomb.png"
+  },
+  {
+    "id": "color-clear", "prompt": "A glossy 3D-rendered game icon of a small rainbow paint-splash orb, colorful swirling droplets of red orange yellow green blue purple, glossy soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/tools/color-clear.png"
+  },
+  {
+    "id": "paint", "prompt": "A glossy 3D-rendered game icon of a small magic paintbrush with a glowing colorful paint drip at its tip, warm wooden handle, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/tools/paint.png"
+  },
+  {
+    "id": "shuffle", "prompt": "A glossy 3D-rendered game icon of two crossing curved shuffle arrows forming an infinity-like loop, vivid purple-pink metallic gradient, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/tools/shuffle.png"
+  },
+  {
+    "id": "chain-bolt", "prompt": "A glossy 3D-rendered game icon of a vivid yellow lightning bolt made of glowing electric energy with small crackling sparks, painterly soft-shaded surfaces, dramatic rim light, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/tools/chain-bolt.png"
+  },
+  {
+    "id": "pick", "prompt": "A glossy 3D-rendered game icon of a small sturdy mining pickaxe with a wooden handle and shiny metal head, a tiny spark where it strikes, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/tools/pick.png"
+  },
+  {
+    "id": "extra-moves", "prompt": "A glossy 3D-rendered game icon of a bold glowing green plus sign made of rounded chunky glass, small sparkle accents, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/tools/extra-moves.png"
+  },
+  {
+    "id": "magnet", "prompt": "A glossy 3D-rendered game icon of a classic red and silver horseshoe magnet with white striped tips, small metallic sparkle attraction lines, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/tools/magnet.png"
+  }
+]

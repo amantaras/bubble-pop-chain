@@ -140,7 +140,7 @@ describe("economy", () => {
   it("defines a reachable local SVG icon asset for every tool", () => {
     for (const [type, info] of Object.entries(POWERUP_INFO)) {
       expect(info.icon, type).toBeTruthy();
-      expect(info.iconAsset, type).toMatch(/^assets\/icons\/tools\/.+\.svg$/);
+      expect(info.iconAsset, type).toMatch(/^assets\/icons\/tools\/.+\.png$/);
       expect(existsSync(resolve(process.cwd(), info.iconAsset)), type).toBe(true);
     }
   });
