@@ -1,0 +1,6 @@
+[
+  {
+    "id": "app-icon", "prompt": "A vibrant app icon logo of a cluster of glossy 3D bubbles stacked together like a small tower, bubbles in bright cyan blue, vivid purple, and emerald green only (no white or pale bubbles), soft highlights and glossy reflections, painterly 3D-rendered game icon style, tight composition, no background glow or halo effect, no text, no letters, no watermark, isolated on a solid flat pure magenta background right up to the edge of the bubbles",
+    "model": "nano-banana-pro", "aspect": "1:1", "out": "scripts/meshy/output/branding/app-icon.png"
+  }
+]

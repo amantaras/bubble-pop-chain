@@ -278,10 +278,30 @@ body {
   transform: scale(0.96);
 }
 .btn-primary {
+  position: relative;
+  overflow: hidden;
   background: var(--ui-gradient, linear-gradient(135deg, var(--accent), var(--accent-2)));
   color: var(--ui-on-accent, #08122a);
   border: none;
-  box-shadow: 0 8px 26px var(--ui-glow, rgba(91, 227, 255, 0.35));
+  box-shadow: 0 8px 26px var(--ui-glow, rgba(91, 227, 255, 0.35)), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+/* Glossy sheen — a soft diagonal highlight layered on top of primary CTA
+   buttons/tiles/icon-buttons for extra "premium" depth, purely decorative
+   (no DOM/JS changes, just an ::after overlay painted after the button's
+   own content so it reads as a light reflection, not a flat gradient). */
+.btn-primary::after,
+.tile::after,
+.icon-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0.06) 26%, transparent 48%);
+  mix-blend-mode: soft-light;
+}
+.btn-primary:active {
+  transform: scale(0.96);
+  filter: brightness(0.94);
 }
 .btn-ghost {
   background: transparent;
@@ -309,6 +329,8 @@ body {
 }
 
 .icon-btn {
+  position: relative;
+  overflow: hidden;
   width: 44px;
   height: 44px;
   border-radius: 14px;
@@ -326,6 +348,7 @@ body {
 }
 .icon-btn:active {
   transform: scale(0.92);
+  filter: brightness(0.9);
 }
 
 /* ---------- Menu ---------- */
