@@ -1,0 +1,34 @@
+[
+  {
+    "id": "popper", "prompt": "A glossy 3D-rendered game icon of a cartoon hand with one finger pressing down, a small colorful pop-burst spark at the fingertip, warm skin-tone glossy shading, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/achv/popper.png"
+  },
+  {
+    "id": "combo", "prompt": "A glossy 3D-rendered game icon of a vivid electric-blue lightning bolt with small speed streaks and crackling sparks, painterly soft-shaded surfaces, dramatic rim light, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/achv/combo.png"
+  },
+  {
+    "id": "bigbang", "prompt": "A glossy 3D-rendered game icon of a colorful cartoon starburst explosion with jagged orange yellow and red rays, small smoke wisps, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/achv/bigbang.png"
+  },
+  {
+    "id": "fever", "prompt": "A glossy 3D-rendered game icon of a vivid warm orange-red flame with a bright yellow core, painterly soft-shaded surfaces, dramatic rim light, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/achv/fever.png"
+  },
+  {
+    "id": "campaign", "prompt": "A glossy 3D-rendered game icon of a black and white checkered racing flag gently waving on a short pole, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/achv/campaign.png"
+  },
+  {
+    "id": "stars", "prompt": "A glossy 3D-rendered game icon of a bright gold five-point star with a sparkling shine, painterly soft-shaded surfaces, warm golden rim light, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/achv/stars.png"
+  },
+  {
+    "id": "defuser", "prompt": "A glossy 3D-rendered game icon of a small round dark bomb shell with its fuse cut short and a metallic shield emblem overlapping it, indicating a safely defused bomb, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/achv/defuser.png"
+  },
+  {
+    "id": "wealth", "prompt": "A glossy 3D-rendered game icon of a tied brown leather money bag with a shiny gold dollar-sign coin on its front, painterly soft-shaded surfaces, warm golden rim light, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/achv/wealth.png"
+  }
+]

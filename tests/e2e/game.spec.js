@@ -5864,6 +5864,22 @@ test.describe("persistence & PWA", () => {
       expect(resp.ok()).toBe(true);
       expect(resp.headers()["content-type"] || "").toContain("image/png");
     }
+    const achievementPngs = [
+      "/assets/icons/achievements/popper.png",
+      "/assets/icons/achievements/combo.png",
+      "/assets/icons/achievements/bigbang.png",
+      "/assets/icons/achievements/fever.png",
+      "/assets/icons/achievements/campaign.png",
+      "/assets/icons/achievements/stars.png",
+      "/assets/icons/achievements/defuser.png",
+      "/assets/icons/achievements/wealth.png",
+    ];
+    for (const asset of achievementPngs) {
+      expect(asset).not.toMatch(/^https?:/);
+      const resp = await page.request.get(asset);
+      expect(resp.ok()).toBe(true);
+      expect(resp.headers()["content-type"] || "").toContain("image/png");
+    }
   });
 });
 

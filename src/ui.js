@@ -186,6 +186,17 @@ function setToolIcon(el, typeOrInfo, className = "tool-icon") {
   el.innerHTML = toolIconHtml(typeOrInfo, className);
 }
 
+function achievementIconHtml(cat, className = "achv-icon-img") {
+  const fallback = cat?.icon || "🏆";
+  if (!cat?.iconAsset) return `<span class="achv-icon-wrap emoji">${fallback}</span>`;
+  // Same fallback-first pattern as toolIconHtml: the emoji shows immediately
+  // and the image covers it once loaded, so the slot is never empty.
+  return `<span class="achv-icon-wrap" aria-hidden="true">` +
+    `<span class="achv-icon-fallback">${fallback}</span>` +
+    `<img class="${className}" src="${cat.iconAsset}" alt="" decoding="async" onload="this.previousElementSibling.hidden=true" onerror="this.hidden=true">` +
+    `</span>`;
+}
+
 function escapeHtml(value) {
   return String(value || "")
     .replace(/&/g, "&amp;")
@@ -2169,7 +2180,7 @@ class UIManager {
 
       const icon = document.createElement("div");
       icon.className = "achv-icon";
-      icon.textContent = cat.icon;
+      icon.innerHTML = achievementIconHtml(cat);
 
       const body = document.createElement("div");
       body.className = "achv-body";

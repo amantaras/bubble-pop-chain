@@ -51,6 +51,13 @@ describe("achievement categories", () => {
     expect(getCategory("popper").name).toBe("Popper");
     expect(getCategory("nope")).toBe(null);
   });
+
+  it("every category has a local Meshy-generated icon asset, not a remote URL", () => {
+    for (const cat of ACHIEVEMENT_CATEGORIES) {
+      expect(cat.iconAsset).toMatch(/^\.\/assets\/icons\/achievements\/.+\.png$/);
+      expect(cat.iconAsset).not.toMatch(/^https?:/);
+    }
+  });
 });
 
 describe("mergeProgress", () => {

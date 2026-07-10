@@ -2082,6 +2082,24 @@ body {
   text-align: center;
   flex-shrink: 0;
 }
+.achv-icon-wrap {
+  display: inline-grid;
+  place-items: center;
+  line-height: 1;
+}
+.achv-icon-wrap > * {
+  grid-area: 1 / 1;
+}
+.achv-icon-img {
+  display: block;
+  width: 1em;
+  height: 1em;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 7px rgba(0, 0, 0, 0.35));
+}
+.achv-icon-fallback {
+  line-height: 1;
+}
 .achv-item .achv-body {
   flex: 1;
   min-width: 0;

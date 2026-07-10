@@ -17,6 +17,7 @@ export const ACHIEVEMENT_CATEGORIES = [
   {
     id: "popper",
     icon: "👆",
+    iconAsset: "./assets/icons/achievements/popper.png",
     name: "Popper",
     metric: "pops",
     unit: "pops",
@@ -31,6 +32,7 @@ export const ACHIEVEMENT_CATEGORIES = [
   {
     id: "combo",
     icon: "⚡",
+    iconAsset: "./assets/icons/achievements/combo.png",
     name: "Combo Master",
     metric: "bestCombo",
     unit: "× combo",
@@ -45,6 +47,7 @@ export const ACHIEVEMENT_CATEGORIES = [
   {
     id: "bigbang",
     icon: "💥",
+    iconAsset: "./assets/icons/achievements/bigbang.png",
     name: "Big Bang",
     metric: "biggestGroup",
     unit: "in a group",
@@ -59,6 +62,7 @@ export const ACHIEVEMENT_CATEGORIES = [
   {
     id: "fever",
     icon: "🔥",
+    iconAsset: "./assets/icons/achievements/fever.png",
     name: "Fever Pitch",
     metric: "fevers",
     unit: "fevers",
@@ -73,6 +77,7 @@ export const ACHIEVEMENT_CATEGORIES = [
   {
     id: "campaign",
     icon: "🏁",
+    iconAsset: "./assets/icons/achievements/campaign.png",
     name: "Trailblazer",
     metric: "levelsCleared",
     unit: "levels",
@@ -87,6 +92,7 @@ export const ACHIEVEMENT_CATEGORIES = [
   {
     id: "stars",
     icon: "⭐",
+    iconAsset: "./assets/icons/achievements/stars.png",
     name: "Star Collector",
     metric: "totalStars",
     unit: "stars",
@@ -101,6 +107,7 @@ export const ACHIEVEMENT_CATEGORIES = [
   {
     id: "defuser",
     icon: "🛡️",
+    iconAsset: "./assets/icons/achievements/defuser.png",
     name: "Bomb Squad",
     metric: "defuses",
     unit: "defused",
@@ -115,6 +122,7 @@ export const ACHIEVEMENT_CATEGORIES = [
   {
     id: "wealth",
     icon: "💰",
+    iconAsset: "./assets/icons/achievements/wealth.png",
     name: "High Roller",
     metric: "coinsEarned",
     unit: "coins earned",

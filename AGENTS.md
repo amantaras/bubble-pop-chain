@@ -989,6 +989,15 @@ never re‑discovered the hard way.
   follow the same recipe: generate a white/gray glossy icon, add it to
   `assets/icons/menu/`, wire it as a plain `<img class="tile-ic-img">` inside
   the tile's `.tile-ic` span, and add the path to `sw.js` `ASSETS`.
+- **Achievement category icons** (`achievements.js` `ACHIEVEMENT_CATEGORIES[].iconAsset`,
+  `ui.js` `achievementIconHtml`/`buildAchievements`, `assets/icons/achievements/*.png`):
+  the 8 Trophies-screen category rows (Popper, Combo Master, Big Bang, Fever
+  Pitch, Trailblazer, Star Collector, Bomb Squad, High Roller) render glossy
+  full-colour 3D Meshy icons (see `scripts/meshy/manifest.achievements.json`)
+  in place of the plain emoji, using the same fallback-first pattern as
+  `toolIconHtml` (`.achv-icon-wrap`/`.achv-icon-fallback`/`.achv-icon-img` in
+  `styles.css`) — the emoji (`cat.icon`) still renders immediately and is only
+  hidden once the PNG successfully loads, so the slot is never empty.
 - **Theme UI chrome tokens** (`themes.js` `themeTokens`/`applyThemeCss` +
   `styles.css`): `--ui-*` variables now drive high-traffic chrome beyond the
   game background, including menu gradients/logo/tiles, level-brief panels,
@@ -1853,7 +1862,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 801 unit tests + 672 E2E
+- **Current baseline (keep growing, never shrink)**: 802 unit tests + 672 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests
