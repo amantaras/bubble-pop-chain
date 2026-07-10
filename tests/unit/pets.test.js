@@ -118,8 +118,13 @@ describe("pets catalog", () => {
     for (const f of frames) {
       expect(f).toMatch(/^\.\/assets\/pets\/avatars\/anim\/sparky-[123]\.png$/);
     }
-    // Most pets don't declare frames — that's fine, not required.
-    expect(petAnimFrames("rover")).toBeNull();
+    const roverFrames = petAnimFrames("rover");
+    expect(roverFrames).toHaveLength(3);
+    for (const f of roverFrames) {
+      expect(f).toMatch(/^\.\/assets\/pets\/avatars\/anim\/rover-[123]\.png$/);
+    }
+    // Skybolt uses the Kenney ship sprite instead of the multi-view pipeline.
+    expect(petAnimFrames("skybolt")).toBeNull();
     expect(petAnimFrames("missing")).toBeNull();
   });
 

@@ -683,10 +683,11 @@ never re‑discovered the hard way.
   render through the same helper so tools look consistent while still falling
   back if an image fails to load. New tool icons must be relative local assets,
   added to `sw.js` `ASSETS`, and covered by the economy metadata test.
-- **Coin icon language** (`assets/icons/currency/coin.svg` and
-  `coins-stack.svg`, `ui.js` `coinIconHtml`, `styles.css` `.coin-icon`): wallet
+- **Coin icon language** (`assets/icons/currency/coin.png` and
+  `coins-stack.png`, painterly 3D-rendered icons generated via Meshy AI (see
+  `scripts/meshy/`), `ui.js` `coinIconHtml`, `styles.css` `.coin-icon`): wallet
   pills, shop prices/packs, achievement/chest/calendar/season rewards, and the
-  win coin recap use original local gold currency SVGs instead of mixed emoji,
+  win coin recap use original local gold currency images instead of mixed emoji,
   silver/gold symbols, or CSS dots. The single coin is for balances/prices; the
   stacked coin mark is for larger reward and pack moments. New currency surfaces
   should render through `coinIconHtml` and add any new assets to `sw.js`.

@@ -146,8 +146,8 @@ import { buildShareCardData, shareCardText, drawShareCard } from "./sharecard.js
 
 const $ = (id) => document.getElementById(id);
 
-const COIN_ICON = "./assets/icons/currency/coin.svg";
-const COINS_STACK_ICON = "./assets/icons/currency/coins-stack.svg";
+const COIN_ICON = "./assets/icons/currency/coin.png";
+const COINS_STACK_ICON = "./assets/icons/currency/coins-stack.png";
 
 // Win-chest coin count-up timing: the lid pops, then (after a short beat)
 // the coin total tallies up. Any ceremony step that hides the win screen

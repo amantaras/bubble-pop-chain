@@ -614,7 +614,7 @@ test.describe("core gameplay (real input)", () => {
     await expect(page.locator(".hud-top .hud-coins-pill")).toBeVisible();
     await expect(page.locator(".hud-top .hud-coins-pill .coin-icon img")).toHaveAttribute(
       "src",
-      "./assets/icons/currency/coin.svg"
+      "./assets/icons/currency/coin.png"
     );
     await expect(page.locator("#hud-status")).toContainText("undo");
   });
@@ -1773,11 +1773,11 @@ test.describe("campaign progression", () => {
       .toBeGreaterThan(0);
     await expect(page.locator("#win-coins .coin-icon img")).toHaveAttribute(
       "src",
-      "./assets/icons/currency/coin.svg"
+      "./assets/icons/currency/coin.png"
     );
     await expect(page.locator("#win-reward .win-reward-card.coins img").first()).toHaveAttribute(
       "src",
-      "./assets/icons/currency/coins-stack.svg"
+      "./assets/icons/currency/coins-stack.png"
     );
 
     const save = await page.evaluate(() =>
@@ -5470,7 +5470,7 @@ test.describe("shop & monetization (UI)", () => {
   test("daily free-coins ad reward escalates and caps at 3/day", async ({ page }) => {
     await page.locator("#btn-shop").click();
     await page.locator('.shop-filter[data-shop-filter="coins"]').click();
-    await expect(page.locator('.shop-coins-item .si-icon img[src="./assets/icons/currency/coins-stack.svg"]').first()).toBeVisible();
+    await expect(page.locator('.shop-coins-item .si-icon img[src="./assets/icons/currency/coins-stack.png"]').first()).toBeVisible();
     const claim = async () => {
       await page.locator("#shop-free-coins").click();
       await expect(page.locator("#ad-overlay")).toBeVisible();
@@ -5826,6 +5826,16 @@ test.describe("persistence & PWA", () => {
       "/assets/pets/avatars/nova.png",
     ];
     for (const asset of pngAvatars) {
+      expect(asset).not.toMatch(/^https?:/);
+      const resp = await page.request.get(asset);
+      expect(resp.ok()).toBe(true);
+      expect(resp.headers()["content-type"] || "").toContain("image/png");
+    }
+    const currencyPngs = [
+      "/assets/icons/currency/coin.png",
+      "/assets/icons/currency/coins-stack.png",
+    ];
+    for (const asset of currencyPngs) {
       expect(asset).not.toMatch(/^https?:/);
       const resp = await page.request.get(asset);
       expect(resp.ok()).toBe(true);
@@ -6906,9 +6916,9 @@ test.describe("pet companions (collection & buffs)", () => {
     // the player immediately knows what their new companion does.
     await expect(page.locator("#pet-reveal")).toBeVisible();
     await expect(page.locator("#pet-reveal-name")).toHaveText("Rover");
-    await expect(page.locator("#pet-reveal-icon img")).toHaveAttribute(
+    await expect(page.locator("#pet-reveal-icon img.paf-frame-1")).toHaveAttribute(
       "src",
-      /\/assets\/pets\/avatars\/rover\.png$/
+      /\/assets\/pets\/avatars\/anim\/rover-1\.png$/
     );
     await expect(page.locator("#pet-reveal-rarity")).toHaveText("rare");
     await expect(page.locator("#pet-reveal-ability")).toContainText("colour");
@@ -6936,10 +6946,10 @@ test.describe("pet companions (collection & buffs)", () => {
         new RegExp(`/assets/pets/avatars/anim/sparky-${i}\\.png$`)
       );
     }
-    // Every other pet keeps the plain single-image markup (no frames declared).
+    // Skybolt uses the Kenney ship sprite instead of the multi-view pipeline,
+    // so it keeps the plain single-image markup (no frames declared).
     await page.evaluate(() => {
-      window.__bpc.Storage.grantPet("rover");
-      window.__bpc.UI.showPetReveal({ petId: "rover", isNew: true });
+      window.__bpc.UI.showPetReveal({ petId: "skybolt", isNew: true });
     });
     await expect(page.locator("#pet-reveal-icon img.paf-frame")).toHaveCount(0);
     await expect(page.locator("#pet-reveal-icon img")).toHaveCount(1);

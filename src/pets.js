@@ -246,34 +246,31 @@ const petAnimFramePaths = (id, count) => Array.from({ length: count }, (_, i) =>
 export const PET_CATALOG = [
   {
     id: "sparky", name: "Sparky", icon: "⚡", rarity: "common", premium: false,
-    // Pilot for the multi-frame idle-turn animation (see `petAnimFrames`):
-    // Sparky is the one every player gets first, so it's the highest-value
-    // place to try this before deciding whether to roll it out further.
     visual: { avatar: petAvatar("sparky"), frames: petAnimFramePaths("sparky", 3) },
     desc: "An energetic spark that charges your blast meter faster.",
     ability: { key: "powerMult", per: 0.08, label: "Charge fills faster" },
   },
   {
     id: "clover", name: "Clover", icon: "🍀", rarity: "common", premium: false,
-    visual: { avatar: petAvatar("clover") },
+    visual: { avatar: petAvatar("clover"), frames: petAnimFramePaths("clover", 3) },
     desc: "A lucky sprite that sniffs out extra coins.",
     ability: { key: "coinMult", per: 0.05, label: "More coins per level" },
   },
   {
     id: "mochi", name: "Mochi", icon: "🍡", rarity: "common", premium: false,
-    visual: { avatar: petAvatar("mochi") },
+    visual: { avatar: petAvatar("mochi"), frames: petAnimFramePaths("mochi", 3) },
     desc: "A sweet little charm that keeps your score streaks tasting better.",
     ability: { key: "scoreMult", per: 0.035, label: "More score per pop" },
   },
   {
     id: "sprout", name: "Sprout", icon: "🌱", rarity: "common", premium: false,
-    visual: { avatar: petAvatar("sprout") },
+    visual: { avatar: petAvatar("sprout"), frames: petAnimFramePaths("sprout", 3) },
     desc: "A tiny green helper that warms up your Fever gauge over long runs.",
     ability: { key: "feverMult", per: 0.045, label: "Fever fills faster" },
   },
   {
     id: "rover", name: "Rover", icon: "🐶", rarity: "rare", premium: false,
-    visual: { avatar: petAvatar("rover") },
+    visual: { avatar: petAvatar("rover"), frames: petAnimFramePaths("rover", 3) },
     desc: "A loyal pup that fetches a whole colour together for you.",
     active: {
       type: "gather", baseCooldown: 6, minCooldown: 3,
@@ -282,7 +279,7 @@ export const PET_CATALOG = [
   },
   {
     id: "whiskers", name: "Whiskers", icon: "🐱", rarity: "rare", premium: false,
-    visual: { avatar: petAvatar("whiskers") },
+    visual: { avatar: petAvatar("whiskers"), frames: petAnimFramePaths("whiskers", 3) },
     desc: "A sharp-eyed cat that pounces on lone, hard-to-match bubbles.",
     active: {
       type: "cleanse", baseCooldown: 5, minCooldown: 3, baseCount: 1, countPer: 1,
@@ -291,7 +288,7 @@ export const PET_CATALOG = [
   },
   {
     id: "luma", name: "Luma", icon: "🖌️", rarity: "rare", premium: false,
-    visual: { avatar: petAvatar("luma") },
+    visual: { avatar: petAvatar("luma"), frames: petAnimFramePaths("luma", 3) },
     desc: "A bright brush spirit that paints nearby bubbles to match a tricky anchor, setting up a new cluster for your next pop.",
     active: {
       type: "paint", baseCooldown: 6, minCooldown: 3, baseCount: 3, countPer: 0.5,
@@ -300,7 +297,7 @@ export const PET_CATALOG = [
   },
   {
     id: "quake", name: "Quake", icon: "🌍", rarity: "rare", premium: false,
-    visual: { avatar: petAvatar("quake") },
+    visual: { avatar: petAvatar("quake"), frames: petAnimFramePaths("quake", 3) },
     desc: "A rumbling earth spirit whose tremor resettles the whole board, dropping matching colours together into fresh, ready-to-pop groups.",
     active: {
       type: "quake", baseCooldown: 6, minCooldown: 3,
@@ -309,7 +306,7 @@ export const PET_CATALOG = [
   },
   {
     id: "comet", name: "Comet", icon: "☄️", rarity: "epic", premium: false,
-    visual: { avatar: petAvatar("comet") },
+    visual: { avatar: petAvatar("comet"), frames: petAnimFramePaths("comet", 3) },
     desc: "A streaking comet that blasts a diagonal line of bubbles off the board — a row the flood-fill can never clear.",
     active: {
       type: "diagonal", baseCooldown: 6, minCooldown: 3,
@@ -318,7 +315,7 @@ export const PET_CATALOG = [
   },
   {
     id: "talon", name: "Talon", icon: "🦅", rarity: "epic", premium: false,
-    visual: { avatar: petAvatar("talon") },
+    visual: { avatar: petAvatar("talon"), frames: petAnimFramePaths("talon", 3) },
     desc: "A keen-eyed hawk that swoops on the most isolated bubbles and picks them off one by one.",
     active: {
       type: "pick", baseCooldown: 6, minCooldown: 3, baseCount: 2, countPer: 1,
@@ -327,7 +324,7 @@ export const PET_CATALOG = [
   },
   {
     id: "cyclone", name: "Cyclone", icon: "🌪️", rarity: "epic", premium: false,
-    visual: { avatar: petAvatar("cyclone") },
+    visual: { avatar: petAvatar("cyclone"), frames: petAnimFramePaths("cyclone", 3) },
     desc: "A whirling tornado that sorts each column by colour, stacking matching bubbles into tall, ready-to-pop vertical runs.",
     active: {
       type: "cyclone", baseCooldown: 6, minCooldown: 3,
@@ -336,7 +333,7 @@ export const PET_CATALOG = [
   },
   {
     id: "magma", name: "Magma", icon: "🌋", rarity: "epic", premium: false,
-    visual: { avatar: petAvatar("magma") },
+    visual: { avatar: petAvatar("magma"), frames: petAnimFramePaths("magma", 3) },
     desc: "A molten volcano that erupts beneath the busiest lane and clears whole vertical columns of bubbles.",
     active: {
       type: "magma", baseCooldown: 7, minCooldown: 4, baseCount: 1, countPer: 0.25,
@@ -345,7 +342,7 @@ export const PET_CATALOG = [
   },
   {
     id: "archer", name: "Archer", icon: "🏹", rarity: "epic", premium: false,
-    visual: { avatar: petAvatar("archer") },
+    visual: { avatar: petAvatar("archer"), frames: petAnimFramePaths("archer", 3) },
     desc: "A focused companion that readies a skill-shot arrow. Pull back, release in the green power band, and shoot the opposite way through a line of bubbles.",
     active: {
       type: "archer", baseCooldown: 7, minCooldown: 4, baseCount: 2, countPer: 0.35,
@@ -366,37 +363,37 @@ export const PET_CATALOG = [
   },
   {
     id: "amp", name: "Amp", icon: "🔋", rarity: "epic", premium: false,
-    visual: { avatar: petAvatar("amp") },
+    visual: { avatar: petAvatar("amp"), frames: petAnimFramePaths("amp", 3) },
     desc: "A humming battery buddy that turns every good pop into more Charge.",
     ability: { key: "powerMult", per: 0.1, label: "Charge surges faster" },
   },
   {
     id: "blaze", name: "Blaze", icon: "🔥", rarity: "epic", premium: false,
-    visual: { avatar: petAvatar("blaze") },
+    visual: { avatar: petAvatar("blaze"), frames: petAnimFramePaths("blaze", 3) },
     desc: "A fiery friend that whips your Fever gauge into shape.",
     ability: { key: "feverMult", per: 0.08, label: "Fever fills faster" },
   },
   {
     id: "prism", name: "Prism", icon: "🔮", rarity: "epic", premium: false,
-    visual: { avatar: petAvatar("prism") },
+    visual: { avatar: petAvatar("prism"), frames: petAnimFramePaths("prism", 3) },
     desc: "A glassy focus stone that starts each level with a useful Charge spark.",
     ability: { key: "startCharge", per: 0.055, label: "Start partly charged" },
   },
   {
     id: "draco", name: "Draco", icon: "🐉", rarity: "legendary", premium: false,
-    visual: { avatar: petAvatar("draco") },
+    visual: { avatar: petAvatar("draco"), frames: petAnimFramePaths("draco", 3) },
     desc: "A rare dragon hatchling — the mightiest score booster you can win.",
     ability: { key: "scoreMult", per: 0.05, label: "Big score boost" },
   },
   {
     id: "midas", name: "Midas", icon: "👑", rarity: "legendary", premium: false,
-    visual: { avatar: petAvatar("midas") },
+    visual: { avatar: petAvatar("midas"), frames: petAnimFramePaths("midas", 3) },
     desc: "A golden patron that turns patient progression into bigger coin hauls.",
     ability: { key: "coinMult", per: 0.085, label: "Massive coin boost" },
   },
   {
     id: "tidal", name: "Tidal", icon: "🌊", rarity: "legendary", premium: false,
-    visual: { avatar: petAvatar("tidal") },
+    visual: { avatar: petAvatar("tidal"), frames: petAnimFramePaths("tidal", 3) },
     desc: "A legendary tide spirit whose flood sweeps every bubble of the board's most common colour clean away in one mighty wave.",
     active: {
       type: "tidal", baseCooldown: 8, minCooldown: 5,
@@ -405,21 +402,21 @@ export const PET_CATALOG = [
   },
   {
     id: "aurora", name: "Aurora", icon: "🌈", rarity: "legendary", premium: true,
-    visual: { avatar: petAvatar("aurora") },
+    visual: { avatar: petAvatar("aurora"), frames: petAnimFramePaths("aurora", 3) },
     price: "$2.99", product: "pet_aurora",
     desc: "A shimmering premium spirit that showers you with coins.",
     ability: { key: "coinMult", per: 0.1, label: "Huge coin boost" },
   },
   {
     id: "gizmo", name: "Gizmo", icon: "🤖", rarity: "legendary", premium: true,
-    visual: { avatar: petAvatar("gizmo") },
+    visual: { avatar: petAvatar("gizmo"), frames: petAnimFramePaths("gizmo", 3) },
     price: "$2.99", product: "pet_gizmo",
     desc: "A premium bot that boots up every level fully charged.",
     ability: { key: "startCharge", per: 0.1, label: "Start charged up" },
   },
   {
     id: "nova", name: "Nova", icon: "🛸", rarity: "legendary", premium: true,
-    visual: { avatar: petAvatar("nova") },
+    visual: { avatar: petAvatar("nova"), frames: petAnimFramePaths("nova", 3) },
     storeOnly: true, price: "$4.99", product: "pet_nova",
     desc:
       "A premium alien gunship that patrols the base of the board and auto-blasts the lowest bubbles. Level it up for faster cannons, parallel fire, then board-clearing nukes.",

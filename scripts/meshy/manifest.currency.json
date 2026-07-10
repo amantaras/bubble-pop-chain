@@ -1,0 +1,10 @@
+[
+  {
+    "id": "coin", "prompt": "A single glossy 3D gold coin game icon, thick beveled rim, embossed dollar-sign-free swirl emblem on the face, warm golden yellow metal with bright specular highlight, painterly 3D-rendered game icon style, dramatic warm rim light, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/currency/coin.png"
+  },
+  {
+    "id": "coins-stack", "prompt": "A small stack of three glossy 3D gold coins slightly fanned out, thick beveled rims, warm golden yellow metal with bright specular highlights, painterly 3D-rendered game icon style, dramatic warm rim light, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/currency/coins-stack.png"
+  }
+]
