@@ -98,15 +98,15 @@ describe("pets catalog", () => {
     for (const pet of PET_CATALOG) {
       const avatar = petAvatarSrc(pet);
       expect(avatar).toBeTruthy();
-      expect(avatar).toMatch(/^\.\/assets\/pets\/(avatars\/.+\.svg|kenney-space-shooter\/.+\.png)$/);
+      expect(avatar).toMatch(/^\.\/assets\/pets\/(avatars\/.+\.png|kenney-space-shooter\/.+\.png)$/);
       expect(avatar).not.toMatch(/^https?:/);
     }
     expect(petAvatarSrc("skybolt")).toBe(skyboltAsset);
     expect(petSpriteSrc("skybolt")).toBe(skyboltAsset);
     expect(petAvatarSrc({ id: "skybolt", name: "Skybolt" })).toBe(skyboltAsset);
     expect(petSpriteSrc({ id: "skybolt", name: "Skybolt" })).toBe(skyboltAsset);
-    expect(petAvatarSrc("rover")).toBe("./assets/pets/avatars/rover.svg");
-    expect(petSpriteSrc("rover")).toBe("./assets/pets/avatars/rover.svg");
+    expect(petAvatarSrc("rover")).toBe("./assets/pets/avatars/rover.png");
+    expect(petSpriteSrc("rover")).toBe("./assets/pets/avatars/rover.png");
     expect(petAvatarSrc("missing")).toBeNull();
     expect(petSpriteSrc(null)).toBeNull();
   });

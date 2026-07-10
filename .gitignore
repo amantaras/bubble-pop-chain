@@ -34,3 +34,7 @@ playwright-report/
 playwright/.cache/
 blob-report/
 coverage/
+
+# Meshy AI asset-generation secrets/staging (never commit the API key or raw pulls)
+.env.meshy
+scripts/meshy/output/

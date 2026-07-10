@@ -240,7 +240,7 @@ export const RARITY_WEIGHTS = {
 // exception is the premium **Nova** gunship: a paid, spectacle-grade active pet
 // (an autonomous shooter) reserved for players who buy it — powerful, but it
 // only speeds up clears the player could achieve anyway.
-const petAvatar = (id) => `./assets/pets/avatars/${id}.svg`;
+const petAvatar = (id) => `./assets/pets/avatars/${id}.png`;
 
 export const PET_CATALOG = [
   {

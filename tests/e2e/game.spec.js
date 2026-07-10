@@ -5794,34 +5794,42 @@ test.describe("persistence & PWA", () => {
       "/assets/icons/game-icons/vine-leaf.svg",
       "/assets/icons/game-icons/coin.svg",
       "/assets/icons/game-icons/multiplication.svg",
-      "/assets/pets/avatars/sparky.svg",
-      "/assets/pets/avatars/clover.svg",
-      "/assets/pets/avatars/mochi.svg",
-      "/assets/pets/avatars/sprout.svg",
-      "/assets/pets/avatars/rover.svg",
-      "/assets/pets/avatars/whiskers.svg",
-      "/assets/pets/avatars/luma.svg",
-      "/assets/pets/avatars/quake.svg",
-      "/assets/pets/avatars/comet.svg",
-      "/assets/pets/avatars/talon.svg",
-      "/assets/pets/avatars/cyclone.svg",
-      "/assets/pets/avatars/magma.svg",
-      "/assets/pets/avatars/archer.svg",
-      "/assets/pets/avatars/amp.svg",
-      "/assets/pets/avatars/blaze.svg",
-      "/assets/pets/avatars/prism.svg",
-      "/assets/pets/avatars/draco.svg",
-      "/assets/pets/avatars/midas.svg",
-      "/assets/pets/avatars/tidal.svg",
-      "/assets/pets/avatars/aurora.svg",
-      "/assets/pets/avatars/gizmo.svg",
-      "/assets/pets/avatars/nova.svg",
     ];
     for (const asset of svgAssets) {
       expect(asset).not.toMatch(/^https?:/);
       const resp = await page.request.get(asset);
       expect(resp.ok()).toBe(true);
       expect(resp.headers()["content-type"] || "").toContain("image/svg");
+    }
+    const pngAvatars = [
+      "/assets/pets/avatars/sparky.png",
+      "/assets/pets/avatars/clover.png",
+      "/assets/pets/avatars/mochi.png",
+      "/assets/pets/avatars/sprout.png",
+      "/assets/pets/avatars/rover.png",
+      "/assets/pets/avatars/whiskers.png",
+      "/assets/pets/avatars/luma.png",
+      "/assets/pets/avatars/quake.png",
+      "/assets/pets/avatars/comet.png",
+      "/assets/pets/avatars/talon.png",
+      "/assets/pets/avatars/cyclone.png",
+      "/assets/pets/avatars/magma.png",
+      "/assets/pets/avatars/archer.png",
+      "/assets/pets/avatars/amp.png",
+      "/assets/pets/avatars/blaze.png",
+      "/assets/pets/avatars/prism.png",
+      "/assets/pets/avatars/draco.png",
+      "/assets/pets/avatars/midas.png",
+      "/assets/pets/avatars/tidal.png",
+      "/assets/pets/avatars/aurora.png",
+      "/assets/pets/avatars/gizmo.png",
+      "/assets/pets/avatars/nova.png",
+    ];
+    for (const asset of pngAvatars) {
+      expect(asset).not.toMatch(/^https?:/);
+      const resp = await page.request.get(asset);
+      expect(resp.ok()).toBe(true);
+      expect(resp.headers()["content-type"] || "").toContain("image/png");
     }
   });
 });

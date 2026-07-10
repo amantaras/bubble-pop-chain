@@ -1438,7 +1438,9 @@ never re‑discovered the hard way.
   draws from `cratePremiumPets`). **Nova is flagged `storeOnly`** so it is
   excluded from `cratePremiumPets` and can be obtained **only with real money**
   in the store (never a crate drop). Every catalog pet has local avatar art
-  (`assets/pets/avatars/*.svg`, original project artwork) rendered through
+  (`assets/pets/avatars/*.png`, painterly 3D-rendered chibi mascots generated
+  via Meshy AI's Text to Image API and post-processed locally — chroma-key
+  transparency, trim, resize; see `scripts/meshy/`) rendered through
   `visual.avatar`, with Skybolt using its Kenney ship PNG so its card/reveal/HUD
   image matches the in-board flyby. The store also sells a real-money
   **Legendary Crate** (`LEGENDARY_CRATE`, `crate_legendary` IAP, boosted odds

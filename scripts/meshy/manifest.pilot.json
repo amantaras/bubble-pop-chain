@@ -1,0 +1,22 @@
+[
+  {
+    "id": "sparky-pilot",
+    "prompt": "A cute chibi mascot creature made of electric energy, small round friendly body, glowing yellow spark/lightning bolt shape, big sparkling eyes, painterly 3D-rendered game icon style, glossy soft-shaded surfaces, dramatic rim light, centered, full body visible, isolated on a solid flat pure magenta background #ff00ff, no shadow on background, no text, no watermark",
+    "model": "nano-banana",
+    "aspect": "1:1",
+    "out": "scripts/meshy/output/sparky-pilot.png",
+    "chromaKey": "#ff00ff",
+    "chromaThreshold": 60,
+    "chromaFeather": 40
+  },
+  {
+    "id": "bomb-tool-pilot",
+    "prompt": "A stylized round bomb power-up game icon, dark metallic sphere with rivets, glowing orange lit fuse spark on top, painterly 3D-rendered look, glossy soft-shaded surfaces, dramatic rim light, centered, isolated on a solid flat pure magenta background #ff00ff, no shadow on background, no text, no watermark",
+    "model": "nano-banana",
+    "aspect": "1:1",
+    "out": "scripts/meshy/output/bomb-tool-pilot.png",
+    "chromaKey": "#ff00ff",
+    "chromaThreshold": 60,
+    "chromaFeather": 40
+  }
+]

@@ -1,0 +1,90 @@
+[
+  {
+    "id": "sparky", "prompt": "A cute chibi mascot creature made of pure electric energy, small round friendly body, glowing yellow-white lightning bolt shape, big sparkling eyes, tiny spark particles floating around it, painterly 3D-rendered game icon style, glossy soft-shaded surfaces, warm soft white rim light, centered, full body visible, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/sparky.png"
+  },
+  {
+    "id": "clover", "prompt": "A cute chibi lucky sprite made of a plump four-leaf clover with tiny leaf-like arms and big cheerful eyes, a faint golden coin sparkle nearby, painterly 3D-rendered game icon style, glossy soft-shaded surfaces, warm soft white rim light, centered, full body visible, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/clover.png"
+  },
+  {
+    "id": "mochi", "prompt": "A cute chibi mascot shaped like a plump pastel pink mochi dessert with a cute face and tiny stubby arms, a little sparkle of sweetness above its head, painterly 3D-rendered game icon style, glossy soft-shaded surfaces, warm soft white rim light, centered, full body visible, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/mochi.png"
+  },
+  {
+    "id": "sprout", "prompt": "A cute chibi mascot made of a small green sprouting plant with two round leaves like ears and a cheerful little face, standing on a tiny patch of soil, painterly 3D-rendered game icon style, glossy soft-shaded surfaces, warm soft white rim light, centered, full body visible, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/sprout.png"
+  },
+  {
+    "id": "rover", "prompt": "A cute chibi loyal puppy dog mascot, floppy ears, big happy eyes, wagging tail, sitting alert pose, painterly 3D-rendered game icon style, glossy soft-shaded surfaces, cool soft blue rim light, centered, full body visible, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/rover.png"
+  },
+  {
+    "id": "whiskers", "prompt": "A cute chibi sharp-eyed cat mascot in a sneaky pouncing pose, alert perked ears, sleek fur, mischievous grin, painterly 3D-rendered game icon style, glossy soft-shaded surfaces, cool soft blue rim light, centered, full body visible, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/whiskers.png"
+  },
+  {
+    "id": "luma", "prompt": "A cute chibi glowing paintbrush spirit creature, a soft round body with a big paintbrush tail dripping tiny sparkles of color, bright cheerful eyes, painterly 3D-rendered game icon style, glossy soft-shaded surfaces, cool soft blue rim light, centered, full body visible, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/luma.png"
+  },
+  {
+    "id": "quake", "prompt": "A cute chibi rumbling earth golem spirit made of small rounded stones and moss, sturdy little arms and legs, a determined expression, tiny cracks of energy at its feet, painterly 3D-rendered game icon style, glossy soft-shaded surfaces, cool soft blue rim light, centered, full body visible, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/quake.png"
+  },
+  {
+    "id": "comet", "prompt": "A cute chibi streaking comet mascot, a round glowing icy-blue core with a swooshing sparkling tail, bright excited eyes, painterly 3D-rendered game icon style, glossy soft-shaded surfaces, soft violet-purple rim light, centered, full body visible, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/comet.png"
+  },
+  {
+    "id": "talon", "prompt": "A cute chibi keen-eyed hawk mascot, sharp focused eyes, small folded wings, perched alert pose, painterly 3D-rendered game icon style, glossy soft-shaded surfaces, soft violet-purple rim light, centered, full body visible, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/talon.png"
+  },
+  {
+    "id": "cyclone", "prompt": "A cute chibi whirling tornado spirit mascot, a small cheerful face inside a soft swirling wind-funnel body, tiny leaves caught in the swirl, painterly 3D-rendered game icon style, glossy soft-shaded surfaces, soft violet-purple rim light, centered, full body visible, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/cyclone.png"
+  },
+  {
+    "id": "magma", "prompt": "A cute chibi molten lava mascot, a round rocky body with glowing orange cracks of magma, small friendly ember eyes, tiny puffs of smoke, painterly 3D-rendered game icon style, glossy soft-shaded surfaces, soft violet-purple rim light, centered, full body visible, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/magma.png"
+  },
+  {
+    "id": "archer", "prompt": "A cute chibi archer fox mascot with a small bow slung on its back, focused determined eyes, alert ready stance, painterly 3D-rendered game icon style, glossy soft-shaded surfaces, soft violet-purple rim light, centered, full body visible, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/archer.png"
+  },
+  {
+    "id": "amp", "prompt": "A cute chibi battery-shaped robot mascot, a rounded battery body with a small glowing lightning bolt screen face, tiny stubby arms, painterly 3D-rendered game icon style, glossy soft-shaded surfaces, soft violet-purple rim light, centered, full body visible, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/amp.png"
+  },
+  {
+    "id": "blaze", "prompt": "A cute chibi fiery flame spirit mascot, a soft round flickering flame body with warm orange-red glow, cheerful ember eyes, painterly 3D-rendered game icon style, glossy soft-shaded surfaces, soft violet-purple rim light, centered, full body visible, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/blaze.png"
+  },
+  {
+    "id": "prism", "prompt": "A cute chibi crystal gem spirit mascot, a faceted glassy crystal body refracting soft rainbow light, small glowing core, calm focused eyes, painterly 3D-rendered game icon style, glossy soft-shaded surfaces, soft violet-purple rim light, centered, full body visible, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/prism.png"
+  },
+  {
+    "id": "draco", "prompt": "A cute chibi baby dragon hatchling mascot, small round body with tiny wings and a curled tail, big proud eyes, a few golden scales, painterly 3D-rendered game icon style, glossy soft-shaded surfaces, warm golden rim light, centered, full body visible, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/draco.png"
+  },
+  {
+    "id": "midas", "prompt": "A cute chibi golden royal spirit mascot wearing a tiny golden crown, a soft glowing golden body, regal confident pose, tiny coins sparkling around it, painterly 3D-rendered game icon style, glossy soft-shaded surfaces, warm golden rim light, centered, full body visible, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/midas.png"
+  },
+  {
+    "id": "tidal", "prompt": "A cute chibi ocean wave spirit mascot, a soft round body made of curling glossy blue water with sea-foam highlights, cheerful splashing pose, painterly 3D-rendered game icon style, glossy soft-shaded surfaces, warm golden rim light, centered, full body visible, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/tidal.png"
+  },
+  {
+    "id": "aurora", "prompt": "A cute chibi shimmering rainbow spirit mascot, a soft glowing body wrapped in iridescent holographic rainbow light, dreamy sparkling eyes, tiny prismatic sparkles trailing behind it, painterly 3D-rendered premium game icon style, glossy soft-shaded surfaces, iridescent rainbow rim light, centered, full body visible, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/aurora.png"
+  },
+  {
+    "id": "gizmo", "prompt": "A cute chibi sleek premium robot mascot, smooth rounded metallic silver-blue chassis, a small glowing charge indicator on its chest, friendly LED eyes, painterly 3D-rendered premium game icon style, glossy soft-shaded surfaces, cool cyan-blue tech rim light, centered, full body visible, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/gizmo.png"
+  },
+  {
+    "id": "nova", "prompt": "A cute chibi small alien UFO gunship mascot, a rounded glossy metallic saucer body with glowing green and purple lights underneath, a curious little alien pilot peeking from the cockpit dome, painterly 3D-rendered premium game icon style, glossy soft-shaded surfaces, glowing green-purple alien rim light, centered, full body visible, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/nova.png"
+  }
+]
