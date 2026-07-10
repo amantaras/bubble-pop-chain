@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { CB_SYMBOLS, Renderer, SPECIAL_ICON_ASSETS, hexToRgb, shade, lighten, themeMotif } from "../../src/renderer.js";
+import { CB_SYMBOLS, Renderer, SPECIAL_ICON_ASSETS, BUBBLE_SHEEN_ASSET, hexToRgb, shade, lighten, themeMotif } from "../../src/renderer.js";
 import { THEMES } from "../../src/themes.js";
 import { getLevel, LEVEL_COUNT } from "../../src/levels.js";
 
@@ -32,6 +32,13 @@ describe("special bubble icon assets", () => {
       expect(asset).not.toMatch(/^https?:/);
     }
     expect(SPECIAL_ICON_ASSETS[4]).toBe("./assets/icons/special/lightning-mark.svg");
+  });
+});
+
+describe("bubble sheen overlay asset", () => {
+  it("is a local vendored PNG, not a remote URL", () => {
+    expect(BUBBLE_SHEEN_ASSET).toMatch(/^\.\/assets\/vfx\/bubble-sheen\/.+\.png$/);
+    expect(BUBBLE_SHEEN_ASSET).not.toMatch(/^https?:/);
   });
 });
 

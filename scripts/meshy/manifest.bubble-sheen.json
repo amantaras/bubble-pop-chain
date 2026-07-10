@@ -1,0 +1,7 @@
+[
+  {
+    "id": "bubble-sheen",
+    "prompt": "A perfectly circular glossy glass sphere lighting and reflection overlay texture, ONLY grayscale white specular highlights and soft dark ambient-occlusion shadow tones with absolutely no colour hue, a bright soft specular highlight in the upper-left, a thin bright rim-light ring around the edge, a subtle darker shadow gradient along the lower edge, photorealistic glossy 3D rendered lighting map, centered, tightly cropped circular composition with small padding so nothing is cropped, isolated on a solid flat pure magenta background, no outline, no text, no watermark",
+    "model": "nano-banana-pro", "aspect": "1:1", "out": "scripts/meshy/output/vfx/bubble-sheen.png"
+  }
+]

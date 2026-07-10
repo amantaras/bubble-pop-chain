@@ -17,6 +17,11 @@ export const SPECIAL_ICON_ASSETS = {
   [ICE_CRACKED]: "./assets/icons/game-icons/snowflake.svg",
 };
 
+// Colour-neutral grayscale lighting-map overlay layered on top of every
+// bubble (see drawBubbles) to add a richer, Meshy-generated painterly
+// highlight/shadow read on top of the procedural per-theme gradient fill.
+export const BUBBLE_SHEEN_ASSET = "./assets/vfx/bubble-sheen/bubble-sheen.png";
+
 const THEME_MOTIFS = {
   aurora: { kind: "ribbons", count: 5, alpha: 0.15 },
   sunset: { kind: "arcs", count: 7, alpha: 0.13 },
@@ -548,6 +553,25 @@ export class Renderer {
         Math.PI * 2
       );
       ctx.fill();
+
+      // Painterly glass sheen overlay (Meshy-generated, colour-neutral
+      // grayscale lighting map — see assets/vfx/bubble-sheen/README.txt):
+      // blended on top with "soft-light" so it enriches the highlight/shadow
+      // read of EVERY bubble regardless of hue, without touching the
+      // per-theme/per-colour recolouring in the gradient fill above. Falls
+      // back to nothing (not an error) until the image finishes loading.
+      const sheen = specialIconImage(BUBBLE_SHEEN_ASSET);
+      if (sheen && sheen.complete && sheen.naturalWidth) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, rad * 0.98, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.globalCompositeOperation = "soft-light";
+        ctx.globalAlpha = s.alpha * 0.85;
+        const sheenSize = rad * 2.05;
+        ctx.drawImage(sheen, s.x - sheenSize / 2, s.y - sheenSize / 2, sheenSize, sheenSize);
+        ctx.restore();
+      }
 
       // Colourblind aid: stamp a per-colour symbol on plain bubbles so each
       // colour is identifiable by shape, not just hue.

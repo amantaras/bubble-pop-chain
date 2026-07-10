@@ -718,6 +718,13 @@ body {
   color: #fff;
   box-shadow: 0 7px 16px rgba(0, 0, 0, 0.28);
 }
+.tile-ic-img {
+  display: block;
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
 .tile-label {
   font-size: 12px;
   font-weight: 850;

@@ -971,7 +971,24 @@ never re‑discovered the hard way.
   crescent, and two specular highlights. This gives the orbs more depth and
   shine while avoiding the old blurry halo problem, keeps colourblind symbols and
   special-bubble overlays on top, and adds no new tutorial step because it is
-  cosmetic only.
+  cosmetic only. On top of all that, a single Meshy-generated, colour-neutral
+  grayscale "glass sheen" lighting-map overlay (`BUBBLE_SHEEN_ASSET`,
+  `assets/vfx/bubble-sheen/bubble-sheen.png`) is blended in with
+  `globalCompositeOperation = "soft-light"` on every bubble, adding a richer
+  painterly highlight/shadow read without needing per-theme/per-colour baked
+  art — the gradient fill (driven by `theme.bubbles[color]`) still owns the
+  actual dynamic recolouring, so this stays a purely additive visual layer.
+- **Main-menu tile icon language** (`assets/icons/menu/*.png`, `index.html`
+  `.tile-ic` badges, `styles.css` `.tile-ic-img`): the 14 main-menu tile icons
+  (Endless, Daily, Cup, Spotlight, Rush, Shop, Themes, Trophies, Pets, Gifts,
+  Quests, Stats, Puzzles, Season) are glossy white/gray 3D-rendered PNGs
+  generated via Meshy AI (see `scripts/meshy/manifest.menu.json`), replacing
+  the previous inline `currentColor` SVG line icons. They're colour-neutral by
+  design so they read cleanly against each tile's own colour-gradient badge
+  background (`.t-<name> .tile-ic`), which is unchanged. New menu tiles should
+  follow the same recipe: generate a white/gray glossy icon, add it to
+  `assets/icons/menu/`, wire it as a plain `<img class="tile-ic-img">` inside
+  the tile's `.tile-ic` span, and add the path to `sw.js` `ASSETS`.
 - **Theme UI chrome tokens** (`themes.js` `themeTokens`/`applyThemeCss` +
   `styles.css`): `--ui-*` variables now drive high-traffic chrome beyond the
   game background, including menu gradients/logo/tiles, level-brief panels,
@@ -1836,7 +1853,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 800 unit tests + 672 E2E
+- **Current baseline (keep growing, never shrink)**: 801 unit tests + 672 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests

@@ -5841,6 +5841,29 @@ test.describe("persistence & PWA", () => {
       expect(resp.ok()).toBe(true);
       expect(resp.headers()["content-type"] || "").toContain("image/png");
     }
+    const menuTilePngs = [
+      "/assets/icons/menu/endless.png",
+      "/assets/icons/menu/daily.png",
+      "/assets/icons/menu/tournament.png",
+      "/assets/icons/menu/spotlight.png",
+      "/assets/icons/menu/timeattack.png",
+      "/assets/icons/menu/shop.png",
+      "/assets/icons/menu/themes.png",
+      "/assets/icons/menu/achievements.png",
+      "/assets/icons/menu/pets.png",
+      "/assets/icons/menu/calendar.png",
+      "/assets/icons/menu/quests.png",
+      "/assets/icons/menu/stats.png",
+      "/assets/icons/menu/puzzle.png",
+      "/assets/icons/menu/season.png",
+      "/assets/vfx/bubble-sheen/bubble-sheen.png",
+    ];
+    for (const asset of menuTilePngs) {
+      expect(asset).not.toMatch(/^https?:/);
+      const resp = await page.request.get(asset);
+      expect(resp.ok()).toBe(true);
+      expect(resp.headers()["content-type"] || "").toContain("image/png");
+    }
   });
 });
 

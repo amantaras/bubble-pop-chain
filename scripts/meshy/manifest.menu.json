@@ -1,0 +1,58 @@
+[
+  {
+    "id": "endless", "prompt": "A glossy bright white 3D-rendered icon glyph of an infinity loop symbol, soft shading in white and light gray tones only with absolutely no colour hue, a small bright specular highlight, bold clean rounded silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/menu/endless.png"
+  },
+  {
+    "id": "daily", "prompt": "A glossy bright white 3D-rendered icon glyph of a small desk calendar page with one day highlighted by a glowing dot, soft shading in white and light gray tones only with absolutely no colour hue, a small bright specular highlight, bold clean rounded silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/menu/daily.png"
+  },
+  {
+    "id": "tournament", "prompt": "A glossy bright white 3D-rendered icon glyph of a classic trophy cup with two side handles on a small base, soft shading in white and light gray tones only with absolutely no colour hue, a small bright specular highlight, bold clean rounded silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/menu/tournament.png"
+  },
+  {
+    "id": "spotlight", "prompt": "A glossy bright white 3D-rendered icon glyph of a spotlight lamp casting a triangular cone beam of light downward, soft shading in white and light gray tones only with absolutely no colour hue, a small bright specular highlight, bold clean rounded silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/menu/spotlight.png"
+  },
+  {
+    "id": "timeattack", "prompt": "A glossy bright white 3D-rendered icon glyph of a classic stopwatch with a top button and sweeping hands, soft shading in white and light gray tones only with absolutely no colour hue, a small bright specular highlight, bold clean rounded silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/menu/timeattack.png"
+  },
+  {
+    "id": "shop", "prompt": "A glossy bright white 3D-rendered icon glyph of a small shopping bag with a curved carry handle, soft shading in white and light gray tones only with absolutely no colour hue, a small bright specular highlight, bold clean rounded silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/menu/shop.png"
+  },
+  {
+    "id": "themes", "prompt": "A glossy bright white 3D-rendered icon glyph of an artist paint palette with a thumb hole and a small paintbrush, soft shading in white and light gray tones only with absolutely no colour hue, a small bright specular highlight, bold clean rounded silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/menu/themes.png"
+  },
+  {
+    "id": "achievements", "prompt": "A glossy bright white 3D-rendered icon glyph of a round medal hanging from a short ribbon, with an embossed star on the medal face, soft shading in white and light gray tones only with absolutely no colour hue, a small bright specular highlight, bold clean rounded silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/menu/achievements.png"
+  },
+  {
+    "id": "pets", "prompt": "A glossy bright white 3D-rendered icon glyph of a cute rounded animal paw print, soft shading in white and light gray tones only with absolutely no colour hue, a small bright specular highlight, bold clean rounded silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/menu/pets.png"
+  },
+  {
+    "id": "calendar", "prompt": "A glossy bright white 3D-rendered icon glyph of a small wrapped gift box with a bow on top, soft shading in white and light gray tones only with absolutely no colour hue, a small bright specular highlight, bold clean rounded silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/menu/calendar.png"
+  },
+  {
+    "id": "quests", "prompt": "A glossy bright white 3D-rendered icon glyph of a small clipboard with a checklist and a bold checkmark, soft shading in white and light gray tones only with absolutely no colour hue, a small bright specular highlight, bold clean rounded silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/menu/quests.png"
+  },
+  {
+    "id": "stats", "prompt": "A glossy bright white 3D-rendered icon glyph of a rising bar chart with three ascending bars, soft shading in white and light gray tones only with absolutely no colour hue, a small bright specular highlight, bold clean rounded silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/menu/stats.png"
+  },
+  {
+    "id": "puzzle", "prompt": "A glossy bright white 3D-rendered icon glyph of a single interlocking jigsaw puzzle piece, soft shading in white and light gray tones only with absolutely no colour hue, a small bright specular highlight, bold clean rounded silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/menu/puzzle.png"
+  },
+  {
+    "id": "season", "prompt": "A glossy bright white 3D-rendered icon glyph of a rising star badge with a small sparkle burst, soft shading in white and light gray tones only with absolutely no colour hue, a small bright specular highlight, bold clean rounded silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/menu/season.png"
+  }
+]
