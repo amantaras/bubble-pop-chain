@@ -148,6 +148,7 @@ const $ = (id) => document.getElementById(id);
 
 const COIN_ICON = "./assets/icons/currency/coin.png";
 const COINS_STACK_ICON = "./assets/icons/currency/coins-stack.png";
+const CRATE_ICON = "./assets/icons/rewards/crate.png";
 
 // Win-chest coin count-up timing: the lid pops, then (after a short beat)
 // the coin total tallies up. Any ceremony step that hides the win screen
@@ -165,6 +166,22 @@ function coinIconHtml(kind = "single", className = "coin-dot") {
     `<img src="${src}" alt="" decoding="async">` +
     `</span>`;
 }
+
+// Shared "pet crate" reward icon — same local-image language as
+// coinIconHtml, used everywhere the app previously showed a plain "📦"
+// emoji in an icon SLOT (calendar/wheel/quest reward glyphs, chest reveal
+// rows). Plain-text summaries (toasts, compact "+N coins + 📦 crate"
+// labels) keep the emoji since those render via textContent, not innerHTML.
+// Mirrors coinIconHtml exactly: the passed className only overrides the
+// wrapper's box size/position, while the always-present "crate-icon" class
+// (and its generic "crate-icon img" rule) guarantees the nested <img> is
+// always sized correctly regardless of which className is passed in.
+function crateIconHtml(className = "crate-icon") {
+  return `<span class="${className} crate-icon" aria-hidden="true">` +
+    `<img src="${CRATE_ICON}" alt="" decoding="async">` +
+    `</span>`;
+}
+
 
 function toolIconHtml(typeOrInfo, className = "tool-icon") {
   const info = typeof typeOrInfo === "string" ? POWERUP_INFO[typeOrInfo] : typeOrInfo;
@@ -2462,7 +2479,7 @@ class UIManager {
 
   _calRewardIcon(reward) {
     reward = resolveRewardForUnlocks(reward);
-    if (reward.crate) return "📦";
+    if (reward.crate) return crateIconHtml("reward-inline-icon");
     if (reward.powerup) {
       const info = POWERUP_INFO[reward.powerup] || {};
       return info.icon || "✨";
@@ -2552,7 +2569,7 @@ class UIManager {
   // the dial and win result read consistently with calendar/season/quests.
   _wheelSegIcon(reward) {
     if (reward.id === "jackpot") return "🎉";
-    if (reward.crate) return "📦";
+    if (reward.crate) return crateIconHtml("wsl-tool-icon");
     if (reward.powerup) return toolIconHtml(reward.powerup, "wsl-tool-icon");
     if (reward.dust) return "✨";
     return coinIconHtml("single", "wsl-coin-icon");
@@ -2745,7 +2762,7 @@ class UIManager {
   // (achievements, calendar, quests) reads its payout at a glance.
   _questIcon(reward) {
     reward = resolveRewardForUnlocks(reward);
-    if (reward.crate) return "📦";
+    if (reward.crate) return crateIconHtml("quest-icon-img");
     if (reward.powerup) return toolIconHtml(reward.powerup, "quest-icon-img");
     if (reward.seasonXp) return "⭐";
     return coinIconHtml("stack", "quest-icon-img");
@@ -2827,7 +2844,7 @@ class UIManager {
         const info = POWERUP_INFO[reward.powerup] || {};
         row(toolIconHtml(reward.powerup), `<b>${info.name || reward.powerup}</b> ×1`);
       }
-      if (reward.crate) row("📦", `<b>${reward.crate}</b> pet crate${reward.crate > 1 ? "s" : ""}`);
+      if (reward.crate) row(crateIconHtml("chest-row-ic-img"), `<b>${reward.crate}</b> pet crate${reward.crate > 1 ? "s" : ""}`);
       if (reward.seasonXp) row("⭐", `<b>+${reward.seasonXp}</b> Season XP`);
     }
 
@@ -2866,7 +2883,7 @@ class UIManager {
         const info = POWERUP_INFO[p.id] || {};
         row(toolIconHtml(p.id), `<b>${info.name || p.id}</b> ×${p.n}`);
       });
-      if (agg.crates) row("📦", `<b>${agg.crates}</b> pet crate${agg.crates > 1 ? "s" : ""}`);
+      if (agg.crates) row(crateIconHtml("chest-row-ic-img"), `<b>${agg.crates}</b> pet crate${agg.crates > 1 ? "s" : ""}`);
       if (agg.seasonXp) row("⭐", `<b>+${agg.seasonXp}</b> Season XP`);
     }
 

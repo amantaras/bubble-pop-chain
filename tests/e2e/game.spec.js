@@ -5880,6 +5880,13 @@ test.describe("persistence & PWA", () => {
       expect(resp.ok()).toBe(true);
       expect(resp.headers()["content-type"] || "").toContain("image/png");
     }
+    const rewardPngs = ["/assets/icons/rewards/crate.png"];
+    for (const asset of rewardPngs) {
+      expect(asset).not.toMatch(/^https?:/);
+      const resp = await page.request.get(asset);
+      expect(resp.ok()).toBe(true);
+      expect(resp.headers()["content-type"] || "").toContain("image/png");
+    }
   });
 });
 

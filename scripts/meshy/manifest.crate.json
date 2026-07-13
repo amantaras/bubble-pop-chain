@@ -1,0 +1,6 @@
+[
+  {
+    "id": "crate", "prompt": "A glossy 3D-rendered game icon of a small wooden treasure crate with metal corner brackets and a glowing golden padlock clasp, warm wood grain, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/rewards/crate.png"
+  }
+]
