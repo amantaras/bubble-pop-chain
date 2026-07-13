@@ -1,0 +1,14 @@
+[
+  {
+    "id": "gift", "prompt": "A glossy 3D-rendered game icon of a wrapped gift present box with vivid red wrapping paper and a shiny golden ribbon bow on top, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/rewards/gift.png"
+  },
+  {
+    "id": "warning", "prompt": "A glossy 3D-rendered game icon of a bright yellow warning triangle badge with a bold black exclamation mark in the center, glossy enamel-like surface with soft highlights, painterly soft-shaded style, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/rewards/warning.png"
+  },
+  {
+    "id": "boss", "prompt": "A glossy 3D-rendered game icon badge of a menacing purple horned monster mask with glowing red eyes and a sinister grin, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/rewards/boss.png"
+  }
+]

@@ -2108,10 +2108,16 @@ test.describe("milestone events (every 5 levels)", () => {
       /milestone-treasure/
     );
     await expect(page.locator('.level-cell[data-level="5"] .lvl-badge')).toBeVisible();
+    expect(
+      await page.locator('.level-cell[data-level="5"] .lvl-badge img').getAttribute("src")
+    ).toContain("/assets/icons/rewards/gift.png");
     await expect(page.locator(".level-cell").nth(9)).toHaveClass(
       /milestone-boss/
     );
     await expect(page.locator('.level-cell[data-level="10"] .lvl-badge')).toBeVisible();
+    expect(
+      await page.locator('.level-cell[data-level="10"] .lvl-badge img').getAttribute("src")
+    ).toContain("/assets/icons/rewards/boss.png");
   });
 
   test("the level map groups levels into themed chapter headers", async ({
@@ -4488,6 +4494,9 @@ test.describe("achievements (tiered chests & rewards)", () => {
     // The reveal modal opens listing at least the coin reward.
     await expect(page.locator("#chest")).toBeVisible();
     expect(
+      await page.locator("#chest-icon img").getAttribute("src")
+    ).toContain("/assets/icons/rewards/gift.png");
+    expect(
       await page.locator("#chest-rewards .chest-row").count()
     ).toBeGreaterThanOrEqual(1);
     await page.locator("#chest-ok").click();
@@ -5331,6 +5340,9 @@ test.describe("falling events (gift & problem tokens)", () => {
     });
     const token = page.locator("#falling-event.gift");
     await expect(token).toBeVisible();
+    expect(
+      await token.locator("img").getAttribute("src")
+    ).toContain("/assets/icons/rewards/gift.png");
 
     // The token falls from above the viewport, so dispatch the click event
     // directly rather than relying on pointer actionability/position.
@@ -5474,6 +5486,9 @@ test.describe("falling events (gift & problem tokens)", () => {
     await page.evaluate(() => window.__bpc.game.spawnEvent("problem"));
     const token = page.locator("#falling-event.problem");
     await expect(token).toBeVisible();
+    expect(
+      await token.locator("img").getAttribute("src")
+    ).toContain("/assets/icons/rewards/warning.png");
     await token.dispatchEvent("click");
     await expect(token).toBeHidden();
 
@@ -5928,6 +5943,9 @@ test.describe("persistence & PWA", () => {
       "/assets/icons/rewards/crate.png",
       "/assets/icons/rewards/dust.png",
       "/assets/icons/rewards/season-xp.png",
+      "/assets/icons/rewards/gift.png",
+      "/assets/icons/rewards/warning.png",
+      "/assets/icons/rewards/boss.png",
     ];
     for (const asset of rewardPngs) {
       expect(asset).not.toMatch(/^https?:/);

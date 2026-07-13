@@ -151,6 +151,9 @@ const COINS_STACK_ICON = "./assets/icons/currency/coins-stack.png";
 const CRATE_ICON = "./assets/icons/rewards/crate.png";
 const DUST_ICON = "./assets/icons/rewards/dust.png";
 const SEASON_XP_ICON = "./assets/icons/rewards/season-xp.png";
+const GIFT_ICON = "./assets/icons/rewards/gift.png";
+const WARNING_ICON = "./assets/icons/rewards/warning.png";
+const BOSS_ICON = "./assets/icons/rewards/boss.png";
 
 // Win-chest coin count-up timing: the lid pops, then (after a short beat)
 // the coin total tallies up. Any ceremony step that hides the win screen
@@ -201,6 +204,33 @@ function dustIconHtml(className = "dust-icon") {
 function seasonXpIconHtml(className = "season-xp-icon") {
   return `<span class="${className} season-xp-icon" aria-hidden="true">` +
     `<img src="${SEASON_XP_ICON}" alt="" decoding="async">` +
+    `</span>`;
+}
+
+// Shared "gift" icon — same local-image language as the other reward icons,
+// used everywhere the app previously showed a plain "🎁" emoji in a
+// dedicated icon SLOT: the falling gift event token, the treasure milestone
+// badge on the level map, the shared chest-reveal modal icon, and the
+// achievements/quests "Collect All" flying-token sweep.
+function giftIconHtml(className = "gift-icon") {
+  return `<span class="${className} gift-icon" aria-hidden="true">` +
+    `<img src="${GIFT_ICON}" alt="" decoding="async">` +
+    `</span>`;
+}
+
+// Shared "warning" icon — replaces the plain "⚠️" emoji in the falling
+// problem event token's dedicated icon slot.
+function warningIconHtml(className = "warning-icon") {
+  return `<span class="${className} warning-icon" aria-hidden="true">` +
+    `<img src="${WARNING_ICON}" alt="" decoding="async">` +
+    `</span>`;
+}
+
+// Shared "boss" icon — replaces the plain "👹" emoji in the boss milestone
+// badge on the level map.
+function bossIconHtml(className = "boss-icon") {
+  return `<span class="${className} boss-icon" aria-hidden="true">` +
+    `<img src="${BOSS_ICON}" alt="" decoding="async">` +
     `</span>`;
 }
 
@@ -1431,7 +1461,7 @@ class UIManager {
       const starStr = locked
         ? ""
         : "★".repeat(stars) + "☆".repeat(3 - stars);
-      const badge = mtype === "boss" ? "👹" : mtype === "treasure" ? "🎁" : "";
+      const badge = mtype === "boss" ? bossIconHtml("lvl-badge-ic") : mtype === "treasure" ? giftIconHtml("lvl-badge-ic") : "";
       const best = Storage.getLevelScore(i);
       const bestStr =
         !locked && best > 0 ? `<span class="lvl-best">🏆 ${best}</span>` : "";
@@ -2334,7 +2364,7 @@ class UIManager {
       const startY = r.top + r.height / 2;
       const tok = document.createElement("div");
       tok.className = "caf-token";
-      tok.textContent = "🎁";
+      tok.innerHTML = giftIconHtml("caf-token-ic");
       tok.style.left = `${startX}px`;
       tok.style.top = `${startY}px`;
       layer.appendChild(tok);
@@ -2390,7 +2420,7 @@ class UIManager {
     }
     this._chestReturnScreen = "achievements";
     Audio.coin();
-    if (this.el["chest-icon"]) this.el["chest-icon"].textContent = "🎁";
+    if (this.el["chest-icon"]) this.el["chest-icon"].innerHTML = giftIconHtml("chest-icon-ic");
     if (this.el["chest-title"])
       this.el["chest-title"].textContent = `Collected ${agg.count} chest${
         agg.count === 1 ? "" : "s"
@@ -2433,7 +2463,7 @@ class UIManager {
     }
     this._chestReturnScreen = "achievements";
     Audio.coin();
-    if (this.el["chest-icon"]) this.el["chest-icon"].textContent = "🎁";
+    if (this.el["chest-icon"]) this.el["chest-icon"].innerHTML = giftIconHtml("chest-icon-ic");
     if (this.el["chest-title"])
       this.el["chest-title"].textContent = `${reward.category.name} — Tier ${
         reward.tierIndex + 1
@@ -2846,7 +2876,7 @@ class UIManager {
     }
     this._chestReturnScreen = "quests";
     Audio.coin();
-    if (this.el["chest-icon"]) this.el["chest-icon"].textContent = "🎁";
+    if (this.el["chest-icon"]) this.el["chest-icon"].innerHTML = giftIconHtml("chest-icon-ic");
     if (this.el["chest-title"])
       this.el["chest-title"].textContent = res.def ? res.def.label : "Quest complete!";
     if (this.el["chest-sub"]) this.el["chest-sub"].textContent = "Quest complete!";
@@ -2883,7 +2913,7 @@ class UIManager {
     }
     this._chestReturnScreen = "quests";
     Audio.coin();
-    if (this.el["chest-icon"]) this.el["chest-icon"].textContent = "🎁";
+    if (this.el["chest-icon"]) this.el["chest-icon"].innerHTML = giftIconHtml("chest-icon-ic");
     if (this.el["chest-title"])
       this.el["chest-title"].textContent = `Collected ${agg.count} quest${
         agg.count === 1 ? "" : "s"
@@ -5393,7 +5423,7 @@ class UIManager {
     btn.type = "button";
     btn.id = "falling-event";
     btn.className = `falling-event ${isProblem ? "problem" : "gift"}`;
-    btn.textContent = isProblem ? "⚠️" : "🎁";
+    btn.innerHTML = isProblem ? warningIconHtml("fe-ic") : giftIconHtml("fe-ic");
     btn.setAttribute(
       "aria-label",
       isProblem ? "Problem — tap to defuse" : "Gift — tap to collect",

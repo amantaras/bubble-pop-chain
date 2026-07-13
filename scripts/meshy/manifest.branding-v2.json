@@ -1,0 +1,6 @@
+[
+  {
+    "id": "app-icon-v2", "prompt": "A vibrant mobile game app icon of three glossy 3D cartoon bubbles stacked in a tight cluster: one vivid cyan-blue bubble, one vivid violet-purple bubble, one vivid emerald-green bubble, each bubble fully saturated and richly colored (never white, never pale, never gray), each with a bright glossy specular highlight and soft rim light, thick clean black outline around each bubble like a sticker, playful chibi game-art style, tight centered composition filling the frame, background must be a solid flat hot magenta color #ff00ff filling every corner of the image with absolutely no white, no vignette, no gradient, no glow, no text, no letters, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/branding/app-icon-v2.png"
+  }
+]

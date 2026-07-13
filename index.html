@@ -762,7 +762,9 @@
     <!-- Achievement chest reveal: shows everything a collected chest dropped -->
     <div id="chest" class="overlay modal hidden" role="dialog" aria-modal="true" aria-label="Reward chest">
       <div class="modal-card chest-card">
-        <div class="chest-icon" id="chest-icon">🎁</div>
+        <div class="chest-icon" id="chest-icon">
+          <span class="chest-icon-ic gift-icon" aria-hidden="true"><img src="./assets/icons/rewards/gift.png" alt="" decoding="async"></span>
+        </div>
         <h2 class="modal-title chest-title" id="chest-title">Chest</h2>
         <p class="chest-sub" id="chest-sub">Chest opened!</p>
         <div class="chest-rewards" id="chest-rewards"></div>
