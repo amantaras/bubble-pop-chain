@@ -604,6 +604,28 @@ body {
 .level-brief-card {
   max-width: 430px;
 }
+.brief-portrait {
+  display: flex;
+  justify-content: center;
+  margin: 4px 0 2px;
+}
+.brief-portrait.hidden {
+  display: none;
+}
+.boss-portrait-ic {
+  width: 96px;
+  height: 96px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.45));
+}
+.boss-portrait-ic img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
 .brief-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

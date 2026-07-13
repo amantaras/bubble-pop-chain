@@ -1,0 +1,18 @@
+[
+  {
+    "id": "boss-frozen", "prompt": "A glossy 3D-rendered game icon badge of a menacing icy frost monster mask made of pale blue ice and frost, sharp icicle horns, glowing cyan-white eyes, a sinister grin with ice-shard teeth, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/rewards/boss-frozen.png"
+  },
+  {
+    "id": "boss-stone", "prompt": "A glossy 3D-rendered game icon badge of a menacing rocky stone golem monster mask, cracked grey and brown rock texture, jagged stone horns, glowing amber-orange eyes, a sinister grin with rock teeth, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/rewards/boss-stone.png"
+  },
+  {
+    "id": "boss-color", "prompt": "A glossy 3D-rendered game icon badge of a menacing prism chameleon monster mask, shimmering rainbow multicolor scales, crystal horn, glowing multicolor gem eyes, a sinister grin, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/rewards/boss-color.png"
+  },
+  {
+    "id": "boss-vine", "prompt": "A glossy 3D-rendered game icon badge of a menacing thorny plant monster mask made of tangled green vines and thorns, leafy horns, glowing toxic-green eyes, a sinister grin with thorn teeth, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/rewards/boss-vine.png"
+  }
+]

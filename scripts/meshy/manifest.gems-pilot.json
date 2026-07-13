@@ -1,0 +1,14 @@
+[
+  {
+    "id": "ruby-chipped", "prompt": "A small rough-cut ruby gemstone chip, dull matte crystalline chunk with a few simple facets, deep red color, small and modest looking, painterly 3D-rendered game icon style, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/gems/ruby-chipped.png"
+  },
+  {
+    "id": "ruby-polished", "prompt": "A smooth polished ruby cabochon gemstone, glossy rounded cut surface with soft specular highlight, vivid red color, medium size, painterly 3D-rendered game icon style, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/gems/ruby-polished.png"
+  },
+  {
+    "id": "ruby-brilliant", "prompt": "A large brilliant-cut ruby gemstone with many sparkling facets, bright glossy multi-faceted cut, vivid saturated red color, dazzling sparkle highlights, premium jewel look, painterly 3D-rendered game icon style, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/gems/ruby-brilliant.png"
+  }
+]

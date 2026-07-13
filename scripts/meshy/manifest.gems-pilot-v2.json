@@ -1,0 +1,6 @@
+[
+  {
+    "id": "ruby-brilliant-v2", "prompt": "A glossy 3D-rendered game icon of a brilliant-cut ruby gemstone, deep richly saturated blood-red opaque color throughout (never pale, never translucent, never pink, never white), like a shiny red plastic toy jewel, sharp faceted cut with bright white specular highlight sparkles only at the very tips, thick clean black outline like a sticker, bold cartoon game-art style, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/gems/ruby-brilliant-v2.png"
+  }
+]

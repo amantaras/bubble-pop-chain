@@ -154,6 +154,12 @@ const SEASON_XP_ICON = "./assets/icons/rewards/season-xp.png";
 const GIFT_ICON = "./assets/icons/rewards/gift.png";
 const WARNING_ICON = "./assets/icons/rewards/warning.png";
 const BOSS_ICON = "./assets/icons/rewards/boss.png";
+const BOSS_PORTRAIT_ICONS = {
+  frozen: "./assets/icons/rewards/boss-frozen.png",
+  stone: "./assets/icons/rewards/boss-stone.png",
+  color: "./assets/icons/rewards/boss-color.png",
+  vine: "./assets/icons/rewards/boss-vine.png",
+};
 
 // Win-chest coin count-up timing: the lid pops, then (after a short beat)
 // the coin total tallies up. Any ceremony step that hides the win screen
@@ -234,6 +240,17 @@ function bossIconHtml(className = "boss-icon") {
     `</span>`;
 }
 
+// A bigger per-archetype boss portrait shown on the level briefing screen for
+// boss milestone levels (frozen/stone/color/vine — see milestones.js
+// bossConfig). Falls back to the generic boss badge icon for an unknown kind
+// so a future archetype never renders empty.
+function bossPortraitHtml(kind, className = "boss-portrait-img") {
+  const src = BOSS_PORTRAIT_ICONS[kind] || BOSS_ICON;
+  return `<span class="${className} boss-portrait-ic" aria-hidden="true">` +
+    `<img src="${src}" alt="" decoding="async">` +
+    `</span>`;
+}
+
 function toolIconHtml(typeOrInfo, className = "tool-icon") {
   const info = typeof typeOrInfo === "string" ? POWERUP_INFO[typeOrInfo] : typeOrInfo;
   const fallback = info?.icon || "✨";
@@ -289,7 +306,7 @@ class UIManager {
       "splash", "menu", "levelmap", "shop", "themes", "hud", "win", "lose",
       "menu-coins", "lm-coins", "shop-coins", "themes-coins", "hud-coins",
       "level-grid", "shop-list", "theme-list",
-      "level-brief", "brief-title", "brief-sub", "brief-stats", "brief-replay", "brief-objective", "brief-plan", "brief-hazards", "brief-tools", "brief-cancel", "brief-start",
+      "level-brief", "brief-title", "brief-sub", "brief-portrait", "brief-stats", "brief-replay", "brief-objective", "brief-plan", "brief-hazards", "brief-tools", "brief-cancel", "brief-start",
       "achievements", "achv-list", "achv-count", "btn-achievements", "achv-back",
       "achv-badge", "achv-collect-all",
       "calendar", "cal-grid", "cal-status", "cal-claim", "cal-back",
@@ -1497,6 +1514,11 @@ class UIManager {
     const mtype = level.milestone;
     this.el["brief-title"].textContent = `${mtype === "boss" ? "Boss" : mtype === "treasure" ? "Treasure" : "Level"} ${levelId}`;
     this.el["brief-sub"].textContent = this._briefSubtitle(level);
+    if (this.el["brief-portrait"]) {
+      const showPortrait = mtype === "boss" && level.boss && level.boss.kind;
+      this.el["brief-portrait"].classList.toggle("hidden", !showPortrait);
+      this.el["brief-portrait"].innerHTML = showPortrait ? bossPortraitHtml(level.boss.kind) : "";
+    }
     this.el["brief-stats"].innerHTML = this._briefStats(level);
     this._setBriefSection("brief-replay", "Replay record", this._briefReplay(levelId));
     this._setBriefSection("brief-objective", level.objective ? "🎯 Bonus objective" : "", this._briefObjective(level));

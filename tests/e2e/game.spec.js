@@ -439,12 +439,40 @@ test.describe("menu & navigation (UI)", () => {
     await expect(page.locator("#brief-hazards")).toContainText("Frozen Core boss objective");
     await expect(page.locator("#brief-plan")).toContainText("Crack the core");
     await expect(page.locator("#brief-tools")).toContainText("Suggested tools");
+    // A per-archetype boss portrait is shown for boss milestone levels.
+    await expect(page.locator("#brief-portrait")).toBeVisible();
+    expect(
+      await page.locator("#brief-portrait img").getAttribute("src")
+    ).toContain("/assets/icons/rewards/boss-frozen.png");
 
     await page.locator("#brief-cancel").click();
     await page.locator('.level-cell[aria-label="Level 31"]').click();
     await expect(page.locator("#brief-stats")).toContainText("Drop every");
     await expect(page.locator("#brief-hazards")).toContainText("downpour every");
     await expect(page.locator("#brief-plan")).toContainText("top lanes");
+    // Ordinary (non-boss) levels never show a boss portrait.
+    await expect(page.locator("#brief-portrait")).toBeHidden();
+  });
+
+  test("level briefing shows the matching boss portrait for every archetype", async ({
+    page,
+  }) => {
+    // Boss 2 (level 20) = stone, boss 3 (level 30) = color, boss 5 (level 50,
+    // beyond the authored campaign) = the first vine boss in the 4-way rotation.
+    const cases = [
+      { id: 20, icon: "boss-stone.png" },
+      { id: 30, icon: "boss-color.png" },
+      { id: 50, icon: "boss-vine.png" },
+    ];
+    for (const { id, icon } of cases) {
+      await page.evaluate((levelId) => window.__bpc.UI.openLevelBrief(levelId), id);
+      await expect(page.locator("#brief-portrait")).toBeVisible();
+      expect(
+        await page.locator("#brief-portrait img").getAttribute("src")
+      ).toContain(`/assets/icons/rewards/${icon}`);
+      await page.locator("#brief-cancel").click();
+      await expect(page.locator("#level-brief")).toBeHidden();
+    }
   });
 
   test("Shop and Themes open and Back returns to menu", async ({ page }) => {
@@ -5946,6 +5974,10 @@ test.describe("persistence & PWA", () => {
       "/assets/icons/rewards/gift.png",
       "/assets/icons/rewards/warning.png",
       "/assets/icons/rewards/boss.png",
+      "/assets/icons/rewards/boss-frozen.png",
+      "/assets/icons/rewards/boss-stone.png",
+      "/assets/icons/rewards/boss-color.png",
+      "/assets/icons/rewards/boss-vine.png",
     ];
     for (const asset of rewardPngs) {
       expect(asset).not.toMatch(/^https?:/);
