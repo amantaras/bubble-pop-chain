@@ -1,0 +1,10 @@
+[
+  {
+    "id": "dust", "prompt": "A glossy 3D-rendered game icon of a small swirling cluster of magical golden-purple sparkle dust motes with a soft glow, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/rewards/dust.png"
+  },
+  {
+    "id": "season-xp", "prompt": "A glossy 3D-rendered game icon of a single bright five-pointed golden star badge with a soft radiant glow, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/rewards/season-xp.png"
+  }
+]

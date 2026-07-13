@@ -1997,6 +1997,50 @@ test.describe("campaign progression", () => {
     await expect(page.locator("#tool-unlock")).toBeVisible({ timeout: 3000 });
     expect(await page.locator("#win-coins-num").textContent()).toBe("250");
   });
+
+  test("win-choice icons use the local icon-language images, not raw emoji", async ({
+    page,
+  }) => {
+    // Regression coverage for the crate/dust/seasonXp icon rollout: every
+    // reward-typed bonus choice must render through the SAME local-image
+    // helpers used elsewhere (coinIconHtml/toolIconHtml/crateIconHtml/
+    // dustIconHtml/seasonXpIconHtml), not the raw emoji `choice.icon` main.js
+    // sets for its plain-text toast fallback.
+    await page.evaluate(() => {
+      const UI = window.__bpc.UI;
+      UI.showWin({
+        stars: 2,
+        score: 500,
+        coins: 250,
+        rewardText: "",
+        stats: [],
+        showNext: true,
+        showDouble: false,
+        rewardChoices: [
+          { id: "coins", icon: "🪙", title: "Coins", desc: "d", reward: { type: "coins", amount: 10 } },
+          { id: "seasonxp", icon: "⭐", title: "XP", desc: "d", reward: { type: "seasonxp", amount: 20 } },
+          { id: "tool:bomb", icon: "💣", title: "Bomb", desc: "d", reward: { type: "tool", tool: "bomb", amount: 1 } },
+          { id: "dust", icon: "✨", title: "Dust", desc: "d", reward: { type: "dust", amount: 12 } },
+          { id: "crate", icon: "🧰", title: "Crate", desc: "d", reward: { type: "crate", amount: 1 } },
+        ],
+        hasPendingUnlock: false,
+      });
+    });
+    await expect(page.locator("#win")).toBeVisible();
+    await page.locator("#win-chest").click();
+    await expect(page.locator("#win-choice")).toBeVisible();
+
+    const iconSrc = async (choiceId) =>
+      page.locator(`#win-choice-list .win-choice-btn[data-choice="${choiceId}"] .wcb-icon img`).getAttribute("src");
+    expect(await iconSrc("coins")).toContain("/assets/icons/currency/coin.png");
+    expect(await iconSrc("seasonxp")).toContain("/assets/icons/rewards/season-xp.png");
+    expect(await iconSrc("dust")).toContain("/assets/icons/rewards/dust.png");
+    expect(await iconSrc("crate")).toContain("/assets/icons/rewards/crate.png");
+    // The tool choice falls back to the emoji INSIDE its fallback-first
+    // wrapper (no iconAsset guaranteed for every tool) but must still route
+    // through toolIconHtml's wrapper, not a raw emoji string.
+    await expect(page.locator('#win-choice-list .win-choice-btn[data-choice="tool:bomb"] .wcb-icon .tool-icon-wrap')).toHaveCount(1);
+  });
 });
 
 test.describe("shareable win card (viral share/download)", () => {
@@ -5880,7 +5924,11 @@ test.describe("persistence & PWA", () => {
       expect(resp.ok()).toBe(true);
       expect(resp.headers()["content-type"] || "").toContain("image/png");
     }
-    const rewardPngs = ["/assets/icons/rewards/crate.png"];
+    const rewardPngs = [
+      "/assets/icons/rewards/crate.png",
+      "/assets/icons/rewards/dust.png",
+      "/assets/icons/rewards/season-xp.png",
+    ];
     for (const asset of rewardPngs) {
       expect(asset).not.toMatch(/^https?:/);
       const resp = await page.request.get(asset);

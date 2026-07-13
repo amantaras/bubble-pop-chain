@@ -149,6 +149,8 @@ const $ = (id) => document.getElementById(id);
 const COIN_ICON = "./assets/icons/currency/coin.png";
 const COINS_STACK_ICON = "./assets/icons/currency/coins-stack.png";
 const CRATE_ICON = "./assets/icons/rewards/crate.png";
+const DUST_ICON = "./assets/icons/rewards/dust.png";
+const SEASON_XP_ICON = "./assets/icons/rewards/season-xp.png";
 
 // Win-chest coin count-up timing: the lid pops, then (after a short beat)
 // the coin total tallies up. Any ceremony step that hides the win screen
@@ -182,6 +184,25 @@ function crateIconHtml(className = "crate-icon") {
     `</span>`;
 }
 
+// Shared "Pet Dust" reward icon — same local-image language as
+// coinIconHtml/crateIconHtml, used everywhere the app previously showed a
+// plain "✨" emoji in a dedicated reward-icon SLOT (currently just the Lucky
+// Wheel's segment glyphs). Inline sentence text ("✨N Dust" in the Gem Forge
+// screen, toasts, etc.) keeps the emoji since those aren't icon slots.
+function dustIconHtml(className = "dust-icon") {
+  return `<span class="${className} dust-icon" aria-hidden="true">` +
+    `<img src="${DUST_ICON}" alt="" decoding="async">` +
+    `</span>`;
+}
+
+// Shared "Season XP" reward icon — same local-image language as the other
+// reward icons, used everywhere the app previously showed a plain "⭐" emoji
+// in a dedicated reward-icon SLOT (quests list + chest reveal rows).
+function seasonXpIconHtml(className = "season-xp-icon") {
+  return `<span class="${className} season-xp-icon" aria-hidden="true">` +
+    `<img src="${SEASON_XP_ICON}" alt="" decoding="async">` +
+    `</span>`;
+}
 
 function toolIconHtml(typeOrInfo, className = "tool-icon") {
   const info = typeof typeOrInfo === "string" ? POWERUP_INFO[typeOrInfo] : typeOrInfo;
@@ -2571,7 +2592,7 @@ class UIManager {
     if (reward.id === "jackpot") return "🎉";
     if (reward.crate) return crateIconHtml("wsl-tool-icon");
     if (reward.powerup) return toolIconHtml(reward.powerup, "wsl-tool-icon");
-    if (reward.dust) return "✨";
+    if (reward.dust) return dustIconHtml("wsl-tool-icon");
     return coinIconHtml("single", "wsl-coin-icon");
   }
 
@@ -2764,7 +2785,7 @@ class UIManager {
     reward = resolveRewardForUnlocks(reward);
     if (reward.crate) return crateIconHtml("quest-icon-img");
     if (reward.powerup) return toolIconHtml(reward.powerup, "quest-icon-img");
-    if (reward.seasonXp) return "⭐";
+    if (reward.seasonXp) return seasonXpIconHtml("quest-icon-img");
     return coinIconHtml("stack", "quest-icon-img");
   }
 
@@ -2845,7 +2866,7 @@ class UIManager {
         row(toolIconHtml(reward.powerup), `<b>${info.name || reward.powerup}</b> ×1`);
       }
       if (reward.crate) row(crateIconHtml("chest-row-ic-img"), `<b>${reward.crate}</b> pet crate${reward.crate > 1 ? "s" : ""}`);
-      if (reward.seasonXp) row("⭐", `<b>+${reward.seasonXp}</b> Season XP`);
+      if (reward.seasonXp) row(seasonXpIconHtml("chest-row-ic-img"), `<b>+${reward.seasonXp}</b> Season XP`);
     }
 
     this.hideModals();
@@ -2884,7 +2905,7 @@ class UIManager {
         row(toolIconHtml(p.id), `<b>${info.name || p.id}</b> ×${p.n}`);
       });
       if (agg.crates) row(crateIconHtml("chest-row-ic-img"), `<b>${agg.crates}</b> pet crate${agg.crates > 1 ? "s" : ""}`);
-      if (agg.seasonXp) row("⭐", `<b>+${agg.seasonXp}</b> Season XP`);
+      if (agg.seasonXp) row(seasonXpIconHtml("chest-row-ic-img"), `<b>+${agg.seasonXp}</b> Season XP`);
     }
 
     this.hideModals();
@@ -5183,9 +5204,28 @@ class UIManager {
       btn.type = "button";
       btn.className = "win-choice-btn";
       btn.dataset.choice = choice.id;
-      btn.innerHTML = `<span class="wcb-icon">${choice.icon}</span><span><b>${choice.title}</b><small>${choice.desc}</small></span>`;
+      btn.innerHTML = `<span class="wcb-icon">${this._winChoiceIconHtml(choice)}</span><span><b>${choice.title}</b><small>${choice.desc}</small></span>`;
       list.appendChild(btn);
     });
+  }
+
+  // Map a win-choice's reward shape to the SAME local-image icon language
+  // used everywhere else (coinIconHtml/toolIconHtml/crateIconHtml/
+  // dustIconHtml/seasonXpIconHtml) instead of the raw emoji `choice.icon`
+  // main.js sets for its plain-text toast — fixes a real inconsistency
+  // where the crate choice used a toolbox emoji here but the crate icon
+  // everywhere else. Falls back to `choice.icon` for reward types (like
+  // petxp) that don't have a dedicated local icon.
+  _winChoiceIconHtml(choice) {
+    const r = choice.reward || {};
+    switch (r.type) {
+      case "coins": return coinIconHtml("single", "wcb-icon-img");
+      case "seasonxp": return seasonXpIconHtml("wcb-icon-img");
+      case "tool": return toolIconHtml(r.tool, "wcb-icon-img");
+      case "dust": return dustIconHtml("wcb-icon-img");
+      case "crate": return crateIconHtml("wcb-icon-img");
+      default: return choice.icon || "✨";
+    }
   }
 
   claimWinChoice(id) {
