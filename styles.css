@@ -288,14 +288,13 @@ body {
 }
 /* Glossy sheen — a soft diagonal highlight layered on top of every filled
    action button/tile/tab across the whole game (main menu CTAs/tiles, Shop
-   buy rows, wager tiers, win-screen choices, active tabs, and now every
-   plain `.btn` — Pause menu, Test Lab, diagnostics, etc.) for a consistent
-   premium depth. `.btn-ghost` (Cancel/Later/Close/Menu-style transparent
-   buttons) is intentionally excluded — there's no filled surface for a
-   sheen to reflect off of. Purely decorative (no DOM/JS changes, just an
+   buy rows, wager tiers, win-screen choices, active tabs, plain `.btn`s, and
+   now `.btn-ghost` too — see its own tinted-glass surface below) for a
+   consistent premium depth. Purely decorative (no DOM/JS changes, just an
    ::after overlay painted after the button's own content so it reads as a
    light reflection, not a flat gradient). */
 .btn:not(.btn-ghost)::after,
+.btn-ghost::after,
 .tile::after,
 .icon-btn::after,
 .buy-btn::after,
@@ -318,8 +317,19 @@ body {
   transform: scale(0.96);
   filter: brightness(0.94);
 }
+/* Was a flat `background: transparent` — read as a dull, textureless box
+   next to every glossy filled button/tile elsewhere in the game (a real
+   "boring buttons" complaint). Now a tinted-glass surface with a soft inner
+   highlight + its own subtle accent-tinted border glow, so it still reads
+   as visually SECONDARY (lower contrast/saturation than `.btn-primary`)
+   without looking inert. Picks up the shared glossy-sheen overlay above. */
 .btn-ghost {
-  background: transparent;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 4px 14px rgba(0, 0, 0, 0.22);
+}
+.btn-ghost:active {
+  filter: brightness(1.12);
 }
 .btn-reward {
   background: linear-gradient(135deg, #ffb35b, var(--gold));
