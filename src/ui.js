@@ -323,6 +323,43 @@ function achvMedalHtml(level, className = "achv-medal-ic") {
     `</span>`;
 }
 
+// Pet personality trait badges (rolled on acquisition — see pets.js TRAITS),
+// shown in the pet detail pane's dedicated trait-icon slot. Falls back to the
+// trait's own emoji for an unknown/future trait id so a new trait never
+// renders empty.
+const TRAIT_ICONS = {
+  balanced: "./assets/icons/pets/trait-balanced.png",
+  swift: "./assets/icons/pets/trait-swift.png",
+  mighty: "./assets/icons/pets/trait-mighty.png",
+  lucky: "./assets/icons/pets/trait-lucky.png",
+  keen: "./assets/icons/pets/trait-keen.png",
+  fiery: "./assets/icons/pets/trait-fiery.png",
+};
+function traitIconHtml(trait, className = "pd-trait-icon") {
+  const src = TRAIT_ICONS[trait?.id];
+  if (!src) return `<span class="${className} emoji">${trait?.icon || "🔘"}</span>`;
+  return `<span class="${className} trait-icon-img" aria-hidden="true">` +
+    `<img src="${src}" alt="" decoding="async">` +
+    `</span>`;
+}
+
+// Puzzle objective-type badges (Puzzles screen — see puzzle.js
+// puzzleTypeMeta). Falls back to the type's own emoji for an unknown type.
+const PUZZLE_TYPE_ICONS = {
+  clear: "./assets/icons/rewards/puzzle-clear.png",
+  frozen: "./assets/icons/rewards/puzzle-frozen.png",
+  stone: "./assets/icons/rewards/puzzle-stone.png",
+  color: "./assets/icons/rewards/puzzle-color.png",
+};
+function puzzleTypeIconHtml(type, icon, className = "pz-type", title = "") {
+  const titleAttr = title ? ` title="${escapeHtml(title)}"` : "";
+  const src = PUZZLE_TYPE_ICONS[type];
+  if (!src) return `<span class="${className} emoji"${titleAttr}>${icon || "🧩"}</span>`;
+  return `<span class="${className} puzzle-type-img" aria-hidden="true"${titleAttr}>` +
+    `<img src="${src}" alt="" decoding="async">` +
+    `</span>`;
+}
+
 function escapeHtml(value) {
   return String(value || "")
     .replace(/&/g, "&amp;")
@@ -3345,7 +3382,7 @@ class UIManager {
       if (stars >= 1) cell.classList.add("solved");
       const starStr = "★".repeat(stars) + "☆".repeat(3 - stars);
       cell.innerHTML = unlocked
-        ? `<span class="pz-type" title="${meta.label}">${meta.icon}</span>` +
+        ? `${puzzleTypeIconHtml(def.type || "clear", meta.icon, "pz-type", meta.label)}` +
           `<span class="pz-num">${i + 1}</span>` +
           `<span class="pz-size">${def.cols}×${def.rows}</span>` +
           `<span class="pz-obj">${meta.label}</span>` +
@@ -3931,7 +3968,7 @@ class UIManager {
       const traitEl = document.createElement("div");
       traitEl.className = "pd-trait";
       traitEl.innerHTML =
-        `<span class="pd-trait-icon">${trait.icon}</span>` +
+        `${traitIconHtml(trait)}` +
         `<span class="pd-trait-name">${trait.label}</span>` +
         `<span class="pd-trait-desc">${trait.desc}</span>`;
       panel.appendChild(traitEl);

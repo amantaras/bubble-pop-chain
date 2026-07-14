@@ -6081,8 +6081,26 @@ test.describe("persistence & PWA", () => {
       "/assets/icons/rewards/starter-pack.png",
       "/assets/icons/rewards/piggy-bank.png",
       "/assets/icons/rewards/no-ads-shield.png",
+      "/assets/icons/rewards/puzzle-clear.png",
+      "/assets/icons/rewards/puzzle-frozen.png",
+      "/assets/icons/rewards/puzzle-stone.png",
+      "/assets/icons/rewards/puzzle-color.png",
     ];
     for (const asset of rewardPngs) {
+      expect(asset).not.toMatch(/^https?:/);
+      const resp = await page.request.get(asset);
+      expect(resp.ok()).toBe(true);
+      expect(resp.headers()["content-type"] || "").toContain("image/png");
+    }
+    const petIconPngs = [
+      "/assets/icons/pets/trait-balanced.png",
+      "/assets/icons/pets/trait-swift.png",
+      "/assets/icons/pets/trait-mighty.png",
+      "/assets/icons/pets/trait-lucky.png",
+      "/assets/icons/pets/trait-keen.png",
+      "/assets/icons/pets/trait-fiery.png",
+    ];
+    for (const asset of petIconPngs) {
       expect(asset).not.toMatch(/^https?:/);
       const resp = await page.request.get(asset);
       expect(resp.ok()).toBe(true);
@@ -6826,6 +6844,18 @@ test.describe("pet companions (collection & buffs)", () => {
     // what matters is they're not visibly different sizes.
     expect(Math.abs(equipBox.width - supportBox.width)).toBeLessThan(1);
     expect(Math.abs(equipBox.width - forgeBox.width)).toBeLessThan(1);
+  });
+
+  test("the pet detail trait badge uses the local icon language, not a raw emoji", async ({
+    page,
+  }) => {
+    await page.evaluate(() => window.__bpc.Storage.grantPet("clover", "fiery"));
+    await page.locator("#btn-pets").click();
+    await page.locator('.pet-card[data-pet="clover"]').click();
+    await expect(page.locator("#pet-detail .pd-trait-name")).toHaveText("Fiery");
+    expect(
+      await page.locator("#pet-detail .pd-trait-icon img").getAttribute("src")
+    ).toContain("/assets/icons/pets/trait-fiery.png");
   });
 
   test("an active pet's detail explains it's dormant until abilities unlock, then clears once they do", async ({
@@ -8023,7 +8053,6 @@ test.describe("pet companions (collection & buffs)", () => {
       window.__bpc.game._queuePetGemReminder(window.__bpc.game.session, { force: true });
       window.__bpc.game._showPendingPetFollowup();
     });
-
     await expect(page.locator("#pet-gem-reminder")).toBeVisible();
     await expect(page.locator("#pet-gem-reminder-desc")).toContainText("Pet crates can drop gems or Dust");
     await expect(page.locator("#pet-gem-reminder-benefits")).toContainText("80 Dust");
@@ -9486,6 +9515,11 @@ test.describe("puzzle mode (Tier 2)", () => {
     await expect(page.locator("#puzzle-list .puzzle-cell").nth(1)).toHaveClass(
       /locked/
     );
+    // The first (unlocked) puzzle's objective badge uses the local icon
+    // language, not a raw emoji — puzzle 1 is a "clear" objective.
+    expect(
+      await page.locator("#puzzle-list .puzzle-cell").first().locator(".pz-type img").getAttribute("src")
+    ).toContain("/assets/icons/rewards/puzzle-clear.png");
   });
 
   test("the Puzzles list scrolls so every unlocked puzzle can be reached", async ({
@@ -9718,7 +9752,9 @@ test.describe("puzzle mode (Tier 2)", () => {
     // Puzzle 13 (index 12) is the first "frozen" (Ice Core) puzzle.
     const cell = page.locator("#puzzle-list .puzzle-cell").nth(12);
     await expect(cell).not.toHaveClass(/locked/);
-    await expect(cell.locator(".pz-type")).toHaveText("🧊");
+    expect(
+      await cell.locator(".pz-type img").getAttribute("src")
+    ).toContain("/assets/icons/rewards/puzzle-frozen.png");
     await expect(cell.locator(".pz-obj")).toHaveText("Ice Core");
   });
 });

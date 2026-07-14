@@ -1,0 +1,6 @@
+[
+  {
+    "id": "trait-keen-v2", "prompt": "A glossy 3D-rendered game icon of a bullseye target badge shaped like a thick plastic toy sticker, deep saturated crimson-red and pure white concentric rings (never pale pink, never washed out, always fully opaque solid colors), thick clean black outline around every ring, bold cartoon game-art style, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/trait-keen-v2.png"
+  }
+]

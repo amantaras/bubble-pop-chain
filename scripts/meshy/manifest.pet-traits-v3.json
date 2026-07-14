@@ -1,0 +1,6 @@
+[
+  {
+    "id": "trait-keen-v3", "prompt": "A glossy 3D-rendered game icon of a sharp golden arrow badge pointing upward, gleaming metallic gold surface with a red gem accent at the fletching, precise and sharp, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/trait-keen-v3.png"
+  }
+]

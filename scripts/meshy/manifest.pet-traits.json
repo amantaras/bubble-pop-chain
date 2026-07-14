@@ -1,0 +1,26 @@
+[
+  {
+    "id": "trait-balanced", "prompt": "A glossy 3D-rendered game icon of a small neutral grey-silver circular orb badge with a subtle glowing ring, calm and steady in feel, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/trait-balanced.png"
+  },
+  {
+    "id": "trait-swift", "prompt": "A glossy 3D-rendered game icon of a vivid yellow lightning bolt pendant badge with a metallic rim, crackling energy, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/trait-swift.png"
+  },
+  {
+    "id": "trait-mighty", "prompt": "A glossy 3D-rendered game icon of a bold red flexed muscular arm badge with a metallic bracer, powerful and strong, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/trait-mighty.png"
+  },
+  {
+    "id": "trait-lucky", "prompt": "A glossy 3D-rendered game icon of a vivid green four-leaf clover badge with a golden rim, shiny and lucky, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/trait-lucky.png"
+  },
+  {
+    "id": "trait-keen", "prompt": "A glossy 3D-rendered game icon of a bold red-and-white archery target bullseye badge with a metallic rim, sharp and precise, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/trait-keen.png"
+  },
+  {
+    "id": "trait-fiery", "prompt": "A glossy 3D-rendered game icon of a vivid orange-red flame badge with a metallic rim, warm glowing fire, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/pets/trait-fiery.png"
+  }
+]

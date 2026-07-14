@@ -1,0 +1,18 @@
+[
+  {
+    "id": "puzzle-clear", "prompt": "A glossy 3D-rendered game icon of a colorful jigsaw puzzle piece, vivid blue and purple gradient, glossy plastic-like material, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/rewards/puzzle-clear.png"
+  },
+  {
+    "id": "puzzle-frozen", "prompt": "A glossy 3D-rendered game icon of a sparkling blue-white ice crystal cube, frosty and cold, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/rewards/puzzle-frozen.png"
+  },
+  {
+    "id": "puzzle-stone", "prompt": "A glossy 3D-rendered game icon of a rugged grey-brown stone boulder with cracks, solid rocky texture, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/rewards/puzzle-stone.png"
+  },
+  {
+    "id": "puzzle-color", "prompt": "A glossy 3D-rendered game icon of a splash of vivid rainbow-colored paint droplets bursting outward, vibrant and playful, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/rewards/puzzle-color.png"
+  }
+]
