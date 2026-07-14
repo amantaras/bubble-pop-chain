@@ -2158,8 +2158,14 @@ test.describe("milestone events (every 5 levels)", () => {
     await expect(headers).toHaveCount(5);
     await expect(headers.first()).toContainText("1–8");
     await expect(headers.first()).toHaveAttribute("data-world", "1");
+    expect(
+      await headers.first().locator(".ch-icon img").getAttribute("src")
+    ).toContain("/assets/icons/menu/chapter-meadow.png");
     await expect(headers.nth(1)).toContainText("9–16");
     await expect(headers.last()).toContainText("33–40");
+    expect(
+      await headers.last().locator(".ch-icon img").getAttribute("src")
+    ).toContain("/assets/icons/menu/chapter-cosmic.png");
   });
 
   test("the endless campaign reveals procedural chapters past level 40", async ({
@@ -2178,6 +2184,11 @@ test.describe("milestone events (every 5 levels)", () => {
     // Authored 5 + at least one procedural chapter beyond level 40.
     await expect(headers.nth(5)).toBeVisible();
     await expect(headers.nth(5)).toContainText("41–48");
+    // The first procedural chapter (Aurora Reach) gets its own icon, distinct
+    // from the authored chapters' icons.
+    expect(
+      await headers.nth(5).locator(".ch-icon img").getAttribute("src")
+    ).toContain("/assets/icons/menu/chapter-aurora.png");
     // A real, generated level cell beyond the authored campaign exists.
     await expect(
       page.locator(".level-cell .num", { hasText: /^41$/ })
@@ -6038,6 +6049,19 @@ test.describe("persistence & PWA", () => {
       "/assets/icons/menu/stats.png",
       "/assets/icons/menu/puzzle.png",
       "/assets/icons/menu/season.png",
+      "/assets/icons/menu/chapter-meadow.png",
+      "/assets/icons/menu/chapter-frosty.png",
+      "/assets/icons/menu/chapter-thunder.png",
+      "/assets/icons/menu/chapter-crystal.png",
+      "/assets/icons/menu/chapter-cosmic.png",
+      "/assets/icons/menu/chapter-aurora.png",
+      "/assets/icons/menu/chapter-ember.png",
+      "/assets/icons/menu/chapter-tidal.png",
+      "/assets/icons/menu/chapter-verdant.png",
+      "/assets/icons/menu/chapter-obsidian.png",
+      "/assets/icons/menu/chapter-solar.png",
+      "/assets/icons/menu/chapter-nebula.png",
+      "/assets/icons/menu/chapter-mirage.png",
       "/assets/vfx/bubble-sheen/bubble-sheen.png",
     ];
     for (const asset of menuTilePngs) {

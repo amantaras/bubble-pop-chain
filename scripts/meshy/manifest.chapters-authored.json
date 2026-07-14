@@ -1,0 +1,22 @@
+[
+  {
+    "id": "chapter-meadow", "prompt": "A glossy 3D-rendered game icon badge of a small sprouting green plant seedling with two round leaves, vivid fresh green colors, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/menu/chapter-meadow.png"
+  },
+  {
+    "id": "chapter-frosty", "prompt": "A glossy 3D-rendered game icon badge of a snowy mountain peak with a sparkling icy summit, vivid blue-white colors, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/menu/chapter-frosty.png"
+  },
+  {
+    "id": "chapter-thunder", "prompt": "A glossy 3D-rendered game icon badge of a dark storm cloud crackling with a vivid yellow lightning bolt, dramatic and electric, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/menu/chapter-thunder.png"
+  },
+  {
+    "id": "chapter-crystal", "prompt": "A glossy 3D-rendered game icon badge of a cluster of glowing purple-blue crystal shards jutting upward, vivid saturated gem colors, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/menu/chapter-crystal.png"
+  },
+  {
+    "id": "chapter-cosmic", "prompt": "A glossy 3D-rendered game icon badge of a swirling purple-pink galaxy nebula with bright twinkling stars, vivid cosmic colors, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/menu/chapter-cosmic.png"
+  }
+]

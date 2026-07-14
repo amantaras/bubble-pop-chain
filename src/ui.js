@@ -323,6 +323,40 @@ function achvMedalHtml(level, className = "achv-medal-ic") {
     `</span>`;
 }
 
+// Level map chapter/"world" badges (see levels.js CHAPTERS/PROC_CHAPTERS +
+// chapterForLevel). The first `AUTHORED_LEVELS / CHAPTER_SIZE` chapters are
+// hand-authored and get their own dedicated icon; beyond that, chapters cycle
+// through the procedural flavour pool (which repeats forever with a Roman-
+// numeral suffix on the name) so `chapter.index` is mapped modulo the pool
+// size rather than trusting the (possibly-suffixed) name string.
+const CHAPTER_ICONS_AUTHORED = [
+  "./assets/icons/menu/chapter-meadow.png",
+  "./assets/icons/menu/chapter-frosty.png",
+  "./assets/icons/menu/chapter-thunder.png",
+  "./assets/icons/menu/chapter-crystal.png",
+  "./assets/icons/menu/chapter-cosmic.png",
+];
+const CHAPTER_ICONS_PROCEDURAL = [
+  "./assets/icons/menu/chapter-aurora.png",
+  "./assets/icons/menu/chapter-ember.png",
+  "./assets/icons/menu/chapter-tidal.png",
+  "./assets/icons/menu/chapter-verdant.png",
+  "./assets/icons/menu/chapter-obsidian.png",
+  "./assets/icons/menu/chapter-solar.png",
+  "./assets/icons/menu/chapter-nebula.png",
+  "./assets/icons/menu/chapter-mirage.png",
+];
+function chapterIconHtml(chapter, className = "ch-icon") {
+  const authoredCount = AUTHORED_LEVELS / CHAPTER_SIZE;
+  const src = chapter.index < authoredCount
+    ? CHAPTER_ICONS_AUTHORED[chapter.index]
+    : CHAPTER_ICONS_PROCEDURAL[(chapter.index - authoredCount) % CHAPTER_ICONS_PROCEDURAL.length];
+  if (!src) return `<span class="${className} emoji">${chapter.icon || "🌍"}</span>`;
+  return `<span class="${className} chapter-icon-img" aria-hidden="true">` +
+    `<img src="${src}" alt="" decoding="async">` +
+    `</span>`;
+}
+
 // Pet personality trait badges (rolled on acquisition — see pets.js TRAITS),
 // shown in the pet detail pane's dedicated trait-icon slot. Falls back to the
 // trait's own emoji for an unknown/future trait id so a new trait never
@@ -1526,7 +1560,7 @@ class UIManager {
           header.dataset.end = String(ch.endLevel);
           if (chapterDone) header.classList.add("done");
           if (chapterLocked) header.classList.add("locked");
-          header.innerHTML = `<span class="ch-icon">${ch.icon}</span><span class="ch-name">${ch.name}</span><span class="ch-range">${ch.startLevel}–${ch.endLevel}</span>`;
+          header.innerHTML = `${chapterIconHtml(ch)}<span class="ch-name">${ch.name}</span><span class="ch-range">${ch.startLevel}–${ch.endLevel}</span>`;
           grid.appendChild(header);
         }
       }

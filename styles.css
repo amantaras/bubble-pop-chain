@@ -1940,6 +1940,20 @@ body {
   font-size: 20px;
   line-height: 1;
 }
+.chapter-icon-img {
+  width: 1em;
+  height: 1em;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+}
+.chapter-icon-img img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
 .chapter-header .ch-name {
   font-size: 15px;
   letter-spacing: 0.3px;

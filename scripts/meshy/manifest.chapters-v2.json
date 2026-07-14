@@ -1,0 +1,6 @@
+[
+  {
+    "id": "chapter-ember-v2", "prompt": "A glossy 3D-rendered game icon badge of a glowing hot coal ember, deep saturated opaque orange-red color throughout (never pale, never pink, never washed out, like a hot glowing charcoal briquette), with small crackling flame tips rising from the top, thick clean black outline like a sticker, bold cartoon game-art style, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/menu/chapter-ember-v2.png"
+  }
+]

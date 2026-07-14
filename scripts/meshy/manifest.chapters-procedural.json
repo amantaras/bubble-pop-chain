@@ -1,0 +1,34 @@
+[
+  {
+    "id": "chapter-aurora", "prompt": "A glossy 3D-rendered game icon badge of a shimmering aurora borealis shooting star streaking through a night sky, vivid teal-green and violet colors, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/menu/chapter-aurora.png"
+  },
+  {
+    "id": "chapter-ember", "prompt": "A glossy 3D-rendered game icon badge of a glowing ember with a small crackling flame rising from it, vivid deep orange-red colors, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/menu/chapter-ember.png"
+  },
+  {
+    "id": "chapter-tidal", "prompt": "A glossy 3D-rendered game icon badge of a curling ocean wave with white foam, vivid deep blue and teal colors, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/menu/chapter-tidal.png"
+  },
+  {
+    "id": "chapter-verdant", "prompt": "A glossy 3D-rendered game icon badge of a lush cluster of vivid green jungle leaves, vibrant tropical colors, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/menu/chapter-verdant.png"
+  },
+  {
+    "id": "chapter-obsidian", "prompt": "A glossy 3D-rendered game icon badge of a jagged dark obsidian rock shard with a glossy black volcanic glass surface, vivid deep charcoal and purple sheen, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/menu/chapter-obsidian.png"
+  },
+  {
+    "id": "chapter-solar", "prompt": "A glossy 3D-rendered game icon badge of a radiant golden sun with bright sunbeams, vivid warm yellow-orange colors, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/menu/chapter-solar.png"
+  },
+  {
+    "id": "chapter-nebula", "prompt": "A glossy 3D-rendered game icon badge of a misty swirling nebula cloud with soft twinkling stars, vivid teal and magenta colors, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/menu/chapter-nebula.png"
+  },
+  {
+    "id": "chapter-mirage", "prompt": "A glossy 3D-rendered game icon badge of golden desert sand dunes under a warm shimmering haze, vivid amber and orange colors, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/menu/chapter-mirage.png"
+  }
+]
