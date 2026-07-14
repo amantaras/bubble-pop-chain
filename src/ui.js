@@ -160,6 +160,9 @@ const BOSS_PORTRAIT_ICONS = {
   color: "./assets/icons/rewards/boss-color.png",
   vine: "./assets/icons/rewards/boss-vine.png",
 };
+const STARTER_PACK_ICON = "./assets/icons/rewards/starter-pack.png";
+const PIGGY_BANK_ICON = "./assets/icons/rewards/piggy-bank.png";
+const NO_ADS_ICON = "./assets/icons/rewards/no-ads-shield.png";
 
 // Win-chest coin count-up timing: the lid pops, then (after a short beat)
 // the coin total tallies up. Any ceremony step that hides the win screen
@@ -190,6 +193,25 @@ function coinIconHtml(kind = "single", className = "coin-dot") {
 function crateIconHtml(className = "crate-icon") {
   return `<span class="${className} crate-icon" aria-hidden="true">` +
     `<img src="${CRATE_ICON}" alt="" decoding="async">` +
+    `</span>`;
+}
+
+// Shop icon slots that previously showed a plain emoji: the Starter Pack
+// bundle, the Piggy Bank card, and the Remove Ads offer. Same local-image
+// pattern as the other reward icons above.
+function starterPackIconHtml(className = "si-icon") {
+  return `<span class="${className} starter-pack-icon" aria-hidden="true">` +
+    `<img src="${STARTER_PACK_ICON}" alt="" decoding="async">` +
+    `</span>`;
+}
+function piggyBankIconHtml(className = "si-icon") {
+  return `<span class="${className} piggy-bank-icon" aria-hidden="true">` +
+    `<img src="${PIGGY_BANK_ICON}" alt="" decoding="async">` +
+    `</span>`;
+}
+function noAdsIconHtml(className = "si-icon") {
+  return `<span class="${className} no-ads-icon" aria-hidden="true">` +
+    `<img src="${NO_ADS_ICON}" alt="" decoding="async">` +
     `</span>`;
 }
 
@@ -1829,7 +1851,7 @@ class UIManager {
       ? `${visibleTools.join(" ")}${lockedCount ? ` · ${lockedCount} future tool stash` : ""}`
       : "tool stash unlocks as you progress";
     item.innerHTML = `
-      <span class="si-icon">🎁</span>
+      ${starterPackIconHtml()}
       <div class="si-body">
         <div class="si-title">${STARTER_PACK.name} <span class="si-badge">BEST VALUE</span></div>
         <div class="si-desc">${coinIconHtml()} ${STARTER_PACK.coins} coins · ${puText} · 🧰×${STARTER_PACK.crates} crate</div>
@@ -1869,7 +1891,7 @@ class UIManager {
     item.className = "shop-item shop-piggy";
     item.dataset.pack = "piggy";
     item.innerHTML = `
-      <span class="si-icon">🐷</span>
+      ${piggyBankIconHtml()}
       <div class="si-body">
         <div class="si-title">Piggy Bank</div>
         <div class="si-desc">${coinIconHtml()} <span class="piggy-balance">${formatStat(
@@ -2069,7 +2091,7 @@ class UIManager {
       adsItem.className = "shop-item shop-offer-item";
       const removed = Monetization.isAdsRemoved();
       adsItem.innerHTML = `
-        <span class="si-icon">🚫</span>
+        ${noAdsIconHtml()}
         <div class="si-body">
           <div class="si-title">Remove Ads</div>
           <div class="si-desc">No more interstitials. Rewarded ads stay optional.</div>

@@ -1,0 +1,10 @@
+[
+  {
+    "id": "play-ad-v2", "prompt": "A glossy 3D-rendered game icon of a chunky rounded play button shaped like a thick plastic toy badge, vivid saturated red-orange opaque color throughout (never pale, never white, never washed out), a bold white triangle play symbol in the center, thick clean black outline like a sticker, bold cartoon game-art style, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/rewards/play-ad-v2.png"
+  },
+  {
+    "id": "no-ads-shield-v2", "prompt": "A glossy 3D-rendered game icon of a protective blue shield badge with a simple bold red circle-and-diagonal-slash \"forbidden\" symbol on the front (like a no-smoking sign, NO letters, NO text, NO words, just a plain red ring with a diagonal bar through it), painterly soft-shaded metallic surface, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/rewards/no-ads-shield-v2.png"
+  }
+]

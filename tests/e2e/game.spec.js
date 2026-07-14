@@ -5675,6 +5675,9 @@ test.describe("shop & monetization (UI)", () => {
   }) => {
     await page.locator("#btn-shop").click();
     await page.locator('.shop-filter[data-shop-filter="offers"]').click();
+    expect(
+      await page.locator(".shop-offer-item .si-icon img").getAttribute("src")
+    ).toContain("/assets/icons/rewards/no-ads-shield.png");
     await page.locator("#shop-list button", { hasText: "$2.99" }).click();
     await expect(page.locator("#shop-list button", { hasText: "Owned" })).toBeVisible();
     const removed = await page.evaluate(() => window.__bpc.Monetization.isAdsRemoved());
@@ -5695,6 +5698,9 @@ test.describe("shop & monetization (UI)", () => {
     // The bundle is the first shop item.
     await expect(page.locator('#shop-list .shop-starter')).toBeVisible();
     await expect(page.locator("#shop-starter-buy")).toContainText("$1.99");
+    expect(
+      await page.locator(".shop-starter .si-icon img").getAttribute("src")
+    ).toContain("/assets/icons/rewards/starter-pack.png");
 
     const before = await page.evaluate(() => ({
       coins: window.__bpc.Economy.coins,
@@ -5996,6 +6002,9 @@ test.describe("persistence & PWA", () => {
       "/assets/icons/rewards/boss-stone.png",
       "/assets/icons/rewards/boss-color.png",
       "/assets/icons/rewards/boss-vine.png",
+      "/assets/icons/rewards/starter-pack.png",
+      "/assets/icons/rewards/piggy-bank.png",
+      "/assets/icons/rewards/no-ads-shield.png",
     ];
     for (const asset of rewardPngs) {
       expect(asset).not.toMatch(/^https?:/);
@@ -9334,6 +9343,9 @@ test.describe("piggy bank (Tier 1)", () => {
   }) => {
     await page.locator("#btn-shop").click();
     await expect(page.locator(".shop-piggy")).toBeVisible();
+    expect(
+      await page.locator(".shop-piggy .si-icon img").getAttribute("src")
+    ).toContain("/assets/icons/rewards/piggy-bank.png");
     // A fresh save has an empty piggy, so cracking is locked.
     const crack = page.locator("#shop-piggy-crack");
     await expect(crack).toBeDisabled();
