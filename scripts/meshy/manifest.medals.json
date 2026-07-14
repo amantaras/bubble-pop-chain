@@ -1,0 +1,22 @@
+[
+  {
+    "id": "medal-1", "prompt": "A glossy 3D-rendered game icon of a circular bronze medal badge with a small red ribbon at the top, embossed star emblem in the center, warm bronze-copper metallic surface with soft specular highlights, painterly soft-shaded style, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/achv/medal-1.png"
+  },
+  {
+    "id": "medal-2", "prompt": "A glossy 3D-rendered game icon of a circular silver medal badge with a small blue ribbon at the top, embossed star emblem in the center, bright silver metallic surface with soft specular highlights, painterly soft-shaded style, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/achv/medal-2.png"
+  },
+  {
+    "id": "medal-3", "prompt": "A glossy 3D-rendered game icon of a circular gold medal badge with a small purple ribbon at the top, embossed star emblem in the center, rich gold metallic surface with soft specular highlights, painterly soft-shaded style, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/achv/medal-3.png"
+  },
+  {
+    "id": "medal-4", "prompt": "A glossy 3D-rendered game icon of a circular platinum medal badge with a small teal ribbon at the top, embossed star emblem in the center, cool bright platinum-white metallic surface with soft specular highlights, painterly soft-shaded style, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/achv/medal-4.png"
+  },
+  {
+    "id": "medal-5", "prompt": "A glossy 3D-rendered game icon of a circular prismatic rainbow-shimmer medal badge with a small golden ribbon at the top, embossed star emblem in the center, dazzling multicolor metallic surface with bright specular sparkle highlights, painterly soft-shaded premium legendary style, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/achv/medal-5.png"
+  }
+]

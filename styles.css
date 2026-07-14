@@ -2188,11 +2188,36 @@ body {
   font-size: 15px;
 }
 .achv-tier {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 11px;
   font-weight: 800;
   color: var(--text-dim);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+.achv-medal-ic {
+  width: 1em;
+  height: 1em;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+}
+.achv-medal-ic img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+}
+/* The tier line's font-size (11px) is too small for a readable medal glyph,
+   so bump just this context's medal to a fixed comfortable size — everywhere
+   else (e.g. the big chest-reveal icon) the medal scales via 1em instead. */
+.achv-tier .achv-medal-ic {
+  width: 18px;
+  height: 18px;
 }
 .achv-bar {
   position: relative;

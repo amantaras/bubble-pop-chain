@@ -4452,6 +4452,12 @@ test.describe("achievements (tiered chests & rewards)", () => {
     expect(await page.locator(".achv-item.claimable").count()).toBe(0);
     // Every category shows a progress bar.
     expect(await page.locator("#achv-list .achv-bar").count()).toBe(total);
+    // Every category shows a tier-1 medal badge next to its "Tier 1/5" label
+    // on a fresh save.
+    expect(await page.locator("#achv-list .achv-tier .achv-medal-ic").count()).toBe(total);
+    expect(
+      await page.locator("#achv-list .achv-tier .achv-medal-ic img").first().getAttribute("src")
+    ).toContain("/assets/icons/achievements/medal-1.png");
     await page.locator("#achv-back").click();
     await expect(page.locator("#menu")).toBeVisible();
   });
@@ -4519,11 +4525,13 @@ test.describe("achievements (tiered chests & rewards)", () => {
     const claim = page.locator(".achv-item.claimable .achv-claim").first();
     await expect(claim).toBeVisible();
     await claim.click();
-    // The reveal modal opens listing at least the coin reward.
+    // The reveal modal opens listing at least the coin reward. Achievement
+    // chest reveals show the tier-1 medal (this is the Popper category's
+    // first claim), not the generic gift icon used elsewhere.
     await expect(page.locator("#chest")).toBeVisible();
     expect(
       await page.locator("#chest-icon img").getAttribute("src")
-    ).toContain("/assets/icons/rewards/gift.png");
+    ).toContain("/assets/icons/achievements/medal-1.png");
     expect(
       await page.locator("#chest-rewards .chest-row").count()
     ).toBeGreaterThanOrEqual(1);
@@ -4611,6 +4619,11 @@ test.describe("achievements (tiered chests & rewards)", () => {
     expect(claims.popper).toBe(5);
     await expect(collectAll).toBeHidden();
     expect(await page.locator(".achv-item.claimable").count()).toBe(0);
+    // A maxed category shows the top (tier-5) medal, not a lower one.
+    await expect(page.locator(".achv-item.maxed .achv-tier")).toContainText("MAX");
+    expect(
+      await page.locator(".achv-item.maxed .achv-medal-ic img").first().getAttribute("src")
+    ).toContain("/assets/icons/achievements/medal-5.png");
   });
 
   test("triggering Fever makes the Fever chest claimable", async ({ page }) => {
@@ -5960,6 +5973,11 @@ test.describe("persistence & PWA", () => {
       "/assets/icons/achievements/stars.png",
       "/assets/icons/achievements/defuser.png",
       "/assets/icons/achievements/wealth.png",
+      "/assets/icons/achievements/medal-1.png",
+      "/assets/icons/achievements/medal-2.png",
+      "/assets/icons/achievements/medal-3.png",
+      "/assets/icons/achievements/medal-4.png",
+      "/assets/icons/achievements/medal-5.png",
     ];
     for (const asset of achievementPngs) {
       expect(asset).not.toMatch(/^https?:/);

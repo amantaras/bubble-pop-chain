@@ -282,6 +282,25 @@ function achievementIconHtml(cat, className = "achv-icon-img") {
     `</span>`;
 }
 
+// Meshy-generated tier medal badges (bronze/silver/gold/platinum/prismatic)
+// shown next to the "Tier N/5" label on the Achievements screen, and reused
+// for the maxed state (tier 5's medal, since maxing a category means the
+// player earned every tier including the top one). `level` is 1-based
+// (achievements.js `categoryStatus().level`), clamped to the 5 medals we have.
+const ACHV_MEDAL_ICONS = [
+  "./assets/icons/achievements/medal-1.png",
+  "./assets/icons/achievements/medal-2.png",
+  "./assets/icons/achievements/medal-3.png",
+  "./assets/icons/achievements/medal-4.png",
+  "./assets/icons/achievements/medal-5.png",
+];
+function achvMedalHtml(level, className = "achv-medal-ic") {
+  const idx = Math.max(1, Math.min(ACHV_MEDAL_ICONS.length, level)) - 1;
+  return `<span class="${className} achv-medal-ic" aria-hidden="true">` +
+    `<img src="${ACHV_MEDAL_ICONS[idx]}" alt="" decoding="async">` +
+    `</span>`;
+}
+
 function escapeHtml(value) {
   return String(value || "")
     .replace(/&/g, "&amp;")
@@ -2279,7 +2298,7 @@ class UIManager {
       head.className = "achv-head";
       head.innerHTML =
         `<span class="achv-name">${cat.name}</span>` +
-        `<span class="achv-tier">${
+        `<span class="achv-tier">${achvMedalHtml(st.level)}${
           st.maxed ? "MAX" : `Tier ${st.level}/${st.totalTiers}`
         }</span>`;
 
@@ -2485,7 +2504,7 @@ class UIManager {
     }
     this._chestReturnScreen = "achievements";
     Audio.coin();
-    if (this.el["chest-icon"]) this.el["chest-icon"].innerHTML = giftIconHtml("chest-icon-ic");
+    if (this.el["chest-icon"]) this.el["chest-icon"].innerHTML = achvMedalHtml(reward.tierIndex + 1, "chest-icon-ic");
     if (this.el["chest-title"])
       this.el["chest-title"].textContent = `${reward.category.name} — Tier ${
         reward.tierIndex + 1
