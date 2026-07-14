@@ -2113,6 +2113,48 @@ class UIManager {
       }
       adsItem.appendChild(adsBtn);
       list.appendChild(adsItem);
+
+      // Restore previously-purchased non-consumables (Remove Ads, Starter
+      // Pack, Season Premium, premium pets) — only meaningful with a real
+      // store provider installed; disabled with an explanatory state
+      // otherwise, same pattern as the Remove Ads row above.
+      const canRestore = Monetization.canRestorePurchases();
+      const restoreItem = document.createElement("div");
+      restoreItem.className = "shop-item shop-offer-item";
+      restoreItem.id = "shop-restore-item";
+      restoreItem.innerHTML = `
+        <span class="si-icon">🔄</span>
+        <div class="si-body">
+          <div class="si-title">Restore Purchases</div>
+          <div class="si-desc">Recover past purchases on a new device.</div>
+        </div>`;
+      const restoreBtn = document.createElement("button");
+      restoreBtn.id = "shop-restore-btn";
+      restoreBtn.className = "buy-btn";
+      restoreBtn.textContent = canRestore ? "Restore" : "Unavailable";
+      restoreBtn.disabled = !canRestore;
+      if (canRestore) {
+        restoreBtn.addEventListener("click", async () => {
+          restoreBtn.disabled = true;
+          const prevText = restoreBtn.textContent;
+          restoreBtn.textContent = "Restoring…";
+          const res = this.cb.restorePurchases && (await this.cb.restorePurchases());
+          restoreBtn.disabled = false;
+          restoreBtn.textContent = prevText;
+          if (res && res.ok && res.restored.length) {
+            this.toast(`Restored ${res.restored.length} purchase${res.restored.length === 1 ? "" : "s"}!`);
+            this.refreshCoins();
+            this.updatePowerups();
+            this.buildShop();
+          } else if (res && res.ok) {
+            this.toast("Nothing to restore");
+          } else {
+            this.toast("Restore unavailable");
+          }
+        });
+      }
+      restoreItem.appendChild(restoreBtn);
+      list.appendChild(restoreItem);
     }
   }
 

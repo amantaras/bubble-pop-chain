@@ -56,11 +56,11 @@ Implementation options:
 
 Engineering tasks:
 
-- [ ] Add a Capacitor/native monetization provider bridge without changing the web mock path.
-- [ ] Keep `Monetization` as the policy owner for cadence, ads-removed state, purchase entitlement recording, and fail-closed behavior.
-- [ ] Add unit tests for provider success, provider failure, missing provider, and restore/owned flows.
-- [ ] Add E2E coverage for native-disabled commerce UI behavior using the existing web-safe hooks where possible.
-- [ ] Update `privacy.html`, `support.html`, and `docs/store-release.md` if SDK behavior changes data collection or support flows.
+- [ ] Add a Capacitor/native monetization provider bridge without changing the web mock path. Not started — needs a real Google Play Billing/StoreKit/AdMob Capacitor plugin choice plus real product IDs and App/Play console setup, which don't exist yet (same blocker as Phase 1).
+- [x] Keep `Monetization` as the policy owner for cadence, ads-removed state, purchase entitlement recording, and fail-closed behavior. Already true architecturally; extended with `restorePurchases()` (manager delegates the entitlement check to the provider, still owns persisting the ads-removed flag) without touching the pattern.
+- [x] Add unit tests for provider success, provider failure, missing provider, and restore/owned flows. `tests/unit/monetization.test.js` covers all four (provider success/failure/omitted-method-fallback already existed; added `restorePurchases()`/`canRestorePurchases()` coverage: real provider delegation, no-provider fail-closed, native-vs-web `nativeProviderRequired` flagging, ads-removed re-application, and an empty-productIds provider response).
+- [x] Add E2E coverage for native-disabled commerce UI behavior using the existing web-safe hooks where possible. Extended the existing "native store builds disable rewarded and paid shop surfaces without providers" test plus 3 new tests for the Restore Purchases row/flow (disabled-without-provider, full restore via an injected fake provider, and no-double-grant for an already-owned entitlement).
+- [ ] Update `privacy.html`, `support.html`, and `docs/store-release.md` if SDK behavior changes data collection or support flows. Not needed yet — no real SDK is wired in, so no data-collection behavior actually changed.
 
 Done when:
 

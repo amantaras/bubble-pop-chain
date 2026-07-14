@@ -8,16 +8,17 @@
 //      (preferred — keeps this file untouched and swappable per platform).
 //
 // A provider is any object that may implement `showRewardedAd(label) -> bool`,
-// `showInterstitial() -> any`, and/or `purchase(productId) -> { ok }`. Any
-// method it omits falls back to the built-in mock on web/dev only, so a provider
-// can override just the surfaces a given platform supports. Until the real ad
-// SDK is installed, native builds also allow an explicit development fallback
-// for opt-in rewarded ads so gameplay gates like revive remain testable.
-// Purchases and forced interstitials still fail closed without a provider.
-// The manager always owns *policy* — ad cadence, new-player grace, the
-// ads-removed gate, and persisting the remove-ads flag — so swapping providers
-// can never change when ads show or how purchases are recorded. The rest of the
-// game code stays unchanged.
+// `showInterstitial() -> any`, `purchase(productId) -> { ok }`, and/or
+// `restorePurchases() -> { productIds }`. Any method it omits falls back to
+// the built-in mock on web/dev only, so a provider can override just the
+// surfaces a given platform supports. Until the real ad SDK is installed,
+// native builds also allow an explicit development fallback for opt-in
+// rewarded ads so gameplay gates like revive remain testable.
+// Purchases, restores, and forced interstitials still fail closed without a
+// provider. The manager always owns *policy* — ad cadence, new-player grace,
+// the ads-removed gate, and persisting the remove-ads flag — so swapping
+// providers can never change when ads show or how purchases/restores are
+// recorded. The rest of the game code stays unchanged.
 import { Storage } from "./storage.js";
 
 class MonetizationManager {
@@ -81,6 +82,16 @@ class MonetizationManager {
 
   canPurchase() {
     return this._providerCan("purchase") || this._canUseMock();
+  }
+
+  // Restoring non-consumable entitlements (Remove Ads, Starter Pack, Season
+  // Premium, premium pets) only means something against a REAL store receipt/
+  // entitlement API — there is nothing meaningful to "restore" in mock/web
+  // mode (purchases there are already tracked directly in local storage), so
+  // unlike purchase()/showRewardedAd() this has no mock fallback: it is only
+  // available when a real provider implements it.
+  canRestorePurchases() {
+    return this._providerCan("restorePurchases");
   }
 
   canShowInterstitial() {
@@ -159,6 +170,32 @@ class MonetizationManager {
       Storage.set("adsRemoved", true);
     }
     return result || { ok: false };
+  }
+
+  // Restore previously-purchased non-consumable entitlements, e.g. after a
+  // reinstall or a new device. Delegates entirely to a real provider's
+  // `restorePurchases()` — expected to resolve `{ productIds: [...] }`, the
+  // set of product ids the platform's store confirms this player already
+  // owns. The manager still owns the ads-removed side effect for symmetry
+  // with purchase() (a restored "remove_ads" entitlement must re-apply the
+  // flag the same way a fresh purchase would); granting the CONTENTS of
+  // bundles/passes/pets remains the caller's job (main.js `restorePurchases`
+  // mirrors `buyStarterPack`/`buySeasonPremium`/`buyPremiumPet`'s existing
+  // idempotent grant logic so restoring something already owned locally is a
+  // harmless no-op, not a double-grant).
+  //
+  // Fails closed with no provider (there's nothing real to restore against
+  // in mock/web mode): `{ ok: false, productIds: [], nativeProviderRequired }`.
+  async restorePurchases() {
+    if (!this._providerCan("restorePurchases")) {
+      return { ok: false, productIds: [], nativeProviderRequired: this._isNativePlatform() };
+    }
+    const result = await this.provider.restorePurchases();
+    const productIds = (result && result.productIds) || [];
+    if (productIds.includes("remove_ads")) {
+      Storage.set("adsRemoved", true);
+    }
+    return { ok: true, productIds };
   }
 
   // The built-in mock transaction: succeeds for every known product id.

@@ -201,6 +201,48 @@ describe("monetization provider seam (real ad/IAP SDK injection)", () => {
     expect((await Monetization.purchase("nope")).ok).toBe(false);
   });
 
+  it("restorePurchases has no mock fallback: fails closed with no provider", async () => {
+    expect(Monetization.canRestorePurchases()).toBe(false);
+    const res = await Monetization.restorePurchases();
+    expect(res.ok).toBe(false);
+    expect(res.productIds).toEqual([]);
+    expect(res.nativeProviderRequired).toBe(false); // web/dev, not native
+  });
+
+  it("restorePurchases flags nativeProviderRequired on native platforms with no provider", async () => {
+    globalThis.Capacitor = { isNativePlatform: () => true };
+    const res = await Monetization.restorePurchases();
+    expect(res.ok).toBe(false);
+    expect(res.nativeProviderRequired).toBe(true);
+  });
+
+  it("restorePurchases delegates to the provider and reports the owned product ids", async () => {
+    Monetization.setProvider({
+      restorePurchases: async () => ({ productIds: ["starter_pack", "season_premium"] }),
+    });
+    expect(Monetization.canRestorePurchases()).toBe(true);
+    const res = await Monetization.restorePurchases();
+    expect(res.ok).toBe(true);
+    expect(res.productIds).toEqual(["starter_pack", "season_premium"]);
+  });
+
+  it("restorePurchases re-applies the ads-removed flag when the store reports it owned", async () => {
+    expect(Monetization.isAdsRemoved()).toBe(false);
+    Monetization.setProvider({
+      restorePurchases: async () => ({ productIds: ["remove_ads"] }),
+    });
+    const res = await Monetization.restorePurchases();
+    expect(res.ok).toBe(true);
+    expect(Monetization.isAdsRemoved()).toBe(true);
+  });
+
+  it("restorePurchases tolerates a provider returning no productIds", async () => {
+    Monetization.setProvider({ restorePurchases: async () => ({}) });
+    const res = await Monetization.restorePurchases();
+    expect(res.ok).toBe(true);
+    expect(res.productIds).toEqual([]);
+  });
+
   it("native builds allow rewarded gameplay fallback while ads are in development", async () => {
     globalThis.Capacitor = { isNativePlatform: () => true };
     expect(Monetization.canShowRewardedAd()).toBe(true);

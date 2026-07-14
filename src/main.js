@@ -390,6 +390,7 @@ class Game {
       claimSeasonTier: (index, track) => this.claimSeasonTier(index, track),
       buySeasonPremium: () => this.buySeasonPremium(),
       buyStarterPack: () => this.buyStarterPack(),
+      restorePurchases: () => this.restorePurchases(),
       crackPiggy: () => this.crackPiggy(),
       startEggHatch: () => this.startEggHatch(),
       hatchEgg: () => this.hatchEgg(),
@@ -1548,6 +1549,55 @@ class Game {
     if (STARTER_PACK.crates) Storage.addCrates(STARTER_PACK.crates);
     Storage.set("starterPack", true);
     return { ok: true, pack: STARTER_PACK };
+  }
+
+  // Restore previously-purchased non-consumable entitlements (Remove Ads,
+  // Starter Pack, Season Premium, premium pets) — e.g. after a reinstall or
+  // signing in on a new device. Delegates to the IAP provider's real
+  // entitlement/receipt check via Monetization.restorePurchases(); THIS
+  // method's job is only to re-apply each restored product's local grant,
+  // reusing the exact same idempotent logic buyStarterPack/buySeasonPremium/
+  // buyPremiumPet already use — so restoring something already owned locally
+  // is a harmless no-op, never a double-grant. Returns
+  // { ok, restored: string[] } ("restored" lists which grants were newly
+  // applied this call, not everything the store reports as owned).
+  async restorePurchases() {
+    const res = await Monetization.restorePurchases();
+    if (!res.ok) return { ok: false, restored: [], nativeProviderRequired: res.nativeProviderRequired };
+    const owned = new Set(res.productIds);
+    const restored = [];
+
+    if (owned.has("remove_ads")) restored.push("remove_ads"); // flag already set by Monetization.restorePurchases
+
+    if (owned.has(STARTER_PACK.id) && !Storage.get("starterPack")) {
+      Economy.addCoins(STARTER_PACK.coins);
+      Object.entries(STARTER_PACK.powerups).forEach(([type, n]) =>
+        Economy.addPowerup(type, n)
+      );
+      if (STARTER_PACK.crates) Storage.addCrates(STARTER_PACK.crates);
+      Storage.set("starterPack", true);
+      restored.push(STARTER_PACK.id);
+    }
+
+    if (owned.has(SEASON_PREMIUM_PRODUCT)) {
+      const season = Storage.get("season");
+      if (!season.premium) {
+        Storage.set("season", unlockPremium(season));
+        UI.refreshSeasonBadge();
+        restored.push(SEASON_PREMIUM_PRODUCT);
+      }
+    }
+
+    const petOwned = Storage.getPetState().owned;
+    PET_CATALOG.filter((p) => p.premium).forEach((pet) => {
+      const productId = pet.product || `pet_${pet.id}`;
+      if (owned.has(productId) && !petOwned[pet.id]) {
+        Storage.grantPet(pet.id, this._rollPetTrait());
+        restored.push(productId);
+      }
+    });
+
+    return { ok: true, restored };
   }
 
   // Drip a finished level's earnings into the Piggy Bank (capped). Tutorial

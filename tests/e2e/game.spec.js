@@ -5601,7 +5601,9 @@ test.describe("shop & monetization (UI)", () => {
     await expect(page.locator("#shop-free-coins")).toBeDisabled();
     await expect(page.locator("#shop-list button", { hasText: "Unavailable" })).toHaveCount(3);
     await page.locator('.shop-filter[data-shop-filter="offers"]').click();
-    await expect(page.locator("#shop-list button", { hasText: "Unavailable" })).toHaveCount(1);
+    // Remove Ads AND Restore Purchases both need a real provider, so both
+    // read "Unavailable" here.
+    await expect(page.locator("#shop-list button", { hasText: "Unavailable" })).toHaveCount(2);
   });
 
   test("buying a power-up deducts coins; insufficient funds is blocked", async ({
@@ -5731,6 +5733,80 @@ test.describe("shop & monetization (UI)", () => {
     // The shop now shows it as owned.
     await page.evaluate(() => window.__bpc.UI.buildShop());
     await expect(page.locator("#shop-starter-buy")).toContainText("Owned");
+  });
+
+  test("Restore Purchases is disabled with no real provider installed", async ({
+    page,
+  }) => {
+    await page.locator("#btn-shop").click();
+    await page.locator('.shop-filter[data-shop-filter="offers"]').click();
+    const restoreBtn = page.locator("#shop-restore-btn");
+    await expect(restoreBtn).toBeVisible();
+    await expect(restoreBtn).toBeDisabled();
+    await expect(restoreBtn).toContainText("Unavailable");
+  });
+
+  test("Restore Purchases recovers Remove Ads, Starter Pack, Season Premium, and a premium pet", async ({
+    page,
+  }) => {
+    // Inject a fake native provider that reports these products as already
+    // owned (simulating a reinstall on a device with a real store account).
+    await page.evaluate(() => {
+      window.__bpc.Monetization.setProvider({
+        restorePurchases: async () => ({
+          productIds: ["remove_ads", "starter_pack", "season_premium", "pet_aurora"],
+        }),
+      });
+    });
+    const before = await page.evaluate(() => ({
+      coins: window.__bpc.Economy.coins,
+      undo: window.__bpc.Economy.getPowerup("undo"),
+    }));
+
+    await page.locator("#btn-shop").click();
+    await page.locator('.shop-filter[data-shop-filter="offers"]').click();
+    const restoreBtn = page.locator("#shop-restore-btn");
+    await expect(restoreBtn).toBeEnabled();
+    await expect(restoreBtn).toContainText("Restore");
+    await restoreBtn.click();
+    await expect(page.locator("#toast")).toContainText("Restored 4 purchases");
+
+    const after = await page.evaluate(() => ({
+      adsRemoved: window.__bpc.Monetization.isAdsRemoved(),
+      starterPack: window.__bpc.Storage.get("starterPack"),
+      seasonPremium: window.__bpc.Storage.get("season").premium,
+      auroraOwned: !!window.__bpc.Storage.getPetState().owned.aurora,
+      coins: window.__bpc.Economy.coins,
+      undo: window.__bpc.Economy.getPowerup("undo"),
+    }));
+    expect(after.adsRemoved).toBe(true);
+    expect(after.starterPack).toBe(true);
+    expect(after.seasonPremium).toBe(true);
+    expect(after.auroraOwned).toBe(true);
+    // The Starter Pack's coin/tool grants were actually applied, not just flagged.
+    expect(after.coins).toBe(before.coins + 2000);
+    expect(after.undo).toBe(before.undo + 3);
+  });
+
+  test("Restore Purchases never double-grants an already-owned entitlement", async ({
+    page,
+  }) => {
+    // Buy the Starter Pack normally first.
+    await page.evaluate(() => window.__bpc.game.buyStarterPack());
+    const afterBuy = await page.evaluate(() => window.__bpc.Economy.coins);
+
+    // A restore that ALSO reports starter_pack as owned must be a no-op for
+    // it (no double coins/tools) — only genuinely new entitlements apply.
+    await page.evaluate(() => {
+      window.__bpc.Monetization.setProvider({
+        restorePurchases: async () => ({ productIds: ["starter_pack"] }),
+      });
+    });
+    const res = await page.evaluate(() => window.__bpc.game.restorePurchases());
+    expect(res.ok).toBe(true);
+    expect(res.restored).toEqual([]);
+    const afterRestore = await page.evaluate(() => window.__bpc.Economy.coins);
+    expect(afterRestore).toBe(afterBuy);
   });
 
   test("no forced interstitial before level 7 (new-player grace)", async ({
