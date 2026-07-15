@@ -163,6 +163,16 @@ const BOSS_PORTRAIT_ICONS = {
 const STARTER_PACK_ICON = "./assets/icons/rewards/starter-pack.png";
 const PIGGY_BANK_ICON = "./assets/icons/rewards/piggy-bank.png";
 const NO_ADS_ICON = "./assets/icons/rewards/no-ads-shield.png";
+const TROPHY_ICON = "./assets/icons/rewards/trophy.png";
+const PALETTE_ICON = "./assets/icons/rewards/palette.png";
+const PAW_ICON = "./assets/icons/rewards/paw.png";
+const HAMMER_ICON = "./assets/icons/rewards/hammer.png";
+const FLAME_ICON = "./assets/icons/rewards/flame.png";
+const SNOWFLAKE_ICON = "./assets/icons/rewards/snowflake.png";
+const DICE_ICON = "./assets/icons/rewards/dice.png";
+const EGG_ICON = "./assets/icons/rewards/egg.png";
+const CHICK_ICON = "./assets/icons/rewards/chick.png";
+const PARTY_ICON = "./assets/icons/rewards/party.png";
 
 // Win-chest coin count-up timing: the lid pops, then (after a short beat)
 // the coin total tallies up. Any ceremony step that hides the win screen
@@ -212,6 +222,75 @@ function piggyBankIconHtml(className = "si-icon") {
 function noAdsIconHtml(className = "si-icon") {
   return `<span class="${className} no-ads-icon" aria-hidden="true">` +
     `<img src="${NO_ADS_ICON}" alt="" decoding="async">` +
+    `</span>`;
+}
+
+// Win-screen reward-card icons for the "best score"/"theme unlock"/"pet"/
+// "tool" reward kinds (see _rewardCardIcon), replacing the plain 🏆/🎨/🐾/⚒️
+// emoji those cards used to show. Same local-image pattern as every other
+// reward icon above.
+function trophyIconHtml(className = "wrc-icon-img") {
+  return `<span class="${className} trophy-icon" aria-hidden="true">` +
+    `<img src="${TROPHY_ICON}" alt="" decoding="async">` +
+    `</span>`;
+}
+function paletteIconHtml(className = "wrc-icon-img") {
+  return `<span class="${className} palette-icon" aria-hidden="true">` +
+    `<img src="${PALETTE_ICON}" alt="" decoding="async">` +
+    `</span>`;
+}
+function pawIconHtml(className = "wrc-icon-img") {
+  return `<span class="${className} paw-icon" aria-hidden="true">` +
+    `<img src="${PAW_ICON}" alt="" decoding="async">` +
+    `</span>`;
+}
+function hammerIconHtml(className = "wrc-icon-img") {
+  return `<span class="${className} hammer-icon" aria-hidden="true">` +
+    `<img src="${HAMMER_ICON}" alt="" decoding="async">` +
+    `</span>`;
+}
+
+// Daily-streak icon (menu daily summary "N🔥" + the win-screen "Streak N"
+// reward card) and streak-freeze-token icon (menu daily summary freeze count
+// + the win-screen "Freeze earned/used" reward card), replacing the plain
+// 🔥/❄️ emoji those slots used to show.
+function flameIconHtml(className = "flame-icon") {
+  return `<span class="${className} flame-icon" aria-hidden="true">` +
+    `<img src="${FLAME_ICON}" alt="" decoding="async">` +
+    `</span>`;
+}
+function snowflakeIconHtml(className = "snowflake-icon") {
+  return `<span class="${className} snowflake-icon" aria-hidden="true">` +
+    `<img src="${SNOWFLAKE_ICON}" alt="" decoding="async">` +
+    `</span>`;
+}
+
+// Daily Wager result icon (win-screen "Wager won/lost" reward card),
+// replacing the plain 🎲 emoji.
+function diceIconHtml(className = "dice-icon") {
+  return `<span class="${className} dice-icon" aria-hidden="true">` +
+    `<img src="${DICE_ICON}" alt="" decoding="async">` +
+    `</span>`;
+}
+
+// Pet Store Mystery Egg incubation icons (the crate-egg-icon card flips from
+// the egg to the chick once ready to hatch), replacing the plain 🥚/🐣 emoji.
+function eggIconHtml(className = "crate-egg-icon") {
+  return `<span class="${className} egg-icon" aria-hidden="true">` +
+    `<img src="${EGG_ICON}" alt="" decoding="async">` +
+    `</span>`;
+}
+function chickIconHtml(className = "crate-egg-icon") {
+  return `<span class="${className} chick-icon" aria-hidden="true">` +
+    `<img src="${CHICK_ICON}" alt="" decoding="async">` +
+    `</span>`;
+}
+
+// Shared celebration icon (Pets screen Party tab + Lucky Wheel jackpot
+// segment), replacing the plain 🎉 emoji.
+function partyIconHtml(className = "party-icon") {
+  return `<span class="${className} party-icon" aria-hidden="true">` +
+    `<img src="${PARTY_ICON}" alt="" decoding="async">` +
     `</span>`;
 }
 
@@ -1427,9 +1506,9 @@ class UIManager {
     const done = alreadyPlayedToday();
     const parts = [
       `<span class="ds-mod">${mod.label}</span>`,
-      `<span class="ds-streak">${streak}🔥</span>`,
+      `<span class="ds-streak">${streak}${flameIconHtml("ds-streak-ic")}</span>`,
     ];
-    if (freeze > 0) parts.push(`<span class="ds-freeze">${freeze}❄️</span>`);
+    if (freeze > 0) parts.push(`<span class="ds-freeze">${freeze}${snowflakeIconHtml("ds-freeze-ic")}</span>`);
     if (done) parts.push(`<span class="ds-done">✓ played</span>`);
     el.innerHTML = parts.join("");
 
@@ -2795,7 +2874,7 @@ class UIManager {
   // "✨" dust glyphs — mirrors _calRewardIcon) instead of a raw emoji, so
   // the dial and win result read consistently with calendar/season/quests.
   _wheelSegIcon(reward) {
-    if (reward.id === "jackpot") return "🎉";
+    if (reward.id === "jackpot") return partyIconHtml("wsl-tool-icon");
     if (reward.crate) return crateIconHtml("wsl-tool-icon");
     if (reward.powerup) return toolIconHtml(reward.powerup, "wsl-tool-icon");
     if (reward.dust) return dustIconHtml("wsl-tool-icon");
@@ -3731,7 +3810,7 @@ class UIManager {
       eggCard = document.createElement("div");
       eggCard.className = "crate-egg" + (eggReadyNow ? " ready" : "");
       eggCard.innerHTML =
-        `<span class="crate-egg-icon" aria-hidden="true">${eggReadyNow ? "🐣" : "🥚"}</span>` +
+        (eggReadyNow ? chickIconHtml() : eggIconHtml()) +
         `<div class="crate-egg-text">` +
         `<div class="crate-egg-title">${eggReadyNow ? "Egg ready to hatch!" : "Egg incubating…"}</div>` +
         `<div class="crate-egg-sub" id="egg-status">${
@@ -5301,6 +5380,7 @@ class UIManager {
 
   _rewardCardKind(text) {
     if (/New best/i.test(text)) return "best";
+    if (/^Streak/i.test(text)) return "streak";
     if (/Objective/i.test(text)) return "objective";
     if (/Theme/i.test(text)) return "theme";
     if (/Pet|Crate/i.test(text)) return "pet";
@@ -5310,17 +5390,44 @@ class UIManager {
     return "reward";
   }
 
+  // Explicit emoji glyphs already embedded as the FIRST word of a reward-card
+  // bit's text (main.js pushes bits like "🏆 New best score!"/"🎁 +N bonus
+  // coins"/"🐾 Pet Crate"/"👹 Boss jackpot +N coins"/"🎨 Theme unlocked: X"/
+  // "❄️ Freeze earned!"/"🎲 Wager won! +N coins") — swap the known ones for
+  // the matching local icon image instead of rendering the raw emoji, same
+  // icon-language convention as every other reward slot. This is the path
+  // that actually fires for most kinds below (best/pet/boss/theme texts
+  // ALWAYS carry a leading emoji from main.js, so the kind-based map in
+  // _rewardCardIcon is reached only when a bit has no such prefix — e.g.
+  // "Streak N"/"Free {tool}"). "🎯" (objective) is deliberately NOT mapped:
+  // the Meshy target/bullseye concept failed vividness 3 times (see repo
+  // memory), so that slot keeps the plain emoji. An unrecognised prefix
+  // glyph still falls back to itself.
+  static REWARD_EMOJI_ICON_SWAP = {
+    "🏆": () => trophyIconHtml("wrc-icon-img"),
+    "🎁": () => giftIconHtml("wrc-icon-img"),
+    "🐾": () => pawIconHtml("wrc-icon-img"),
+    "👹": () => bossIconHtml("wrc-icon-img"),
+    "🎨": () => paletteIconHtml("wrc-icon-img"),
+    "❄️": () => snowflakeIconHtml("wrc-icon-img"),
+    "🎲": () => diceIconHtml("wrc-icon-img"),
+  };
+
   _rewardCardIcon(text, kind) {
     const explicit = String(text || "").match(/^\S+/)?.[0] || "";
-    if (explicit && !/[A-Za-z0-9+]/.test(explicit)) return explicit;
+    if (explicit && !/[A-Za-z0-9+]/.test(explicit)) {
+      const swap = UIManager.REWARD_EMOJI_ICON_SWAP[explicit];
+      return swap ? swap() : explicit;
+    }
     return {
-      best: "🏆",
+      best: trophyIconHtml("wrc-icon-img"),
+      streak: flameIconHtml("wrc-icon-img"),
       objective: "🎯",
-      theme: "🎨",
-      pet: "🐾",
-      boss: "👹",
+      theme: paletteIconHtml("wrc-icon-img"),
+      pet: pawIconHtml("wrc-icon-img"),
+      boss: bossIconHtml("wrc-icon-img"),
       coins: coinIconHtml("stack", "wrc-coin-icon"),
-      tool: "⚒️",
+      tool: hammerIconHtml("wrc-icon-img"),
       reward: "✨",
     }[kind] || "✨";
   }

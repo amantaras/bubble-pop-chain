@@ -1716,7 +1716,9 @@ test.describe("daily retention engine", () => {
   }) => {
     await expect(page.locator("#menu")).toBeVisible();
     const summary = page.locator("#daily-summary");
-    await expect(summary).toContainText("🔥");
+    // The streak count now shows the local flame icon image rather than a
+    // raw "🔥" emoji glyph.
+    await expect(summary.locator(".ds-streak img")).toHaveAttribute("src", /flame\.png/);
     await expect(summary).not.toBeEmpty();
   });
 
@@ -2068,6 +2070,48 @@ test.describe("campaign progression", () => {
     // wrapper (no iconAsset guaranteed for every tool) but must still route
     // through toolIconHtml's wrapper, not a raw emoji string.
     await expect(page.locator('#win-choice-list .win-choice-btn[data-choice="tool:bomb"] .wcb-icon .tool-icon-wrap')).toHaveCount(1);
+  });
+
+  test("win-screen reward-card kinds render the local icon-language images, not raw emoji", async ({
+    page,
+  }) => {
+    // Direct coverage of _rewardCardIcon, using the EXACT emoji-prefixed
+    // strings main.js actually pushes into rewardBits (🏆/🎁/🐾/👹/🎨/❄️/🎲) --
+    // the reward-card icon lookup checks the leading emoji FIRST (via
+    // REWARD_EMOJI_ICON_SWAP) before ever falling back to the kind-based map,
+    // so a test using plain unprefixed strings wouldn't catch a regression
+    // here. "tool" (starts with "Free", no emoji prefix) and "streak"
+    // (main.js drops its trailing emoji) are the two kinds that actually
+    // reach the kind-based map in real play.
+    const results = await page.evaluate(() => {
+      const ui = window.__bpc.UI;
+      const kindOf = (t) => ui._rewardCardKind(t);
+      const iconOf = (t) => ui._rewardCardIcon(t, kindOf(t));
+      return {
+        best: iconOf("🏆 New best score!"),
+        gift: iconOf("🎁 +50 bonus coins"),
+        pet: iconOf("🐾 Pet Crate"),
+        boss: iconOf("👹 Boss jackpot +100 coins"),
+        theme: iconOf("🎨 Theme unlocked: Neon"),
+        freeze: iconOf("❄️ Freeze earned!"),
+        wager: iconOf("🎲 Wager won! +50 coins"),
+        tool: iconOf("Free Bomb Bomb"),
+        streak: iconOf("Streak 3"),
+        objective: iconOf("🎯 Objective: +50 coins"),
+      };
+    });
+    expect(results.best).toContain("trophy.png");
+    expect(results.gift).toContain("gift.png");
+    expect(results.pet).toContain("paw.png");
+    expect(results.boss).toContain("boss.png");
+    expect(results.theme).toContain("palette.png");
+    expect(results.freeze).toContain("snowflake.png");
+    expect(results.wager).toContain("dice.png");
+    expect(results.tool).toContain("hammer.png");
+    expect(results.streak).toContain("flame.png");
+    // Objective (🎯 target/bullseye) is a deliberate exception -- the Meshy
+    // concept failed vividness 3 times, so it intentionally keeps the raw emoji.
+    expect(results.objective).toBe("🎯");
   });
 });
 
@@ -2522,6 +2566,8 @@ test.describe("double-or-nothing wager (daily)", () => {
     await expect(page.locator("#win")).toBeVisible({ timeout: 4000 });
     await expect(page.locator("#win-reward")).toContainText("Wager won");
     await expect(page.locator("#win-reward")).toContainText(`+${payout} coins`);
+    // The reward card's icon slot renders the local dice image, not a raw "🎲" emoji.
+    await expect(page.locator("#win-reward .win-reward-card", { hasText: "Wager won" }).locator(".wrc-icon img")).toHaveAttribute("src", /dice\.png/);
     const coins = await page.evaluate(() => window.__bpc.Economy.coins);
     // 100 (post-stake) + score coins + payout, at minimum more than the payout alone.
     expect(coins).toBeGreaterThanOrEqual(100 + payout);
@@ -2538,6 +2584,7 @@ test.describe("double-or-nothing wager (daily)", () => {
     await expect(page.locator("#win")).toBeVisible({ timeout: 4000 });
     await expect(page.locator("#win-reward")).toContainText("Wager lost");
     await expect(page.locator("#win-reward")).toContainText("-100 coins");
+    await expect(page.locator("#win-reward .win-reward-card", { hasText: "Wager lost" }).locator(".wrc-icon img")).toHaveAttribute("src", /dice\.png/);
     // Only the day's streak reward is added on top of the post-stake balance
     // (score is too low for score-coins) -- the 100 stake never comes back.
     const info = await page.evaluate(() => {
@@ -4777,6 +4824,14 @@ test.describe("lucky wheel (daily spin-to-win)", () => {
     await expect(page.locator("#wheel-spin")).toHaveText("Spin!");
   });
 
+  test("the jackpot segment renders the local party icon, not a raw emoji", async ({
+    page,
+  }) => {
+    const html = await page.evaluate(() => window.__bpc.UI._wheelSegIcon({ id: "jackpot" }));
+    expect(html).toContain("party.png");
+    expect(html).not.toContain("🎉");
+  });
+
   test("spinning grants a reward, rotates the dial, and locks until tomorrow", async ({
     page,
   }) => {
@@ -5221,6 +5276,8 @@ test.describe("per-level best score", () => {
     await expect(page.locator("#win")).toBeVisible();
     await expect(page.locator("#win-reward")).toContainText("New best score");
     await expect(page.locator("#win-reward .win-reward-card.best")).toContainText("New best score");
+    // The "best" reward-card kind renders the local trophy icon image.
+    await expect(page.locator("#win-reward .win-reward-card.best .wrc-icon img")).toHaveAttribute("src", /trophy\.png/);
   });
 });
 
@@ -6974,6 +7031,7 @@ test.describe("pet companions (collection & buffs)", () => {
     // The Open button is replaced by an incubating card; no reveal modal yet.
     await expect(page.locator(".crate-egg")).toBeVisible();
     await expect(page.locator(".crate-egg")).toContainText("incubating");
+    await expect(page.locator(".crate-egg .egg-icon img")).toHaveAttribute("src", /egg\.png/);
     await expect(page.locator("#egg-hatch")).toBeDisabled();
     await expect(page.locator("#pet-reveal")).toBeHidden();
 
@@ -7022,6 +7080,7 @@ test.describe("pet companions (collection & buffs)", () => {
     await page.locator("#btn-pets").click();
     await page.locator('.pet-tab[data-pet-tab="store"]').click();
     await expect(page.locator(".crate-egg")).toContainText("ready to hatch");
+    await expect(page.locator(".crate-egg .chick-icon img")).toHaveAttribute("src", /chick\.png/);
     await expect(page.locator("#egg-hatch")).toBeEnabled();
 
     const petId = await page.evaluate(() => window.__bpc.Storage.getEgg().rolled.petId);

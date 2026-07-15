@@ -1,0 +1,10 @@
+[
+  {
+    "id": "snowflake", "prompt": "A glossy 3D-rendered game icon of a sparkling ice-blue snowflake emblem with six crystalline branches, smooth icy translucent-looking but bright solid surface, painterly soft-shaded highlights, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/rewards/snowflake.png"
+  },
+  {
+    "id": "dice", "prompt": "A glossy 3D-rendered game icon of two rolling red dice with white pips, glossy enamel-like plastic surface with soft painterly highlights, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/rewards/dice.png"
+  }
+]

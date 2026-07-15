@@ -1,0 +1,6 @@
+[
+  {
+    "id": "dice2", "prompt": "A glossy 3D-rendered game icon of two rolling black casino dice with crisp white pip dots, glossy polished black plastic surface with sharp bright highlights, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/rewards/dice2.png"
+  }
+]

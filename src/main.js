@@ -5255,7 +5255,11 @@ class Game {
       this._awardSeasonXp(40);
       Audio.win();
       UI.setWinTitle("Daily Complete");
-      const bits = [`Streak ${info.streak}🔥`];
+      // The trailing emoji is dropped here (unlike the toast at the
+      // alreadyPlayedToday() branch above) because this text feeds the
+      // win-screen reward card, which now shows its own flame icon via
+      // _rewardCardKind's "streak" classification — see ui.js.
+      const bits = [`Streak ${info.streak}`];
       if (info.freezeAwarded) bits.push("❄️ Freeze earned!");
       else if (info.usedFreeze) bits.push("❄️ Freeze used");
       if (s.wager && s.wager.stake > 0) {

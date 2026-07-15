@@ -1,0 +1,34 @@
+[
+  {
+    "id": "trophy", "prompt": "A glossy 3D-rendered game icon of a golden trophy cup with two handles on a small pedestal base, shiny metallic gold surface with soft painterly highlights, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/rewards/trophy.png"
+  },
+  {
+    "id": "palette", "prompt": "A glossy 3D-rendered game icon of a wooden painter's palette with a thumb hole, dotted with several vivid blobs of paint (red, blue, yellow, green) and a small paintbrush laid across it, painterly soft-shaded wood surface, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/rewards/palette.png"
+  },
+  {
+    "id": "paw", "prompt": "A glossy 3D-rendered game icon of a cute animal paw print emblem, solid matte orange-brown material with soft painterly shading and a subtle rim highlight, bold clean rounded silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/rewards/paw.png"
+  },
+  {
+    "id": "hammer", "prompt": "A glossy 3D-rendered game icon of a crossed hammer and wrench emblem, brushed metal heads with dark wood handles, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/rewards/hammer.png"
+  },
+  {
+    "id": "flame", "prompt": "A glossy 3D-rendered game icon of a single vivid blazing orange-red flame emblem, smooth painterly soft-shaded surface with a bright yellow-white core, bold clean teardrop silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/rewards/flame.png"
+  },
+  {
+    "id": "egg", "prompt": "A glossy 3D-rendered game icon of a cute speckled egg standing upright, smooth matte cream-colored shell with small brown speckles, painterly soft-shaded surface, bold clean oval silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/rewards/egg.png"
+  },
+  {
+    "id": "chick", "prompt": "A glossy 3D-rendered game icon of a cute fluffy yellow baby chick freshly hatched from a cracked eggshell, painterly soft-shaded feathers, small orange beak, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/rewards/chick.png"
+  },
+  {
+    "id": "party", "prompt": "A glossy 3D-rendered game icon of a party popper cracker shooting out colorful confetti and streamers, solid glossy gold cone body, painterly soft-shaded surfaces, bold clean silhouette readable at small size, centered, isolated on a solid flat pure magenta background, no shadow on background, no text, no watermark",
+    "model": "nano-banana", "aspect": "1:1", "out": "scripts/meshy/output/rewards/party.png"
+  }
+]
