@@ -9822,6 +9822,51 @@ test.describe("puzzle mode (Tier 2)", () => {
     expect(await page.evaluate(() => window.__bpc.Storage.getPuzzleStars(14))).toBeGreaterThanOrEqual(1);
   });
 
+  // Extended ladder (19+): same proven objective types, bigger boards (up to
+  // the campaign's own 9x11 ceiling) and tighter move budgets.
+  test("the extended ladder's capstone puzzle (24) is a playable 9x11 stone-vault board", async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      const stars = {};
+      for (let i = 0; i < 23; i++) stars[i] = 1;
+      window.__bpc.Storage.set("puzzle", { stars });
+    });
+    await page.evaluate(() => window.__bpc.game.startPuzzle(23));
+    await page.waitForTimeout(400);
+    await expect(page.locator("#hud-mode-label")).toContainText("Puzzle 24");
+    const before = await page.evaluate(() => {
+      const g = window.__bpc.game;
+      return {
+        cols: g.session.board.cols,
+        rows: g.session.board.rows,
+        puzzleType: g.session.puzzleType,
+        stones: g.session.board.stoneRemaining(),
+      };
+    });
+    expect(before.cols).toBe(9);
+    expect(before.rows).toBe(11);
+    expect(before.puzzleType).toBe("stone");
+    expect(before.stones).toBeGreaterThan(0);
+    await expect(page.locator("#hud-target-label")).toHaveText("Stone");
+
+    await page.evaluate(() => {
+      const g = window.__bpc.game;
+      const b = g.session.board;
+      for (let c = 0; c < b.cols; c++)
+        for (let r = 0; r < b.rows; r++) {
+          if (b.types[c][r] === 5) {
+            b.grid[c][r] = -1;
+            b.types[c][r] = 0;
+            b.spriteGrid[c][r] = null;
+          }
+        }
+      g.afterMove();
+    });
+    await expect(page.locator("#win")).toBeVisible();
+    expect(await page.evaluate(() => window.__bpc.Storage.getPuzzleStars(23))).toBeGreaterThanOrEqual(1);
+  });
+
   test("the Puzzles screen shows a distinct objective badge per puzzle type", async ({
     page,
   }) => {

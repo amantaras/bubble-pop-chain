@@ -60,6 +60,15 @@ export const PUZZLES = [
   { cols: 8, rows: 10, colors: 6, seed: 1616, moves: 30, type: "frozen", coreW: 3, coreH: 2 },
   { cols: 8, rows: 10, colors: 6, seed: 1717, moves: 28, type: "stone", vaultW: 4, vaultH: 2 },
   { cols: 8, rows: 11, colors: 6, seed: 1818, moves: 26, type: "color" },
+  // ---- Extended ladder (19+): bigger cores/vaults, tighter budgets, and the
+  // ladder's first 9-column boards (still within the campaign's own proven
+  // max board size — levels.js colsForLevel/rowsForLevel top out at 9x11 too).
+  { cols: 8, rows: 11, colors: 6, seed: 1919, moves: 24, type: "frozen", coreW: 3, coreH: 3 },
+  { cols: 9, rows: 11, colors: 6, seed: 2020, moves: 32, specials: { ice: 0.06, rainbow: 0.03 } },
+  { cols: 9, rows: 11, colors: 6, seed: 2121, moves: 24, type: "stone", vaultW: 4, vaultH: 3 },
+  { cols: 9, rows: 11, colors: 6, seed: 2222, moves: 20, type: "color" },
+  { cols: 9, rows: 11, colors: 6, seed: 2323, moves: 26, specials: { ice: 0.07, rainbow: 0.04 }, type: "frozen", coreW: 3, coreH: 3 },
+  { cols: 9, rows: 11, colors: 6, seed: 2424, moves: 22, type: "stone", vaultW: 4, vaultH: 3 },
 ];
 
 // Total number of authored puzzles in the ladder.

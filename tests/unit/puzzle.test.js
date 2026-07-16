@@ -137,3 +137,41 @@ describe("puzzle objective types", () => {
     expect(isPuzzleUnlocked(PUZZLE_COUNT - 1, {})).toBe(false);
   });
 });
+
+// Extended ladder (19+): grew the ladder again beyond the original 18-puzzle
+// set with tighter budgets and bigger cores/vaults, still reusing the exact
+// same objective types and board-size ceiling (9x11) the campaign itself
+// already proves out at high levels.
+describe("extended puzzle ladder (19+)", () => {
+  it("grew the ladder beyond the prior 18-puzzle set", () => {
+    expect(PUZZLE_COUNT).toBeGreaterThanOrEqual(24);
+    // Puzzles 1-18 keep their exact original seeds (fixed boards must never
+    // silently change under existing players who have already solved them).
+    const originalSeeds = [
+      101, 202, 303, 404, 505, 606, 707, 808, 909, 1010, 1111, 1212,
+      1313, 1414, 1515, 1616, 1717, 1818,
+    ];
+    expect(PUZZLES.slice(0, 18).map((p) => p.seed)).toEqual(originalSeeds);
+  });
+
+  it("never exceeds the campaign's own proven max board size (9 cols x 11 rows)", () => {
+    for (let i = 18; i < PUZZLE_COUNT; i++) {
+      const def = getPuzzle(i);
+      expect(def.cols).toBeLessThanOrEqual(9);
+      expect(def.rows).toBeLessThanOrEqual(11);
+    }
+  });
+
+  it("keeps every extended-ladder core/vault strictly inside its board", () => {
+    for (let i = 18; i < PUZZLE_COUNT; i++) {
+      const def = getPuzzle(i);
+      if (def.puzzleType === "frozen") {
+        expect(def.coreW).toBeLessThan(def.cols);
+        expect(def.coreH).toBeLessThan(def.rows);
+      } else if (def.puzzleType === "stone") {
+        expect(def.vaultW).toBeLessThan(def.cols);
+        expect(def.vaultH).toBeLessThan(def.rows);
+      }
+    }
+  });
+});

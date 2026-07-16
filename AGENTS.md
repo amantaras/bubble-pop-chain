@@ -1229,7 +1229,7 @@ never re‑discovered the hard way.
   feature it never affects win/star outcomes and gets **no tutorial step**.
 - **Puzzle Mode** (`puzzle.js`, pure; `storage.js` `puzzle.stars`; `main.js`
   `startPuzzle`/`_finishPuzzleStragglers`; `ui.js` `buildPuzzles`/`refreshPuzzleBadge`):
-  a fixed ladder of hand-tuned move-limited boards. `PUZZLES` defines 18 configs
+  a fixed ladder of hand-tuned move-limited boards. `PUZZLES` defines 24 configs
   (`cols`/`rows`/`colors`/`seed`/`moves`/`specials`), `getPuzzle(i)` clamps +
   shapes a level object (`mode === "puzzle"`), `puzzleStars(movesLeft, total)`
   rates 1–3 stars by the fraction of the budget left (`PUZZLE_STAR_RATIOS`),
@@ -1862,7 +1862,7 @@ If you cannot make the tests pass, do not commit. Fix the root cause.
 - **Determinism**: levels/daily use seeded RNG (`rng.js`). Assert on seeds and
   derived values, not random outcomes. Unit tests get a clean in-memory
   `localStorage` via `tests/setup.js` (reset before each test).
-- **Current baseline (keep growing, never shrink)**: 807 unit tests + 688 E2E
+- **Current baseline (keep growing, never shrink)**: 810 unit tests + 690 E2E
   tests, all passing. New features must add tests, not remove coverage.
 
 ## 5. CI/CD — production is gated on tests
